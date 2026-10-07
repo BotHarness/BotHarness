@@ -222,7 +222,10 @@ it('pins independently, exposes right-click controls and applies global bounded 
         left,
         right: left + 320,
         bottom,
-        top: bottom + Number.parseFloat(cards.style.height),
+        top:
+          bottom +
+          Number.parseFloat(cards.style.height) +
+          (character.dataset['reading'] === 'true' ? 0 : (cards.children.length - 1) * 8),
       };
     };
     const graceBounds = bounds('grace');
@@ -257,6 +260,49 @@ it('pins independently, exposes right-click controls and applies global bounded 
     await act(() => walking.click());
     expect(owner.get('ada')!.getSnapshot().selection?.walking).toBe(false);
     expect(owner.get('grace')!.getSnapshot().selection?.walking).toBe(true);
+    vi.stubGlobal('innerHeight', 640);
+    measurement.mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 360,
+      bottom: 640,
+      width: 360,
+      height: 640,
+      toJSON: () => ({}),
+    });
+    await act(() => {
+      owner.configureCapacity({ layers: 10, retention: 10 });
+      for (const botId of ['ada', 'grace']) {
+        owner.get(botId)!.reading(false);
+        owner.get(botId)!.configure({ walking: false });
+        for (let i = 0; i < 10; i++)
+          events.dispatchEvent(
+            new MessageEvent('companion/message', {
+              data: JSON.stringify({
+                generation: 'host',
+                botId,
+                messageId: `${botId}-narrow-${i}`,
+                channelId: botId,
+                channelName: botId,
+                body: 'Narrow viewport',
+              }),
+            }),
+          );
+      }
+      window.dispatchEvent(new Event('resize'));
+    });
+    await act(() => {
+      for (const callback of [...frames.values()]) callback(performance.now() + 120);
+    });
+    const narrowAda = bounds('ada');
+    const narrowGrace = bounds('grace');
+    expect(narrowAda.top).toBeLessThanOrEqual(624);
+    expect(narrowGrace.top).toBeLessThanOrEqual(624);
+    expect(narrowAda.left).toBeGreaterThanOrEqual(8);
+    expect(narrowGrace.right).toBeLessThanOrEqual(352);
+    expect(narrowAda.top <= narrowGrace.bottom || narrowGrace.top <= narrowAda.bottom).toBe(true);
     const input = node.querySelector<HTMLInputElement>('[name="retention"]')!;
     await act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '2');

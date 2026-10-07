@@ -229,7 +229,6 @@ export class WindowCompanions {
         this.connect();
       } catch (error) {
         this.streams.delete(botId);
-        this.revision++;
         this.state = { ...this.state, sync: 'stale' };
         this.notify();
         throw error;
@@ -245,6 +244,7 @@ export class WindowCompanions {
       close: () => {
         if (this.streams.get(botId) !== virtual) return;
         this.streams.delete(botId);
+        this.revision++;
         this.schedule();
       },
     };

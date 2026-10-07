@@ -1,6 +1,63 @@
 import { expect, it, vi } from 'vitest';
 import { WindowCompanions } from '../src/client/window-companions.js';
 
+it('does not let an old Activity acknowledgement cancel a failed removal retry', async () => {
+  vi.useFakeTimers();
+  const events = new EventTarget();
+  const revisions: number[] = [];
+  const owner = new WindowCompanions({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({
+      readyState: 1,
+      addEventListener: events.addEventListener.bind(events),
+      close() {},
+    }),
+    update: async (value) => {
+      revisions.push(value.revision);
+      if (revisions.length === 2) throw new Error('Temporary failure');
+    },
+  });
+  const emit = (name: string, revision: number, bots: string[]) =>
+    events.dispatchEvent(
+      new MessageEvent(name, {
+        data: JSON.stringify({
+          profileId: 'qa',
+          consumerId: 'live',
+          selectionRevision: revision,
+          bots: bots.map((slug) => ({ slug, name: slug, paused: false })),
+          activity: {
+            generation: 'host',
+            revision,
+            bots: bots.map((slug) => ({ slug, state: 'idle' })),
+          },
+        }),
+      }),
+    );
+  try {
+    await owner.start();
+    owner.select('ada');
+    owner.select('grace');
+    await Promise.resolve();
+    emit('companion/baseline', 0, []);
+    await vi.advanceTimersByTimeAsync(0);
+    emit('companion/selection', revisions[0]!, ['ada', 'grace']);
+    owner.remove('ada');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(revisions[1]).toBeGreaterThan(revisions[0]!);
+    emit('companion/activity', revisions[0]!, ['ada', 'grace']);
+    expect(owner.getSnapshot().sync).toBe('stale');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(revisions).toHaveLength(3);
+    emit('companion/selection', revisions[2]!, ['grace']);
+    expect(owner.getSnapshot().sync).toBe('live');
+    expect(owner.get('ada')).toBeUndefined();
+    expect(owner.get('grace')!.getSnapshot().bot?.slug).toBe('grace');
+  } finally {
+    owner.dispose();
+    vi.useRealTimers();
+  }
+});
+
 it('retries a temporarily rejected selection without reopening the feed and keeps stale until acknowledgement', async () => {
   vi.useFakeTimers();
   const events = new EventTarget();

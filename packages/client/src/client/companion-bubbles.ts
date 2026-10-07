@@ -22,7 +22,8 @@ export class CompanionBubbles {
   ): BubblePlacement {
     const boundedLeft = (left: number) => Math.max(8, Math.min(left, width - 328));
     const minimum = 8 - (y + 134);
-    const maximum = height - 16 - (y + (cards ? 286 : 158));
+    const collapsedOverflow = !reading && cards ? (cards - 1) * 8 : 0;
+    const maximum = height - 16 - (y + (cards ? 286 + collapsedOverflow : 158));
     const base = Math.max(minimum, Math.min(0, maximum));
     const previous = this.boxes.get(botId);
     const box = (left: number, offset: number): BubbleBox => {
@@ -58,8 +59,15 @@ export class CompanionBubbles {
         ]),
       ];
       let found = false;
+      const offsets = [
+        base,
+        ...others.flatMap((other) => [
+          other.top + 8 - (y + 134),
+          other.bottom - 8 - placed.top + base,
+        ]),
+      ].filter((offset) => offset >= base && offset <= maximum);
       for (const left of candidates) {
-        for (let offset = base; offset <= maximum; offset += cards ? 160 : 32) {
+        for (const offset of offsets) {
           const candidate = box(left, offset);
           const overlap = others.some(
             (other) =>
