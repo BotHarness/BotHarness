@@ -3,6 +3,22 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'companion.show': '显示为窗口伙伴',
+  'companion.remove': '移除窗口伙伴',
+  'companion.label': '{name} · 窗口伙伴',
+  'companion.drag': '拖动 {name}；点击打开私聊',
+  'companion.activity': '播放活动标签',
+  'companion.dm': '播放私聊消息',
+  'companion.messages': '伙伴的新消息',
+  'companion.source': '私聊 · {name}',
+  'companion.dismiss': '关闭气泡',
+  'companion.openDm': '打开私聊',
+  'companion.pause': '暂停走动',
+  'companion.walk': '恢复走动',
+  'companion.more': '伙伴选项',
+  'companion.attention': '查看待处理事项',
+  'companion.stale': '同步中断 · 等待重新连接',
+  'companion.archived': '已归档',
   'approvalIm.title': 'Lark 审批通知',
   'approvalIm.hint':
     '选择已配对且获准处理审批的私聊用户。每个工具审批请求都会自动发到此处；普通聊天接收另行配置。',
@@ -2106,6 +2122,22 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'companion.show': 'Show as Window Companion',
+  'companion.remove': 'Remove Window Companion',
+  'companion.label': '{name} · Window Companion',
+  'companion.drag': 'Drag {name}; click to open DM',
+  'companion.activity': 'Play Activity labels',
+  'companion.dm': 'Play DM messages',
+  'companion.messages': 'New companion messages',
+  'companion.source': 'DM · {name}',
+  'companion.dismiss': 'Dismiss bubble',
+  'companion.openDm': 'Open DM',
+  'companion.pause': 'Pause walking',
+  'companion.walk': 'Resume walking',
+  'companion.more': 'Companion options',
+  'companion.attention': 'Open Human attention',
+  'companion.stale': 'Synchronization interrupted · reconnecting',
+  'companion.archived': 'Archived',
   'approvalIm.title': 'Lark approval notifications',
   'approvalIm.hint':
     'Choose a paired private user authorized to handle approvals. Each tool approval goes here automatically; ordinary conversation reception is configured separately.',

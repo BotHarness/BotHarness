@@ -181,3 +181,11 @@ Reply to that exact Lark report in its topic, @mentioning the bound Bot. Its eli
 ### 外部附近上下文
 
 Bot 使用 `bridge_context` 的 `nearby` 时，默认读取来源前后各五分钟内的可见 Human 文字消息；一侧不足时，补齐最近的前 10／后 5 条（锚点自身不计入）。可使用 `before_count`／`after_count` 调整每侧 0–20 条。窗口密集时不会因为达到条数而截断：继续传回同一来源、范围和条数配置下的 `nextCursor`，直到没有续页；每页仍受返回文字预算限制。每个 Cursor 有效 30 分钟，重启或授权变化可使其失效。Lark 的 Chat 列表可能不包含话题回复，读取话题内容仍使用 `thread`；锚点本身保留在原 Inbox 来源中。只读取现有消息，不等待未来内容；权限、略过消息或历史已尽可使结果不足保底数量。读取的历史不会自动进入 Inbox（[ADR-0125](adr/0125-nearby-context-combines-time-coverage-and-count-minima.md)）。
+
+### Window Companion 的未来消息消费（#1138）
+
+`GET /api/botharness/companion` 通过 Connection Fetch 的原生认证返回 `{ profileId }`；标识为原生 Profile 目录的不透明 SHA-256，既不返回路径，也不包含凭据。`?botId=<slug>&dm=1|0` 返回 SSE：`companion/baseline` 和 `companion/activity` 含 Registry 形象与现有全 Bot Activity snapshot，`companion/message` 仅含拥有者已提交的 Human–Bot 私聊消息 ID、Channel ID/名称及最多 2000 字符的文字预览。首个切片不消费群聊或 Bot–Bot DM。未认证真实 Host 请求返回 401。
+
+Host 同步注册消费者后写基线，不扫描旧消息；Client 每次基线或 Host generation 变化清空过程卡片，重启只恢复本地选择。消息不持久化。Activity 合并为一个待发送快照，Host 消息待发队列最多二十条；Client 的卡片加待读总数最多二十张。断流显示 stale，后续重连从新基线开始，离线有界补播由 #1141 继续实现。取消消费释放 listener、heartbeat 与队列；移除伙伴后恢复普通页面的 Activity 消费。
+
+选中伙伴时，伙伴 feed 也供给共享 Activity store；不要同时打开独立 Activity SSE。真实 RC1 Windows Web 验证中，额外 SSE 曾使 Bot 模式的 DM 发送停在发送中，退出模式后恢复。合并消费后，同一模式内连续三条真实提交完成。此症状符合浏览器同 origin HTTP/1 长连接额度耗尽，具体连接计数未直接测量。

@@ -37,6 +37,41 @@ afterEach(() => {
 });
 
 describe('live PersonaBot activity', () => {
+  it('yields its redundant stream while a companion supplies shared Activity and resumes on removal', () => {
+    const store = createStore();
+    store.setMode('bot');
+    let companion = false;
+    let changed: (() => void) | undefined;
+    const sources: Source[] = [];
+    const dispose = mountActivityLive(
+      store,
+      () => {
+        const source = new Source();
+        sources.push(source);
+        return source as unknown as EventSource;
+      },
+      undefined,
+      {
+        enabled: () => !companion,
+        subscribe: (listener) => {
+          changed = listener;
+          return () => {
+            changed = undefined;
+          };
+        },
+      },
+    );
+    expect(sources).toHaveLength(1);
+    companion = true;
+    changed?.();
+    expect(sources[0]!.closed).toBe(true);
+    companion = false;
+    changed?.();
+    expect(sources).toHaveLength(2);
+    dispose();
+    expect(sources[1]!.closed).toBe(true);
+    expect(changed).toBeUndefined();
+  });
   it('shows Host changes without roster polling, retains them over stale HTTP results, and accepts restart baselines', () => {
     const store = createStore();
     store.setRoster([BOT], []);

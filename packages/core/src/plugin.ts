@@ -1,6 +1,8 @@
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { createCompanionFeed, COMPANION_PATH, type CompanionFeed } from './companions/feed.js';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-agent';
@@ -51,7 +53,7 @@ import { createModelPresetStore, type ModelPresetStore } from './models/presets.
 import { createModelCatalog } from './models/catalog.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
-import { createBotAvatarHttp, BOT_AVATAR_PATH } from './bots/avatar-http.js';
+import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -234,6 +236,7 @@ export interface BotHarnessCore {
   channels: ChannelStore;
   attachments: AttachmentStore;
   live: ChannelLiveHub;
+  companions: CompanionFeed;
   roster: RosterStore;
   runtime: BotRuntime;
   attention: BotAttentionQuery;
@@ -269,6 +272,7 @@ type BotAgentSetup = (
 export function createCore(
   options: {
     dshHome?: string;
+    companionProfileDir?: string | undefined;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
     saveReportSpill?: (input: {
@@ -365,6 +369,7 @@ export function createCore(
   }
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
+  let companions: CompanionFeed | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
@@ -407,6 +412,12 @@ export function createCore(
     botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => {
+      try {
+        const output = personaBotOutputCommitted(commit, ownership);
+        if (output !== undefined) companions?.publish(output);
+      } catch {
+        options.warn?.('companion-output-publication-failed');
+      }
       if (options.onOutputCommitted !== undefined) {
         try {
           const event = personaBotOutputCommitted(commit, ownership);
@@ -480,6 +491,36 @@ export function createCore(
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
+  companions = createCompanionFeed({
+    profileId: createHash('sha256')
+      .update(options.companionProfileDir ?? dshHome)
+      .digest('hex'),
+    bot: (slug) => {
+      const bot = registry.get(slug);
+      return bot === undefined
+        ? undefined
+        : {
+            slug,
+            name: bot.displayName,
+            paused: bot.paused === true,
+            ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatar === undefined
+              ? {}
+              : {
+                  avatar: bot.avatar.startsWith('data:image/')
+                    ? botAvatarUrl(slug, bot.avatar)
+                    : bot.avatar,
+                }),
+          };
+    },
+    activity: () =>
+      personaBotActivitySnapshot(
+        registry.list().map((bot) => bot.slug),
+        states,
+      ),
+    onActivity: (changed) => states.onActivity(() => changed()),
+    channel: (id) => channels.get(id),
+  });
   const memory = createMemoryService({
     registry,
     ownership,
@@ -599,6 +640,7 @@ export function createCore(
     humanAttentionDecisions,
     attachments,
     live,
+    companions,
     roster,
     runtime,
   };
@@ -716,6 +758,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   let toolApproval: ChannelToolApproval | undefined;
   const core = createCore({
     dshHome,
+    companionProfileDir: (ctx.get('profileContext') as { dir: string } | undefined)?.dir,
     onOutputCommitted: (event) =>
       emitPersonaBotOutputCommitted(ctx, event, (message) => ctx.logger.warn(message)),
     activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
@@ -782,6 +825,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.schedules.close(), 'botharness: bot schedules');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
+  ctx.effect(() => () => core.companions.close(), 'botharness: Window Companion feed');
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
@@ -1203,6 +1247,16 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         },
       });
     }, 'botharness: Channel live stream');
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: COMPANION_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: async (request) => core.companions.open(request),
+        }),
+      'botharness: authenticated Window Companion consumption',
+    );
     connectionCtx.effect(
       () =>
         connection.fetch.register({
