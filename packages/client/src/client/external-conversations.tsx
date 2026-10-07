@@ -267,7 +267,15 @@ export function ExternalConversations({
       </section>
     ) : null;
   if (!entries.length && !waiting.length && !blocked.length)
-    return <p className="bh-muted">{t('identity.conversationsEmpty')}</p>;
+    return (
+      <p className="bh-muted">
+        {t(
+          identity.platform === 'qq'
+            ? 'identity.qqConversationsEmpty'
+            : 'identity.conversationsEmpty',
+        )}
+      </p>
+    );
   return (
     <>
       {group(t('conversation.waiting'), waiting.map(heldRow))}

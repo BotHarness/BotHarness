@@ -253,6 +253,13 @@ it.each(['feishu', 'qq'] as const)(
         '静音',
         '屏蔽',
       ]);
+      snapshot = { ...snapshot, grants: [] };
+      await act(async () => render());
+      const empty = container.querySelector('[role="dialog"]')!.textContent;
+      if (platform === 'qq') {
+        expect(empty).toContain('在已加入的 QQ 群里 @ 这个应用');
+        expect(empty).not.toContain('私聊这个应用');
+      } else expect(empty).toContain('私聊这个应用');
     } finally {
       await act(async () => root.unmount());
       container.remove();

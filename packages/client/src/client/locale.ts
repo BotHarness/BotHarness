@@ -808,6 +808,8 @@ export const zh = {
   'identity.conversationCount': '{count} 个会话',
   'identity.conversations': '会话',
   'identity.conversationsEmpty': '还没有会话。私聊这个应用，或在群里 @ 它，会话就会出现在这里。',
+  'identity.qqConversationsEmpty':
+    '还没有群会话。在已加入的 QQ 群里 @ 这个应用，群会话就会出现在这里。',
   'identity.kind.dm': '私聊',
   'identity.kind.group': '群聊',
   'identity.lastMessage': '最近消息 {time}',
@@ -2960,6 +2962,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.conversations': 'Conversations',
   'identity.conversationsEmpty':
     'No conversations yet. DM the app or @mention it in a group and the conversation shows up here.',
+  'identity.qqConversationsEmpty':
+    'No group conversations yet. @mention this app in a QQ group it has joined and the group conversation shows up here.',
   'identity.kind.dm': 'DM',
   'identity.kind.group': 'Group',
   'identity.lastMessage': 'Last message {time}',
