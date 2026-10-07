@@ -31,15 +31,15 @@ The Human-facing name of a PersonaBot and the primary label shown by an `@` pick
 _Avoid_: identifier, slug, username
 
 **Tag**:
-One of zero or more Human-facing labels shown beside a PersonaBot's display name, such as a job or a speciality. Tags are descriptive only and never grant authority or identify the PersonaBot. They travel with the Bot when it is shared.
+One of zero or more Human-facing labels shown beside a PersonaBot's display name, such as a job or a speciality. Tags are descriptive only and never grant authority or identify the PersonaBot. They travel with the PersonaBot when it is shared.
 _Avoid_: role badge (historical), 职位, permission role, category
 
 **Bio**:
-An optional Human-authored self-introduction of at most 160 characters that explains who a PersonaBot is, what it does, or what it is good at. It travels with the Bot when it is shared.
+An optional Human-authored self-introduction of at most 160 characters that explains who a PersonaBot is, what it does, or what it is good at. It travels with the PersonaBot when it is shared.
 _Avoid_: Bot description (historical), Soul, Tag, system prompt
 
 **Profile Banner**:
-The wide header image of a PersonaBot Profile, shown behind its Avatar. It is either a generated pixel scene saved as a recipe of scene and seed, first seeded from the Display name when the Bot is created, or a Human-supplied image. It travels with the Bot when it is shared; a Group has none.
+The wide header image of a PersonaBot Profile, shown behind its Avatar. It is either a generated pixel scene saved as a recipe of scene and seed, first seeded from the Display name when the PersonaBot is created, or a Human-supplied image. It travels with the PersonaBot when it is shared; a Group has none.
 _Avoid_: cover, header, background, wallpaper
 
 **Soul**:
@@ -431,7 +431,7 @@ The membership state of a Channel that belongs to no Channel section. Ungrouped 
 _Avoid_: default folder, inbox, fixed bottom bucket
 
 **Bridge**:
-A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. The UI calls it an External connector (外部连接器); the Bot's own external identity is a separate thing.
+A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. The UI calls it an External connector (外部连接器); the PersonaBot's own external identity is a separate thing.
 _Avoid_: integration, adapter, connector (bare)
 
 **Bot Inbox**:
@@ -691,7 +691,7 @@ One registered, collapsible item of a Channel sidebar: a stable id, label, order
 _Avoid_: widget, card, tab, destination, Channel section
 
 **PersonaBot Profile**:
-The per-PersonaBot surface for its shareable identity and its read-only activity: the identity travels with the Bot when it is shared (Display name, Avatar, Profile Banner, Tags, Bio), and the activity is token usage derived from its owned Sessions, event activity from its Bot Inbox Admissions, and Memory commit activity. Operational configuration such as its Model Plan, Wake Policy, external identities, Bridges and approvals is never part of it; that lives in the Channel sidebar. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
+The per-PersonaBot surface for its shareable identity and its read-only activity: the identity travels with the PersonaBot when it is shared (Display name, Avatar, Profile Banner, Tags, Bio), and the activity is token usage derived from its owned Sessions, event activity from its Bot Inbox Admissions, and Memory commit activity. Operational configuration such as its Model Plan, Wake Policy, external identities, Bridges and approvals is never part of it; that lives in the Channel sidebar. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
 _Avoid_: account, dashboard, bot page, profile (bare), settings page
 
 **Group Profile**:

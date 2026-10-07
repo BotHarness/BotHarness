@@ -30,13 +30,17 @@ _避免使用_：Bot slug、display name、handle、username
 PersonaBot 面向人的名称，也是 `@` 选择器显示的主要标签。名称可以重复；被选中的 mention token 会保留 PersonaBot ID。
 _避免使用_：identifier、slug、username
 
-**Role badge**：
-显示在 PersonaBot 名称旁的零个或多个岗位或职位标签。Role badge 只描述身份，不授予权限，也不用于识别 PersonaBot。
-_避免使用_：Bot tag、permission role、category
+**Tag**：
+显示在 PersonaBot 名称旁的零个或多个标签，例如岗位或专长。Tag 只做描述，不授予权限，也不用于识别 PersonaBot；分享 PersonaBot 时会随之带走。
+_避免使用_：role badge（历史用词）、职位、permission role、category
 
-**Bot description**：
-由 Human 可选填写的简短自我介绍，用来说明 PersonaBot 是谁、负责什么或擅长什么。
-_避免使用_：Soul、role badge、system prompt
+**Bio**：
+由 Human 可选填写、最多 160 字的自我介绍，说明 PersonaBot 是谁、负责什么或擅长什么；分享 PersonaBot 时会随之带走。
+_避免使用_：Bot description（历史用词）、Soul、Tag、system prompt
+
+**Profile Banner**：
+PersonaBot Profile 头部、位于 Avatar 后方的宽幅头图。它要么是以 scene 与 seed 的 recipe 保存的生成像素场景（PersonaBot 创建时按 Display name 播种），要么是 Human 上传的图片；分享时随 PersonaBot 带走。Group 没有 Profile Banner。
+_避免使用_：cover、header、background、wallpaper
 
 **Soul**：
 「Bot 灵魂」。PersonaBot 的人格、语气与长期守则，保存在 Memory Repository 根目录的 `SOUL.md`；它与 Core Memory 一起在 Session 首次组装 system prompt 时冻结为快照并注入。它没有写保护，获得授权的 Agent 与 Human 都可以修改；修改只在新 Session 或下一次 compaction 时生效，不会改写正在运行的 prompt 前缀。
@@ -425,8 +429,8 @@ Channel 不属于任何 Channel section 时的 membership state。未分组 Chan
 _避免使用_：default folder、inbox、fixed bottom bucket
 
 **Bridge**：
-从 external source 到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。
-_避免使用_：integration、connector、adapter
+从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。UI 上称为「外部连接器 / External connector」；PersonaBot 自己的外部身份是另一回事。
+_避免使用_：integration、adapter、裸用 connector
 
 **Bot Inbox**：
 PersonaBot 层级的 view，包含被 admit 供其 attention 的 Source Event，无论 event 是否属于某个 Channel。它不是第二个 content store：读取是一项显式行为，也允许 ignore。
@@ -501,8 +505,8 @@ _避免使用_：failure、timeout、retryable error、success
 _避免使用_：cron job、DSH Schedule、timer、heartbeat、scheduled Assignment
 
 **Wake Policy**：
-确定性的 Host policy，决定已 admit 的 event 是立即 wake PersonaBot、并入 digest，还是不触发 automatic wake。
-_避免使用_：model decision、delivery mechanism、scheduler
+确定性的 Host policy，决定已 admit 的 event 是立即 wake PersonaBot、并入 digest，还是不触发 automatic wake。UI 上称为「唤醒策略 / Wake policy」；它从不通知 Human。
+_避免使用_：model decision、delivery mechanism、scheduler、提醒策略、attention policy、notification
 
 **Delivery Policy**：
 Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射为安全 step 处的 steer、下一次 harvest，或不唤醒。
@@ -673,7 +677,7 @@ DSH 原生 client 的左侧栏；在 Bot mode 中呈现 Roster。采用此名称
 _避免使用_：left sidebar、main sidebar、navigation
 
 **Channel sidebar**：
-Bot mode panel 中由当前所选 Channel 决定 scope 的右侧区域：group Channel 显示 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 Assignment、Memory、Bot Inbox 等 entry。它不是 DSH 原生、由 Session 决定 scope 的右侧栏。
+Bot mode panel 中由当前所选 Channel 决定 scope 的右侧区域：group Channel 显示 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 Assignment、Memory、Bot Inbox 等 entry，以及它的运行配置：Model Plan、Wake Policy、外部身份、外部连接器与审批。它不是 DSH 原生、由 Session 决定 scope 的右侧栏。
 _避免使用_：PersonaBot navigation、right panel、session panel、inspector、workbench
 
 **Channel body**：
@@ -685,12 +689,20 @@ Channel sidebar 中一个已注册、可折叠的 item，具有稳定 id、label
 _避免使用_：widget、card、tab、destination、Channel section
 
 **PersonaBot Profile**：
-单个 PersonaBot 的身份与活动 surface：Display name 与 Avatar、由其 owned Session 派生出的 token 用量与活动图表，以及 Memory commit 活跃度。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
-_避免使用_：account、dashboard、bot page、裸用 profile
+单个 PersonaBot 可分享的身份与只读活动 surface：身份会在分享 PersonaBot 时随之带走（Display name、Avatar、Profile Banner、Tag、Bio）；活动包括由其 owned Session 派生的 token 用量、来自 Bot Inbox Admission 的事件活跃度，以及 Memory commit 活跃度。Model Plan、Wake Policy、外部身份、Bridge、审批等运行配置不属于它，而在 Channel sidebar 中。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
+_避免使用_：account、dashboard、bot page、裸用 profile、settings page
 
 **Group Profile**：
-单个 Group Channel 基于已提交 Channel 消息的活动 surface，按天和作者展示消息数量，并区分 Human 与 PersonaBot 作者。群聊 header 打开弹层及 Channel body 详情；DM Channel 只有对应的 PersonaBot Profile。
+单个 Group Channel 的名称、头像，以及基于已提交 Channel 消息的活动 surface，按天和作者展示消息数量，并区分 Human 与 PersonaBot 作者；成员 Wake Policy、Bridge 等群配置在 Channel sidebar 中。群聊 header 打开弹层及 Channel body 详情；DM Channel 只有对应的 PersonaBot Profile。
 _避免使用_：PersonaBot token 用量、群管理侧栏、DM Channel Profile
+
+**Approver**：
+与某个 PersonaBot 完成配对、并由 Web Human 授予审批能力的外部 IM 用户。审批请求发往 Approval destination；任一 Approver 最先被接受的决定生效。看到请求、身处请求所在的群或同名都不构成权限，其他人的决定会被拒绝，不会到达 PersonaBot。
+_避免使用_：admin、moderator、group member、recipient
+
+**Approval destination**：
+从 PersonaBot 的外部连接器中选出的 IM 会话（私聊或群聊），Host 会把每个已提交的审批请求发到这里。收到请求不等于有权决定。
+_避免使用_：approver、notification channel、webhook
 
 **Profile popover**：
 PersonaBot 或 Group Profile 的紧凑形态，锚定在 Channel body header 的头像旁。它只显示 Human 为相应 scope 固定的 Profile Card，并提供进入 Profile view 的入口。
