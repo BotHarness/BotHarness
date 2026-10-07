@@ -3,7 +3,6 @@ import { act, createElement, type PropsWithChildren, type MouseEventHandler } fr
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MessagingSnapshot } from '../../core/src/messaging/outbound.js';
-import type { MessagingTarget } from '../../core/src/messaging/provider.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
   ...(await import('./primitive-mocks.js')).comboboxPrimitives(),
@@ -53,60 +52,46 @@ const snapshot = (): MessagingSnapshot => ({
   setup: { providerReady: true, receipts: [] },
 });
 
-const target: MessagingTarget = {
-  ref: 'qa',
-  name: 'QA',
-  digest: 'saved',
-  receiveScope: { kind: 'group', conversationId: 'oc-qa' },
-};
-
 async function choose(key: string) {
   await chooseOption(zhTranslate('im.account'), key);
 }
 
-it('recognizes a saved group target independently and returns it to unconfirmed on disconnection', async () => {
+const steps = () =>
+  [...container.querySelectorAll('.bh-lark-setup-steps li')].map((li) =>
+    li.textContent?.includes('已确认'),
+  );
+
+it('walks three steps from a connected app to a bound Bot and returns to unconfirmed on disconnection', async () => {
   const current = snapshot();
-  const loadTargets = vi.fn(async () => [target]);
   const refresh = vi.fn(async () => {});
   const render = () =>
-    root.render(
-      createElement(LarkSetupGuide, { snapshot: current, t: zhTranslate, refresh, loadTargets }),
-    );
+    root.render(createElement(LarkSetupGuide, { snapshot: current, t: zhTranslate, refresh }));
   await act(async () => render());
   await act(async () => container.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
+  expect(steps()).toEqual([false, false, false]);
   await choose('dsh-im/feishu:one');
-  expect(loadTargets).toHaveBeenCalledWith('dsh-im/feishu', 'one');
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('待确认');
-  await chooseOption(zhTranslate('im.target'), 'qa');
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('已确认');
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[2]?.textContent).toContain('待确认');
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[4]?.textContent).toContain('待确认');
+  expect(steps()).toEqual([true, false, false]);
+  current.identities = [
+    {
+      id: 'identity',
+      botSlug: 'ada',
+      providerId: 'dsh-im/feishu',
+      accountRef: 'one',
+      platform: 'feishu',
+      name: 'one',
+      fingerprint: 'one',
+      enabled: true,
+      availability: 'available',
+      newConversations: 'auto',
+      revision: 1,
+      createdAt: 'now',
+      grantCount: 0,
+      scopes: [],
+    },
+  ];
+  await act(async () => render());
+  expect(steps()).toEqual([true, true, false]);
   current.accounts[0]!.connected = false;
   await act(async () => render());
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('待确认');
-});
-
-it('ignores a delayed target response after a different account is selected', async () => {
-  let resolveOne: (value: MessagingTarget[]) => void = () => {};
-  const delayed = new Promise<MessagingTarget[]>((resolve) => {
-    resolveOne = resolve;
-  });
-  const loadTargets = vi.fn(async (_provider: string, account: string) =>
-    account === 'one' ? delayed : [],
-  );
-  await act(async () =>
-    root.render(
-      createElement(LarkSetupGuide, {
-        snapshot: snapshot(),
-        t: zhTranslate,
-        refresh: async () => {},
-        loadTargets,
-      }),
-    ),
-  );
-  await act(async () => container.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
-  await choose('dsh-im/feishu:one');
-  await choose('dsh-im/feishu:two');
-  await act(async () => resolveOne([target]));
-  expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('待确认');
+  expect(steps()).toEqual([false, true, false]);
 });

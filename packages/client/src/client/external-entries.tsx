@@ -23,6 +23,13 @@ function IdentitiesForBot({
   t: ChannelSidebarEntryProps['t'];
 }): ReactElement {
   const { snapshot, failed, refresh, mount } = useMessagingSnapshot(slug, actions);
+  const state = useClientState();
+  const dm = state.channels.find((c) => c.type === 'dm' && c.botSlug === slug);
+  const bot = state.bots.find((b) => b.slug === slug);
+  const syncChannels = [
+    ...(dm ? [{ id: dm.id, name: t('bridge.dmTarget', { name: bot?.displayName ?? slug }) }] : []),
+    ...(snapshot?.channelTargets ?? []),
+  ];
   const [panel, setPanel] = useState<'pairing' | 'approval'>();
   const [busy, setBusy] = useState(false);
   const [scopeFailed, setScopeFailed] = useState<'pairing' | 'approval'>();
@@ -68,13 +75,23 @@ function IdentitiesForBot({
           await actions.messagingGroupPolicy(slug, grantId, input);
           await refresh();
         }}
+        channels={syncChannels}
+        sync={async (grant, channelId) => {
+          await actions.channelBridge(channelId, {
+            kind: 'add',
+            grantId: grant.id,
+            expectedGrantRevision: grant.revision,
+            delivery: 'channel',
+            name: grant.targetName || grant.receiveScope?.conversationId || grant.id,
+            enabled: true,
+            ...(grant.platform === 'weixin'
+              ? { collection: 'all' as const, collectionInheritance: 'custom' as const }
+              : { collection: 'mentions' as const, collectionInheritance: 'inherit' as const }),
+          });
+          await refresh();
+        }}
       />
-      <LarkSetupGuide
-        snapshot={snapshot}
-        t={t}
-        refresh={refresh}
-        loadTargets={actions.messagingTargets}
-      />
+      <LarkSetupGuide snapshot={snapshot} t={t} refresh={refresh} />
       <SidebarCardList label={t('pairing.title')}>
         <SidebarCardRow
           icon="user-check"

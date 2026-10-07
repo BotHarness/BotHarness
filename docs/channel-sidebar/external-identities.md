@@ -14,7 +14,7 @@ The same goes for Slack and Discord: DM the app or @mention it in a channel it b
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | One row per bound app                   | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
 | **+ Bind app**                          | Bind a connected app to this Bot.                                                                                                                                    |
-| **Connect Lark / Feishu** (Setup guide) | Opens the step-by-step Lark / Feishu setup guide. Its **Locate** buttons highlight the matching sidebar row, expanding **External connectors** when needed.          |
+| **Connect Lark / Feishu** (Setup guide) | Opens the three-step Lark / Feishu setup guide: connect the app, bind it, send a test message. **Locate** highlights the matching control.                           |
 | **IM administrator pairing**            | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
 | **Lark approval notifications**         | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
 
@@ -37,14 +37,15 @@ A `/pair` command doesn’t enter the Inbox. [IM administrator pairing](/docs/la
 
 The first DM or @mention that reaches the Inbox records its conversation. Click the app row and look under **Conversations** in the **Edit identity** dialog. Each conversation shows its name (the person’s name for a DM, the group ID for a group), DM or Group, and the last message time, sorted into four groups:
 
-| Group       | What it means                                                                         | Actions                                   |
-| ----------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Waiting** | A new conversation that hasn’t been let in yet, with the reason and its message count | **Allow**, **Block**                      |
-| **Active**  | Messages reach the Inbox and wake the Bot                                             | **Mute**, **Rules** (groups), **Block**   |
-| **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Block** |
-| **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                           |
+| Group       | What it means                                                                         | Actions                                                      |
+| ----------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Waiting** | A new conversation that hasn’t been let in yet, with the reason and its message count | **Allow**, **Block**                                         |
+| **Active**  | Messages reach the Inbox and wake the Bot                                             | **Mute**, **Rules** (groups), **Sync** (groups), **Block**   |
+| **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Sync** (groups), **Block** |
+| **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                                              |
 
-- **Rules** opens the same collection and wake settings as a group in External connectors, for this one group.
+- **Rules** opens collection and wake settings for this one group.
+- **Sync** shows a group (or the personal WeChat owner DM) in a local Channel too. Choose the Bot DM or a Group Channel the Bot belongs to under **Sync to a Channel**, then click **Start syncing**; the row then shows **Synced to …**. Replies still go out through the same app. Edit, pause or remove the sync under [External connectors](/docs/channel-sidebar/external-connectors).
 - **Block** asks for confirmation. Replies that haven’t been sent yet are cancelled, and old messages can no longer be replied to. The block stays across restarts and even after you unbind and bind the same app to this Bot again.
 - **Allow again** starts a fresh conversation from the next message. Messages sent while it was blocked are not backfilled, and its old rules are not restored.
 

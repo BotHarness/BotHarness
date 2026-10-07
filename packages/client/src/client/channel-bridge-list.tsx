@@ -244,17 +244,9 @@ export function ChannelBridgeList({
             }
           />
         ))}
-        <SidebarCardRow
-          icon="plus"
-          title={t('bridge.add')}
-          meta={
-            !snapshot ? t('im.loading') : snapshot.bridges.length ? undefined : t('bridge.empty')
-          }
-          muted
-          dialog
-          disabled={busy || !snapshot}
-          onClick={() => open('add')}
-        />
+        {snapshot && !snapshot.bridges.length ? (
+          <li className="bh-card-row bh-muted bh-card-note">{t('bridge.moved')}</li>
+        ) : null}
         {children}
       </SidebarCardList>
       <Modal

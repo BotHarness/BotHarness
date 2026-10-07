@@ -1,45 +1,34 @@
 # External connectors
 
-Open **Bot DM → Channel sidebar → External connectors**. An external connector decides which messages from an authorized external conversation enter this Bot: either this DM’s history or **Bot Inbox only**. It is managed separately from the identity the Bot speaks as; bind that first under [External identities](/docs/channel-sidebar/external-identities).
+Open **Bot DM → Channel sidebar → External connectors**. It lists the external conversations synced into this Bot’s Channels and keeps one advanced action. You don’t need it to receive or reply: [binding an app](/docs/channel-sidebar/external-identities) is enough, and its conversations are managed there. Later, one-way input streams such as webhooks will also live here.
 
-![The External connectors entry with connector rows and the authorization row](/guides/channel-sidebar/20-external-connectors-zh.webp)
+![The External connectors entry with a synced conversation and the advanced send target row](/guides/channel-sidebar/20b-external-connectors-en.webp)
 
 ## Read the rows
 
-| Row                          | What it shows and does                                                                                                                                                                                                                        |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One row per connector        | Connector name, a state chip (**Receiving**, **Connecting**, **Paused** or **Unavailable**; plus **Bot Inbox only** when it does not add DM history) and “platform · external conversation · condition”. The Switch pauses or resumes intake. |
-| **+ Add connector**          | Route an already authorized conversation into this DM or Bot Inbox only.                                                                                                                                                                      |
-| **Authorize a conversation** | Opens **Conversation authorization**. Once a target is authorized, the row shows its name, status chip and “platform · account”.                                                                                                              |
+| Row                               | What it shows and does                                                                                                                                                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One row per sync                  | Sync name, a state chip (**Receiving**, **Connecting**, **Paused** or **Unavailable**; plus **Bot Inbox only** when it does not add DM history) and “platform · external conversation · condition”. The Switch pauses or resumes intake. |
+| **Save a send target (advanced)** | Only for apps that can’t list or address conversations: save one target the Bot can post to proactively. Receiving and replying don’t need it.                                                                                           |
 
-**Connectors decide what is received; the Bot’s [Wake policy](/docs/channel-sidebar/wake-policy) decides when it is processed.**
+When nothing is synced yet, the entry says where syncing starts: open the app under External identities and click **Sync** on a conversation row.
 
-## Authorize a conversation
+**Syncs decide what is received; the Bot’s [Wake policy](/docs/channel-sidebar/wake-policy) decides when it is processed.**
 
-The three steps: bind an identity under [External identities](/docs/channel-sidebar/external-identities) (who the Bot speaks as), authorize a specific external conversation (which group or DM it may send to and receive from), then optionally add a connector (where its messages land).
+## Edit, pause or remove a sync
 
-The conversations you can pick come from the platform side: grant the app its permissions in the platform console, add the bot to the group, then save a **Destination** in the account's delivery settings under **Settings → IM Bots**. A message arriving from a conversation does **not** create an authorization; messages from an unauthorized conversation stay out of the Bot Inbox even when they @ the bot. Authorization is only made here, by hand, and can be changed or revoked later.
-
-1. Click **Authorize a conversation**.
-2. Choose the bound **IM account** and the saved **Destination**, then click **Bind and authorize destination**. Check the group, account and local receive target.
-3. In the same dialog you can set the **Local receive target**, collection and wake for the group, Thread following, send a message to the target and inspect **Recent sends**.
-4. **Refresh** reloads the current state. **Revoke this target authorization** removes the authorization.
-
-![The Conversation authorization dialog](/guides/channel-sidebar/22-conversation-authorization-zh.webp)
-
-## Add a connector
-
-1. Click **+ Add connector**.
-2. Choose an authorized source. If the list is empty, authorize a conversation first.
-3. Choose the destination: this DM’s history or **Bot Inbox only**.
-4. Enter a recognizable **Connector name**, choose the condition and save.
-
-Adding a connector does not create an external account or new authorization. All dropdowns in these dialogs are searchable: type to filter.
-
-## Edit, pause or delete
-
-Click a connector row to open **Edit connector**. Change the **Connector name**, the condition (inherit, mentions of the receiving identity only, or all ordinary text messages) or the enable switch, then click **Save connector**. **Delete** asks for confirmation (**Delete this connector**). Pausing keeps the configuration and history; deleting does not remove messages already received.
+Click a row to open **Edit connector**. Change the name, the condition (inherit, mentions of the receiving identity only, or all ordinary text messages) or the enable switch, then click **Save connector**. **Delete** asks for confirmation. Pausing keeps the configuration and history; deleting does not remove messages already received.
 
 ![Editing an external connector](/guides/channel-sidebar/21-external-connector-dialog-zh.webp)
+
+## Advanced: save a send target
+
+Lark, Slack and Discord apps post to conversations directly, so they never need this. For an app whose Provider can’t list or address conversations:
+
+1. Save a **Destination** in the account’s delivery settings under **Settings → IM Bots**.
+2. Click **Save a send target (advanced)**, choose the bound **IM account** and the saved **Destination**, and confirm.
+3. In the same dialog you can send a message to the target and inspect **Recent sends**. **Revoke this target authorization** removes it.
+
+![The send target dialog](/guides/channel-sidebar/22-conversation-authorization-zh.webp)
 
 A local Group still manages its connectors in the group’s detailed Profile. Platform setup: [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection), [personal WeChat](/docs/wechat-connection). [All sidebar features](/docs/channel-sidebar).

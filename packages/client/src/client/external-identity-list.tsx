@@ -28,12 +28,16 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  channels,
+  sync,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  channels?: { id: string; name: string }[];
+  sync?(grant: MessagingSnapshot['grants'][number], channelId: string): Promise<void>;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
   const [selected, setSelected] = useState<MessagingIdentityView>();
@@ -377,6 +381,10 @@ export function ExternalIdentityList({
                     t={t}
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
+                    {...(channels ? { channels } : {})}
+                    {...(sync
+                      ? { sync: (grant, channelId) => operate(() => sync(grant, channelId)) }
+                      : {})}
                   />
                 </div>
               ) : null}

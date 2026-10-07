@@ -80,7 +80,7 @@ export const zh = {
   'setup.title': '连接 Lark / 飞书',
   'setup.open': '配置引导',
   'setup.summary':
-    '沿用真实账号、身份和群授权。点击步骤只定位控件，不会发送消息，也不会把步骤标记为完成。',
+    '连接应用、绑定到 Bot，然后发一条消息验证，三步完成。点击步骤只会定位对应控件，不会发送消息，也不会直接标记完成。',
   'setup.platform': '应用平台',
   'setup.lark': 'Lark（国际版）',
   'setup.feishu': '飞书',
@@ -101,30 +101,24 @@ export const zh = {
   'setup.pending': '待确认',
   'setup.locate': '定位现有控件',
   'setup.verifyHint':
-    '在所选账号已授权群的话题中 @机器人发送以下测试文字。另发一条无 @消息，确认默认不收件。绿色／灰色已读圆圈不是收件证据。',
+    '在机器人所在群的话题中 @ 它，发送以下测试文字。不 @ 它的消息默认不会进入收件箱。外部平台的已读圆圈不能证明已收件。',
   'setup.received': '已记录真实话题收件',
   'setup.echo': '已观测到关联回复；请到 Lark 原话题核对。',
   'setup.accepted': '平台已接受回复，尚未观测到回传；请到原话题核对。',
   'setup.awaiting': '已收件，等待该身份回复。',
   'setup.optional':
-    '初次保持仅 Bot Inbox、只收 @。完成后可在「外部连接器」中显式添加本地 DM／群投递；默认设置、Attention 和唤醒策略仍分别管理。',
+    '绑定后不需要授权会话。会话会自动出现在「外部身份」的会话列表里，可在那里静音、屏蔽或同步到 Channel。',
   'setup.failed': '状态核对失败或控件不可用。保留现有配置，关闭引导后打开实际设置，再刷新重试。',
   'setup.checking': '正在核对…',
   'setup.refresh': '核对真实状态',
   'setup.resume':
     '可以关闭后继续；重新打开会核对当前配置。断开、停用、解绑或撤销群授权会重新显示待确认步骤。',
-  'setup.step.account': '连接应用账号',
-  'setup.step.target': '测试并保存投递目标',
-  'setup.step.identity': '绑定此 Bot 的外部身份',
-  'setup.step.grant': '授权指定群并启用收件',
-  'setup.step.verify': '验证 @话题收件和原话题回复',
-  'setup.hint.account': '在「设置 → IM机器人 → 飞书」选择正确平台，使用应用凭据绑定并连接。',
-  'setup.hint.target': '在账号的投递设置中选择测试群，确认原生 Chat ID；测试后保存目标。',
-  'setup.hint.identity': '点击「绑定应用」，选择已连接的应用。一个应用只属于一个 Bot。',
-  'setup.hint.grant':
-    '在侧栏「外部连接器」打开「授权外部会话」，选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
-  'setup.hint.verify':
-    '在原生话题中发送指定 @测试；核对 Source Event 和本 Bot 自己身份的关联回复。',
+  'setup.step.app': '在 IM 设置中连接应用',
+  'setup.hint.app': '在「设置 → IM机器人 → 飞书」选择正确平台，填入应用凭据并连接。',
+  'setup.step.bind': '把应用绑定到这个 Bot',
+  'setup.hint.bind': '在「外部身份」点击「绑定应用」，选择刚连接的应用。一个应用只属于一个 Bot。',
+  'setup.step.verify': '发消息验证收发',
+  'setup.hint.verify': '把机器人拉进一个群，在话题中 @ 它发送下方测试文字，确认 Bot 在原话题回复。',
 
   'defaults.restore': '恢复继承',
   'defaults.threshold': '汇总阈值',
@@ -764,6 +758,7 @@ export const zh = {
   'bridge.confirmDelete': '删除此连接器',
   'bridge.save': '保存外部连接器',
   'bridge.empty': '尚未接入外部信息。',
+  'bridge.moved': '要把外部会话同步到 Channel，请在「外部身份」打开应用，在会话行点「同步」。',
   'bridge.source': '来源',
   'bridge.conversation': '外部会话',
   'bridge.condition': '接收条件',
@@ -833,6 +828,13 @@ export const zh = {
   'identity.newConversations.ask': '先问我',
   'identity.newConversationsHint':
     '自动接收：新的私聊或 @ 直接进入收件箱。先问我：新会话先出现在「等待处理」，只记录会话名称和次数，不保存消息内容；允许后从下一条消息开始接收。',
+  'conversation.sync': '同步',
+  'conversation.syncTarget': '同步到 Channel',
+  'conversation.syncConfirm': '开始同步',
+  'conversation.syncEmpty': '没有可同步的 Channel',
+  'conversation.syncHint':
+    '这个会话的消息会同时出现在所选 Channel 里，回复仍从原应用发出。之后可在「外部连接器」中修改或移除。',
+  'conversation.syncedTo': '已同步到 {names}',
   'conversation.active': '活跃',
   'conversation.muted': '已静音',
   'conversation.waiting': '等待处理',
@@ -889,10 +891,11 @@ export const zh = {
   'identity.state.unavailable': '暂不可用',
   'identity.state.rebind-required': '需要重新绑定',
   'im.infoFor': '{title}的说明',
-  'im.title': '外部会话授权',
-  'im.summary': '管理已有外部来源、群收件和发送目标',
-  'im.authorizeRow': '授权外部会话',
-  'im.authorizeRowHint': '让 Bot 向一个外部会话发送消息',
+  'im.title': '保存的发送目标（高级）',
+  'im.summary':
+    '仅在应用不能列出或直接发往会话时使用：保存一个目标，让 Bot 主动发消息。收消息和回复不需要它。',
+  'im.authorizeRow': '保存发送目标（高级）',
+  'im.authorizeRowHint': '仅用于不支持直接发往会话的应用',
   'im.back': '返回',
   'im.refresh': '刷新',
   'im.loading': '加载中…',
@@ -2189,7 +2192,7 @@ export const en = {
   'setup.title': 'Connect Lark / Feishu',
   'setup.open': 'Setup guide',
   'setup.summary':
-    'Use real accounts, identities and group grants. Steps locate existing controls; opening the guide never sends or marks an operation successful.',
+    'Connect the app, bind it to this Bot, then send one message to verify. Clicking a step only locates its control; it never sends anything or marks the step done.',
   'setup.platform': 'Application platform',
   'setup.lark': 'Lark (international)',
   'setup.feishu': 'Feishu',
@@ -2212,34 +2215,28 @@ export const en = {
   'setup.pending': 'Not confirmed',
   'setup.locate': 'Locate existing controls',
   'setup.verifyHint':
-    'In a topic of the selected account’s authorized group, @mention the Bot with the test text below. Send an unmentioned message separately to check default rejection. External read circles do not prove receipt.',
+    'In a topic of a group the Bot is in, @mention it with the test text below. Messages that don’t @mention it stay out of the Inbox by default. Read circles on the platform don’t prove receipt.',
   'setup.received': 'Real topic receipt recorded',
   'setup.echo': 'Correlated reply observed; check the original Lark topic.',
   'setup.accepted': 'Platform accepted the reply; echo not observed. Check the original topic.',
   'setup.awaiting': 'Received; waiting for this identity to reply.',
   'setup.optional':
-    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in External connectors. Defaults, Attention and wake policy remain separate.',
+    'No conversation authorization is needed after binding. Conversations show up in the External identities conversation list, where you can mute, block or sync them to a Channel.',
   'setup.failed':
     'Status check failed or controls are unavailable. Keep the configuration, open actual settings after closing the guide, then retry.',
   'setup.checking': 'Checking…',
   'setup.refresh': 'Check current state',
   'setup.resume':
     'Close and resume anytime. Reopening checks current configuration; disconnection, disable, unbind or grant revocation returns the relevant step to unconfirmed.',
-  'setup.step.account': 'Connect application account',
-  'setup.step.target': 'Test and save a delivery target',
-  'setup.step.identity': 'Bind this Bot’s external identity',
-  'setup.step.grant': 'Authorize the exact group and enable intake',
-  'setup.step.verify': 'Verify topic @receipt and original-topic reply',
-  'setup.hint.account':
-    'In Settings → IM Bots → Feishu, choose the correct platform and connect with application credentials.',
-  'setup.hint.target':
-    'In account delivery settings, choose the test group and check its native Chat ID; test and save the target.',
-  'setup.hint.identity':
-    'Click Bind app and choose the connected app. An app belongs to one Bot only.',
-  'setup.hint.grant':
-    'In the sidebar’s External connectors, open Authorize a conversation, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
+  'setup.step.app': 'Connect the app in IM settings',
+  'setup.hint.app':
+    'In Settings → IM Bots → Feishu, choose the correct platform, enter the app credentials and connect.',
+  'setup.step.bind': 'Bind the app to this Bot',
+  'setup.hint.bind':
+    'Under External identities, click Bind app and choose the app you just connected. An app belongs to one Bot only.',
+  'setup.step.verify': 'Send a test message',
   'setup.hint.verify':
-    'Send the designated @test in a native topic; inspect its Source Event and the correlated reply under this Bot’s own identity.',
+    'Add the Bot to a group, @mention it in a topic with the test text below, and check that the Bot replies in the same topic.',
 
   'defaults.restore': 'Restore inheritance',
   'defaults.threshold': 'Harvest threshold',
@@ -2907,6 +2904,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.confirmDelete': 'Delete this connector',
   'bridge.save': 'Save connector',
   'bridge.empty': 'No external sources connected.',
+  'bridge.moved':
+    'To sync an external conversation into a Channel, open the app under External identities and click Sync on its conversation row.',
   'bridge.source': 'Source',
   'bridge.conversation': 'External conversation',
   'bridge.condition': 'Conditions',
@@ -2983,6 +2982,13 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.newConversations.ask': 'Ask me first',
   'identity.newConversationsHint':
     'Admit automatically: new DMs and @mentions go straight to the Inbox. Ask me first: a new conversation waits under Waiting with only its name and message count, never the message text; once allowed, the next message is admitted.',
+  'conversation.sync': 'Sync',
+  'conversation.syncTarget': 'Sync to a Channel',
+  'conversation.syncConfirm': 'Start syncing',
+  'conversation.syncEmpty': 'No Channel to sync to',
+  'conversation.syncHint':
+    'Messages from this conversation also appear in the chosen Channel, and replies still go out through the same app. Edit or remove the sync later under External connectors.',
+  'conversation.syncedTo': 'Synced to {names}',
   'conversation.active': 'Active',
   'conversation.muted': 'Muted',
   'conversation.waiting': 'Waiting',
@@ -3044,10 +3050,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.state.unavailable': 'Unavailable',
   'identity.state.rebind-required': 'Rebind required',
   'im.infoFor': 'About {title}',
-  'im.title': 'Conversation authorization',
-  'im.summary': 'Manage existing sources, group reception and send targets',
-  'im.authorizeRow': 'Authorize a conversation',
-  'im.authorizeRowHint': 'Let the Bot post to an external conversation',
+  'im.title': 'Saved send target (advanced)',
+  'im.summary':
+    'Only for apps that can’t list or address conversations: save one target the Bot can post to proactively. Receiving and replying don’t need it.',
+  'im.authorizeRow': 'Save a send target (advanced)',
+  'im.authorizeRowHint': 'Only for apps that can’t post to conversations directly',
   'im.back': 'Back',
   'im.refresh': 'Refresh',
   'im.loading': 'Loading…',

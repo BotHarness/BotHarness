@@ -5,6 +5,7 @@ import type { GroupReceptionInput } from '../../../core/src/messaging/group-poli
 import type { MessagingIdentityView } from '../../../core/src/messaging/identity.js';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { Combobox } from './combobox.js';
 import { GroupReceptionSettings } from './messaging-grant.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
@@ -21,6 +22,8 @@ export function ExternalConversations({
   t,
   change,
   rules,
+  channels = [],
+  sync,
 }: {
   identity: MessagingIdentityView;
   snapshot: MessagingSnapshot | undefined;
@@ -28,8 +31,12 @@ export function ExternalConversations({
   t: BotHarnessTranslate;
   change(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  channels?: { id: string; name: string }[];
+  sync?(grant: Grant, channelId: string): Promise<void>;
 }): ReactElement {
   const [open, setOpen] = useState<string>();
+  const [syncing, setSyncing] = useState<string>();
+  const [channelId, setChannelId] = useState('');
   const [confirm, setConfirm] = useState<string>();
   const time = (value: string) => new Date(value).toLocaleString();
   const entries = (snapshot?.grants ?? []).filter(
@@ -81,10 +88,52 @@ export function ExternalConversations({
         </div>
       </div>
     ) : undefined;
+  const synced = (grant: Grant) =>
+    (grant.bridgeRoutes ?? [])
+      .map((route) => channels.find((c) => c.id === route.channelId)?.name)
+      .filter((name): name is string => name !== undefined);
+  const syncDetail = (grant: Grant): ReactNode =>
+    syncing === grant.id && sync ? (
+      <div className="bh-conversation-sync">
+        <Combobox
+          label={t('conversation.syncTarget')}
+          toggleLabel={t('conversation.syncTarget')}
+          placeholder={t('im.select')}
+          emptyLabel={t('conversation.syncEmpty')}
+          value={channelId}
+          disabled={busy}
+          onSelect={setChannelId}
+          options={channels.map((c) => ({
+            value: c.id,
+            label: c.name,
+            disabled: (grant.bridgeRoutes ?? []).some((route) => route.channelId === c.id),
+          }))}
+        />
+        <p className="bh-muted">{t('conversation.syncHint')}</p>
+        <div className="bh-modal-footer">
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setSyncing(undefined)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy || !channelId}
+            onClick={() => {
+              const target = channelId;
+              setSyncing(undefined);
+              void sync(grant, target);
+            }}
+          >
+            {t('conversation.syncConfirm')}
+          </Button>
+        </div>
+      </div>
+    ) : undefined;
   const entryRow = (grant: Grant) => {
     const scope = grant.receiveScope!;
     const name = grant.targetName || scope.conversationId;
     const detail =
+      syncDetail(grant) ??
       confirmBlock(
         grant.id,
         name,
@@ -110,6 +159,9 @@ export function ExternalConversations({
           ...(grant.lastMessageAt
             ? [t('identity.lastMessage', { time: time(grant.lastMessageAt) })]
             : []),
+          ...(synced(grant).length
+            ? [t('conversation.syncedTo', { names: synced(grant).join('、') })]
+            : []),
         ].join(' · ')}
         muted={grant.muted}
         trailing={
@@ -129,10 +181,24 @@ export function ExternalConversations({
                   t('conversation.rules'),
                   () => {
                     setConfirm(undefined);
+                    setSyncing(undefined);
                     setOpen(open === grant.id ? undefined : grant.id);
                   },
                   false,
                   open === grant.id,
+                )
+              : null}
+            {sync && (scope.kind === 'group' || grant.platform === 'weixin')
+              ? small(
+                  t('conversation.sync'),
+                  () => {
+                    setConfirm(undefined);
+                    setOpen(undefined);
+                    setChannelId('');
+                    setSyncing(syncing === grant.id ? undefined : grant.id);
+                  },
+                  false,
+                  syncing === grant.id,
                 )
               : null}
             {small(t('conversation.block'), () => setConfirm(grant.id), true)}
