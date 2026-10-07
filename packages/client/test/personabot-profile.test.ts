@@ -137,7 +137,7 @@ describe('PersonaBot Profile surface', () => {
       tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     }));
     const actions = {
-      modelCatalog: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({ models: [] })),
       modelPresets: vi.fn(async () => []),
       modelPlanState: vi.fn(async () => ({
         plan: {

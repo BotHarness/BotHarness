@@ -49,6 +49,7 @@ import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/regist
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
+import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, BOT_AVATAR_PATH } from './bots/avatar-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
@@ -644,7 +645,27 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       : `git phase=resolved unavailable=${resolvedGit.reason}`,
   );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
-  const modelCatalog = createModelCatalog(ctx.llm);
+  const defaultModel = (ctx as unknown as { agentDefaultModel: DshDefaultModelHost })
+    .agentDefaultModel;
+  const providerCredentials = createProviderCredentialHealth();
+  const forgetCredentialFailures = (): void => providerCredentials.reset();
+  const events = ctx as unknown as {
+    on(event: string, listener: () => void): () => void;
+  };
+  for (const event of [
+    'credentials/reference-updated',
+    'credentials/record-updated',
+    'settings/document-updated',
+    'llm/adapters-updated',
+  ])
+    events.on(event, forgetCredentialFailures);
+  const modelCatalog = createModelCatalog(ctx.llm, {
+    credentials: providerCredentials,
+    defaultRoute: () => {
+      const selection = defaultModel.currentSelection();
+      return { provider: selection.provider, model: selection.model };
+    },
+  });
   const modelReadiness = createModelRouteReadiness(
     {
       get: (slug) => core.registry.get(slug),
@@ -655,7 +676,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
-    defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
+    defaultModel,
+    observeTurnFailure: (provider, code) => providerCredentials.observe(provider, code),
     resolveModelPlan: (slug) => core.registry.get(slug)?.modelPlan,
     hasSession: async (sessionId) => {
       const persistence = ctx.get('sessionPersistence') as unknown as

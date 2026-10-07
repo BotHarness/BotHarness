@@ -1,5 +1,6 @@
 import { ReasoningEffortId, type LlmRuntime } from '@deepseek-ai/dsh-llm';
 
+import type { ProviderCredentialHealth, ProviderCredentialFailure } from './credential-health.js';
 import type { ModelRoute } from './presets.js';
 
 export interface ModelCatalogEntry {
@@ -9,17 +10,24 @@ export interface ModelCatalogEntry {
   modelName: string;
   efforts: { id: string; name: string }[];
   defaultEffort?: string;
+  credential?: ProviderCredentialFailure;
 }
 
 export interface ModelCatalog {
   list(): Promise<ModelCatalogEntry[]>;
   validate(route: ModelRoute): Promise<void>;
+  defaultRoute?(): ModelRoute | undefined;
 }
 
 export function createModelCatalog(
   llm: Pick<LlmRuntime, 'listProviders' | 'listModels' | 'resolveModelInfo' | 'resolveCallConfig'>,
+  options: {
+    credentials?: Pick<ProviderCredentialHealth, 'failure'>;
+    defaultRoute?: () => ModelRoute | undefined;
+  } = {},
 ): ModelCatalog {
   return {
+    ...(options.defaultRoute === undefined ? {} : { defaultRoute: options.defaultRoute }),
     async list() {
       const providers = llm.listProviders();
       const groups = await Promise.all(
@@ -28,6 +36,7 @@ export function createModelCatalog(
           return Promise.all(
             models.map(async (model): Promise<ModelCatalogEntry> => {
               const exact = await llm.resolveModelInfo(provider.id, model.id);
+              const credential = options.credentials?.failure(provider.id);
               return {
                 provider: provider.id,
                 providerName: provider.name,
@@ -40,6 +49,7 @@ export function createModelCatalog(
                 ...(exact.reasoning?.defaultEffort === undefined
                   ? {}
                   : { defaultEffort: exact.reasoning.defaultEffort }),
+                ...(credential === undefined ? {} : { credential }),
               };
             }),
           );
@@ -53,6 +63,12 @@ export function createModelCatalog(
       }
       const provider = llm.listProviders().find((candidate) => candidate.id === route.provider);
       if (provider === undefined) throw new Error(`Provider ${route.provider} is unavailable`);
+      const credential = options.credentials?.failure(route.provider);
+      if (credential !== undefined) {
+        throw new Error(
+          `Provider ${route.provider} has ${credential === 'missing' ? 'no' : 'an invalid'} API key; configure it in DSH model settings first`,
+        );
+      }
       const models = await llm.listModels(route.provider);
       if (!models.some((candidate) => candidate.id === route.model)) {
         throw new Error(`Model ${route.provider}/${route.model} is unavailable`);

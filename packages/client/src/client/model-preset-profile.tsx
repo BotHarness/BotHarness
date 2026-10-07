@@ -209,7 +209,7 @@ export function ModelPresetProfile({
     const request = planRequest.current;
     setError(undefined);
     try {
-      const [models, saved, state] = await Promise.all([
+      const [{ models, default: fallback }, saved, state] = await Promise.all([
         actions.modelCatalog(),
         actions.modelPresets(),
         actions.modelPlanState(slug),
@@ -223,7 +223,11 @@ export function ModelPresetProfile({
       setDraft((previous) => {
         if (previous !== undefined) return previous;
         if (current !== undefined) return draftOf(current, current.sourcePresetId);
-        const first = models[0];
+        const usable = models.filter((entry) => entry.credential === undefined);
+        const first =
+          usable.find(
+            (entry) => entry.provider === fallback?.provider && entry.model === fallback.model,
+          ) ?? usable[0];
         if (first === undefined) return undefined;
         const route = { provider: first.provider, model: first.model };
         return draftOf({ orchestrator: route, assignmentDefault: route }, '');
@@ -321,11 +325,22 @@ export function ModelPresetProfile({
     }
   };
 
-  const modelOptions: ComboboxOption[] = (catalog ?? []).map((entry) => ({
-    value: modelKey(entry),
-    label: entry.modelName,
-    hint: entry.providerName,
-  }));
+  const modelOptions: ComboboxOption[] = [...(catalog ?? [])]
+    .sort((a, b) => Number(a.credential !== undefined) - Number(b.credential !== undefined))
+    .map((entry) => ({
+      value: modelKey(entry),
+      label: entry.modelName,
+      hint:
+        entry.credential === undefined
+          ? entry.providerName
+          : t(
+              entry.credential === 'missing'
+                ? 'modelPreset.credentialMissing'
+                : 'modelPreset.credentialInvalid',
+              { provider: entry.providerName },
+            ),
+      disabled: entry.credential !== undefined,
+    }));
   const presetOptions: ComboboxOption[] = presets.map((preset) => ({
     value: preset.id,
     label: preset.name,
