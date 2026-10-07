@@ -16,6 +16,7 @@ import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { ModelPresetProfile } from './model-preset-profile.js';
 import { modelPlanOf, rememberModelPlan, subscribeModelPlans } from './model-plan-store.js';
+import type { ModelPlanStateView } from './bridge.js';
 import { useMountedResource } from './mounted-resource.js';
 import { WakePolicyBadge, WakePolicyEntry } from './wake-policy-entry.js';
 import { useClientState } from './bot-sidebar.js';
@@ -790,8 +791,8 @@ function ModelBadge({ botSlug, actions }: ChannelSidebarEntryProps): ReactElemen
     if (botSlug === undefined || modelPlanOf(botSlug) !== undefined) return;
     let active = true;
     void actions.modelPlanState(botSlug).then(
-      (state) => {
-        if (active) rememberModelPlan(botSlug, state.plan);
+      (state: ModelPlanStateView | undefined) => {
+        if (active) rememberModelPlan(botSlug, state?.plan);
       },
       () => {},
     );

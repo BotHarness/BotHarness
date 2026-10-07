@@ -355,8 +355,8 @@ export function WakePolicyBadge({ botSlug, actions, t }: ChannelSidebarEntryProp
     if (botSlug === undefined || policiesBySlug.has(botSlug)) return;
     let active = true;
     void actions.botSourcePolicies(botSlug).then(
-      (value) => {
-        if (active) rememberPolicies(botSlug, value);
+      (value: readonly BotSourcePolicyView[] | undefined) => {
+        if (active) rememberPolicies(botSlug, value ?? []);
       },
       () => {},
     );
