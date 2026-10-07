@@ -23,6 +23,7 @@ function IdentitiesForBot({
   t: ChannelSidebarEntryProps['t'];
 }): ReactElement {
   const { snapshot, failed, refresh, mount } = useMessagingSnapshot(slug, actions);
+  const { bots } = useClientState();
   const [panel, setPanel] = useState<'pairing' | 'approval'>();
   const [busy, setBusy] = useState(false);
   const [scopeFailed, setScopeFailed] = useState<'pairing' | 'approval'>();
@@ -68,6 +69,7 @@ function IdentitiesForBot({
           await actions.messagingGroupPolicy(slug, grantId, input);
           await refresh();
         }}
+        botName={(owner) => bots.find((bot) => bot.slug === owner)?.displayName ?? owner}
       />
       <LarkSetupGuide
         snapshot={snapshot}

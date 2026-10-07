@@ -14,6 +14,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { openImSettings } from './bot-settings-open.js';
 
 const AVAILABILITY = {
   available: 'identity.state.available',
@@ -28,12 +29,14 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  botName = (slug) => slug,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  botName?(slug: string): string;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
   const [selected, setSelected] = useState<MessagingIdentityView>();
@@ -127,40 +130,46 @@ export function ExternalIdentityList({
         </p>
       ) : null}
       <SidebarCardList label={t('identity.title')}>
-        {identities.map((row) => (
-          <SidebarCardRow
-            key={row.id}
-            icon="id-card"
-            title={row.name}
-            meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
-              count: conversations(row).length,
-            })}`}
-            chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
-            muted={!row.enabled}
-            hint={t('identity.editFor', { name: row.name })}
-            dialog
-            disabled={busy}
-            onClick={() => open('edit', row)}
-            trailing={
-              <Switch
-                label={t('identity.enableFor', { name: row.name })}
-                checked={row.enabled}
-                disabled={busy}
-                onChange={(enabled) =>
-                  void operate(() =>
-                    mutate({
-                      kind: 'update',
-                      id: row.id,
-                      expectedRevision: row.revision,
-                      name: row.name,
-                      enabled,
-                    }),
-                  )
-                }
-              />
-            }
-          />
-        ))}
+        {[...identities]
+          .sort(
+            (a, b) =>
+              platform(a.platform).localeCompare(platform(b.platform)) ||
+              a.createdAt.localeCompare(b.createdAt),
+          )
+          .map((row) => (
+            <SidebarCardRow
+              key={row.id}
+              icon="id-card"
+              title={row.name}
+              meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
+                count: conversations(row).length,
+              })}`}
+              chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
+              muted={!row.enabled}
+              hint={t('identity.editFor', { name: row.name })}
+              dialog
+              disabled={busy}
+              onClick={() => open('edit', row)}
+              trailing={
+                <Switch
+                  label={t('identity.enableFor', { name: row.name })}
+                  checked={row.enabled}
+                  disabled={busy}
+                  onChange={(enabled) =>
+                    void operate(() =>
+                      mutate({
+                        kind: 'update',
+                        id: row.id,
+                        expectedRevision: row.revision,
+                        name: row.name,
+                        enabled,
+                      }),
+                    )
+                  }
+                />
+              }
+            />
+          ))}
         <SidebarCardRow
           anchor="lark-bind"
           icon="plus"
@@ -266,17 +275,51 @@ export function ExternalIdentityList({
                   disabled={busy}
                   value={accountKey}
                   onSelect={setAccountKey}
-                  options={accounts.map((account) => ({
-                    value: account.providerId + ':' + account.ref,
-                    label: account.name,
-                    hint: platform(account.platform),
-                    disabled:
-                      !account.connected || identities.some((i) => i.platform === account.platform),
-                  }))}
+                  options={[...accounts]
+                    .sort(
+                      (a, b) =>
+                        Number(a.boundBotSlug !== undefined || !a.connected) -
+                          Number(b.boundBotSlug !== undefined || !b.connected) ||
+                        platform(a.platform).localeCompare(platform(b.platform)) ||
+                        a.name.localeCompare(b.name),
+                    )
+                    .map((account) => ({
+                      value: account.providerId + ':' + account.ref,
+                      label: account.name,
+                      hint:
+                        account.boundBotSlug === undefined
+                          ? account.connected
+                            ? platform(account.platform)
+                            : t('identity.appOffline', { platform: platform(account.platform) })
+                          : identities.some(
+                                (i) =>
+                                  i.providerId === account.providerId &&
+                                  i.accountRef === account.ref,
+                              )
+                            ? t('identity.appThisBot', { platform: platform(account.platform) })
+                            : t('identity.appUsedBy', {
+                                platform: platform(account.platform),
+                                name: botName(account.boundBotSlug),
+                              }),
+                      disabled: !account.connected || account.boundBotSlug !== undefined,
+                    }))}
                 />
               </label>
               {!accounts.length ? <p>{t('im.setup')}</p> : null}
               <p className="bh-muted">{t('identity.bindHint')}</p>
+              <div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    setMode(undefined);
+                    openImSettings(document, () => undefined);
+                  }}
+                >
+                  {t('identity.manageApps')}
+                </Button>
+              </div>
             </>
           ) : mode === 'bound' && selectedAccount ? (
             <>

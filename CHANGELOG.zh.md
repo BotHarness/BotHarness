@@ -9,6 +9,8 @@
 
 ### Added
 
+- 一个 Bot 可以绑定同一平台的多个应用，例如两个飞书应用：每个应用的私聊和 @ 都进入同一个收件箱，并通过收到消息的应用回复。**绑定应用** 列出所有已连接的应用，已被 Bot 使用的应用置灰并注明是哪个 Bot；外部身份按平台列出这个 Bot 的应用。Bot 在同一个群里有两个应用时，转发来源的回复会明确拒绝（[#1110](https://github.com/BotHarness/BotHarness/issues/1110)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
 - **编辑外部身份** 里的会话列表现在可以管理：会话分为 **等待处理**、**活跃**、**已静音**、**已屏蔽**。**静音** 后消息照常进入收件箱但不唤醒 Bot，**规则** 单独调整一个群的收件和唤醒，**屏蔽**（需确认）会取消未发出的回复，重启、解绑再绑定后依然有效；**再次允许** 从下一条消息重新开始，不补收。新增 **新会话** 设置，可选 **自动接收** 或 **先问我**；等待中的会话只记录名称和次数，不保存消息内容。每个应用每小时最多自动加入 20 个新会话、最多 500 个活跃会话，超出时进入等待并显示原因（[#1109](https://github.com/BotHarness/BotHarness/issues/1109)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 
 - Slack、Discord 和个人微信也能一步绑定：**绑定应用** 后，私聊 Slack 或 Discord 应用、或在频道里 @ 它，消息直接进入 Bot 收件箱并在原话题回复；个人微信只接收扫码者本人的私聊，其他联系人和群不会进入。绑定弹窗对所有平台显示真实接收状态，已记下的群会话跟随平台全局默认的群收件和唤醒设置（[#1112](https://github.com/BotHarness/BotHarness/issues/1112)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。

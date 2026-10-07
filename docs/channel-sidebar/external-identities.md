@@ -1,6 +1,6 @@
 # External identities
 
-Open **Bot DM → Channel sidebar → External identities**. It lists the external apps bound to this Bot (Lark / Feishu, Slack, Discord, WeChat and so on). An app belongs to exactly one Bot; other Bots cannot borrow it.
+Open **Bot DM → Channel sidebar → External identities**. It lists the external apps bound to this Bot (Lark / Feishu, Slack, Discord, WeChat and so on). An app belongs to exactly one Bot; other Bots cannot borrow it. A Bot can bind several apps, including several of the same platform (for example two Lark apps): each app receives its own DMs and @mentions into the same Inbox, and the Bot replies through the app that received the message. Apps are listed grouped by platform.
 
 **Binding an app is enough.** Once bound, DMs to the app and @mentions of it in groups it belongs to go straight to this Bot’s Inbox, and the Bot replies in the same conversation. You don’t need a saved delivery target, a conversation authorization or a reception switch. Who can reach the app is decided by each platform's settings, such as Lark's availability scope, group membership and app permissions, or Discord's channel permissions.
 
@@ -22,7 +22,7 @@ The same goes for Slack and Discord: DM the app or @mention it in a channel it b
 
 1. First connect the app under **Settings → IM Bots**, following the guide for your platform.
 2. Click **+ Bind app**.
-3. Choose the connected app under **App**. The dropdown is searchable: type to filter.
+3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Every connected app is listed: apps a Bot already uses are greyed out and say which Bot (or **already bound to this Bot**), and disconnected apps say **not connected**. **Manage app credentials** opens **Settings → IM bots**.
 4. Click **Bind app**. The dialog then shows the real receiving state:
    - **Ready**: DMs and @mentions to the app now reach this Bot’s Inbox.
    - **Connecting**: the app is still opening its receiver. Wait a moment.

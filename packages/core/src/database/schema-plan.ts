@@ -1668,6 +1668,16 @@ const CONVERSATION_LIST_MIGRATION: SchemaMigration = {
   },
 };
 
+const SEVERAL_APPS_MIGRATION: SchemaMigration = {
+  generation: 63,
+  module: 'messaging',
+  description:
+    'Let one Bot bind several apps of the same platform; one app still belongs to one Bot',
+  migrate(database) {
+    database.exec('DROP INDEX IF EXISTS messaging_binding_bot_platform;');
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1730,4 +1740,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   APPROVAL_MESSAGING_MIGRATION,
   BOUND_APP_ADMISSION_MIGRATION,
   CONVERSATION_LIST_MIGRATION,
+  SEVERAL_APPS_MIGRATION,
 ]);

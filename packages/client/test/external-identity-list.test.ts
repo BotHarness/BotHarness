@@ -43,7 +43,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
 }));
 import { ExternalIdentityList } from '../src/client/external-identity-list.js';
 import { zhTranslate } from '../src/client/locale.js';
-import { chooseOption } from './primitive-mocks.js';
+import { chooseOption, openCombobox } from './primitive-mocks.js';
 
 it('failed Switch writes retain the committed preference; stale Modal edits retain input rather than overwrite', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -245,6 +245,73 @@ it('Bind app shows real readiness after the commit and the app row lists its con
     expect([...list.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
       '静音',
       '屏蔽',
+    ]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it('Bind app lists every app, disables the ones a Bot uses with its owner, and offers a second app of a bound platform', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const app = (ref: string, boundBotSlug?: string) => ({
+    providerId: 'dsh-im/feishu',
+    ref,
+    platform: 'feishu',
+    name: `App ${ref}`,
+    fingerprint: ref.padEnd(64, '0'),
+    connected: true,
+    ...(boundBotSlug ? { boundBotSlug } : {}),
+  });
+  const snapshot: MessagingSnapshot = {
+    accounts: [app('mine', 'ada'), app('theirs', 'bea'), app('free')],
+    identities: [
+      {
+        id: 'binding',
+        botSlug: 'ada',
+        providerId: 'dsh-im/feishu',
+        platform: 'feishu',
+        accountRef: 'mine',
+        fingerprint: 'mine'.padEnd(64, '0'),
+        name: 'App mine',
+        enabled: true,
+        revision: 1,
+        createdAt: '2026-10-07T00:00:00Z',
+        availability: 'available' as const,
+        newConversations: 'auto' as const,
+        grantCount: 0,
+        scopes: [],
+      },
+    ],
+    grants: [],
+    intents: [],
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ExternalIdentityList, {
+          snapshot,
+          t: zhTranslate,
+          mutate: vi.fn(),
+          conversation: vi.fn(),
+          rules: vi.fn(),
+          botName: (slug: string) => (slug === 'bea' ? 'Bea' : slug),
+        }),
+      ),
+    );
+    const bind = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+      b.textContent?.includes('绑定应用'),
+    )!;
+    await act(async () => bind.click());
+    await openCombobox('应用', container);
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    expect(options.map((o) => [o.dataset.value, o.disabled, o.textContent])).toEqual([
+      ['dsh-im/feishu:free', false, expect.stringContaining('App free')],
+      ['dsh-im/feishu:mine', true, expect.stringContaining('已绑定到这个 Bot')],
+      ['dsh-im/feishu:theirs', true, expect.stringContaining('已被 Bea 使用')],
     ]);
   } finally {
     await act(async () => root.unmount());
