@@ -172,12 +172,11 @@ it('lists connectors as rows with the conversation authorization row last', asyn
   const rows = [...host.querySelectorAll('.bh-card-row')];
   expect(rows.map((row) => row.querySelector('.bh-card-title')?.textContent)).toEqual([
     'QA intake',
-    zhTranslate('bridge.add'),
     zhTranslate('im.authorizeRow'),
   ]);
   expect(rows[0]?.textContent).toContain('QA group');
   expect(rows[0]?.textContent).toContain(zhTranslate('bridge.state.receiving'));
-  expect(rows[2]?.getAttribute('data-anchor')).toBe('lark-grant');
+  expect(rows[1]?.getAttribute('data-anchor')).toBe('lark-grant');
   await act(async () => rows[0]!.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
   expect(host.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
     zhTranslate('bridge.edit'),

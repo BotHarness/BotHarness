@@ -14,7 +14,7 @@ The same goes for Slack and Discord: DM the app or @mention it in a channel it b
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | One row per bound app                   | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
 | **+ Bind app**                          | Bind a connected app to this Bot.                                                                                                                                    |
-| **Connect Lark / Feishu** (Setup guide) | Opens the step-by-step Lark / Feishu setup guide. Its **Locate** buttons highlight the matching sidebar row, expanding **External connectors** when needed.          |
+| **Connect Lark / Feishu** (Setup guide) | Opens the three-step Lark / Feishu setup guide: connect the app, bind it, send a test message. **Locate** highlights the matching control.                           |
 | **IM administrator pairing**            | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
 | **Lark approval notifications**         | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
 
@@ -44,7 +44,8 @@ The first DM or @mention that reaches the Inbox records its conversation. Click 
 | **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Block** |
 | **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                           |
 
-- **Rules** opens the same collection and wake settings as a group in External connectors, for this one group.
+- **Rules** opens collection and wake settings for this one group.
+- Hover any action to see what it does. A conversation that is already synced into a Channel shows **Synced to …**; manage syncs under [External connectors](/docs/channel-sidebar/external-connectors).
 - **Block** asks for confirmation. Replies that haven’t been sent yet are cancelled, and old messages can no longer be replied to. The block stays across restarts and even after you unbind and bind the same app to this Bot again.
 - **Allow again** starts a fresh conversation from the next message. Messages sent while it was blocked are not backfilled, and its old rules are not restored.
 

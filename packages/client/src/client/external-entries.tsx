@@ -23,7 +23,13 @@ function IdentitiesForBot({
   t: ChannelSidebarEntryProps['t'];
 }): ReactElement {
   const { snapshot, failed, refresh, mount } = useMessagingSnapshot(slug, actions);
-  const { bots } = useClientState();
+  const state = useClientState();
+  const dm = state.channels.find((c) => c.type === 'dm' && c.botSlug === slug);
+  const bot = state.bots.find((b) => b.slug === slug);
+  const syncChannels = [
+    ...(dm ? [{ id: dm.id, name: t('bridge.dmTarget', { name: bot?.displayName ?? slug }) }] : []),
+    ...(snapshot?.channelTargets ?? []),
+  ];
   const [panel, setPanel] = useState<'pairing' | 'approval'>();
   const [busy, setBusy] = useState(false);
   const [scopeFailed, setScopeFailed] = useState<'pairing' | 'approval'>();
@@ -69,14 +75,10 @@ function IdentitiesForBot({
           await actions.messagingGroupPolicy(slug, grantId, input);
           await refresh();
         }}
-        botName={(owner) => bots.find((bot) => bot.slug === owner)?.displayName ?? owner}
+        channels={syncChannels}
+        botName={(owner) => state.bots.find((item) => item.slug === owner)?.displayName ?? owner}
       />
-      <LarkSetupGuide
-        snapshot={snapshot}
-        t={t}
-        refresh={refresh}
-        loadTargets={actions.messagingTargets}
-      />
+      <LarkSetupGuide snapshot={snapshot} t={t} refresh={refresh} />
       <SidebarCardList label={t('pairing.title')}>
         <SidebarCardRow
           icon="user-check"

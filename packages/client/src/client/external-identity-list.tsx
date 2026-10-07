@@ -29,6 +29,7 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  channels,
   botName = (slug) => slug,
 }: {
   snapshot: MessagingSnapshot | undefined;
@@ -36,6 +37,7 @@ export function ExternalIdentityList({
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  channels?: { id: string; name: string }[];
   botName?(slug: string): string;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
@@ -285,16 +287,17 @@ export function ExternalIdentityList({
                     )
                     .sort(
                       (a, b) =>
-                        Number(a.boundBotSlug !== undefined || !a.connected) -
-                          Number(b.boundBotSlug !== undefined || !b.connected) ||
+                        Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
+                          Number(b.boundBotSlug !== undefined || !b.connected || !!b.unsupported) ||
                         platform(a.platform).localeCompare(platform(b.platform)) ||
                         a.name.localeCompare(b.name),
                     )
                     .map((account) => ({
                       value: account.providerId + ':' + account.ref,
                       label: account.name,
-                      hint:
-                        account.boundBotSlug === undefined
+                      hint: account.unsupported
+                        ? t('identity.appUnsupported', { platform: platform(account.platform) })
+                        : account.boundBotSlug === undefined
                           ? account.connected
                             ? platform(account.platform)
                             : t('identity.appOffline', { platform: platform(account.platform) })
@@ -302,7 +305,10 @@ export function ExternalIdentityList({
                               platform: platform(account.platform),
                               name: botName(account.boundBotSlug),
                             }),
-                      disabled: !account.connected || account.boundBotSlug !== undefined,
+                      disabled:
+                        !account.connected ||
+                        account.boundBotSlug !== undefined ||
+                        !!account.unsupported,
                     }))}
                 />
               </label>
@@ -414,6 +420,7 @@ export function ExternalIdentityList({
                     t={t}
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
+                    {...(channels ? { channels } : {})}
                   />
                 </div>
               ) : null}

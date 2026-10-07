@@ -26,7 +26,7 @@
 | [模型](/zh/docs/channel-sidebar/model)                     | 查看并修改这个 Bot 日常对话与新任务使用的模型。                               |
 | [唤醒策略](/zh/docs/channel-sidebar/wake-policy)           | 按来源设置这个 Bot 立即唤醒、汇总后唤醒或只记录。                             |
 | [外部身份](/zh/docs/channel-sidebar/external-identities)   | 绑定这个 Bot 在 Lark / 飞书、Slack、微信的发言身份；IM 管理员配对与审批通知。 |
-| [外部连接器](/zh/docs/channel-sidebar/external-connectors) | 授权外部会话，选择哪些消息进入本私聊或 Bot 收件箱。                           |
+| [外部连接器](/zh/docs/channel-sidebar/external-connectors) | 修改、暂停同步到 Channel 的会话；高级的保存发送目标。                         |
 
 | 本地群聊中的项目                                | 可以做什么                                     |
 | ----------------------------------------------- | ---------------------------------------------- |
