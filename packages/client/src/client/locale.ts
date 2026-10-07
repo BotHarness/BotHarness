@@ -120,7 +120,7 @@ export const zh = {
   'setup.step.verify': '验证 @话题收件和原话题回复',
   'setup.hint.account': '在「设置 → IM机器人 → 飞书」选择正确平台，使用应用凭据绑定并连接。',
   'setup.hint.target': '在账号的投递设置中选择测试群，确认原生 Chat ID；测试后保存目标。',
-  'setup.hint.identity': '点击「绑定应用」，选择已连接的飞书应用。一个应用只属于一个 Bot。',
+  'setup.hint.identity': '点击「绑定应用」，选择已连接的应用。一个应用只属于一个 Bot。',
   'setup.hint.grant':
     '在侧栏「外部连接器」打开「授权外部会话」，选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
   'setup.hint.verify':
@@ -821,8 +821,7 @@ export const zh = {
   'identity.connecting': '正在连接 {app}…',
   'identity.offline': '{app} 暂时收不到消息。请在 IM 设置中检查它的连接状态。',
   'identity.done': '完成',
-  'identity.boundOther':
-    '已绑定 {app}。这个平台的会话目前仍在「外部连接器」中授权；私聊和 @ 直达收件箱会在后续版本开放。',
+  'identity.readyWeixin': '已就绪：扫码者私聊 {app} 的消息，现在会进入这个 Bot 的收件箱。',
   'identity.platform': '平台',
   'identity.name': '身份名称',
   'identity.status': '状态',
@@ -839,7 +838,7 @@ export const zh = {
   'identity.displayName': '本地显示名称',
   'identity.providerHint': '选择一个已在 IM 设置中连接的应用。应用凭据仍由 IM 插件管理。',
   'identity.bindHint':
-    '飞书应用绑定后，私聊它和在群里 @ 它的消息会直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存目标或授权会话。',
+    '绑定后，私聊这个应用和在群里 @ 它的消息会直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存目标或授权会话。个人微信只接收扫码者本人的私聊。',
   'identity.reconnectHint':
     '重新验证同一账号与已有授权范围后启用。账号已变更时，需要明确解绑并重新绑定。',
   'identity.impact': '将使此 Bot 的 {count} 个已有授权失效：',
@@ -2201,7 +2200,7 @@ export const en = {
   'setup.hint.target':
     'In account delivery settings, choose the test group and check its native Chat ID; test and save the target.',
   'setup.hint.identity':
-    'Click Bind app and choose the connected Lark app. An app belongs to one Bot only.',
+    'Click Bind app and choose the connected app. An app belongs to one Bot only.',
   'setup.hint.grant':
     'In the sidebar’s External connectors, open Authorize a conversation, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
   'setup.hint.verify':
@@ -2938,8 +2937,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.offline':
     '{app} can’t receive messages right now. Check its connection in IM settings.',
   'identity.done': 'Done',
-  'identity.boundOther':
-    '{app} is bound. On this platform, conversations are still authorized under External connectors for now; DMs and @mentions going straight to the Inbox come in a later release.',
+  'identity.readyWeixin':
+    'Ready: DMs from the person who scanned {app} now reach this Bot’s Inbox.',
   'identity.platform': 'Platform',
   'identity.name': 'Identity',
   'identity.status': 'Status',
@@ -2957,7 +2956,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.providerHint':
     'Choose an app already connected in IM settings. The IM plugin keeps its credentials.',
   'identity.bindHint':
-    'Once a Lark app is bound, DMs to it and @mentions of it in groups go straight to this Bot’s Inbox, and the Bot replies in place. No saved targets or conversation authorization needed.',
+    'Once bound, DMs to the app and @mentions of it in groups go straight to this Bot’s Inbox, and the Bot replies in place. No saved targets or conversation authorization needed. Personal WeChat only receives DMs from the person who scanned it.',
   'identity.reconnectHint':
     'Revalidate this same account and existing authorized scopes before enabling. A changed account requires explicit unbind and rebind.',
   'identity.impact': 'This will invalidate {count} existing authorizations for this Bot:',

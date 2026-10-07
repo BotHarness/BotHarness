@@ -18,7 +18,7 @@ The entry capture precedes pairing and has no independently recorded exact Clien
 
 ## 2. Bind the PersonaBot identity
 
-Open the PersonaBot DM and, in the **Channel sidebar** on the right, expand **External identities**. Click **+ Bind identity** and bind the connected WeChat account. Its row shows the identity, its status and an enable switch. Binding alone does not authorize incoming messages.
+Open the PersonaBot DM and, in the **Channel sidebar** on the right, expand **External identities**. Click **+ Bind app** and bind the connected WeChat account. Its row shows the name, its status and an enable switch. Once the dialog shows **Ready**, DMs from the person who scanned this WeChat Bot go straight to this Bot's Inbox, and the Bot replies in the same DM; other contacts and WeChat groups stay out. The authorization in the next section is only needed for a local Channel or proactive reports.
 
 ![Real paired WeChat identity in the PersonaBot Profile](/guides/wechat/identity-bound.jpg)
 

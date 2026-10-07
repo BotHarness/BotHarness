@@ -78,10 +78,10 @@ it('Lark exact private chat uses canonical Inbox without mentions and replies th
       ],
     }),
     sendChecked: vi.fn(async (): Promise<{ sent: true }> => ({ sent: true })),
-    consumeInbound: async (_account, options) => {
+    consumeInbound: async (account, options) => {
       expect(options.ordinaryText).toBeUndefined();
       expect(options.sourceFiles).toBeUndefined();
-      consumer = options;
+      if (account === 'feishu-qa') consumer = options;
       return () => {};
     },
     qualifyReplyChecked: async (_account, route) => route,

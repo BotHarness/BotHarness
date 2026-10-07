@@ -273,13 +273,13 @@ export function ExternalIdentityList({
               </p>
               <p role="status">
                 {t(
-                  selectedAccount.platform !== 'feishu'
-                    ? 'identity.boundOther'
-                    : bound?.reception === 'receiving'
-                      ? 'identity.ready'
-                      : bound?.reception === 'connecting' || bound === undefined
-                        ? 'identity.connecting'
-                        : 'identity.offline',
+                  bound?.reception === 'receiving'
+                    ? selectedAccount.platform === 'weixin'
+                      ? 'identity.readyWeixin'
+                      : 'identity.ready'
+                    : bound?.reception === 'connecting' || bound === undefined
+                      ? 'identity.connecting'
+                      : 'identity.offline',
                   { app: selectedAccount.name },
                 )}
               </p>

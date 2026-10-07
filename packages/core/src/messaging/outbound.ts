@@ -1196,16 +1196,12 @@ export function createOutboundMessaging(options: {
           return {
             ...latest,
             availability,
-            ...(latest.platform === 'feishu'
-              ? {
-                  reception:
-                    availability === 'available'
-                      ? inbound.pairingReception(id)
-                      : availability === 'paused'
-                        ? ('off' as const)
-                        : ('unavailable' as const),
-                }
-              : {}),
+            reception:
+              availability === 'available'
+                ? inbound.pairingReception(id)
+                : availability === 'paused'
+                  ? ('off' as const)
+                  : ('unavailable' as const),
             grantCount: scopes.length,
             scopes: scopes.map((g) => g.targetName),
           };
