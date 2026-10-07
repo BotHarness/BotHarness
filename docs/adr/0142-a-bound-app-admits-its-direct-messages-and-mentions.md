@@ -1,11 +1,11 @@
 ---
-Status: Proposed
+Status: Accepted
 Date: 2026-10-07
 ---
 
 # A bound app admits its direct messages and mentions
 
-A person who binds a Bot to a Lark, Discord, Slack or WeChat app expects that Bot to receive and answer messages sent to that app. Today the same result needs four separate authorities: connect the app in the Provider's IM settings, save a delivery target for every conversation, bind the Bot's external identity, authorize each saved target and then switch its reception on. A conversation without a saved target and an explicit Grant is acknowledged and discarded, so a DM or @mention to a freshly bound app reaches nothing. The Provider settings list also does not show which Bot uses an app, and a Bot can bind only one app per platform. This ADR proposes one binding step. The platform's own controls decide who can reach the app. The binding decides which Bot answers. Conversations become a list the person manages after the fact.
+A person who binds a Bot to a Lark, Discord, Slack or WeChat app expects that Bot to receive and answer messages sent to that app. Today the same result needs four separate authorities: connect the app in the Provider's IM settings, save a delivery target for every conversation, bind the Bot's external identity, authorize each saved target and then switch its reception on. A conversation without a saved target and an explicit Grant is acknowledged and discarded, so a DM or @mention to a freshly bound app reaches nothing. The Provider settings list also does not show which Bot uses an app, and a Bot can bind only one app per platform. This ADR adopts one binding step. The platform's own controls decide who can reach the app. The binding decides which Bot answers. Conversations become a list the person manages after the fact.
 
 This amends [ADR-0101](0101-external-grants-require-authenticated-accounts-and-checked-targets.md) (one account per platform per Bot), [ADR-0106](0106-exclusive-im-intake-commits-bot-inbox-before-acknowledgement.md) (reception requires a granted saved destination), [ADR-0111](0111-external-identity-lifecycle-is-independent-of-grants.md) (account-only binding creates no reception, the unique Bot/platform constraint stays in force) and [ADR-0120](0120-multiple-bridge-routes-retain-canonical-sources.md) (binding an identity alone creates no route). It also amends [ADR-0038](0038-provider-capabilities-and-service-grants-gate-external-actions.md): a proactive post may go to any conversation the platform lets the app post in, without a Provider-saved target. Saved-target Service Grants remain only as the fallback for Providers that cannot list or address conversations.
 
