@@ -11,7 +11,7 @@
 
 - 私聊已绑定的 Slack 应用，消息现在会进入 Bot 收件箱，Bot 直接在私聊里回复，不开 thread；Discord 应用也重新出现在 **绑定应用** 里。开发用的 IM Provider 换到新的 dsh-im 版本，包含 Slack 私聊接收、Discord checked 发送，以及 Slack/Discord 回复里的 checked @（[#1125](https://github.com/BotHarness/BotHarness/issues/1125)、[外部身份指南](docs/channel-sidebar/external-identities.md)）。
 
-- 从侧栏 Bot 菜单可显示透明像素窗口伙伴，在 Harness 页面之间保留，跟随真实 Activity 和新的 Human–Bot 私聊回复，支持拖拽姿态缓动、连续惯性下落与柔和落地，以及悬浮阅读列表；减少动效时关闭下落和姿态效果。重启恢复本地选择，不重播历史消息；首个切片支持一个伙伴，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+- 从侧栏菜单或 Channel 顶部各 Bot 的独立按钮可钉选多个透明像素窗口伙伴，各自保留真实 Activity、新 Human–Bot 私聊气泡、拖拽物理效果、阅读列表和走动偏好；Profile 共用设置控制层叠层数与有界卡片容量，重启恢复偏好且不重播旧消息。减少动效时关闭下落和姿态效果，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)、[#1139](https://github.com/BotHarness/DeepSeekBot/issues/1139)）。
 
 - 一个 Bot 可以绑定同一平台的多个应用，例如两个飞书应用：每个应用的私聊和 @ 都进入同一个收件箱，并通过收到消息的应用回复。**绑定应用** 列出所有已连接的应用，已被 Bot 使用的应用置灰并注明是哪个 Bot；外部身份按平台列出这个 Bot 的应用。Bot 在同一个群里有两个应用时，转发来源的回复会明确拒绝（[#1110](https://github.com/BotHarness/BotHarness/issues/1110)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 

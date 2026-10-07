@@ -60,8 +60,8 @@ import { consumeLastView, writeLastView } from './last-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
-import { WindowCompanion } from './window-companion.js';
-import { WindowCompanionView } from './window-companion-view.js';
+import { WindowCompanions } from './window-companions.js';
+import { WindowCompanionsView, CompanionSettings } from './window-companions-view.js';
 
 export const name = 'botharness-client';
 
@@ -131,7 +131,7 @@ export function apply(ctx: ClientContext): void {
       ctx.uiWorkspace.openSession(sessionId as SessionId);
     },
   });
-  const companion = new WindowCompanion({
+  const companion = new WindowCompanions({
     storage,
     exists: (botId) => botExists(call, botId),
     onActivity: (snapshot) => store.applyActivity(snapshot),
@@ -149,16 +149,25 @@ export function apply(ctx: ClientContext): void {
       return { profileId: value.profileId };
     },
     source: (url) => new EventSource(url),
+    update: async (value) => {
+      const response = await fetch('/api/botharness/companion', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(value),
+      });
+      if (!response.ok) throw new Error('Companion subscription unavailable');
+    },
   });
   ctx.effect(() => {
     void companion.start();
     let mirrored: 'live' | 'stale' | undefined;
     const off = companion.subscribe(() => {
       const value = companion.getSnapshot();
-      if (value.selection === undefined && mirrored === undefined) return;
-      const sync = value.selection === undefined || value.sync === 'live' ? 'live' : 'stale';
+      if (!value.companions.length && mirrored === undefined) return;
+      const sync = !value.companions.length || value.sync === 'live' ? 'live' : 'stale';
       if (sync === mirrored) return;
-      mirrored = value.selection === undefined ? undefined : sync;
+      mirrored = value.companions.length ? sync : undefined;
       store.setActivitySync(sync);
       if (typeof document !== 'undefined') {
         if (sync === 'stale') document.documentElement.dataset['botharnessActivity'] = 'stale';
@@ -190,9 +199,10 @@ export function apply(ctx: ClientContext): void {
             ctx.layout.selectPanel(PANEL_ID);
             void actions.openActivityCenter();
           },
+          openSettings: () => openBotSettings(() => [t('settings.nav')]),
         }),
       },
-      WindowCompanionView,
+      WindowCompanionsView,
     ),
   );
   const prefs = new BotModePrefs(storage);
@@ -293,7 +303,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () =>
       mountActivityLive(store, undefined, (signal) => loadActivitySnapshot(call, signal), {
-        enabled: () => companion.getSnapshot().selection === undefined,
+        enabled: () => companion.getSnapshot().companions.length === 0,
         subscribe: companion.subscribe,
       }),
     'botharness: PersonaBot activity subscription',
@@ -349,6 +359,18 @@ export function apply(ctx: ClientContext): void {
         };
       },
     });
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
+          id: 'companions',
+          order: 15,
+          locale: LOCALE_NS,
+          inject: () => ({ companion }),
+        },
+        CompanionSettings,
+      ),
+    );
     settingsCtx.slots.inject('botharness.settings.item', () =>
       settingsCtx.slots.register(
         {
@@ -465,6 +487,7 @@ export function apply(ctx: ClientContext): void {
         locale: LOCALE_NS,
         inject: () => ({
           actions,
+          companion,
           channelSidebar,
           profileCards,
           nativeChatT,
@@ -562,7 +585,14 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions, channelSidebar, profileCards, nativeChatT, nativeSessions }),
+          inject: () => ({
+            actions,
+            companion,
+            channelSidebar,
+            profileCards,
+            nativeChatT,
+            nativeSessions,
+          }),
         },
         BotMain,
       ),

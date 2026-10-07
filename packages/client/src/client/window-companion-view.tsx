@@ -12,6 +12,7 @@ import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { WindowCompanion } from './window-companion.js';
 import { CompanionMotion } from './companion-motion.js';
+import type { CompanionBubbles } from './companion-bubbles.js';
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -19,6 +20,9 @@ export interface WindowCompanionViewProps {
   openAttention(): void;
   openChannel(channelId: string): void;
   t: BotHarnessTranslate;
+  onRemove?(botId: string): void;
+  bubbles?: CompanionBubbles | undefined;
+  openSettings?(): void;
 }
 export function WindowCompanionView({
   companion,
@@ -26,12 +30,16 @@ export function WindowCompanionView({
   openAttention,
   openChannel,
   t,
+  onRemove,
+  bubbles,
+  openSettings,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
   latest.current = view;
   const [motion] = useState(() => new CompanionMotion());
   const [point, setPoint] = useState(motion.point);
+  const [bubbleOffset, setBubbleOffset] = useState(0);
   const root = useRef<HTMLDivElement | null>(null);
   const pointer = useRef<
     | {
@@ -122,6 +130,24 @@ export function WindowCompanionView({
           );
           const previousPoint = motion.point;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
+          if (state.selection) {
+            if (state.selection.activity || state.sync !== 'live' || state.cards.length)
+              setBubbleOffset(
+                bubbles?.place(
+                  state.selection.botId,
+                  next.x,
+                  next.y,
+                  next.width,
+                  window.innerHeight,
+                  state.cards.length > 0,
+                  state.reading,
+                ) ?? 0,
+              );
+            else {
+              bubbles?.remove(state.selection.botId);
+              setBubbleOffset(0);
+            }
+          }
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
           if (next !== previousPoint) setPoint(next);
@@ -138,10 +164,11 @@ export function WindowCompanionView({
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
+        if (latest.current.selection) bubbles?.remove(latest.current.selection.botId);
         root.current = null;
       };
     },
-    [companion, view.selection?.botId],
+    [companion, view.selection?.botId, bubbles],
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
@@ -158,10 +185,25 @@ export function WindowCompanionView({
       label: t('companion.dm'),
       icon: <span aria-hidden="true">{selection.dm ? '✓' : ''}</span>,
     },
+    {
+      id: 'group',
+      label: t('companion.groupUnavailable'),
+      disabled: true,
+      icon: <span aria-hidden="true">{selection.group ? '✓' : ''}</span>,
+    },
+    { type: 'separator', id: 'scope-separator' },
+    ...(['own-dm', 'shared', 'all-bot'] as const).map((scope) => ({
+      id: scope,
+      label: t(`companion.scope.${scope}`),
+      icon: <span aria-hidden="true">{selection.visibility === scope ? '✓' : ''}</span>,
+    })),
+    { type: 'separator', id: 'walking-separator' },
+    { id: 'walking', label: t(selection.walking ? 'companion.pause' : 'companion.walk') },
     { type: 'separator', id: 'remove-separator' },
+    ...(openSettings ? [{ id: 'settings', label: t('companion.settings') }] : []),
     { id: 'remove', label: t('companion.remove') },
   ];
-  const cards = view.reading ? view.cards : view.cards.slice(-3);
+  const cards = view.reading ? view.cards : view.cards.slice(-view.capacity.layers);
   const bubbleLeft = Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
   return (
     <div ref={mount} className="bh-root bh-companion-stage">
@@ -171,7 +213,13 @@ export function WindowCompanionView({
         data-reading={view.reading}
         data-sync={view.sync}
         data-motion={point.phase}
-        style={{ left: point.x, bottom: point.y }}
+        data-bot={bot.slug}
+        style={{ left: point.x, bottom: point.y, zIndex: view.reading ? 10 : 1 }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          enter();
+          setMenu(true);
+        }}
         onPointerEnter={enter}
         onPointerLeave={leave}
         onFocusCapture={enter}
@@ -180,7 +228,11 @@ export function WindowCompanionView({
         }}
       >
         {selection.activity || view.sync !== 'live' ? (
-          <div className="bh-companion-activity" style={{ left: bubbleLeft }} role="status">
+          <div
+            className="bh-companion-activity"
+            style={{ left: bubbleLeft, bottom: 134 + bubbleOffset }}
+            role="status"
+          >
             {view.sync !== 'live'
               ? t('companion.stale')
               : bot.paused
@@ -194,8 +246,12 @@ export function WindowCompanionView({
             aria-label={t('companion.messages')}
             style={{
               left: bubbleLeft,
+              bottom: 174 + bubbleOffset,
               height: view.reading
-                ? Math.min(cards.length * 112, Math.max(112, window.innerHeight - 240))
+                ? Math.min(
+                    cards.length * 112,
+                    Math.max(112, window.innerHeight - point.y - 174 - bubbleOffset - 16),
+                  )
                 : 112,
             }}
           >
@@ -272,9 +328,17 @@ export function WindowCompanionView({
               </button>
             }
             onSelect={(id) => {
-              if (id === 'remove') companion.remove();
+              if (id === 'remove') {
+                if (onRemove) onRemove(bot.slug);
+                else companion.remove();
+              }
               if (id === 'activity') companion.configure({ activity: !selection.activity });
               if (id === 'dm') companion.configure({ dm: !selection.dm });
+              if (id === 'group') companion.configure({ group: !selection.group });
+              if (id === 'walking') companion.configure({ walking: !selection.walking });
+              if (id === 'settings') openSettings?.();
+              if (id === 'own-dm' || id === 'shared' || id === 'all-bot')
+                companion.configure({ visibility: id });
               setMenu(false);
               leave();
             }}

@@ -16,7 +16,7 @@ export interface CompanionSelection {
   activity: boolean;
   dm: boolean;
   group: boolean;
-  visibility: 'shared';
+  visibility: 'own-dm' | 'shared' | 'all-bot';
   walking: boolean;
   position: number;
 }
@@ -34,13 +34,16 @@ export interface CompanionViewState {
   cards: readonly CompanionCard[];
   pending: number;
   reading: boolean;
+  capacity: { layers: number; retention: number };
 }
-interface CompanionStream {
+export interface CompanionStream {
   readonly readyState?: number;
   addEventListener(name: string, listener: (event: Event) => void): void;
   close(): void;
 }
 interface CompanionDependencies {
+  initialSelection?: CompanionSelection;
+  onSelection?(selection: CompanionSelection | undefined): void;
   onActivity?(snapshot: PersonaBotActivitySnapshot): void;
   storage?: ConfigStorage | undefined;
   context(): Promise<{ profileId: string }>;
@@ -67,6 +70,7 @@ export class WindowCompanion {
     cards: [],
     pending: 0,
     reading: false,
+    capacity: { layers: 3, retention: 20 },
   };
   private listeners = new Set<() => void>();
   private stream: CompanionStream | undefined;
@@ -75,7 +79,9 @@ export class WindowCompanion {
   private pendingCards: CompanionCard[] = [];
   private seen: string[] = [];
   private disposed = false;
-  constructor(private readonly deps: CompanionDependencies) {}
+  constructor(private readonly deps: CompanionDependencies) {
+    if (deps.initialSelection) this.state = { ...this.state, selection: deps.initialSelection };
+  }
   getSnapshot = (): CompanionViewState => this.state;
   subscribe = (changed: () => void): (() => void) => {
     this.listeners.add(changed);
@@ -95,11 +101,11 @@ export class WindowCompanion {
       const { profileId } = await this.deps.context();
       if (this.disposed || !profileId) return;
       this.profileId = profileId;
-      let selection: CompanionSelection | undefined;
+      let selection: CompanionSelection | undefined = this.deps.initialSelection;
       try {
         const raw = this.deps.storage?.getItem(this.key);
         const value = raw ? object(JSON.parse(raw)) : undefined;
-        if (typeof value?.['botId'] === 'string' && value['botId'].length > 0)
+        if (!selection && typeof value?.['botId'] === 'string' && value['botId'].length > 0)
           selection = {
             botId: value['botId'],
             activity: value['activity'] !== false,
@@ -150,20 +156,29 @@ export class WindowCompanion {
     });
     this.save();
   }
-  configure(
-    change: Partial<Pick<CompanionSelection, 'walking' | 'activity' | 'dm' | 'position'>>,
-  ): void {
+  configure(change: Partial<Omit<CompanionSelection, 'botId'>>): void {
     const selected = this.state.selection;
     if (!selected) return;
     this.update({ selection: { ...selected, ...change } });
     this.save();
     if (change.dm !== undefined && change.dm !== selected.dm) this.connect();
   }
+  setCapacity(capacity: { layers: number; retention: number }): void {
+    this.pendingCards = this.pendingCards.slice(-capacity.retention);
+    this.seen = this.seen.slice(-capacity.retention * 4);
+    this.update({
+      capacity,
+      cards: this.state.cards.slice(-capacity.retention),
+      pending: this.pendingCards.length,
+    });
+  }
   reading(reading: boolean): void {
     if (reading === this.state.reading) return;
     if (reading) this.update({ reading });
     else {
-      const cards = [...this.state.cards, ...this.pendingCards].slice(-20);
+      const cards = [...this.state.cards, ...this.pendingCards].slice(
+        -this.state.capacity.retention,
+      );
       this.pendingCards = [];
       this.update({ reading, cards, pending: 0 });
     }
@@ -212,6 +227,7 @@ export class WindowCompanion {
     this.update({ cards: this.state.cards.filter((card) => card.messageId !== messageId) });
   }
   private save(): void {
+    this.deps.onSelection?.(this.state.selection);
     try {
       this.deps.storage?.setItem(this.key, JSON.stringify(this.state.selection ?? null));
     } catch {}
@@ -299,7 +315,7 @@ export class WindowCompanion {
       )
         return;
       this.seen.push(value['messageId']);
-      if (this.seen.length > 80) this.seen.shift();
+      if (this.seen.length > this.state.capacity.retention * 4) this.seen.shift();
       const body = messagePreview(value['body']);
       const card: CompanionCard = {
         generation: this.generation,
@@ -314,9 +330,10 @@ export class WindowCompanion {
       };
       if (this.state.reading) {
         this.pendingCards.push(card);
-        this.pendingCards = this.pendingCards.slice(-20);
+        this.pendingCards = this.pendingCards.slice(-this.state.capacity.retention);
         this.update({ pending: this.pendingCards.length });
-      } else this.update({ cards: [...this.state.cards, card].slice(-20) });
+      } else
+        this.update({ cards: [...this.state.cards, card].slice(-this.state.capacity.retention) });
     });
     stream.addEventListener('error', () => {
       if (this.disposed || this.stream !== stream) return;

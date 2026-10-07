@@ -1,4 +1,6 @@
 import { GroupChannelHeader } from './group-channel-header.js';
+import { CompanionPin } from './window-companions-view.js';
+import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 import { useCallback, useRef, useState, type ReactElement } from 'react';
@@ -499,6 +501,7 @@ function EmptyConversation({
 function ConversationView({
   state,
   actions,
+  companion,
   channelSidebar,
   profileCards = EMPTY_PROFILE_CARDS,
   nativeChatT,
@@ -506,6 +509,7 @@ function ConversationView({
 }: {
   state: ClientState;
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog;
   profileCards?: ProfileCardRegistry | undefined;
@@ -1092,6 +1096,7 @@ function ConversationView({
                   channel={channel}
                   title={title}
                   members={channelFacepile}
+                  companion={companion}
                   expanded={profilePopoverOpen}
                   t={t}
                   onOpenActivity={() => setProfilePopoverOpen(true)}
@@ -1119,43 +1124,53 @@ function ConversationView({
                 ) : null}
               </span>
             ) : profileBot === undefined ? (
-              <button
-                type="button"
-                className="bh-channel-island"
-                aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
-                aria-controls="bh-channel-sidebar"
-                aria-expanded={sidebar.mode !== 'hidden'}
-                onClick={sidebar.toggle}
-              >
-                {bot !== undefined ? (
-                  <PersonaBotAvatar
-                    t={t}
-                    personaBotId={bot.slug}
+              <span className="bh-companion-chip">
+                <button
+                  type="button"
+                  className="bh-channel-island"
+                  aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
+                  aria-controls="bh-channel-sidebar"
+                  aria-expanded={sidebar.mode !== 'hidden'}
+                  onClick={sidebar.toggle}
+                >
+                  {bot !== undefined ? (
+                    <PersonaBotAvatar
+                      t={t}
+                      personaBotId={bot.slug}
+                      name={bot.displayName}
+                      src={bot.avatar}
+                      appearance={bot.appearance}
+                      state={botActivity}
+                      size={22}
+                      indicator={false}
+                    />
+                  ) : channelFacepile.length > 0 ? (
+                    <PersonaBotFacepile items={channelFacepile} size={22} indicator={false} t={t} />
+                  ) : (
+                    <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
+                      #
+                    </span>
+                  )}
+                  <span className="bh-title">{title}</span>
+                  {bot === undefined || bot.roles.length === 0 ? null : (
+                    <span className="bh-role-badges">
+                      {bot.roles.map((role) => (
+                        <Tag key={role} tone="neutral">
+                          {role}
+                        </Tag>
+                      ))}
+                    </span>
+                  )}
+                </button>
+                {bot && companion ? (
+                  <CompanionPin
+                    companion={companion}
+                    botId={bot.slug}
                     name={bot.displayName}
-                    src={bot.avatar}
-                    appearance={bot.appearance}
-                    state={botActivity}
-                    size={22}
-                    indicator={false}
+                    t={t}
                   />
-                ) : channelFacepile.length > 0 ? (
-                  <PersonaBotFacepile items={channelFacepile} size={22} indicator={false} t={t} />
-                ) : (
-                  <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
-                    #
-                  </span>
-                )}
-                <span className="bh-title">{title}</span>
-                {bot === undefined || bot.roles.length === 0 ? null : (
-                  <span className="bh-role-badges">
-                    {bot.roles.map((role) => (
-                      <Tag key={role} tone="neutral">
-                        {role}
-                      </Tag>
-                    ))}
-                  </span>
-                )}
-              </button>
+                ) : null}
+              </span>
             ) : (
               <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
                 <button
@@ -1187,6 +1202,14 @@ function ConversationView({
                     </span>
                   )}
                 </button>
+                {companion ? (
+                  <CompanionPin
+                    companion={companion}
+                    botId={profileBot.slug}
+                    name={profileBot.displayName}
+                    t={t}
+                  />
+                ) : null}
                 {profilePopoverOpen ? (
                   <ProfilePopover
                     bot={profileBot}
@@ -1591,6 +1614,7 @@ function ConversationView({
 
 export function BotMain({
   actions,
+  companion,
   nativeSessions,
   channelSidebar,
   profileCards,
@@ -1598,6 +1622,7 @@ export function BotMain({
   t = zhTranslate,
 }: {
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
@@ -1617,6 +1642,7 @@ export function BotMain({
       key={`${scopeKey}:${state.conversation.channel?.id ?? ''}`}
       state={state}
       actions={actions}
+      companion={companion}
       channelSidebar={channelSidebar}
       profileCards={profileCards}
       nativeChatT={nativeChatT}
@@ -1627,6 +1653,7 @@ export function BotMain({
 
 export function BotPanel({
   actions,
+  companion,
   nativeSessions,
   channelSidebar,
   profileCards,
@@ -1636,6 +1663,7 @@ export function BotPanel({
   t,
 }: {
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
@@ -1661,6 +1689,7 @@ export function BotPanel({
       )}
       <BotMain
         actions={actions}
+        companion={companion}
         nativeSessions={nativeSessions}
         channelSidebar={channelSidebar}
         profileCards={profileCards}

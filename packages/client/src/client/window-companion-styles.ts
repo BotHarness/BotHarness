@@ -11,6 +11,14 @@ export const WINDOW_COMPANION_CSS = `
   /* @bh-companion-aliases:end */
   position: absolute; inset: 0; pointer-events: none; overflow: hidden;
 }
+.bh-companion-chip { display: inline-flex; align-items: center; gap: 2px; }
+.bh-channel-island-wrap > .bh-companion-pin { margin-left: 2px; }
+.bh-companion-pin { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; background: transparent; color: var(--bh-overview-muted); border-radius: var(--bh-overview-radius-control); cursor: pointer; opacity: 0; transition: opacity 150ms ease; }
+.bh-companion-chip:hover .bh-companion-pin, .bh-channel-island-wrap:hover > .bh-companion-pin, .bh-companion-pin:focus-visible, .bh-companion-pin[aria-pressed='true'] { opacity: 1; }
+.bh-companion-pin:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
+.bh-companion-pin:disabled { cursor: default; }
+.bh-companion-capacity-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.bh-companion-capacity-controls label { display: grid; gap: 4px; max-width: 150px; }
 .bh-companion { position: absolute; width: 96px; height: 96px; pointer-events: auto; }
 .bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; transform-origin: center 20%; transition: transform 140ms ease-out, transform-origin 140ms ease-out; }
 .bh-companion[data-motion='fall'] .bh-companion-character,

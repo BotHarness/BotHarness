@@ -33,7 +33,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import { apply, PANEL_ID } from '../src/client/index.js';
 import { store } from '../src/client/store.js';
-import { WindowCompanion } from '../src/client/window-companion.js';
+import { WindowCompanions } from '../src/client/window-companions.js';
 
 interface Spec {
   name: string;
@@ -161,7 +161,7 @@ describe('client apply', () => {
     store.setActivitySync('live');
     const calls = vi.spyOn(store, 'setActivitySync');
     const specs: Spec[] = [];
-    let companion: WindowCompanion | undefined;
+    let companion: WindowCompanions | undefined;
     try {
       apply(createScoped(specs, []) as never);
       const value = specs.find((spec) => spec.name === 'shell.overlay')?.inject?.();
@@ -169,7 +169,7 @@ describe('client apply', () => {
         typeof value !== 'object' ||
         value === null ||
         !('companion' in value) ||
-        !(value.companion instanceof WindowCompanion)
+        !(value.companion instanceof WindowCompanions)
       )
         throw new Error('Companion overlay unavailable');
       companion = value.companion;
@@ -177,11 +177,12 @@ describe('client apply', () => {
       store.setRosterStatus('loading', undefined);
       calls.mockClear();
       companion.select('ada');
+      await vi.waitFor(() => expect(streams).toHaveLength(1));
       streams[0]!.dispatchEvent(new Event('error'));
-      companion.reading(true);
-      companion.configure({ walking: false });
+      companion.get('ada')!.reading(true);
+      companion.get('ada')!.configure({ walking: false });
       expect(calls.mock.calls).toEqual([['stale']]);
-      companion.remove();
+      companion.remove('ada');
       expect(store.getSnapshot().activitySync).toBe('live');
       expect(calls.mock.calls).toEqual([['stale'], ['live']]);
     } finally {
