@@ -10,6 +10,10 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
   MarketplaceDetail,
@@ -192,6 +196,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
+  }
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot> {
+    return unwrapAsync(this.methods.channelIngests({ channelId }));
+  }
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelIngest({ channelId, input }));
   }
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.channelBridge({ channelId, input }));
@@ -1012,6 +1022,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
+  'channelIngests',
+  'channelIngest',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',

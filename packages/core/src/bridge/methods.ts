@@ -14,6 +14,10 @@ import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overvie
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import {
+  conversationIngestInput,
+  type ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
+import {
   externalMemberWake,
   messagingDefaultsInput,
   messagingDefaultsPlatform,
@@ -322,6 +326,8 @@ export interface BridgeMethods {
   >;
   pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelIngests(payload: unknown): Promise<BridgeResult<ConversationIngestSnapshot>>;
+  channelIngest(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -959,6 +965,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .safeParse(payload);
       if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
       return messagingCall((service) => service.channelBridges(input.data.channelId));
+    },
+    channelIngests(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall(async (service) => service.inbound.ingests(input.data.channelId));
+    },
+    channelIngest(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: conversationIngestInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success)
+        return Promise.resolve(invalidInput('Invalid external conversation command'));
+      return messagingCall(async (service) => {
+        await service.inbound.ingest(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
     },
     channelBridge(payload) {
       const input = z

@@ -41,6 +41,7 @@ export function ChannelBridgeList({
   botNames,
   actions,
   t,
+  showEmpty = true,
   children,
 }: {
   channelId: string;
@@ -48,6 +49,7 @@ export function ChannelBridgeList({
   botNames: ReadonlyMap<string, string>;
   actions: Pick<BridgeActions, 'channelBridges' | 'channelBridge'>;
   t: BotHarnessTranslate;
+  showEmpty?: boolean;
   children?: ReactNode;
 }): ReactElement {
   const [snapshot, setSnapshot] = useState<ChannelBridgeSnapshot>();
@@ -244,7 +246,7 @@ export function ChannelBridgeList({
             }
           />
         ))}
-        {snapshot && !snapshot.bridges.length ? (
+        {showEmpty && snapshot && !snapshot.bridges.length ? (
           <li className="bh-card-row bh-muted bh-card-note">{t('bridge.empty')}</li>
         ) : null}
         {children}
