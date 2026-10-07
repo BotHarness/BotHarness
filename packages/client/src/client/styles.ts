@@ -2534,33 +2534,40 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   --bh-im-help-focus: var(--dsw-alias-state-business-primary);
   /* @bh-im-actions-aliases:end */
 }
-.bh-im-settings .bh-profile-card { gap: 10px; padding: 12px; }
-.bh-im-grant-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.bh-im-grant-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.bh-im-grant-name > strong { width: 100%; font-size: 13px; overflow-wrap: anywhere; }
-.bh-im-grant-name > span { font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .bh-im-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .bh-im-heading { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .bh-im-heading small { color: var(--dsw-alias-label-secondary); font-weight: normal; }
 .bh-im-help { width: 22px; height: 22px; flex: none; color: var(--dsw-alias-label-secondary); }
 .bh-im-help:focus-visible { outline: 2px solid var(--bh-im-help-focus); outline-offset: 2px; }
-.bh-im-settings .bh-profile-policy-summary-text .bh-im-heading { flex-direction: row; color: var(--dsw-alias-label-primary); }
-.bh-im-settings .bh-im-field { gap: 4px; }
-.bh-im-settings .bh-im-field :is(select,input) { padding: 6px 8px; min-height: 32px; }
-.bh-im-settings .bh-im-group-policy { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 12px; padding-block: 10px; }
+.bh-im-grant-body .bh-im-group-policy { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 12px; padding-block: 10px; }
 .bh-im-wide { grid-column: 1 / -1; }
-.bh-im-settings .bh-im-digest-fields { gap: 12px; }
 .bh-im-policy-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .bh-im-policy-revision { color: var(--dsw-alias-label-secondary); font-size: 11px; }
-.bh-im-settings .bh-im-status { margin: 0; font-size: 12px; }
+.bh-im-grant-body .bh-im-status { margin: 0; font-size: 12px; }
 .bh-im-notice { font-size: 12px; }
-.bh-im-settings .bh-im-submit { align-self: flex-end; }
+.bh-im-grant-body .bh-im-submit { align-self: flex-end; }
 .bh-im-danger.bh-im-danger { background: var(--bh-im-danger-fill); color: var(--bh-im-danger-label); border-color: transparent; }
 .bh-im-danger.bh-im-danger:not(:disabled):hover { background: var(--bh-im-danger-hover); }
 .bh-im-thread-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 @media (max-width: 720px) {
-  .bh-im-settings .bh-im-group-policy { grid-template-columns: minmax(0,1fr); }
+  .bh-im-grant-body .bh-im-group-policy { grid-template-columns: minmax(0,1fr); }
 }
+.bh-im-danger-outline.bh-im-danger-outline { color: var(--dsw-alias-state-error-primary); }
+.bh-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
+.bh-modal-footer > button { white-space: nowrap; }
+.bh-modal-footer-gap { flex: 1; }
+.bh-sidebar-modal { width: min(440px, calc(100vw - 32px)); }
+.bh-sidebar-modal-form, .bh-im-grant-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-size: 13px; }
+.bh-sidebar-modal-form p, .bh-im-grant-body p { margin: 0; }
+.bh-sidebar-modal-form ul { margin: 0; padding-left: 18px; }
+.bh-sidebar-modal-subject { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; overflow-wrap: anywhere; }
+.bh-sidebar-modal-subject .bh-bridge-secondary { width: 100%; margin-top: 0; font-weight: 400; }
+.bh-muted { color: var(--dsw-alias-label-secondary); }
+.bh-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bh-im-history { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l2); }
+.bh-external-entry { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bh-memory-limits { margin-top: 8px; }
+.bh-external-panel-modal .bh-im-pairing { padding-block: 0; font-size: 13px; }
 
  .bh-im-field {
   display: flex;
@@ -2585,25 +2592,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-threads td { overflow-wrap: anywhere; }
 .bh-identity-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .bh-identity-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.bh-bridge-table-wrap { overflow-x: auto; max-width: 100%; }
-.bh-bridge-table { min-width: 680px; }
-.bh-bridge-table th:nth-child(1) { width: 17%; }
-.bh-bridge-table th:nth-child(2) { width: 20%; }
-.bh-bridge-table th:nth-child(3) { width: 13%; }
-.bh-bridge-table th:nth-child(4) { width: 19%; }
-.bh-bridge-table th:nth-child(5) { width: 10%; }
-.bh-bridge-table th:nth-child(6) { width: 7%; }
-.bh-bridge-table th:nth-child(7) { width: 14%; }
-.bh-bridge-table td:last-child .bh-identity-actions { justify-content: flex-end; flex-wrap: wrap; }
-.bh-bridge-table th,.bh-bridge-table td{vertical-align:middle;white-space:normal;overflow-wrap:anywhere}.bh-bridge-secondary{display:block;color:var(--dsw-alias-label-secondary);font-size:12px;margin-top:4px}
-.bh-identity-table { table-layout: fixed; }
-.bh-identity-table th:first-child { width: 17%; }
-.bh-identity-table th:nth-child(2) { width: 28%; }
-.bh-identity-table th:nth-child(3) { width: 17%; }
-.bh-identity-table th:nth-child(4) { width: 10%; }
-.bh-identity-table th:nth-child(5) { width: 28%; }
-.bh-identity-table th, .bh-identity-table td { overflow-wrap: anywhere; }
-.bh-identity-table td:last-child .bh-identity-actions { justify-content: flex-end; }
+.bh-bridge-secondary{display:block;color:var(--dsw-alias-label-secondary);font-size:12px;margin-top:4px}
 .bh-im-threads .bh-source-policy-table th:first-child { width: 40%; }
 .bh-im-threads .bh-source-policy-table th:nth-child(2) { width: 27%; }
 .bh-im-threads .bh-source-policy-table th:nth-child(3) { width: 12%; }
@@ -2612,9 +2601,9 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-digest-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bh-im-field textarea { min-height: 80px; resize: vertical; }
 .bh-im-outcome { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
-.bh-im-field select,
-.bh-im-field textarea,
-.bh-im-field input,
+.bh-im-field > select,
+.bh-im-field > textarea,
+.bh-im-field > input,
 .bh-profile-policy-select {
   box-sizing: border-box;
   width: 100%;

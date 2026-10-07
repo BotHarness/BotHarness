@@ -18,13 +18,15 @@ The entry capture precedes pairing and has no independently recorded exact Clien
 
 ## 2. Bind the PersonaBot identity
 
-Open the PersonaBot DM, click its header and choose **View details**. In **External identities**, bind the connected WeChat account. The table shows a masked identity and enabled/available state. Binding alone does not authorize incoming messages.
+Open the PersonaBot DM and, in the **Channel sidebar** on the right, expand **External identities**. Click **+ Bind identity** and bind the connected WeChat account. Its row shows the identity, its status and an enable switch. Binding alone does not authorize incoming messages.
 
 ![Real paired WeChat identity in the PersonaBot Profile](/guides/wechat/identity-bound.jpg)
 
+_Screenshot shows the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
+
 ## 3. Authorize the owner DM and enable intake
 
-Expand **Channel connectors and authorization**, select the QR-paired owner conversation and explicitly authorize it. Enable **WeChat DM intake**. This first slice delivers only to the Bot Inbox; it does not insert external text into local Human DM history or expose group/mention/topic controls. Replies use the same Bot's bound identity and valid source continuation.
+Expand **External connectors** and click **Authorize a conversation**. In the **Conversation authorization** dialog, select the QR-paired owner conversation and explicitly authorize it. Enable **WeChat DM intake**. This first slice delivers only to the Bot Inbox; it does not insert external text into local Human DM history or expose group/mention/topic controls. Replies use the same Bot's bound identity and valid source continuation.
 
 ## 4. Check a real text and its reply
 
@@ -152,7 +154,7 @@ The #908 live test received an item-ID-only quote: WeChat supplied neither the q
 
 The #909 installed-product test used `0.0.0-test.909.2` with the unchanged Provider `4.32.0-botharness.10`. One paired-owner conversation delivered the same canonical Source Event to a local shared Group and the receiving Bot's separate Inbox. The Human confirmed all four original-WeChat replies.
 
-Keep the receiving PersonaBot's WeChat identity and paired-owner DM authorization. Create a local Group with this Bot and its collaborators. In its Profile, choose **Channel connectors → Add connector**, select the authorized paired-owner conversation, name the connector and save. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
+Keep the receiving PersonaBot's WeChat identity and paired-owner DM authorization. Create a local Group with this Bot and its collaborators. In its detailed Profile, choose **External connectors → Add connector**, select the authorized paired-owner conversation, name the connector and save. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
 
 ![WeChat-specific connector configuration, light theme](/guides/wechat/channel-connector-config-light.jpg)
 
@@ -184,11 +186,13 @@ This short sampled browser recording shows the real connector switch and saved s
 
 ## 12. Send an external-only text report
 
-Keep the PersonaBot's own enabled WeChat identity and explicitly authorize its QR-paired owner DM. In its Profile, expand **Channel Bridge and authorization**. A qualified Provider exposes **Message → Send message**. Write a unique report and send explicitly. It creates a canonical Outbox report in WeChat only, without a local Human DM mirror or new Inbox Admission. The Bot can use the same capability through `bridge_targets`, `bridge_post` and `bridge_outbox`. This adds no scheduler.
+Keep the PersonaBot's own enabled WeChat identity and explicitly authorize its QR-paired owner DM. In its DM sidebar, open **External connectors → Authorize a conversation**. A qualified Provider exposes **Message → Send message**. Write a unique report and send explicitly. It creates a canonical Outbox report in WeChat only, without a local Human DM mirror or new Inbox Admission. The Bot can use the same capability through `bridge_targets`, `bridge_post` and `bridge_outbox`. This adds no scheduler.
 
 ![Qualified owner-DM posting controls, light theme](/guides/wechat/proactive-after-light.jpg)
 
 ![The same real Profile in dark theme](/guides/wechat/proactive-after-dark.jpg)
+
+_Screenshots show the earlier Profile layout; these settings now live in the sidebar's External connectors entry._
 
 The paired owner first sends a message in the original WeChat conversation while this Bot's authorized intake is running. Private context stays inside the Provider and is never renewed by synthetic heartbeats. A local retention ceiling does not promise server validity. Missing context or native rejection fails with recovery instructions: check identity/authorization/intake, send a fresh message in the same DM, then explicitly request a new report. Re-pairing needs new authorization; another contact cannot substitute for this conversation.
 

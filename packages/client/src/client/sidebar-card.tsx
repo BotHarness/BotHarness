@@ -1,18 +1,21 @@
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode, Ref } from 'react';
 
 import { ChannelSidebarIcon } from './channel-sidebar-icon.js';
 
 export function SidebarCardList({
   label,
   className,
+  listRef,
   children,
 }: {
   label?: string | undefined;
   className?: string | undefined;
+  listRef?: Ref<HTMLUListElement> | undefined;
   children: ReactNode;
 }): ReactElement {
   return (
     <ul
+      ref={listRef}
       className={className === undefined ? 'bh-card-list' : 'bh-card-list ' + className}
       aria-label={label}
     >
@@ -39,6 +42,7 @@ export interface SidebarCardRowProps {
   expanded?: boolean | undefined;
   controls?: string | undefined;
   state?: string | undefined;
+  anchor?: string | undefined;
 }
 
 export function SidebarCardRow({
@@ -59,6 +63,7 @@ export function SidebarCardRow({
   expanded,
   controls,
   state,
+  anchor,
 }: SidebarCardRowProps): ReactElement {
   const body = (
     <>
@@ -85,7 +90,12 @@ export function SidebarCardRow({
   );
   const className = mainClassName === undefined ? 'bh-card-main' : 'bh-card-main ' + mainClassName;
   return (
-    <li className="bh-card-row" data-muted={muted === true ? 'true' : undefined} data-state={state}>
+    <li
+      className="bh-card-row"
+      data-muted={muted === true ? 'true' : undefined}
+      data-state={state}
+      data-anchor={anchor}
+    >
       <div className="bh-card-line">
         {onClick === undefined ? (
           <div className={className} title={hint}>

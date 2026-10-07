@@ -8,13 +8,13 @@ This guide starts with **Lark international, an application bot, a test group an
 
 ## Understand the three settings
 
-| Setting                   | Location                    | Purpose                                                     |
-| ------------------------- | --------------------------- | ----------------------------------------------------------- |
-| IM application connection | Settings → IM Bots → Feishu | Connect this Host to a Lark / Feishu application bot        |
-| External identity         | PersonaBot detailed Profile | Choose who this Bot speaks as externally                    |
-| Channel connector         | Channel detailed Profile    | Choose which external group and messages enter this Channel |
+| Setting                   | Location                                                            | Purpose                                                     |
+| ------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| IM application connection | Settings → IM Bots → Feishu                                         | Connect this Host to a Lark / Feishu application bot        |
+| External identity         | Bot DM → Channel sidebar → External identities                      | Choose who this Bot speaks as externally                    |
+| External connector        | Bot DM → External connectors, or a Group Channel's detailed Profile | Choose which external group and messages enter this Channel |
 
-**Binding an identity still requires explicit group authorization.** It does not receive every group automatically, and a connector does not lend that identity to other Bots.
+**Binding an identity still requires explicit group authorization.** It does not receive every group automatically, and an external connector does not lend that identity to other Bots.
 
 This guide combines actual setup controls with a Profile that completed real Lark connection. Configured captures come from the #823 qualified product (`0.0.0-test.823.6` / Provider `4.32.0-botharness.2`), using the dedicated “BotHarness IM QA #78” group. Empty forms show where to enter values; they are not proof of connection. No App Secret appears in the media. Use the browser image menu to view the original size.
 
@@ -155,24 +155,26 @@ _Account settings → Delivery settings → Delivery targets. Testing and saving
 
 ## 4. Bind a PersonaBot identity and authorize the group
 
-In **Bot mode**, open the intended Bot DM, click its name at the top, then **View details** to open the detailed Profile. Open **Setup guide**, select the application platform, IM account and saved group target. Each group is verified separately; another group’s successful reply cannot verify this group. Locate controls opens or highlights actual settings; committed configuration and correlated receipt/reply determine completion.
+In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the right. Under **External identities**, click **Connect Lark / Feishu** (Setup guide), then select the application platform, IM account and saved group target. Each group is verified separately; another group’s successful reply cannot verify this group. **Locate** highlights the matching sidebar row, expanding **External connectors** when needed; committed configuration and correlated receipt/reply determine completion.
 
 ![Annotated identity and group setup: bind identity, authorize the specific group, then optionally add a Channel connector](/guides/lark/05-identity-routing-annotated.webp)
 
 _Walkthrough: 1 Bind identity → 2 Authorize the specific group → 3 Optionally connect a Channel. This is an AI-assisted annotated composite of the screenshots, showing an unconnected demonstration account; the original UI screenshots remain below for comparison._
 
-1. Under **External identities → Bind identity**, select the connected application in **IM account** and save.
-2. Expand **Channel connectors and authorization**, selecting that IM account and the saved **send target**.
+1. Under **External identities → + Bind identity**, select the connected application in **IM account** and save.
+2. Under **External connectors**, click **Authorize a conversation**. In the **Conversation authorization** dialog, select that IM account and the saved **send target**.
 3. Click **Bind and authorize this target**. Check the group, account and local intake destination.
 4. For the first test, retain **This Bot's Inbox only** and **mentions only**. This needs no additional local group and does not add messages to the Bot DM history.
 
 ![PersonaBot identity binding dialog before an IM account is configured](/guides/lark/02-identity.webp)
 
+_Screenshots in this section show the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
+
 _Figure 2: The identity belongs to the PersonaBot. If the selector is empty, check the application connection, Provider version and saved target. Human QR login is not Bot identity binding._
 
 ![PersonaBot Profile before external identity and group authorization are configured](/guides/lark/03-authorize.webp)
 
-_Figure 3: Bind the identity, then authorize a specific group under Channel connectors and authorization. The demonstration has no account yet, so authorization controls are unavailable._
+_Figure 3: Bind the identity, then authorize a specific group under External connectors → Authorize a conversation. The demonstration has no account yet, so authorization controls are unavailable._
 
 ![Actual bound Lark identity and authorized group, using Inbox-only and mention-only collection](/guides/lark/07-granted.webp)
 
@@ -182,9 +184,9 @@ Each Bot can bind multiple platforms, with one identity per platform. It uses it
 
 ## 5. Optional: display messages in a local Channel
 
-Skip this section if you want Lark conversations to enter only the Bot Inbox. For a local team timeline, open an existing Group Channel's detailed Profile and add the receiving Bot as a member first. You can also route the source into a Bot DM's message history.
+Skip this section if you want Lark conversations to enter only the Bot Inbox. For a local team timeline, open an existing Group Channel's detailed Profile and add the receiving Bot as a member first. You can also route the source into a Bot DM's message history from that DM's sidebar: **External connectors → + Add connector**.
 
-Under **Channel connectors → Add channel connector**:
+In a Group Channel's detailed Profile, use **External connectors → Add connector**:
 
 1. Select the **authorized Lark group**. This does not create an account or grant new group access; return to the preceding section if the list is empty.
 2. Check the **delivery destination**: shared Channel, DM message history or Bot Inbox only. Choices depend on the current Channel.
@@ -192,6 +194,8 @@ Under **Channel connectors → Add channel connector**:
 4. Retain **Inherit global defaults**, or explicitly choose **mentions of the receiving identity only**, enable intake and save.
 
 ![Channel connector dialog with source, destination, name and intake condition](/guides/lark/04-connector.webp)
+
+_Screenshot shows the earlier Profile layout; in a Bot DM these settings now live in the sidebar's External connectors entry._
 
 _Figure 4: Source, destination and intake condition are separate choices. Saving is unavailable in the demonstration until a real group is authorized._
 
@@ -203,7 +207,7 @@ Adjust advanced behavior after the first successful test:
 - For ordinary messages without mentions, publish the required application permission and subscription, send an unmentioned message in the authorized test group, and refresh the verification result. All-message intake stays unavailable until genuine ordinary-message delivery is verified.
 - Choose count/time harvest or per-message wake in group intake and wake settings. Inbox admission does not require an immediate reply; the Bot can decide whether to participate.
 - Receiving unmentioned replies in a topic requires explicitly following that topic; replying once does not automatically follow it. The platform must actually deliver those events to the application.
-- A connector's Switch pauses intake while preserving configuration and history. Deleting it does not remove received messages. Unbinding an identity is separate and affects that Bot's external behavior using it.
+- An external connector's Switch pauses intake while preserving configuration and history. Deleting it does not remove received messages. Unbinding an identity is separate and affects that Bot's external behavior using it.
 
 ## 6. Verify the complete path
 
@@ -229,7 +233,7 @@ For this preview, use the `codex/1027-lark-pairing` revision from [#1027](https:
 This source-preview slice adds **pairing**, the prerequisite for IM management. Sending approval decisions or answers to native questions from Lark is delivered separately; the capability checkboxes here record which operations the reviewed person may perform once those controls are available. Pairing does not change ordinary chat intake.
 
 1. Connect and bind the intended Bot's Lark identity. For private messages, enable `im:message.p2p_msg:readonly`, subscribe to `im.message.receive_v1` and publish the application version. `im:message:readonly` alone does not enable private-message events. Retain `im:message:send_as_bot` for the acknowledgment.
-2. Open **Bot mode → Bot name → View details → IM administrator pairing**. Confirm **Pairing receiver ready**. An online application account alone is insufficient. Run only one receiving Host for this application.
+2. Open **Bot mode → Bot DM → Channel sidebar → External identities → IM administrator pairing**. Confirm **Pairing receiver ready**. An online application account alone is insufficient. Run only one receiving Host for this application.
 3. In the application bot's **private conversation**, send the plain text `/pair`. No API token or copied user ID is required. The request records the sender supplied by Lark; a group command cannot grant management authority.
 4. In the authenticated Web page, click **Refresh requests**. Check the receiving account, applicant and request reference. Expand the abbreviated applicant identifier to inspect the full platform ID if needed. If Lark supplies no display name, the page says so; it does not invent one.
 5. Within 10 minutes, explicitly select capabilities and click **Approve selected capabilities**, or **Reject request**. Nothing is selected by default. The first applicant receives no automatic privilege. The reference identifies a request; it cannot be redeemed as a credential.
@@ -237,9 +241,11 @@ This source-preview slice adds **pairing**, the prerequisite for IM management. 
 
 An approved grant survives a Host restart and covers **this Bot only**. It grants no other-Bot, approver-management, VPS, DSH API or workspace access. The 10-minute timer applies to pending requests, not approved grants. Ordinary chatting and management authority are separate settings.
 
-If a review or refresh fails, the pairing section shows an error beside its controls. Refresh and recheck the current request before trying again; an error never grants authority.
+If a review or refresh fails, the pairing dialog shows an error beside its controls. Refresh and recheck the current request before trying again; an error never grants authority.
 
 ### Real pairing walkthrough: #1027
+
+_Screenshots in this section show the earlier Profile layout; pairing now opens from the sidebar's External identities entry._
 
 These captures come from a real Lark private message and the authenticated Web controls on the source preview, using DSH `0.2.0-rc.1` and the qualified Provider. The shared production application was exclusively received by the isolated test Host during an authorized service outage; the production Host and both IM connections were restored afterward. Full applicant IDs remain collapsed.
 
@@ -281,7 +287,7 @@ If no request appears, check the private-message scope, publication, subscriptio
 
 ### Recover a failed pairing refresh
 
-These additional captures use the integrated source preview in a fresh isolated Profile with no external IM application connected. Stopping only that local Host produces a real transport failure: **Refresh requests** shows its error beside the pairing controls while the Channel Bridge card stays collapsed. Restarting the same local Host and refreshing clears the error. This tests Web failure/recovery; it is separate from the genuine Lark request walkthrough above.
+These additional captures use the integrated source preview in a fresh isolated Profile with no external IM application connected. Stopping only that local Host produces a real transport failure: **Refresh requests** shows its error beside the pairing controls while the then-current Channel Bridge card (now the External connectors entry) stays collapsed. Restarting the same local Host and refreshing clears the error. This tests Web failure/recovery; it is separate from the genuine Lark request walkthrough above.
 
 ![Pairing refresh failure shown beside its controls, light](/guides/lark/pairing/integrated-failed-refresh-light.jpg)
 
@@ -296,8 +302,8 @@ These additional captures use the integrated source preview in a fresh isolated 
 | Symptom                                              | Check first                                                                                                                                                                        |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Application missing or connection fails              | Lark / Feishu selection, organization, App ID / Secret and running Host                                                                                                            |
-| Connected but no selectable IM account               | Qualified Provider, online account, tested and saved target; refresh Profile                                                                                                       |
-| Group missing from authorized list                   | Bound Bot identity, saved delivery target, explicit authorization in that Bot's Profile and membership in the shared Channel                                                       |
+| Connected but no selectable IM account               | Qualified Provider, online account, tested and saved target; refresh the sidebar                                                                                                   |
+| Group missing from authorized list                   | Bound Bot identity, saved delivery target, explicit authorization in that Bot's External connectors entry and membership in the shared Channel                                     |
 | Mention does not enter Inbox                         | Application bot in the group; application permissions, long-connection `im.message.receive_v1` subscription, published version and approval; local authorization and intake Switch |
 | Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                   |
 | History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                          |
@@ -347,14 +353,14 @@ _Close/reopen and same-Profile restart retained configuration/history; select th
 This slice supports Lark private **Allow once** and **Reject** cards through a qualified Provider. Group approvals, native question forms, saved automatic rules and non-blocking native waits are separate slices. The released dsh-im package number alone does not imply card capability; an unavailable Provider remains unavailable.
 
 1. Enable the app's **Events & callbacks → Callback configuration → Long connection** and add `card.action.trigger`, then publish the version. Retain the existing message read/send scopes and add `im:chat:read` so the sender can verify a private conversation. A maintainer must authorize these app changes.
-2. Send `/pair` in the Bot's Lark DM. In the authenticated Web Profile, inspect the real applicant/account and explicitly grant **Approve** and/or **Reject**. Pairing does not create ordinary DM intake or grant VPS/API access.
-3. In **Lark approval notifications**, choose that person's name and receiving account, then **Save destination**. Select **Send test card**; it has no approval buttons and grants nothing.
+2. Send `/pair` in the Bot's Lark DM. In **External identities → IM administrator pairing**, inspect the real applicant/account and explicitly grant **Approve** and/or **Reject**. Pairing does not create ordinary DM intake or grant VPS/API access.
+3. In the sidebar's **External identities → Lark approval notifications**, choose that person's name and receiving account, then **Save destination**. Select **Send test card**; it has no approval buttons and grants nothing.
 4. A subsequent native tool approval sends its complete operation to that management DM, with **Allow once** and **Reject**. Check the proposed operation before deciding. A truncated card asks you to inspect the complete operation in Web. The card's acknowledgement only confirms receipt of your click; the final native decision and result are separate.
-5. Refresh notifications in the Profile and use **Open native session and complete operation** to inspect the actual native result. **Decision accepted** is not proof that a tool ran. Rejected, revoked, expired, duplicate or mismatched actions cannot approve a new call.
+5. Refresh notifications in that dialog and use **Open native session and complete operation** to inspect the actual native result. **Decision accepted** is not proof that a tool ran. Rejected, revoked, expired, duplicate or mismatched actions cannot approve a new call.
 
 ![The actual isolated Profile before a management DM is paired](/guides/lark/approvals/settings-empty-dark.jpg)
 
-This screenshot shows the running private-route entry point with no paired destination; it is not a real Lark delivery or execution result. Real platform qualification for this slice is recorded with the issue's evidence and Human QA.
+This screenshot (earlier Profile layout) shows the running private-route entry point with no paired destination; it is not a real Lark delivery or execution result. Real platform qualification for this slice is recorded with the issue's evidence and Human QA.
 
 If delivery is **Unknown outcome**, check the DM before creating any new request: the sender does not automatically resend. Known-unsent failures can retry at most three times. Card updates may also remain unconfirmed; use Web for the canonical result. Revoking a pairing or changing the destination invalidates old controls. A Host restart expires old pending cards rather than replaying a paused tool. The current native approval still waits; the later Inbox continuation slice owns non-blocking behavior.
 
@@ -372,8 +378,8 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 
 In the image-capable #1021 candidate, an authorized Lark image or supported image-bearing post appears inside its original Channel bubble. The source name above it still opens source details. Images load when visible; select an image to enlarge it, and use **Retry** after a failed load. Text and multiple images stay in their native order in one message.
 
-This requires a Channel Bridge with a history destination. Inbox-only reception does not place images in Channel history. Keep the application's existing message permissions: a mentions-only group source still requires a real Bot mention in a supported native post. This feature does not enable ordinary group-message access.
+This requires an external connector with a history destination. Inbox-only reception does not place images in Channel history. Keep the application's existing message permissions: a mentions-only group source still requires a real Bot mention in a supported native post. This feature does not enable ordinary group-message access.
 
-Stopping the Bridge keeps already acquired images readable but stops new image acquisition. Unbinding its identity or revoking source authorization makes that path unavailable, including cached images. A separately valid source path remains independent. Refresh and restart retain authorized acquired images; purged or missing originals are not downloaded again. Previews support PNG, JPEG, GIF and WebP up to 25 MiB. An unsupported format or oversized image shows an explicit state.
+Pausing the connector keeps already acquired images readable but stops new image acquisition. Unbinding its identity or revoking source authorization makes that path unavailable, including cached images. A separately valid source path remains independent. Refresh and restart retain authorized acquired images; purged or missing originals are not downloaded again. Previews support PNG, JPEG, GIF and WebP up to 25 MiB. An unsupported format or oversized image shows an explicit state.
 
 Human image viewing does not make the Bot understand images or change its attention, model context or permissions. Real platform acceptance and screenshots for this candidate are tracked in [#1021](https://github.com/BotHarness/BotHarness/issues/1021); they are not implied by the older onboarding evidence above.

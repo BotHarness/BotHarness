@@ -15,16 +15,18 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First
 
 ## Choose a feature
 
-| In a Bot DM                                                | What you can do                                                                |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Memory files](/docs/channel-sidebar/memory-files)         | Browse the current repository tree and read a file in the center.              |
-| [Memory evolution](/docs/channel-sidebar/memory-evolution) | Inspect uncommitted changes, Git history, branches and recovery checkpoints.   |
-| [Sessions](/docs/channel-sidebar/sessions)                 | Open this Bot’s Orchestrator and Assignment Sessions in DSH.                   |
-| [Bot Inbox](/docs/channel-sidebar/bot-inbox)               | Inspect source messages and Assignment reports that the Bot has received.      |
-| [Workspace Grants](/docs/channel-sidebar/workspaces)       | Review and explicitly authorize the Host folders available to this Bot.        |
-| [Schedules](/docs/channel-sidebar/schedules)               | Wake this Bot on a cadence, run a schedule now, and lock it from Bot edits.    |
-| [Model](/docs/channel-sidebar/model)                       | Check and change the models this Bot uses for chat and new Assignments.        |
-| [Wake policy](/docs/channel-sidebar/wake-policy)           | Choose, per source, whether this Bot wakes right away, after a digest, or not. |
+| In a Bot DM                                                      | What you can do                                                                                       |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Memory files](/docs/channel-sidebar/memory-files)               | Browse the current repository tree and read a file in the center.                                     |
+| [Memory evolution](/docs/channel-sidebar/memory-evolution)       | Inspect uncommitted changes, Git history, branches and recovery checkpoints.                          |
+| [Sessions](/docs/channel-sidebar/sessions)                       | Open this Bot’s Orchestrator and Assignment Sessions in DSH.                                          |
+| [Bot Inbox](/docs/channel-sidebar/bot-inbox)                     | Inspect source messages and Assignment reports that the Bot has received.                             |
+| [Workspace Grants](/docs/channel-sidebar/workspaces)             | Review and explicitly authorize the Host folders available to this Bot.                               |
+| [Schedules](/docs/channel-sidebar/schedules)                     | Wake this Bot on a cadence, run a schedule now, and lock it from Bot edits.                           |
+| [Model](/docs/channel-sidebar/model)                             | Check and change the models this Bot uses for chat and new Assignments.                               |
+| [Wake policy](/docs/channel-sidebar/wake-policy)                 | Choose, per source, whether this Bot wakes right away, after a digest, or not.                        |
+| [External identities](/docs/channel-sidebar/external-identities) | Bind who this Bot speaks as on Lark / Feishu, Slack or WeChat; IM pairing and approval notifications. |
+| [External connectors](/docs/channel-sidebar/external-connectors) | Authorize external conversations and choose which messages reach this DM or Bot Inbox.                |
 
 | In a local group                                             | What you can do                                                         |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
@@ -36,4 +38,4 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First
 
 Bot-only entries do not appear in a group; group management does not appear in a Bot DM. The Bot Inbox entry is conditional on having records or a loading/error state. An entry may also be hidden through **Edit sidebar**.
 
-Optional plugins can contribute further entries. The public npm package does not include the Browser or Computer packages: their absence is expected. When those packages are installed and available, follow [Share a browser tab](/docs/daily-browser) or [Computer export and migration](/docs/computer-export) for their separate prerequisites and procedures. Installing an IM connection is a separate setup flow.
+Optional plugins can contribute further entries. The public npm package does not include the Browser or Computer packages: their absence is expected. When those packages are installed and available, follow [Share a browser tab](/docs/daily-browser) or [Computer export and migration](/docs/computer-export) for their separate prerequisites and procedures. Connecting an IM application is a separate setup flow; after that, External identities and External connectors manage this Bot’s use of it.

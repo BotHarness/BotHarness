@@ -11,7 +11,8 @@ import {
 export interface ComboboxOption {
   readonly value: string;
   readonly label: string;
-  readonly hint?: string;
+  readonly hint?: string | undefined;
+  readonly disabled?: boolean | undefined;
 }
 
 export const COMBOBOX_CSS = `
@@ -41,7 +42,8 @@ export const COMBOBOX_CSS = `
   overflow-wrap: anywhere;
 }
 .bh-combobox-list > button[aria-selected="true"] { font-weight: 600; }
-.bh-combobox-list > button:hover, .bh-combobox-list > button[data-active] {
+.bh-combobox-list > button:disabled { color: var(--dsw-alias-label-tertiary); cursor: default; }
+.bh-combobox-list > button:not(:disabled):hover, .bh-combobox-list > button[data-active] {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-combobox-hint { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
@@ -101,7 +103,10 @@ export function Combobox({
   const shown: ComboboxOption[] = canCreate
     ? [...matches, { value: trimmed, label: createLabel(trimmed) }]
     : matches;
-  const highlighted = shown.findIndex((option) => option.value === active);
+  const enabled = shown.filter((option) => option.disabled !== true);
+  const highlighted = shown.findIndex(
+    (option) => option.value === active && option.disabled !== true,
+  );
   const position = useAnchoredPosition({
     open,
     anchorRef: root,
@@ -124,10 +129,11 @@ export function Combobox({
     if (query === undefined) return current === '' ? undefined : current;
     if (trimmed === '') return fallbackValue;
     if (createLabel !== undefined) return trimmed;
-    const exact = matches.find(
+    const available = matches.filter((option) => option.disabled !== true);
+    const exact = available.find(
       (option) => option.value.toLowerCase() === needle || option.label.toLowerCase() === needle,
     );
-    return (exact ?? matches[0])?.value;
+    return (exact ?? available[0])?.value;
   };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.nativeEvent.isComposing) return;
@@ -139,15 +145,19 @@ export function Combobox({
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       setOpen(true);
-      if (shown.length === 0) return;
+      if (enabled.length === 0) return;
       const offset = event.key === 'ArrowDown' ? 1 : -1;
-      const index =
-        highlighted < 0
-          ? offset === 1
-            ? 0
-            : shown.length - 1
-          : (highlighted + offset + shown.length) % shown.length;
-      setActive(shown[index]?.value);
+      const at = enabled.findIndex((option) => option.value === active);
+      const next =
+        enabled[
+          at < 0
+            ? offset === 1
+              ? 0
+              : enabled.length - 1
+            : (at + offset + enabled.length) % enabled.length
+        ];
+      setActive(next?.value);
+      const index = shown.findIndex((option) => option.value === next?.value);
       document.getElementById(`${listId}-${index}`)?.scrollIntoView?.({ block: 'nearest' });
     } else if (event.key === 'Enter' && open) {
       event.preventDefault();
@@ -233,10 +243,14 @@ export function Combobox({
                   type="button"
                   role="option"
                   aria-selected={option.value === current}
+                  data-value={option.value}
                   data-active={index === highlighted || undefined}
+                  disabled={option.disabled}
                   tabIndex={-1}
                   onPointerDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setActive(option.value)}
+                  onMouseEnter={() => {
+                    if (option.disabled !== true) setActive(option.value);
+                  }}
                   onClick={() => select(option.value)}
                 >
                   {option.label}

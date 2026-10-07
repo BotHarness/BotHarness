@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
-import { act, createElement, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
+import {
+  act,
+  createElement,
+  type ButtonHTMLAttributes,
+  type PropsWithChildren,
+  type ReactNode,
+} from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import type { MessagingSnapshot } from '../../core/src/messaging/outbound.js';
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./primitive-mocks.js')).comboboxPrimitives(),
   IconInfoOutlineRegular: () => null,
   Tooltip: ({ children }: PropsWithChildren) => children,
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
@@ -26,10 +33,15 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
       disabled,
       onClick: () => onChange(!checked),
     }),
-  Modal: ({ open, children, title }: PropsWithChildren<{ open: boolean; title: string }>) =>
-    open ? createElement('div', { role: 'dialog', 'aria-label': title }, children) : null,
+  Modal: ({
+    open,
+    children,
+    title,
+    footer,
+  }: PropsWithChildren<{ open: boolean; title: string; footer?: ReactNode }>) =>
+    open ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer) : null,
 }));
-import { ExternalIdentityTable } from '../src/client/external-identity-table.js';
+import { ExternalIdentityList } from '../src/client/external-identity-list.js';
 import { zhTranslate } from '../src/client/locale.js';
 
 it('failed Switch writes retain the committed preference; stale Modal edits retain input rather than overwrite', async () => {
@@ -64,11 +76,10 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
   try {
     await act(async () =>
       root.render(
-        createElement(ExternalIdentityTable, {
+        createElement(ExternalIdentityList, {
           snapshot,
           t: zhTranslate,
           mutate,
-          refresh: async () => undefined,
         }),
       ),
     );
@@ -82,7 +93,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
       name: 'QA Bot',
       enabled: false,
     });
-    const edit = container.querySelector<HTMLButtonElement>('[aria-label="编辑身份：QA Bot"]')!;
+    const edit = container.querySelector<HTMLButtonElement>('[title="编辑身份：QA Bot"]')!;
     await act(async () => edit.click());
     const input = container.querySelector<HTMLInputElement>('input')!;
     await act(async () => {

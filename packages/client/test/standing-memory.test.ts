@@ -24,6 +24,18 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
     Tag: ({ children }: { children?: ReactNode }) =>
       createElement('span', { className: 'tag' }, children),
+    Modal: ({
+      open,
+      title,
+      children,
+      footer,
+    }: {
+      open: boolean;
+      title: string;
+      children?: ReactNode;
+      footer?: ReactNode;
+    }) =>
+      open ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer) : null,
     Tooltip: passthrough,
     FileTypeIcon: stub,
     IconEllipsisOutlineRegular: stub,
@@ -38,7 +50,7 @@ import { loadMemorySnapshot, parseBotSummary } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { MemoryFileTree } from '../src/client/memory-file-tree.js';
 import { memoryFileTree } from '../src/client/memory-file-tree-model.js';
-import { StandingLimitsProfile } from '../src/client/standing-limits-profile.js';
+import { StandingLimitsRow } from '../src/client/standing-limits.js';
 import type { BotSummary } from '../src/client/store.js';
 
 const bot: BotSummary = {
@@ -136,8 +148,16 @@ describe('Standing memory', () => {
     document.body.append(host);
     const root = createRoot(host);
     await act(async () =>
-      root.render(createElement(StandingLimitsProfile, { bot, actions, t: zhTranslate })),
+      root.render(
+        createElement(
+          'ul',
+          null,
+          createElement(StandingLimitsRow, { bot, actions, t: zhTranslate }),
+        ),
+      ),
     );
+    expect(host.textContent).toContain('SOUL.md 5,000 · MEMORY.md 3,000');
+    await act(async () => host.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
     const inputs = [...host.querySelectorAll<HTMLInputElement>('input')];
     const save = (): HTMLButtonElement =>
       [...host.querySelectorAll<HTMLButtonElement>('button')].find(
@@ -161,8 +181,32 @@ describe('Standing memory', () => {
     expect(save().disabled).toBe(false);
     await act(async () => save().click());
     expect(setStandingLimits).toHaveBeenCalledWith('ada', { soul: 5000, coreMemory: 1200 });
-    expect(host.textContent).toContain('已保存，下一个 Session 生效');
-    expect(save().disabled).toBe(true);
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(host.textContent).toContain('SOUL.md 5,000 · MEMORY.md 1,200');
+    expect(host.textContent).toContain(zhTranslate('standingLimits.customized'));
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('follows roster updates to the saved limits', async () => {
+    const actions = { setStandingLimits: vi.fn() } as unknown as BridgeActions;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const render = (summary: BotSummary) =>
+      act(async () =>
+        root.render(
+          createElement(
+            'ul',
+            null,
+            createElement(StandingLimitsRow, { bot: summary, actions, t: zhTranslate }),
+          ),
+        ),
+      );
+    await render(bot);
+    expect(host.textContent).toContain('SOUL.md 5,000 · MEMORY.md 3,000');
+    await render({ ...bot, standingLimits: { soul: 8000, coreMemory: 3000 } });
+    expect(host.textContent).toContain('SOUL.md 8,000 · MEMORY.md 3,000');
     act(() => root.unmount());
     host.remove();
   });

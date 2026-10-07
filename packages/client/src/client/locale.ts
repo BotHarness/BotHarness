@@ -41,6 +41,8 @@ export const zh = {
   'approvalIm.status.execution-unknown': '执行结果未确认',
   'approvalIm.status.test': '测试，无操作',
   'pairing.title': 'IM 管理员配对',
+  'pairing.pendingCount': '{count} 个待处理',
+  'pairing.approvedCount': '已配对 {count} 人',
   'pairing.hint':
     '在当前 Bot 的 Lark 私聊发送 /pair，再在此审核真实账号。申请 10 分钟后过期。配对不会授予 VPS、API 或其他 Bot 的权限。',
   'pairing.empty': '尚无配对申请。先绑定已连接的 Lark 身份，并为应用启用私聊事件。',
@@ -105,7 +107,7 @@ export const zh = {
   'setup.accepted': '平台已接受回复，尚未观测到回传；请到原话题核对。',
   'setup.awaiting': '已收件，等待该身份回复。',
   'setup.optional':
-    '初次保持仅 Bot Inbox、只收 @。完成后可在「频道连接器」中显式添加本地 DM／群投递；默认设置、Attention 和唤醒策略仍分别管理。',
+    '初次保持仅 Bot Inbox、只收 @。完成后可在「外部连接器」中显式添加本地 DM／群投递；默认设置、Attention 和唤醒策略仍分别管理。',
   'setup.failed': '状态核对失败或控件不可用。保留现有配置，关闭引导后打开实际设置，再刷新重试。',
   'setup.checking': '正在核对…',
   'setup.refresh': '核对真实状态',
@@ -120,7 +122,7 @@ export const zh = {
   'setup.hint.target': '在账号的投递设置中选择测试群，确认原生 Chat ID；测试后保存目标。',
   'setup.hint.identity': '点击绑定身份，选择已连接的账号。每个平台一个身份；其他 Bot 不能借用它。',
   'setup.hint.grant':
-    '在频道连接器与授权中选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
+    '在侧栏「外部连接器」打开「授权外部会话」，选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
   'setup.hint.verify':
     '在原生话题中发送指定 @测试；核对 Source Event 和本 Bot 自己身份的关联回复。',
 
@@ -152,7 +154,7 @@ export const zh = {
   'defaults.failed': '默认设置操作失败，请刷新重试。',
 
   'groupWake.title': '成员消息提醒',
-  'groupWake.summary': '各成员独立决定何时处理消息。外部收件条件在「频道连接器」中管理。',
+  'groupWake.summary': '各成员独立决定何时处理消息。外部收件条件在「外部连接器」中管理。',
   'groupWake.editAction': '编辑',
   'groupWake.bot': 'Bot',
   'groupWake.policy': '处理方式',
@@ -690,7 +692,7 @@ export const zh = {
   'message.failed': '发送失败',
   'message.failedRestore': '将失败消息放回输入框修改后重发',
   'message.restoreBlocked': '输入框已有草稿，请先处理草稿再恢复失败消息。',
-  'main.group.note': '邀请 Bot 加入，或在频道 Profile 中添加频道连接器。',
+  'main.group.note': '邀请 Bot 加入，或在频道 Profile 中添加外部连接器。',
   'main.localChat': '本地对话',
   'main.localChat.with': '这是与 {name} 的本地对话',
   'main.localChat.hint': '直接发消息即可；Bot 会自行安排事项，并在这里回复结果。',
@@ -754,13 +756,13 @@ export const zh = {
   'bridge.contextOnly': '仅作上下文',
   'bridge.paths': '收件路径',
   'bridge.pathEvidence': '连接器 {route} · 配置 v{revision} · {target}',
-  'bridge.title': '频道连接器',
+  'bridge.title': '外部连接器',
   'bridge.summary': '哪些外部信息进入这个频道；与 Bot 的发言身份分开管理。',
-  'bridge.add': '添加频道连接器',
-  'bridge.edit': '编辑频道连接器',
-  'bridge.delete': '删除频道连接器',
-  'bridge.confirmDelete': '确认删除频道连接器',
-  'bridge.save': '保存频道连接器',
+  'bridge.add': '添加外部连接器',
+  'bridge.edit': '编辑外部连接器',
+  'bridge.delete': '删除外部连接器',
+  'bridge.confirmDelete': '删除此连接器',
+  'bridge.save': '保存外部连接器',
   'bridge.empty': '尚未接入外部信息。',
   'bridge.source': '来源',
   'bridge.conversation': '外部会话',
@@ -775,9 +777,9 @@ export const zh = {
     '仅接收已授权的扫码绑定者私聊。微信没有子话题；投递到本地群不代表支持微信群。',
   'bridge.mentions': '仅收 @ 接收身份',
   'bridge.all': '所有普通文字消息',
-  'bridge.enableFor': '启用频道连接器：{name}',
-  'bridge.editFor': '编辑频道连接器：{name}',
-  'bridge.deleteFor': '删除频道连接器：{name}',
+  'bridge.enableFor': '启用外部连接器：{name}',
+  'bridge.editFor': '编辑外部连接器：{name}',
+  'bridge.deleteFor': '删除外部连接器：{name}',
   'bridge.enableDraft': '接收新消息',
   'bridge.authorizedSource': '已授权的外部会话',
   'bridge.noSources':
@@ -794,7 +796,7 @@ export const zh = {
     '删除此目标的收件路径。其他有效路径与历史消息保留；不会自动转入 Bot Inbox。',
   'bridge.retainHint':
     '保留成员 Bot 的外部身份、独立发送授权、已接收消息和记录的策略。以后接入需要明确添加。',
-  'bridge.wakeHint': '频道连接器决定收什么；每个成员 Bot 的 Attention／唤醒策略决定何时处理。',
+  'bridge.wakeHint': '外部连接器决定收什么；每个成员 Bot 的 Attention／唤醒策略决定何时处理。',
   'bridge.failed': '未能完成操作。请刷新核对身份、会话授权与连接状态后重试。',
   'bridge.stale': '配置已在另一处更改。请关闭窗口、刷新后重新编辑；输入已保留。',
   'bridge.state.off': '已暂停',
@@ -802,11 +804,12 @@ export const zh = {
   'bridge.state.connecting': '正在连接',
   'bridge.state.unavailable': '连接不可用',
   'bridge.managed':
-    '此来源的各投递路径在频道连接器表中分别管理；接收身份和每位 Bot 的唤醒设置各自独立。',
+    '此来源的各投递路径在「外部连接器」中分别管理；接收身份和每位 Bot 的唤醒设置各自独立。',
   'identity.title': '外部身份',
   'identity.summary': '这个 Bot 在外部平台以谁的身份行动；与信息来源分开管理。',
   'identity.bind': '绑定身份',
-  'identity.empty': '尚未绑定外部身份。绑定身份不会创建频道连接器或镜像 DM。',
+  'identity.empty': '尚未绑定外部身份。绑定身份不会创建外部连接器或镜像 DM。',
+  'identity.emptyShort': '还没有绑定外部身份',
   'identity.platform': '平台',
   'identity.name': '身份名称',
   'identity.status': '状态',
@@ -814,6 +817,7 @@ export const zh = {
   'identity.actions': '操作',
   'identity.enableFor': '启用身份：{name}',
   'identity.edit': '编辑',
+  'identity.editTitle': '编辑外部身份',
   'identity.editFor': '编辑身份：{name}',
   'identity.reconnect': '重新连接',
   'identity.reconnectFor': '重新连接身份：{name}',
@@ -838,8 +842,11 @@ export const zh = {
   'identity.state.unavailable': '暂不可用',
   'identity.state.rebind-required': '需要重新绑定',
   'im.infoFor': '{title}的说明',
-  'im.title': '频道连接器与授权',
+  'im.title': '外部会话授权',
   'im.summary': '管理已有外部来源、群收件和发送目标',
+  'im.authorizeRow': '授权外部会话',
+  'im.authorizeRowHint': '让 Bot 向一个外部会话发送消息',
+  'im.back': '返回',
   'im.refresh': '刷新',
   'im.loading': '加载中…',
   'im.account': 'IM 账号',
@@ -1623,6 +1630,9 @@ export const zh = {
   'standingLimits.save': '保存上限',
   'standingLimits.saving': '保存中…',
   'standingLimits.saved': '已保存，下一个 Session 生效',
+  'standingLimits.summary': 'SOUL.md {soul} · MEMORY.md {coreMemory}',
+  'standingLimits.customized': '已修改',
+  'standingLimits.edit': '编辑常驻记忆上限',
   'standingLimits.reset': '恢复默认',
   'memory.binaryPreview': '二进制文件或过大的文件可由 Bot 使用原生工具读取；此处不提供文本预览。',
   'memory.fileMissing': '文件已不存在；刷新记忆文件列表。',
@@ -1797,6 +1807,8 @@ export const zh = {
   'entry.workspaceGrants': '工作区授权',
   'entry.model': '模型',
   'entry.wakePolicy': '唤醒策略',
+  'entry.externalIdentities': '外部身份',
+  'entry.externalConnectors': '外部连接器',
   'grant.safeDefault':
     'Bot 可读取有效授权文件夹。开启文件夹的写入权限后，也可直接处理其中的文件；命令执行仍需单独审批。',
   'grant.orchestratorWrite': '允许 Bot 写入此文件夹',
@@ -2089,6 +2101,8 @@ export const en = {
   'approvalIm.status.execution-unknown': 'Execution unconfirmed',
   'approvalIm.status.test': 'Test; no operation',
   'pairing.title': 'IM administrator pairing',
+  'pairing.pendingCount': '{count} pending',
+  'pairing.approvedCount': '{count} paired',
   'pairing.hint':
     'Send /pair in this Bot’s Lark DM, then review the real account here. Requests expire after 10 minutes. Pairing grants no VPS, API or other-Bot access.',
   'pairing.empty':
@@ -2157,7 +2171,7 @@ export const en = {
   'setup.accepted': 'Platform accepted the reply; echo not observed. Check the original topic.',
   'setup.awaiting': 'Received; waiting for this identity to reply.',
   'setup.optional':
-    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in Channel connectors. Defaults, Attention and wake policy remain separate.',
+    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in External connectors. Defaults, Attention and wake policy remain separate.',
   'setup.failed':
     'Status check failed or controls are unavailable. Keep the configuration, open actual settings after closing the guide, then retry.',
   'setup.checking': 'Checking…',
@@ -2176,7 +2190,7 @@ export const en = {
   'setup.hint.identity':
     'Click Bind identity and choose the connected account. One identity per platform; other Bots cannot borrow it.',
   'setup.hint.grant':
-    'In Channel Bridge and authorization, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
+    'In the sidebar’s External connectors, open Authorize a conversation, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
   'setup.hint.verify':
     'Send the designated @test in a native topic; inspect its Source Event and the correlated reply under this Bot’s own identity.',
 
@@ -2211,7 +2225,7 @@ export const en = {
 
   'groupWake.title': 'Member attention',
   'groupWake.summary':
-    'Each member decides when to process messages. Manage external intake separately in Channel Bridges.',
+    'Each member decides when to process messages. Manage external intake separately in External connectors.',
   'groupWake.editAction': 'Edit',
   'groupWake.bot': 'Bot',
   'groupWake.policy': 'Processing',
@@ -2757,7 +2771,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'message.draftInterrupted': 'Reply interrupted and not sent.',
   'message.draftExpired': 'Draft reply was not sent.',
   'message.sending': 'Sending',
-  'main.group.note': 'Invite Bots or add a channel connector in the Channel Profile.',
+  'main.group.note': 'Invite Bots or add an external connector in the Channel Profile.',
   'main.localChat': 'Local chat',
   'main.localChat.with': 'This is a local conversation with {name}',
   'message.mention.openDm': 'Open DM with {bot}',
@@ -2837,14 +2851,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.contextOnly': 'Context only',
   'bridge.paths': 'Reception paths',
   'bridge.pathEvidence': 'Bridge {route} · configuration v{revision} · {target}',
-  'bridge.title': 'Channel Bridges',
+  'bridge.title': 'External connectors',
   'bridge.summary':
     'External information entering this Channel, separate from Bots’ speaking identities.',
-  'bridge.add': 'Add Bridge',
-  'bridge.edit': 'Edit Bridge',
-  'bridge.delete': 'Delete Bridge',
-  'bridge.confirmDelete': 'Confirm Bridge deletion',
-  'bridge.save': 'Save Bridge',
+  'bridge.add': 'Add connector',
+  'bridge.edit': 'Edit connector',
+  'bridge.delete': 'Delete connector',
+  'bridge.confirmDelete': 'Delete this connector',
+  'bridge.save': 'Save connector',
   'bridge.empty': 'No external sources connected.',
   'bridge.source': 'Source',
   'bridge.conversation': 'External conversation',
@@ -2853,15 +2867,15 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.state': 'State',
   'bridge.enabled': 'Enabled',
   'bridge.actions': 'Actions',
-  'bridge.name': 'Bridge name',
+  'bridge.name': 'Connector name',
   'bridge.ownerDM': 'Paired-owner DM messages',
   'bridge.wechatDMHint':
     'Receives only the authorized paired-owner DM. WeChat has no topics here; delivery to a local Group does not enable native WeChat groups.',
   'bridge.mentions': 'Only mentions of the receiving identity',
   'bridge.all': 'All ordinary text messages',
-  'bridge.enableFor': 'Enable Bridge: {name}',
-  'bridge.editFor': 'Edit Bridge: {name}',
-  'bridge.deleteFor': 'Delete Bridge: {name}',
+  'bridge.enableFor': 'Enable connector: {name}',
+  'bridge.editFor': 'Edit connector: {name}',
+  'bridge.deleteFor': 'Delete connector: {name}',
   'bridge.enableDraft': 'Receive new messages',
   'bridge.authorizedSource': 'Authorized external conversation',
   'bridge.noSources':
@@ -2880,7 +2894,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.retainHint':
     'Keep member Bot identities, independent send grants, accepted messages and recorded policies. Future intake requires explicitly adding a source again.',
   'bridge.wakeHint':
-    'Bridge decides what to collect; each member Bot’s Attention and wake policy decides when to process it.',
+    'The connector decides what to collect; each member Bot’s Attention and wake policy decides when to process it.',
   'bridge.failed':
     'Operation could not complete. Refresh and check identity, conversation authorization and connection before retrying.',
   'bridge.stale':
@@ -2890,13 +2904,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.state.connecting': 'Connecting',
   'bridge.state.unavailable': 'Unavailable',
   'bridge.managed':
-    'Manage each destination in its Channel Bridge table. Receiving identity and each member Bot’s wake settings remain independent.',
+    'Manage each destination in External connectors. Receiving identity and each member Bot’s wake settings remain independent.',
   'identity.title': 'External identities',
   'identity.summary':
     'Who this Bot acts as on external platforms; managed separately from sources.',
   'identity.bind': 'Bind identity',
   'identity.empty':
-    'No external identity bound. Binding does not create a Bridge or mirror DM history.',
+    'No external identity bound. Binding does not create a connector or mirror DM history.',
+  'identity.emptyShort': 'No identity bound yet',
   'identity.platform': 'Platform',
   'identity.name': 'Identity',
   'identity.status': 'Status',
@@ -2904,6 +2919,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.actions': 'Actions',
   'identity.enableFor': 'Enable identity: {name}',
   'identity.edit': 'Edit',
+  'identity.editTitle': 'Edit identity',
   'identity.editFor': 'Edit identity: {name}',
   'identity.reconnect': 'Reconnect',
   'identity.reconnectFor': 'Reconnect identity: {name}',
@@ -2929,8 +2945,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.state.unavailable': 'Unavailable',
   'identity.state.rebind-required': 'Rebind required',
   'im.infoFor': 'About {title}',
-  'im.title': 'Channel Bridge and authorization',
+  'im.title': 'Conversation authorization',
   'im.summary': 'Manage existing sources, group reception and send targets',
+  'im.authorizeRow': 'Authorize a conversation',
+  'im.authorizeRowHint': 'Let the Bot post to an external conversation',
+  'im.back': 'Back',
   'im.refresh': 'Refresh',
   'im.loading': 'Loading…',
   'im.account': 'IM account',
@@ -3748,6 +3767,9 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'standingLimits.save': 'Save limits',
   'standingLimits.saving': 'Saving…',
   'standingLimits.saved': 'Saved. Applies from the next Session',
+  'standingLimits.summary': 'SOUL.md {soul} · MEMORY.md {coreMemory}',
+  'standingLimits.customized': 'Customized',
+  'standingLimits.edit': 'Edit standing memory limits',
   'standingLimits.reset': 'Restore defaults',
   'memory.binaryPreview':
     'The Bot can read binary or oversized files with native tools. Text preview is unavailable here.',
@@ -3928,6 +3950,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'entry.workspaceGrants': 'Workspace Grants',
   'entry.model': 'Model',
   'entry.wakePolicy': 'Wake policy',
+  'entry.externalIdentities': 'External identities',
+  'entry.externalConnectors': 'External connectors',
   'grant.safeDefault':
     'The Bot can read authorized folders. Enable write access to let it process files there; commands still require separate approval.',
   'grant.orchestratorWrite': 'Allow Bot to write in this folder',

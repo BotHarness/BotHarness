@@ -1,5 +1,3 @@
-import { ChannelBridgeTable } from './channel-bridge-table.js';
-import { MessagingProfile } from './messaging-profile.js';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
 import {
@@ -18,7 +16,6 @@ import { AvatarAppearanceEditor } from './avatar-appearance-editor.js';
 import { NameInput } from './name-input.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
-import { StandingLimitsProfile } from './standing-limits-profile.js';
 import { BotZipExportSection } from './bot-zip.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
@@ -318,16 +315,7 @@ export function ProfileView({
           </div>
         </section>
       )}
-      <StandingLimitsProfile key={`standing-${bot.slug}`} bot={bot} actions={actions} t={t} />
       <BotZipExportSection key={`zip-${bot.slug}`} bot={bot} actions={actions} t={t} />
-      <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
-      <ChannelBridgeTable
-        channelId={channel.id}
-        channelName={channel.name}
-        botNames={new Map([[bot.slug, bot.displayName]])}
-        actions={actions}
-        t={t}
-      />
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal
           file={avatarFile}

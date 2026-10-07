@@ -229,12 +229,7 @@ describe('PersonaBot Profile surface', () => {
       expect([...sections].map((section) => section.getAttribute('aria-label'))).toEqual([
         '头像',
         '活动概览',
-        '常驻记忆上限',
         '分享与导出',
-        '连接 Lark / 飞书',
-        '外部身份',
-        '频道连接器与授权',
-        '频道连接器',
       ]);
       expect(container.querySelector('.bh-profile-view .bh-model-entry')).toBeNull();
       expect(container.querySelector('.bh-profile-view .bh-wake-policy-entry')).toBeNull();
@@ -249,12 +244,14 @@ describe('PersonaBot Profile surface', () => {
         '所选时间范围内暂无模型调用记录。',
       );
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(5);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(4);
       const sidebarLabels = [
         ...container.querySelectorAll('.bh-channel-sidebar .bh-channel-sidebar-entry-label'),
       ].map((label) => label.textContent);
       expect(sidebarLabels).toContain('模型');
       expect(sidebarLabels).toContain('唤醒策略');
+      expect(sidebarLabels).toContain('外部身份');
+      expect(sidebarLabels).toContain('外部连接器');
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));
