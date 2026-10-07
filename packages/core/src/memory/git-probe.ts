@@ -47,6 +47,10 @@ function atLeast(version: string, [wantMajor, wantMinor]: readonly [number, numb
 
 let sinceAsFilter: boolean | undefined;
 
+export function resetGitCapabilities(): void {
+  sinceAsFilter = undefined;
+}
+
 export function gitSupportsSinceAsFilter(probe: () => GitAvailability = probeGit): boolean {
   if (sinceAsFilter !== undefined) return sinceAsFilter;
   const git = probe();

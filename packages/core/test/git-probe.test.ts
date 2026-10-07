@@ -127,13 +127,17 @@ describe('Git probe', () => {
   });
 
   it('reports the Host decision through the gitStatus bridge method', () => {
+    const status = {
+      available: false as const,
+      reason: 'too-old' as const,
+      version: '2.20.1',
+      installable: true,
+      install: { phase: 'idle' as const },
+    };
     const methods = createBridgeMethods({
-      gitProbe: () => ({ available: false, reason: 'too-old', version: '2.20.1' }),
+      git: { status: () => status, install: () => status },
     } as unknown as Parameters<typeof createBridgeMethods>[0]);
-    expect(methods.gitStatus()).toEqual({
-      ok: true,
-      value: { available: false, reason: 'too-old', version: '2.20.1' },
-    });
+    expect(methods.gitStatus()).toEqual({ ok: true, value: status });
   });
 });
 

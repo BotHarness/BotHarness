@@ -800,10 +800,25 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
 }
 .bh-git-unavailable-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-top: 4px;
+}
+.bh-git-unavailable-buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.bh-git-install-error {
+  color: var(--bh-inbox-error);
+}
+.bh-git-install-progress {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--dsw-alias-state-business-primary);
 }
 .bh-git-unavailable-actions a {
   color: var(--dsw-alias-state-business-primary);

@@ -1557,6 +1557,9 @@ export function BotSidebar({
       ) : null}
       <GitUnavailableNotice
         git={state.git}
+        onInstall={() => {
+          void actions.installGit();
+        }}
         onRecheck={() => {
           void actions.refreshGit();
         }}
