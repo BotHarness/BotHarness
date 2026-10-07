@@ -137,7 +137,7 @@ const identifier = z.string().min(1).max(512);
 const inboundSchema = z
   .object({
     version: z.literal(1),
-    channel: z.enum(['feishu', 'slack', 'discord', 'weixin']),
+    channel: z.enum(['feishu', 'slack', 'discord', 'weixin', 'qq']),
     botId: identifier,
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
@@ -279,7 +279,12 @@ function providerFailure(error: unknown): MessagingProviderError {
     'bad-request',
     'stale-route',
     'source-not-found',
+    'source-unavailable',
+    'cancelled',
     'reply-permission-denied',
+    'reply-window-expired',
+    'reply-limit-exceeded',
+    'reply-rate-limited',
     'consumer-unavailable',
     'file-upload-failed',
     'file-provider-rejected',
@@ -296,7 +301,7 @@ function providerFailure(error: unknown): MessagingProviderError {
 
 export function createDshImProvider(
   value: unknown,
-  platform: 'feishu' | 'slack' | 'discord' | 'weixin' = 'feishu',
+  platform: 'feishu' | 'slack' | 'discord' | 'weixin' | 'qq' = 'feishu',
 ): MessagingProvider | undefined {
   if (value === null || typeof value !== 'object') return undefined;
   const service = value as Partial<DshImOutboundService>;
@@ -333,7 +338,21 @@ export function createDshImProvider(
       name: info.account.name ?? ref,
       fingerprint: info.account.fingerprint,
       connected: info.connected,
-      ...(info.capabilities.includes('proactive-text-checked')
+      ...(info.capabilities.includes('proactive-text-checked') ||
+      (platform === 'qq' &&
+        host.replyContextVersion === 1 &&
+        host.replyReceiptVersion === 1 &&
+        host.replyFenceVersion === 1 &&
+        typeof host.consumeInbound === 'function' &&
+        typeof host.qualifyReplyChecked === 'function' &&
+        typeof host.replyChecked === 'function' &&
+        [
+          'exclusive-text-consumer',
+          'reply-text-checked',
+          'reply-context-checked',
+          'reply-receipt-checked',
+          'reply-fence-checked',
+        ].every((capability) => info.capabilities.includes(capability)))
         ? {}
         : { unsupported: 'checked-send' as const }),
     };
@@ -474,6 +493,9 @@ export function createDshImProvider(
                 typeof code === 'string' &&
                   [
                     'reply-permission-denied',
+                    'reply-window-expired',
+                    'reply-limit-exceeded',
+                    'reply-rate-limited',
                     'source-not-found',
                     'source-unavailable',
                     'stale-route',
@@ -623,6 +645,12 @@ export function createDshImProvider(
                 const parsed = inboundSchema.parse(raw);
                 if (
                   parsed.channel !== platform ||
+                  (platform === 'qq' &&
+                    (parsed.conversation.kind !== 'group' ||
+                      parsed.reply.threadId !== undefined ||
+                      parsed.reply.rootId !== undefined ||
+                      parsed.reply.parentId !== undefined ||
+                      (parsed.attachments?.length ?? 0) > 0)) ||
                   ((parsed.contentParts ||
                     (parsed.attachments?.length ?? 0) > 1 ||
                     (platform === 'feishu' &&
@@ -1002,6 +1030,13 @@ export function createDshImProvider(
       : {}),
     async send(input) {
       try {
+        if (platform === 'qq') {
+          const info = await host.describeBot(input.accountRef);
+          if (info.account.fingerprint !== input.fingerprint)
+            throw new MessagingProviderError('account-changed', 'not-started');
+          if (!info.capabilities.includes('proactive-text-checked'))
+            throw new MessagingProviderError('capability-unavailable', 'not-started');
+        }
         const result = await host.sendChecked(input.accountRef, input.targetRef, input.text, {
           expectedFingerprint: input.fingerprint,
           expectedTargetDigest: input.targetDigest,

@@ -313,7 +313,11 @@ export function ExternalIdentityList({
                 />
               </label>
               {!accounts.length ? <p>{t('im.setup')}</p> : null}
-              <p className="bh-muted">{t('identity.bindHint')}</p>
+              <p className="bh-muted">
+                {t(
+                  selectedAccount?.platform === 'qq' ? 'identity.bindHintQq' : 'identity.bindHint',
+                )}
+              </p>
               <div>
                 <Button
                   size="sm"
@@ -338,7 +342,9 @@ export function ExternalIdentityList({
                   bound?.reception === 'receiving'
                     ? selectedAccount.platform === 'weixin'
                       ? 'identity.readyWeixin'
-                      : 'identity.ready'
+                      : selectedAccount.platform === 'qq'
+                        ? 'identity.readyQq'
+                        : 'identity.ready'
                     : bound?.reception === 'connecting' || bound === undefined
                       ? 'identity.connecting'
                       : 'identity.offline',

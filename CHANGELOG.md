@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- An official QQ Bot app can bind to a PersonaBot, admit group text @mentions into its Inbox and answer in the original group with a native acceptance receipt; the development Provider keeps passive-reply expiry and unknown send outcomes explicit ([#1152](https://github.com/BotHarness/BotHarness/issues/1152), [QQ connection guide](docs/qq-connection.md)).
+
 - Slack DMs to a bound app now reach the Bot's Inbox and get answered in the DM without opening a thread, and Discord apps appear in **Bind app** again. The development IM provider moves to a dsh-im build with Slack DM intake, Discord checked delivery and checked Slack/Discord reply mentions ([#1125](https://github.com/BotHarness/BotHarness/issues/1125), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - One Bot can bind several apps of the same platform, such as two Lark apps: each app's DMs and @mentions reach the same Inbox and replies go out through the app that received them. **Bind app** lists every connected app and greys out the ones a Bot already uses, naming that Bot, and External identities lists the Bot's apps grouped by platform. A shared reply from a Bot with two apps in the same group refuses with a clear message ([#1110](https://github.com/BotHarness/BotHarness/issues/1110), [External identities guide](docs/channel-sidebar/external-identities.md)).

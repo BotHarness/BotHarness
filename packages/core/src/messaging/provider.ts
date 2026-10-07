@@ -54,7 +54,7 @@ export type MessagingContextScope = MessagingHistoryScope | 'retained' | 'retain
 
 export interface MessagingInboundEvent {
   version: 1;
-  channel: 'feishu' | 'slack' | 'discord' | 'weixin';
+  channel: 'feishu' | 'slack' | 'discord' | 'weixin' | 'qq';
   botId: string;
   fingerprint: string;
   eventId: string;

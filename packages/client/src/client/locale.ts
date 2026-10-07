@@ -851,6 +851,7 @@ export const zh = {
   'identity.offline': '{app} 暂时收不到消息。请在 IM 设置中检查它的连接状态。',
   'identity.done': '完成',
   'identity.readyWeixin': '已就绪：扫码者私聊 {app} 的消息，现在会进入这个 Bot 的收件箱。',
+  'identity.readyQq': '官方 QQ Bot 应用已就绪：群里 @ {app} 的消息，现在会进入这个 Bot 的收件箱。',
   'identity.platform': '平台',
   'identity.name': '身份名称',
   'identity.status': '状态',
@@ -869,6 +870,8 @@ export const zh = {
     '这里列出所有已在 IM 设置中连接的应用，以及各自绑定的 Bot。一个应用只属于一个 Bot。',
   'identity.bindHint':
     '绑定后，私聊这个应用和在群里 @ 它的消息会直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存目标或授权会话。个人微信只接收扫码者本人的私聊。',
+  'identity.bindHintQq':
+    '这是通过腾讯官方授权接入的 QQ Bot 应用。绑定后，在 QQ 群里 @ 这个应用的文字消息会直接进入这个 Bot 的收件箱，Bot 以自己的应用身份在原群回复，不需要保存目标或授权会话。',
   'identity.reconnectHint':
     '重新验证同一账号与已有授权范围后启用。账号已变更时，需要明确解绑并重新绑定。',
   'identity.impact': '将使此 Bot 的 {count} 个已有授权失效：',
@@ -3001,6 +3004,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'conversation.limit':
     'Too many active conversations. Block ones you no longer need, then allow new ones.',
   'identity.ready': 'Ready: DMs and @mentions to {app} now reach this Bot’s Inbox.',
+  'identity.readyQq':
+    'Official QQ Bot app ready: group @mentions to {app} now reach this Bot’s Inbox.',
   'identity.connecting': 'Connecting {app}…',
   'identity.offline':
     '{app} can’t receive messages right now. Check its connection in IM settings.',
@@ -3025,6 +3030,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'Every app connected in IM settings is listed here with the Bot it is bound to. An app belongs to one Bot only.',
   'identity.bindHint':
     'Once bound, DMs to the app and @mentions of it in groups go straight to this Bot’s Inbox, and the Bot replies in place. No saved targets or conversation authorization needed. Personal WeChat only receives DMs from the person who scanned it.',
+  'identity.bindHintQq':
+    'This QQ Bot app connects through Tencent’s official authorization. Once bound, text @mentions to this app in QQ groups reach this Bot’s Inbox. The Bot replies in the original group through its own app. No saved targets or conversation authorization needed.',
   'identity.reconnectHint':
     'Revalidate this same account and existing authorized scopes before enabling. A changed account requires explicit unbind and rebind.',
   'identity.impact': 'This will invalidate {count} existing authorizations for this Bot:',

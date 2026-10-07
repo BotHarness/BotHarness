@@ -53,7 +53,17 @@ function mention(id: string, mentioned = true): MessagingInboundEvent {
   });
 }
 
-type Platform = 'feishu' | 'slack' | 'discord' | 'weixin';
+type Platform = 'feishu' | 'slack' | 'discord' | 'weixin' | 'qq';
+
+function qqMention(id: string): MessagingInboundEvent {
+  return dm(id, {
+    channel: 'qq',
+    conversation: { kind: 'group', id: 'qq-group' },
+    mentionedAccount: true,
+    mentions: [],
+    reply: { messageId: `om-${id}`, conversationId: 'qq-group', actorId: 'ou_owner' },
+  });
+}
 
 async function fixture(
   platform: Platform = 'feishu',
@@ -93,9 +103,8 @@ async function fixture(
       account: { fingerprint, name: 'Support Lark app' },
       connected: true,
       capabilities: [
-        'proactive-text-checked',
+        ...(platform === 'qq' ? [] : ['proactive-text-checked', 'ordinary-text-consumer']),
         'exclusive-text-consumer',
-        'ordinary-text-consumer',
         'reply-text-checked',
         'reply-context-checked',
         'reply-receipt-checked',
@@ -146,6 +155,7 @@ async function fixture(
       return core;
     },
     identity,
+    service,
     runs,
     replies,
     query,
@@ -263,6 +273,146 @@ it('admits a group mention and replies in its topic, but leaves unmentioned grou
     threadId: 'omt-topic',
     rootId: 'om-root',
   });
+});
+
+it('a bound QQ app admits one trusted group mention without a saved target and replies in that group', async () => {
+  const fx = await fixture('qq');
+  const incoming = dm('qq-mention', {
+    conversation: { kind: 'group', id: 'qq-group-openid' },
+    actor: { kind: 'user', id: 'qq-member-openid' },
+    mentions: [],
+    mentionedAccount: true,
+    text: 'Please answer in this QQ group',
+    reply: {
+      messageId: 'om-qq-mention',
+      conversationId: 'qq-group-openid',
+      actorId: 'qq-member-openid',
+    },
+  });
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants).toEqual([]);
+  await expect(fx.receive(incoming)).resolves.toEqual({ accepted: true });
+  const attention = fx.core.attention.list({ botSlug: 'ada' }).items;
+  expect(attention).toHaveLength(1);
+  expect(attention[0]).toMatchObject({
+    reason: 'group-mention',
+    externalOrigin: {
+      platform: 'qq',
+      conversationId: 'qq-group-openid',
+      senderId: 'qq-member-openid',
+    },
+  });
+  expect(fx.runs).toHaveLength(1);
+  expect(fx.runs[0]!.inbox).toContain('Please answer in this QQ group');
+  await fx.core.externalMessaging.reply('ada', attention[0]!.id, 'Answer from Ada');
+  await fx.settle();
+  expect(fx.replies).toEqual([{ route: incoming.reply, text: 'Answer from Ada' }]);
+  expect(fx.core.externalMessaging.history('ada')[0]).toMatchObject({
+    state: 'provider-accepted',
+    receipt: { conversationId: 'qq-group-openid', messageId: 'reply-om-qq-mention' },
+  });
+  await fx.receive(incoming);
+  expect(fx.core.attention.list({ botSlug: 'ada' }).items).toHaveLength(1);
+  expect(fx.runs).toHaveLength(1);
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants).toHaveLength(1);
+});
+
+it('refuses unqualified QQ private traffic without admitting or running it', async () => {
+  const fx = await fixture('qq');
+  await expect(fx.receive(dm('private'))).rejects.toMatchObject({ code: 'untrusted-source' });
+  await expect(
+    fx.receive(
+      dm('thread', {
+        conversation: { kind: 'group', id: 'qq-group' },
+        reply: {
+          messageId: 'source',
+          conversationId: 'qq-group',
+          actorId: 'member',
+          threadId: 'thread',
+        },
+      }),
+    ),
+  ).rejects.toMatchObject({ code: 'untrusted-source' });
+  expect(fx.core.attention.list({ botSlug: 'ada' }).items).toEqual([]);
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants).toEqual([]);
+  expect(fx.runs).toEqual([]);
+});
+
+it('QQ admission is atomic and a rejected admission can be redelivered exactly once', async () => {
+  const fx = await fixture('qq');
+  const db = attachOperationalModule(fx.core.operationalDatabase, 'qq-admission-fault');
+  db.transaction((raw) =>
+    raw.exec(
+      "CREATE TRIGGER reject_qq BEFORE INSERT ON inbox_admissions BEGIN SELECT RAISE(ABORT, 'fixture admission failure'); END;",
+    ),
+  );
+  await expect(fx.receive(qqMention('atomic'))).rejects.toThrow();
+  expect(fx.admissions()).toEqual([]);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toEqual([]);
+  expect(fx.runs).toEqual([]);
+  db.transaction((raw) => raw.exec('DROP TRIGGER reject_qq'));
+  await fx.receive(qqMention('atomic'));
+  await fx.receive(qqMention('atomic'));
+  expect(fx.admissions()).toHaveLength(1);
+  expect(fx.runs).toHaveLength(1);
+});
+
+it('QQ keeps canonical sources across restart and fences paused, blocked and unbound intake', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('first'));
+  await fx.restart();
+  await fx.receive(qqMention('first'));
+  expect(fx.admissions()).toHaveLength(1);
+  expect(fx.subscriptions).toBe(1);
+  await fx.update({ enabled: false });
+  expect(fx.subscriptions).toBe(0);
+  await fx.update({ enabled: true });
+  fx.core.registry.setPaused('ada', true);
+  await expect(fx.receive(qqMention('paused'))).rejects.toThrow('consumer-unavailable');
+  fx.core.registry.setPaused('ada', false);
+  await fx.receive(qqMention('second'));
+  const grant = await grantFor(fx, 'qq-group');
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block',
+    grantId: grant.id,
+    expectedRevision: grant.revision,
+  });
+  await fx.settle();
+  await fx.receive(qqMention('blocked'));
+  await fx.restart();
+  await fx.receive(qqMention('blocked-after-restart'));
+  expect(fx.admissions()).toHaveLength(2);
+  await expect(
+    fx.core.externalMessaging.reply('ada', fx.sourceId('om-second'), 'too late'),
+  ).rejects.toThrow();
+  expect(fx.replies).toEqual([]);
+  const current = (await fx.core.externalMessaging.snapshot('ada')).identities![0]!;
+  await fx.core.externalMessaging.identity('ada', {
+    kind: 'unbind',
+    id: current.id,
+    expectedRevision: current.revision,
+  });
+  await fx.settle();
+  expect(fx.subscriptions).toBe(0);
+  expect(fx.entries().every((row) => (row as { revoked_at: unknown }).revoked_at !== null)).toBe(
+    true,
+  );
+});
+
+it('QQ retains an unknown native reply outcome across restart and never blindly resends', async () => {
+  const fx = await fixture('qq');
+  let sends = 0;
+  fx.service.replyChecked = async () => {
+    sends++;
+    throw Object.assign(new Error('uncertain'), { code: 'reply-result-unknown' });
+  };
+  await fx.receive(qqMention('uncertain'));
+  const id = fx.sourceId('om-uncertain');
+  const outcome = await fx.core.externalMessaging.reply('ada', id, 'one answer');
+  expect(outcome.state).toBe('unknown-outcome');
+  await fx.restart();
+  expect(await fx.core.externalMessaging.reply('ada', id, 'one answer')).toEqual(outcome);
+  expect(sends).toBe(1);
+  expect(fx.core.externalMessaging.history('ada')[0]?.state).toBe('unknown-outcome');
 });
 
 it('keeps /pair with pairing and admits nothing for it', async () => {

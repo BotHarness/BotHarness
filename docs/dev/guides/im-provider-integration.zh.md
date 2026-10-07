@@ -8,6 +8,14 @@
 
 ## 区分平台层与产品层
 
+### QQ 群文字候选（#1152）
+
+官方 QQ 应用候选复用既有 exclusive Consumer、canonical Source Event／Inbox 和 checked 回复路径。五项仅回复能力使应用能够独立于主动发送能力绑定。认证 `/users/@me` 提供原生身份；真实群应用可能省略示例中的 bot 标志，但明确矛盾的值仍拒绝。群／成员标识保持应用范围。
+
+首片只收入文字 `GROUP_AT_MESSAGE_CREATE`。准确来源证明有界且仅存在于进程内，受五分钟窗口和五次回复尝试限制，不宣称持久历史游标或群来源重读。先准备官方 SDK token，再检查来源、lease、账号、取消和 consumer 授权门禁，随后无异步间隔地发送。明确原生拒绝与 unknown 分开保存，不主动发送兜底、不自动重试。回执 ID 表示原生接收。见 [ADR-0144](../../adr/0144-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) 与 [QQ 配置指南](../../qq-connection.zh.md)。真实群／模型资格在 #1152 单独记录，与 fixture 回归区分。
+
+### 共享所有权
+
 DSH 原生 Plugin／Fiber 管理连接与 Service 注册。Service Definition → Provider → Consumer 提供受校验的外部操作；API Gateway 管理 Host／Client 通信。PersonaBot 身份、Grant、Source Event、Channel placement、Inbox Admission 和 Outbox intent 是 **BotHarness 应用定义的持久记录**。
 
 ```mermaid

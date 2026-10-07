@@ -375,6 +375,20 @@ export const PAGES = [
     },
   },
   {
+    slug: 'docs/qq-connection',
+    order: 24,
+    en: {
+      source: 'docs/qq-connection.md',
+      title: 'Connect a Bot to QQ groups',
+      description: 'Authorize an official QQ Bot app, bind it and verify group mention replies.',
+    },
+    zh: {
+      source: 'docs/qq-connection.zh.md',
+      title: '将 Bot 接入 QQ 群',
+      description: '授权官方 QQ Bot 应用、绑定身份，并验证群提及与原群答复。',
+    },
+  },
+  {
     slug: 'docs/lark-connection',
     order: 23,
     en: {

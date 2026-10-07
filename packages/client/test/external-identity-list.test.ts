@@ -131,126 +131,134 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
   }
 });
 
-it('Bind app shows real readiness after the commit and the app row lists its conversations with their actions', async () => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  const account = {
-    providerId: 'dsh-im/feishu',
-    ref: 'lark-app',
-    platform: 'feishu',
-    name: 'Support app',
-    fingerprint: 'a'.repeat(64),
-    connected: true,
-  };
-  const identity = {
-    id: 'binding',
-    botSlug: 'ada',
-    providerId: 'dsh-im/feishu',
-    platform: 'feishu',
-    accountRef: 'lark-app',
-    fingerprint: 'a'.repeat(64),
-    name: 'Support app',
-    enabled: true,
-    revision: 1,
-    createdAt: '2026-10-07T00:00:00Z',
-    availability: 'available' as const,
-    newConversations: 'auto' as const,
-    grantCount: 1,
-    scopes: ['Owner'],
-  };
-  const entry = {
-    id: 'entry',
-    bindingId: 'binding',
-    botSlug: 'ada',
-    providerId: 'dsh-im/feishu',
-    accountRef: 'lark-app',
-    accountName: 'Support app',
-    fingerprint: 'a'.repeat(64),
-    platform: 'feishu',
-    targetRef: '',
-    targetName: 'Owner',
-    targetDigest: '',
-    revision: 1,
-    createdAt: '2026-10-07T00:00:00Z',
-    origin: 'implicit' as const,
-    receiveScope: { kind: 'dm' as const, conversationId: 'oc_owner' },
-    lastMessageAt: '2026-10-07T01:00:00Z',
-    availability: 'available' as const,
-    reception: 'receiving' as const,
-  };
-  let snapshot: MessagingSnapshot = {
-    accounts: [account],
-    identities: [],
-    grants: [],
-    intents: [],
-  };
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  const render = () =>
-    root.render(
-      createElement(ExternalIdentityList, {
-        snapshot,
-        t: zhTranslate,
-        mutate,
-        conversation: vi.fn(),
-        rules: vi.fn(),
-      }),
-    );
-  const mutate = vi.fn(async () => {
-    snapshot = {
-      ...snapshot,
-      identities: [{ ...identity, reception: 'connecting' as const }],
+it.each(['feishu', 'qq'] as const)(
+  '%s Bind app shows real readiness after the commit and lists its conversations',
+  async (platform) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const account = {
+      providerId: `dsh-im/${platform}`,
+      ref: 'lark-app',
+      platform,
+      name: 'Support app',
+      fingerprint: 'a'.repeat(64),
+      connected: true,
     };
-    render();
-  });
-  try {
-    await act(async () => render());
-    const bind = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
-      b.textContent?.includes('绑定应用'),
-    )!;
-    await act(async () => bind.click());
-    expect(container.textContent).toContain('不需要保存目标或授权会话');
-    await chooseOption('应用', 'dsh-im/feishu:lark-app', container);
-    const confirm = [
-      ...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
-    ].find((b) => b.textContent === '绑定应用')!;
-    await act(async () => confirm.click());
-    expect(mutate).toHaveBeenCalledWith({
-      kind: 'bind',
-      providerId: 'dsh-im/feishu',
+    const identity = {
+      id: 'binding',
+      botSlug: 'ada',
+      providerId: `dsh-im/${platform}`,
+      platform,
       accountRef: 'lark-app',
       fingerprint: 'a'.repeat(64),
-    });
-    expect(container.querySelector('[role="status"]')?.textContent).toBe('正在连接 Support app…');
-    snapshot = {
-      ...snapshot,
-      identities: [{ ...identity, reception: 'receiving' }],
-      grants: [entry],
+      name: 'Support app',
+      enabled: true,
+      revision: 1,
+      createdAt: '2026-10-07T00:00:00Z',
+      availability: 'available' as const,
+      newConversations: 'auto' as const,
+      grantCount: 1,
+      scopes: ['Owner'],
     };
-    await act(async () => render());
-    expect(container.querySelector('[role="status"]')?.textContent).toContain(
-      '已就绪：发给 Support app 的私聊和群里 @ 它的消息',
-    );
-    const done = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
-      (b) => b.textContent === '完成',
-    )!;
-    await act(async () => done.click());
-    expect(container.textContent).toContain('飞书 · 1 个会话');
-    const edit = container.querySelector<HTMLButtonElement>('[title="编辑身份：Support app"]')!;
-    await act(async () => edit.click());
-    const list = container.querySelector('[role="dialog"] section[aria-label="活跃"]')!;
-    expect(list.textContent).toContain('Owner');
-    expect(list.textContent).toContain('私聊');
-    expect(list.textContent).toContain('最近消息');
-    expect([...list.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
-      '静音',
-      '屏蔽',
-    ]);
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
+    const entry = {
+      id: 'entry',
+      bindingId: 'binding',
+      botSlug: 'ada',
+      providerId: `dsh-im/${platform}`,
+      accountRef: 'lark-app',
+      accountName: 'Support app',
+      fingerprint: 'a'.repeat(64),
+      platform,
+      targetRef: '',
+      targetName: 'Owner',
+      targetDigest: '',
+      revision: 1,
+      createdAt: '2026-10-07T00:00:00Z',
+      origin: 'implicit' as const,
+      receiveScope: {
+        kind: platform === 'qq' ? ('group' as const) : ('dm' as const),
+        conversationId: 'oc_owner',
+      },
+      lastMessageAt: '2026-10-07T01:00:00Z',
+      availability: 'available' as const,
+      reception: 'receiving' as const,
+    };
+    let snapshot: MessagingSnapshot = {
+      accounts: [account],
+      identities: [],
+      grants: [],
+      intents: [],
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = () =>
+      root.render(
+        createElement(ExternalIdentityList, {
+          snapshot,
+          t: zhTranslate,
+          mutate,
+          conversation: vi.fn(),
+          rules: vi.fn(),
+        }),
+      );
+    const mutate = vi.fn(async () => {
+      snapshot = {
+        ...snapshot,
+        identities: [{ ...identity, reception: 'connecting' as const }],
+      };
+      render();
+    });
+    try {
+      await act(async () => render());
+      const bind = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+        b.textContent?.includes('绑定应用'),
+      )!;
+      await act(async () => bind.click());
+      expect(container.textContent).toContain('不需要保存目标或授权会话');
+      await chooseOption('应用', `dsh-im/${platform}:lark-app`, container);
+      const confirm = [
+        ...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+      ].find((b) => b.textContent === '绑定应用')!;
+      await act(async () => confirm.click());
+      expect(mutate).toHaveBeenCalledWith({
+        kind: 'bind',
+        providerId: `dsh-im/${platform}`,
+        accountRef: 'lark-app',
+        fingerprint: 'a'.repeat(64),
+      });
+      expect(container.querySelector('[role="status"]')?.textContent).toBe('正在连接 Support app…');
+      snapshot = {
+        ...snapshot,
+        identities: [{ ...identity, reception: 'receiving' }],
+        grants: [entry],
+      };
+      await act(async () => render());
+      expect(container.querySelector('[role="status"]')?.textContent).toContain(
+        platform === 'qq'
+          ? '已就绪：群里 @ Support app 的消息'
+          : '已就绪：发给 Support app 的私聊和群里 @ 它的消息',
+      );
+      const done = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (b) => b.textContent === '完成',
+      )!;
+      await act(async () => done.click());
+      expect(container.textContent).toContain(`${platform === 'qq' ? 'QQ' : '飞书'} · 1 个会话`);
+      const edit = container.querySelector<HTMLButtonElement>('[title="编辑身份：Support app"]')!;
+      await act(async () => edit.click());
+      const list = container.querySelector('[role="dialog"] section[aria-label="活跃"]')!;
+      expect(list.textContent).toContain('Owner');
+      expect(list.textContent).toContain(platform === 'qq' ? '群聊' : '私聊');
+      expect(list.textContent).toContain('最近消息');
+      expect([...list.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+        '静音',
+        '屏蔽',
+      ]);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);
 
 it('Bind app leaves out this Bot’s own apps, disables the ones another Bot uses with its owner or the Provider cannot serve, and offers a second app of a bound platform', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
