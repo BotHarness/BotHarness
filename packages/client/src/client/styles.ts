@@ -2568,19 +2568,13 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-conversation-sync .bh-modal-footer { gap: 6px; }
 .bh-conversation-confirm { display: grid; gap: 8px; }
 .bh-conversation-confirm p { margin: 0; }
-.bh-im-apps { display: grid; gap: 8px; }
-.bh-im-apps p { margin: 0; }
-.bh-im-apps-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bh-im-apps-table th { text-align: left; font-weight: 500; color: var(--dsw-alias-label-secondary); padding: 4px 8px 4px 0; }
-.bh-im-apps-table td .bh-im-apps-bot { margin-left: -8px; }
-.bh-im-apps-table td { padding: 6px 8px 6px 0; border-top: 1px solid var(--dsw-alias-border-l2); }
 .bh-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
 .bh-modal-footer > button { white-space: nowrap; }
 .bh-modal-footer-gap { flex: 1; }
 .bh-sidebar-modal { width: min(440px, calc(100vw - 32px)); }
 .bh-sidebar-modal-form, .bh-im-grant-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-size: 13px; }
 .bh-sidebar-modal-form p, .bh-im-grant-body p { margin: 0; }
-.bh-sidebar-modal-form ul { margin: 0; padding-left: 18px; }
+.bh-sidebar-modal-form ul:not(.bh-card-list) { margin: 0; padding-left: 18px; }
 .bh-sidebar-modal-subject { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; overflow-wrap: anywhere; }
 .bh-sidebar-modal-subject .bh-bridge-secondary { width: 100%; margin-top: 0; font-weight: 400; }
 .bh-muted { color: var(--dsw-alias-label-secondary); }

@@ -252,7 +252,7 @@ it('Bind app shows real readiness after the commit and the app row lists its con
   }
 });
 
-it('Bind app hides apps another Bot uses and offers a second app of a bound platform', async () => {
+it('Bind app lists every app, disables the ones a Bot uses with its owner, and offers a second app of a bound platform', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const app = (ref: string, boundBotSlug?: string) => ({
     providerId: 'dsh-im/feishu',
@@ -298,6 +298,7 @@ it('Bind app hides apps another Bot uses and offers a second app of a bound plat
           mutate: vi.fn(),
           conversation: vi.fn(),
           rules: vi.fn(),
+          botName: (slug: string) => (slug === 'bea' ? 'Bea' : slug),
         }),
       ),
     );
@@ -307,8 +308,10 @@ it('Bind app hides apps another Bot uses and offers a second app of a bound plat
     await act(async () => bind.click());
     await openCombobox('应用', container);
     const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
-    expect(options.map((o) => [o.dataset.value, o.disabled])).toEqual([
-      ['dsh-im/feishu:free', false],
+    expect(options.map((o) => [o.dataset.value, o.disabled, o.textContent])).toEqual([
+      ['dsh-im/feishu:free', false, expect.stringContaining('App free')],
+      ['dsh-im/feishu:mine', true, expect.stringContaining('已绑定到这个 Bot')],
+      ['dsh-im/feishu:theirs', true, expect.stringContaining('已被 Bea 使用')],
     ]);
   } finally {
     await act(async () => root.unmount());

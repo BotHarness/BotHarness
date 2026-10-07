@@ -90,6 +90,7 @@ function IdentitiesForBot({
           });
           await refresh();
         }}
+        botName={(owner) => state.bots.find((item) => item.slug === owner)?.displayName ?? owner}
       />
       <LarkSetupGuide snapshot={snapshot} t={t} refresh={refresh} />
       <SidebarCardList label={t('pairing.title')}>

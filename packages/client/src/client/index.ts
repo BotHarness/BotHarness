@@ -20,7 +20,6 @@ import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
 import { openBotSettings } from './bot-settings-open.js';
 import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
-import { ImAppsSettings } from './im-apps-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
 import { TelemetrySettings } from './telemetry-settings.js';
 import { GitSettings } from './git-settings.js';
@@ -309,18 +308,6 @@ export function apply(ctx: ClientContext): void {
           inject: () => ({ call, store, onSaved: () => actions.refreshRoster() }),
         },
         MessagingDefaultsSettings,
-      ),
-    );
-    settingsCtx.slots.inject('botharness.settings.item', () =>
-      settingsCtx.slots.register(
-        {
-          name: 'botharness.settings.item',
-          id: 'im-apps',
-          order: 5,
-          locale: LOCALE_NS,
-          inject: () => ({ call, store, openBot: (slug: string) => actions.openBot(slug) }),
-        },
-        ImAppsSettings,
       ),
     );
     settingsCtx.slots.inject('botharness.settings.item', () =>

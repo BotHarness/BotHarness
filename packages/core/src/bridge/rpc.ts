@@ -33,12 +33,7 @@ import type { HumanAssignmentContext } from '../runtime/assignment-human-context
 import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
 import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
-import type {
-  MessagingApp,
-  MessagingSnapshot,
-  MessagingGrant,
-  OutboxIntent,
-} from '../messaging/outbound.js';
+import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
@@ -242,9 +237,6 @@ export class BotharnessBridgeService extends TypertRemoteService {
     accountRef: string,
   ): Promise<{ targets: MessagingTarget[] }> {
     return unwrapAsync(this.methods.messagingTargets({ providerId, accountRef }));
-  }
-  messagingApps(): Promise<{ apps: MessagingApp[] }> {
-    return unwrapAsync(this.methods.messagingApps({}));
   }
   messagingAuthorize(
     botSlug: string,
@@ -1029,7 +1021,6 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pairingReview',
   'messagingSnapshot',
   'messagingTargets',
-  'messagingApps',
   'messagingAuthorize',
   'messagingRevoke',
   'messagingConversation',

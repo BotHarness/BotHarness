@@ -812,17 +812,10 @@ export const zh = {
   'identity.kind.dm': '私聊',
   'identity.kind.group': '群聊',
   'identity.lastMessage': '最近消息 {time}',
-  'imApps.title': 'IM 应用',
-  'imApps.summary':
-    '已连接的 IM 应用，以及各自绑定的 Bot。一个应用只属于一个 Bot；同一平台可以给一个 Bot 绑定多个应用。',
-  'imApps.usedBy': '绑定的 Bot',
-  'imApps.unbound': '未绑定',
-  'imApps.connected': '已连接',
-  'imApps.disconnected': '未连接',
-  'imApps.openBot': '打开 {name} 的私聊',
-  'imApps.manage': '管理应用凭据',
-  'imApps.empty': '还没有连接 IM 应用。在 IM 机器人设置中连接后，这里会列出它们。',
-  'imApps.failed': '无法读取 IM 应用列表。请刷新后重试。',
+  'identity.appUsedBy': '{platform} · 已被 {name} 使用',
+  'identity.appThisBot': '{platform} · 已绑定到这个 Bot',
+  'identity.appOffline': '{platform} · 未连接',
+  'identity.manageApps': '管理应用凭据',
   'identity.newConversations': '新会话',
   'identity.newConversations.auto': '自动接收',
   'identity.newConversations.ask': '先问我',
@@ -873,7 +866,8 @@ export const zh = {
   'identity.unbind': '解绑',
   'identity.unbindFor': '解绑身份：{name}',
   'identity.displayName': '本地显示名称',
-  'identity.providerHint': '选择一个已在 IM 设置中连接的应用。应用凭据仍由 IM 插件管理。',
+  'identity.providerHint':
+    '这里列出所有已在 IM 设置中连接的应用，以及各自绑定的 Bot。一个应用只属于一个 Bot。',
   'identity.bindHint':
     '绑定后，私聊这个应用和在群里 @ 它的消息会直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存目标或授权会话。个人微信只接收扫码者本人的私聊。',
   'identity.reconnectHint':
@@ -2967,17 +2961,10 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.kind.dm': 'DM',
   'identity.kind.group': 'Group',
   'identity.lastMessage': 'Last message {time}',
-  'imApps.title': 'IM apps',
-  'imApps.summary':
-    'Connected IM apps and the Bot each one is bound to. An app belongs to one Bot; a Bot can bind several apps of the same platform.',
-  'imApps.usedBy': 'Bound Bot',
-  'imApps.unbound': 'Not bound',
-  'imApps.connected': 'Connected',
-  'imApps.disconnected': 'Disconnected',
-  'imApps.openBot': 'Open DM with {name}',
-  'imApps.manage': 'Manage app credentials',
-  'imApps.empty': 'No IM apps connected yet. Connect one in IM bots settings and it shows up here.',
-  'imApps.failed': 'Couldn’t load the IM apps. Refresh and try again.',
+  'identity.appUsedBy': '{platform} · used by {name}',
+  'identity.appThisBot': '{platform} · already bound to this Bot',
+  'identity.appOffline': '{platform} · not connected',
+  'identity.manageApps': 'Manage app credentials',
   'identity.newConversations': 'New conversations',
   'identity.newConversations.auto': 'Admit automatically',
   'identity.newConversations.ask': 'Ask me first',
@@ -3032,7 +3019,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.unbindFor': 'Unbind identity: {name}',
   'identity.displayName': 'Local display name',
   'identity.providerHint':
-    'Choose an app already connected in IM settings. The IM plugin keeps its credentials.',
+    'Every app connected in IM settings is listed here with the Bot it is bound to. An app belongs to one Bot only.',
   'identity.bindHint':
     'Once bound, DMs to the app and @mentions of it in groups go straight to this Bot’s Inbox, and the Bot replies in place. No saved targets or conversation authorization needed. Personal WeChat only receives DMs from the person who scanned it.',
   'identity.reconnectHint':
