@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Window Companions can independently play Group replies and choose own-DM, shared-Channel or all-Bot-Channel scope, including Bot–Bot DMs with both participants named. Cards identify the original Channel and respect its existing read access; changing sources or scope clears old cards and starts with future committed Bot text, without marking messages read ([#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)).
+
 - Slack DMs to a bound app now reach the Bot's Inbox and get answered in the DM without opening a thread, and Discord apps appear in **Bind app** again. The development IM provider moves to a dsh-im build with Slack DM intake, Discord checked delivery and checked Slack/Discord reply mentions ([#1125](https://github.com/BotHarness/BotHarness/issues/1125), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - Bots can be selected as transparent pixel Window Companions from sidebar menus or individual Channel-header buttons. Each keeps its own Activity, new Human–Bot DM bubbles, drag physics, reading list and walking preferences across Harness pages; shared Profile settings control stacked layers and bounded card retention, and restart restores preferences without replaying old messages. Reduced motion disables drop and pose effects; walking pause does not pause Bot execution ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138), [#1139](https://github.com/BotHarness/DeepSeekBot/issues/1139)).

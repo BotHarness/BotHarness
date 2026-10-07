@@ -182,13 +182,15 @@ Reply to that exact Lark report in its topic, @mentioning the bound Bot. Its eli
 
 Bot 使用 `bridge_context` 的 `nearby` 时，默认读取来源前后各五分钟内的可见 Human 文字消息；一侧不足时，补齐最近的前 10／后 5 条（锚点自身不计入）。可使用 `before_count`／`after_count` 调整每侧 0–20 条。窗口密集时不会因为达到条数而截断：继续传回同一来源、范围和条数配置下的 `nextCursor`，直到没有续页；每页仍受返回文字预算限制。每个 Cursor 有效 30 分钟，重启或授权变化可使其失效。Lark 的 Chat 列表可能不包含话题回复，读取话题内容仍使用 `thread`；锚点本身保留在原 Inbox 来源中。只读取现有消息，不等待未来内容；权限、略过消息或历史已尽可使结果不足保底数量。读取的历史不会自动进入 Inbox（[ADR-0125](adr/0125-nearby-context-combines-time-coverage-and-count-minima.md)）。
 
-### Window Companion 的未来消息消费（#1138、#1139）
+### Window Companion 的未来消息消费（#1138–#1140）
 
 共享 Activity 健康状态仅在连接状态变化时更新；取消钉选会释放旧的 stale 提示。只有成功加载的 Registry 名单确认 Bot 已不存在时，Client 才自动移除其钉选并恢复普通 Activity 消费；网络或认证失败保留本地选择，不作为 Bot 删除的证据。
 
-`GET /api/botharness/companion` 通过 Connection Fetch 的原生认证返回 `{ profileId }`；标识为原生 Profile 目录的不透明 SHA-256，既不返回路径，也不包含凭据。`?botId=<slug>&dm=1|0` 返回 SSE：`companion/baseline` 和 `companion/activity` 含 Registry 形象与现有全 Bot Activity snapshot，`companion/message` 仅含拥有者已提交的 Human–Bot 私聊消息 ID、Channel ID/名称及最多 2000 字符的文字预览。首个切片不消费群聊或 Bot–Bot DM。未认证真实 Host 请求返回 401。
+`GET /api/botharness/companion` 通过 Connection Fetch 的原生认证返回 `{ profileId }`；标识为原生 Profile 目录的不透明 SHA-256，既不返回路径，也不包含凭据。`?botId=<slug>&dm=1|0&group=1|0&visibility=own-dm|shared|all-bot` 返回 SSE：`companion/baseline` 和 `companion/activity` 含 Registry 形象与现有全 Bot Activity snapshot，`companion/message` 仅含所选 Bot 已提交的消息 ID、Channel ID/名称、来源种类、Bot 参与者名称、现有读取可用性及最多 2000 字符的正文预览。DM 默认开启、群聊默认关闭；来源开关与范围相交。`own-dm` 仅自己的 Human–Bot DM，默认 `shared` 还允许 Human 与 Bot 都参与的群聊，`all-bot` 还允许该 Bot 的 Bot–Bot DM 及 Human 未参与的群聊。未认证真实 Host 请求返回 401。
 
-多伙伴使用同一认证路径的 `GET ?subscribe=1` 建立一条 SSE。基线携带 `{ profileId, consumerId, selectionRevision, bots, activity }`；`consumerId` 是仅在该连接存活时有效的随机句柄，不落盘。认证 `POST /api/botharness/companion` 提交 `{ consumerId, selections: [{ botId, dm }], capacity, revision }`，Host 验证每个 Registry 身份、重复项及容量后原子替换选择，并发送 `companion/selection` 确认。旧选择确认不能初始化新伙伴；关闭连接会注销句柄。消息带 `botId`，Client 按作者派送至独立伙伴；群聊和 Bot–Bot DM 仍由 #1140 接续。
+多伙伴使用同一认证路径的 `GET ?subscribe=1` 建立一条 SSE。基线携带 `{ profileId, consumerId, selectionRevision, bots, activity }`；`consumerId` 是仅在该连接存活时有效的随机句柄，不落盘。认证 `POST /api/botharness/companion` 提交 `{ consumerId, selections: [{ botId, dm, group, visibility }], capacity, revision }`，Host 验证每个 Registry 身份、重复项及容量后原子替换选择，并发送 `companion/selection` 确认。旧选择确认不能初始化新伙伴；关闭连接会注销句柄。消息带 `botId`，Client 按作者派送至独立伙伴；Bot–Bot DM 使用 DM 开关；未传群聊/范围字段的旧消费仍默认群聊关闭、shared 范围。
+
+Channel owner 的应用定义 `observeOutput(channelId, messageId)` 从规范 placement/source 查找单条正文与作者，返回当前 Human 参与关系及原 timeline 的读取可用性；SQL 路径按 Channel/message 索引定位，不扫描完整历史或返回 Tool 参数、结果、附件和投影详情。Feed 按 Registry 活跃身份、当前 Bot 成员关系、作者、开关及范围验证后推送；背压队列只保留有界消息引用，改变选择时过滤并在排出前重查。较广观察不修改通用 Channel 读取/发送、Human 成员关系或模型权限。Bot–Bot DM 的现有 Human timeline 可读性保持可用；Human 未参与的 Group 仍不可读，卡片保留来源并解释。
 
 Host 同步注册消费者后写基线，不扫描旧消息；Client 每次连接基线或 Host generation 变化清空过程卡片，增加另一个伙伴不清空正在阅读的已有卡片。重启只恢复 Client origin × Profile 的 v2 选择与全局容量，兼容迁移 v1 单伙伴选择，消息不持久化。默认折叠三层、保留二十条；设置接受整数，层数范围 1–10、保留范围 1–100，层数不超过保留量。Activity 合并为一个待发送快照；Host 每个 Bot 的待发队列、Client 每个 Bot 的保留与阅读中待到达队列分别受同一保留量约束，已见 ID 另外最多四倍保留量。阅读中的卡片不因其他 Bot 到达而移动锚点；展开高度与折叠层溢出都纳入基本避让，文字揭示及预览截断保持完整字素。
 

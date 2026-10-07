@@ -111,7 +111,10 @@ export class WindowCompanion {
             activity: value['activity'] !== false,
             dm: value['dm'] !== false,
             group: value['group'] === true,
-            visibility: 'shared',
+            visibility:
+              value['visibility'] === 'own-dm' || value['visibility'] === 'all-bot'
+                ? value['visibility']
+                : 'shared',
             walking: value['walking'] !== false,
             position:
               typeof value['position'] === 'number' && Number.isFinite(value['position'])
@@ -161,7 +164,12 @@ export class WindowCompanion {
     if (!selected) return;
     this.update({ selection: { ...selected, ...change } });
     this.save();
-    if (change.dm !== undefined && change.dm !== selected.dm) this.connect();
+    if (
+      (change.dm !== undefined && change.dm !== selected.dm) ||
+      (change.group !== undefined && change.group !== selected.group) ||
+      (change.visibility !== undefined && change.visibility !== selected.visibility)
+    )
+      this.connect();
   }
   setCapacity(capacity: { layers: number; retention: number }): void {
     this.pendingCards = this.pendingCards.slice(-capacity.retention);
@@ -247,7 +255,7 @@ export class WindowCompanion {
     let stream: CompanionStream;
     try {
       stream = this.deps.source(
-        `/api/botharness/companion?botId=${encodeURIComponent(selection.botId)}&dm=${selection.dm ? 1 : 0}`,
+        `/api/botharness/companion?botId=${encodeURIComponent(selection.botId)}&dm=${selection.dm ? 1 : 0}&group=${selection.group ? 1 : 0}&visibility=${selection.visibility}`,
       );
     } catch {
       this.update({ sync: 'stale' });
@@ -293,14 +301,21 @@ export class WindowCompanion {
     stream.addEventListener('companion/baseline', (event) => snapshot(event, true));
     stream.addEventListener('companion/activity', (event) => snapshot(event, false));
     stream.addEventListener('companion/message', (event) => {
+      if (this.disposed || this.stream !== stream || this.generation === undefined) return;
+      const value = decode(event);
+      const current = this.state.selection;
+      const source = value?.['source'] ?? 'own-dm';
       if (
-        this.disposed ||
-        this.stream !== stream ||
-        this.generation === undefined ||
-        !this.state.selection?.dm
+        !current ||
+        (source !== 'own-dm' &&
+          source !== 'bot-dm' &&
+          source !== 'shared-group' &&
+          source !== 'bot-group') ||
+        (source === 'own-dm' || source === 'bot-dm' ? !current.dm : !current.group) ||
+        (current.visibility === 'own-dm' && source !== 'own-dm') ||
+        (current.visibility === 'shared' && (source === 'bot-dm' || source === 'bot-group'))
       )
         return;
-      const value = decode(event);
       if (
         value?.['generation'] !== this.generation ||
         value['botId'] !== selection.botId ||
@@ -324,6 +339,11 @@ export class WindowCompanion {
         channelId: value['channelId'],
         channelName: value['channelName'],
         body,
+        source,
+        canOpen: value['canOpen'] === undefined ? source === 'own-dm' : value['canOpen'] === true,
+        participants: Array.isArray(value['participants'])
+          ? value['participants'].filter((name): name is string => typeof name === 'string')
+          : [],
         boundaries: messageGraphemeBoundaries(body),
         shown: 0,
         remaining: 0,

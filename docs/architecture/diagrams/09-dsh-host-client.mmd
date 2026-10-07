@@ -7,7 +7,8 @@ flowchart TB
     Channels --> ReadPositions["既有 Human 已读位置"]
     Remote <--> Gateway["API Gateway<br/>唯一 /api interceptor"]
     Registry["Registry / Activity / Session ownership"] --> Feed["应用定义的 Companion Feed"]
-    Channels --> Feed
+    Channels --> Observation["observeOutput<br/>单条规范正文 + 成员关系 + 读取判定"]
+    Observation --> Feed
   end
   subgraph Browser["DSH Web Client"]
     direction LR

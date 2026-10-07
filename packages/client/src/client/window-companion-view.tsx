@@ -195,8 +195,7 @@ export function WindowCompanionView({
     },
     {
       id: 'group',
-      label: t('companion.groupUnavailable'),
-      disabled: true,
+      label: t('companion.group'),
       icon: <span aria-hidden="true">{selection.group ? '✓' : ''}</span>,
     },
     { type: 'separator', id: 'scope-separator' },
@@ -268,6 +267,12 @@ export function WindowCompanionView({
           >
             {cards.map((card, index) => {
               const layer = cards.length - index - 1;
+              const context = [
+                card.source === 'bot-dm' ? card.participants?.join(' ↔ ') : '',
+                card.canOpen === false ? t('companion.sourceUnavailable') : '',
+              ]
+                .filter(Boolean)
+                .join(' · ');
               return (
                 <li
                   key={card.messageId}
@@ -285,9 +290,26 @@ export function WindowCompanionView({
                   aria-hidden={!view.reading && layer !== 0}
                 >
                   <header>
-                    <button type="button" onClick={() => openChannel(card.channelId)}>
-                      {t('companion.source', { name: card.channelName })}
-                    </button>
+                    <div className="bh-companion-source">
+                      <button
+                        type="button"
+                        disabled={card.canOpen === false}
+                        title={
+                          card.canOpen === false ? t('companion.sourceUnavailable') : undefined
+                        }
+                        onClick={() => {
+                          if (card.canOpen !== false) openChannel(card.channelId);
+                        }}
+                      >
+                        {t(
+                          card.source === 'shared-group' || card.source === 'bot-group'
+                            ? 'companion.sourceGroup'
+                            : 'companion.source',
+                          { name: card.channelName },
+                        )}
+                      </button>
+                      {context && <small title={context}>{context}</small>}
+                    </div>
                     <button
                       type="button"
                       aria-label={t('companion.dismiss')}
@@ -296,7 +318,7 @@ export function WindowCompanionView({
                       <IconCloseFillRegular size={14} />
                     </button>
                   </header>
-                  <p>{card.body.slice(0, card.shown)}</p>
+                  <p data-context={Boolean(context)}>{card.body.slice(0, card.shown)}</p>
                 </li>
               );
             })}

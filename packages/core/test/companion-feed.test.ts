@@ -106,9 +106,14 @@ it('starts a future-only Host baseline, admits only owned Human DM output and re
         listeners.delete(changed);
       };
     },
-    channel: (id) =>
+    observeOutput: (id, messageId) =>
       id === 'human-dm'
-        ? { id, type: 'dm', name: 'Ada', botSlug: 'ada', members: ['ada'] }
+        ? {
+            channel: { id, type: 'dm', name: 'Ada', botSlug: 'ada', members: ['ada'] },
+            message: { id: messageId, author: { kind: 'bot', slug: 'ada' }, body: messageId },
+            humanParticipant: true,
+            canRead: true,
+          }
         : undefined,
   });
   feeds.push(feed);

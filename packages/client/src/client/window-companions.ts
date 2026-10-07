@@ -13,7 +13,12 @@ export interface CompanionCapacity {
 }
 interface SubscriptionUpdate {
   consumerId: string;
-  selections: { botId: string; dm: boolean }[];
+  selections: {
+    botId: string;
+    dm: boolean;
+    group: boolean;
+    visibility: CompanionSelection['visibility'];
+  }[];
   capacity: number;
   revision: number;
 }
@@ -28,6 +33,8 @@ interface Dependencies {
 interface VirtualStream {
   events: EventTarget;
   dm: boolean;
+  group: boolean;
+  visibility: CompanionSelection['visibility'];
   ready: boolean;
   revision: number;
   failed: boolean;
@@ -219,6 +226,13 @@ export class WindowCompanions {
     const virtual: VirtualStream = {
       events: new EventTarget(),
       dm: query.get('dm') !== '0',
+      group: query.get('group') === '1',
+      visibility:
+        query.get('visibility') === 'own-dm'
+          ? 'own-dm'
+          : query.get('visibility') === 'all-bot'
+            ? 'all-bot'
+            : 'shared',
       ready: false,
       revision: ++this.revision,
       failed: false,
@@ -356,7 +370,12 @@ export class WindowCompanions {
         consumerId = this.consumerId;
         await this.deps.update({
           consumerId,
-          selections: [...this.streams].map(([botId, item]) => ({ botId, dm: item.dm })),
+          selections: [...this.streams].map(([botId, item]) => ({
+            botId,
+            dm: item.dm,
+            group: item.group,
+            visibility: item.visibility,
+          })),
           capacity: this.state.capacity.retention,
           revision: this.revision,
         });
