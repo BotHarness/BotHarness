@@ -456,6 +456,18 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 [#751](https://github.com/BotHarness/BotHarness/issues/751) 的首条人物路径使用 Registry 的 `setAppearance`：受控、严格版本化的部件与十六进制颜色配方和 Host 由同一 SVG 派生的 512×512 PNG 在一次原子写入内保存，SHA-256 revision 绑定配方与快照。DTO 只携带配方／revision 与既有快照 URL；图片覆盖或移除会清除 composed 配方。Client 的 Profile 草稿在 Save 前不写入，侧栏和大图消费同一保存配方；稳定 SVG 节点上的 Web Animations 只持有有界局部姿态，真实 activity 切换会重新定向，减少动画、隐藏、离屏和卸载取消资源。Host 光栅化依赖仅在保存时执行，不进入 Client Bundle；第二家族、细分发件／五官和缺版本兼容回退仍由后续切片验收。
 
+### 5.3 · 窗口伙伴（已接受设计，待实现）
+
+[ADR-0143](../adr/0143-window-companions-consume-owned-activity-and-scoped-output.md) 与 [规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135) 记录 Q1–Q23 共识。Human 主动从 Bot 行右键或 Channel header 的具体 Bot 入口选择“显示为窗口伙伴”，与 Channel 置顶独立；通过官方 RC 的 shell overlay Slot 跨 Harness 页面显示既有半身 Avatar。Client companion owner 持有当前 Client × DSH Profile 的选择、每 Bot 来源/范围/漫游偏好，以及所有伙伴共享的卡片层数/保留数量设置；不更改 Registry 的身份/外观、Memory 或 Channel pin。底部漫游、拖拽、受窗口边界约束的位置和锚定像素气泡属于呈现层，逐帧姿态不跨 RPC。
+
+消费路径为 owning Registry/Activity Projection/canonical Channel → 认证 Typert/API Gateway 与有界 live/query adapter → 独立 companion Client owner → 既有 Avatar 与卡片。当前 Activity Client 退出 Bot mode 会关闭消费，当前 SSE 只有单 Channel 输出流；伙伴的独立生命周期和按 Bot 跨 Channel 输出合同是待实现工作，不由现有页面组件顺便提供。Host 内其他 Plugin 继续查询同一 Activity Service 并消费 application-defined Cordis 通知；不存在伙伴 UI 到 Activity authority 的反向写入。
+
+每 Bot 独立开关 Activity 标签、DM、群聊消息，默认开、开、关。Companion Visibility 默认“Bot 和我都在的 Channel”，另有“仅我和 Bot 的 Channel”与“所有 Bot 加入的 Channel”；Bot–Bot DM 在第三档归 DM 开关。只展示当前 Bot 的已提交输出并标识来源 Channel/DM 双方。第三档需要面向受信 Human Consumer 的 Host-owned Bot 输出只读合同，范围限制在被选 Bot 的 authored output；不能删除通用 timeline 成员检查、授予模型新权限或读取其他作者的完整历史。点击原 Channel 仍检查 owning 读边界，不能访问时解释限制。
+
+首次选择/Client 或 Host 重启建立 Host 一致的新消息基线，不重播旧输出，直接查询当前 Activity；短暂后台/断线仅有界恢复本轮基线后尚未播出的消息，canonical identity 去重并拒绝旧 generation 响应。关闭来源清卡片与待播，重新开启或新合格 Channel 从当前基线继续。进程内 output-committed 只是通知，不能充当持久 cursor；查询成本与队列都必须有界。气泡到期/移除不更新 Channel read position。独立 Human attention 即使所有播放关闭仍保留并导航到 owning 活动/Human Inbox，不从计数编造正文或审批控件。
+
+每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
+
 ## 6 · 持久化、导出与恢复边界
 
 ```mermaid

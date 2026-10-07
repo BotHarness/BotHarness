@@ -62,6 +62,14 @@ _避免使用_：Soul、Bot type、mode、skin
 保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
 _避免使用_：Soul、pose、mood、skin
 
+**Window Companion**：
+窗口伙伴：由 Human 选择的一种 Binding，使某个 PersonaBot 的 Avatar 在 Harness 窗口内跨页面保留，并呈现选定的活动与消息。它仍是同一个 PersonaBot，独立于 Channel 置顶和当前打开的会话。
+_避免使用_：desktop pet、Channel pin、另一个 bot
+
+**Companion Visibility**：
+伙伴可见范围：Human 为窗口伙伴选择的、可呈现该 PersonaBot 发言的 Channel 范围：Human 与该 PersonaBot 的 DM、双方都参与的 Channel，或该 PersonaBot 加入的全部 Channel。它独立于消息类型的播放开关，不改变 Channel 成员关系或执行权限。
+_避免使用_：Channel pin、Channel membership、Agent Scope
+
 **Model Preset**：
 模型预设。Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
 _避免使用_：DSH Agent preset、SoulSnapshot

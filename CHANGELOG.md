@@ -55,6 +55,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Documentation
 
+- Documented the accepted in-window pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
+
 - Documented native Windows candidate installation and approval verification, including physical AppData paths, isolated Profile package-manager pins, actual Shell exit evidence and process timestamp guards, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md). The bilingual [Lark guide](docs/lark-connection.md) records real Human Allow once/Reject qualification on exact candidate sources; this documentation update does not change runtime behavior ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md), [中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)).
