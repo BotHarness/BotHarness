@@ -1,3 +1,8 @@
+import {
+  createApprovalMessaging,
+  type ApprovalMessaging,
+  type ApprovalMessagingSnapshot,
+} from './approval-messaging.js';
 import { createBotPairing, type BotPairing, type PairingRequest } from './pairing.js';
 import {
   assertMessagingIdentity,
@@ -152,6 +157,7 @@ export interface OutboxIntent {
 }
 
 export interface MessagingSnapshot {
+  approvals?: ApprovalMessagingSnapshot;
   setup?: {
     providerReady: boolean;
     receipts: {
@@ -184,6 +190,7 @@ export interface MessagingSnapshot {
 }
 
 export interface OutboundMessaging {
+  approvals: ApprovalMessaging;
   pairing: BotPairing;
   inbound: InboundMessaging;
   defaults<Platform extends string = 'feishu'>(platform?: Platform): MessagingDefaults<Platform>;
@@ -463,7 +470,16 @@ export function createOutboundMessaging(options: {
     return { ...entry, inspected, identityRevision: identity.revision };
   };
   const pairing = createBotPairing(database, options.isBotActive, options.now);
+  const approvals = createApprovalMessaging({
+    database,
+    pairing,
+    ...(options.recover === undefined ? {} : { recover: options.recover }),
+    provider: (id) => provider(id).provider,
+    isBotActive: options.isBotActive,
+    ...(options.warn ? { warn: options.warn } : {}),
+  });
   const inbound = createInboundMessaging({
+    onApprovalAction: (providerId, event, signal) => approvals.action(providerId, event, signal),
     pairing,
     database,
     bindingAvailable(id) {
@@ -555,6 +571,7 @@ export function createOutboundMessaging(options: {
       })
     : undefined;
   const service: OutboundMessaging = {
+    approvals,
     inbound,
     pairing,
     defaults<Platform extends string = 'feishu'>(platform?: Platform) {
@@ -1277,6 +1294,7 @@ export function createOutboundMessaging(options: {
         accounts,
         identities,
         pairings: pairing.list(botSlug),
+        approvals: approvals.snapshot(botSlug),
         pairingReceivers: identities
           .filter((i) => i.platform === 'feishu' && !i.revokedAt)
           .map((i) => ({
@@ -1798,6 +1816,7 @@ export function createOutboundMessaging(options: {
     },
     close() {
       closed = true;
+      approvals.close();
       inbound.close();
       providers.clear();
       for (const attempt of inFlight.values()) attempt.controller.abort();

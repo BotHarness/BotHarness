@@ -308,6 +308,17 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  approvalRoute(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
+  approvalTest(
+    payload: unknown,
+  ): Promise<
+    BridgeResult<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }>
+  >;
+  approvalRetry(
+    payload: unknown,
+  ): Promise<
+    BridgeResult<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }>
+  >;
   pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -1028,6 +1039,45 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!input.success) return Promise.resolve(invalidInput('Invalid external source'));
       return messagingCall(async (service) => ({
         source: service.inbound.read(input.data.slug, input.data.sourceEventId),
+      }));
+    },
+    approvalRoute(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          pairingId: z.string().uuid().nullable(),
+          expectedRevision: z.number().int().nonnegative(),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid approval destination'));
+      return messagingCall(async (service) => {
+        await service.approvals.setRoute(
+          input.data.slug,
+          input.data.pairingId ?? undefined,
+          input.data.expectedRevision,
+        );
+        return { updated: true as const };
+      });
+    },
+    approvalTest(payload) {
+      const input = z
+        .object({ slug: z.string().min(1) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid Bot'));
+      return messagingCall(async (service) => ({
+        delivery: await service.approvals.test(input.data.slug),
+      }));
+    },
+    approvalRetry(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), id: z.string().uuid() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid notification'));
+      return messagingCall(async (service) => ({
+        delivery: await service.approvals.retry(input.data.slug, input.data.id),
       }));
     },
     pairingReview(payload) {

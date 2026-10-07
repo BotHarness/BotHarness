@@ -342,6 +342,32 @@ _The exact [BH-LARK-SETUP] source ends in f708a3f1; its Inbox admission was hand
 
 _Close/reopen and same-Profile restart retained configuration/history; select the persisted account after reload. Disable, grant revocation, unbind and account removal returned relevant steps to pending. Native Remove integration then stopped reception and deleted local configuration/credentials. The external application remains; external credential reset is an administrator action._
 
+## Handle tool approvals in a management DM
+
+This slice supports Lark private **Allow once** and **Reject** cards through a qualified Provider. Group approvals, native question forms, saved automatic rules and non-blocking native waits are separate slices. The released dsh-im package number alone does not imply card capability; an unavailable Provider remains unavailable.
+
+1. Enable the app's **Events & callbacks → Callback configuration → Long connection** and add `card.action.trigger`, then publish the version. Retain the existing message read/send scopes and add `im:chat:read` so the sender can verify a private conversation. A maintainer must authorize these app changes.
+2. Send `/pair` in the Bot's Lark DM. In the authenticated Web Profile, inspect the real applicant/account and explicitly grant **Approve** and/or **Reject**. Pairing does not create ordinary DM intake or grant VPS/API access.
+3. In **Lark approval notifications**, choose that person's name and receiving account, then **Save destination**. Select **Send test card**; it has no approval buttons and grants nothing.
+4. A subsequent native tool approval sends its complete operation to that management DM, with **Allow once** and **Reject**. Check the proposed operation before deciding. A truncated card asks you to inspect the complete operation in Web. The card's acknowledgement only confirms receipt of your click; the final native decision and result are separate.
+5. Refresh notifications in the Profile and use **Open native session and complete operation** to inspect the actual native result. **Decision accepted** is not proof that a tool ran. Rejected, revoked, expired, duplicate or mismatched actions cannot approve a new call.
+
+![The actual isolated Profile before a management DM is paired](/guides/lark/approvals/settings-empty-dark.jpg)
+
+This screenshot shows the running private-route entry point with no paired destination; it is not a real Lark delivery or execution result. Real platform qualification for this slice is recorded with the issue's evidence and Human QA.
+
+If delivery is **Unknown outcome**, check the DM before creating any new request: the sender does not automatically resend. Known-unsent failures can retry at most three times. Card updates may also remain unconfirmed; use Web for the canonical result. Revoking a pairing or changing the destination invalidates old controls. A Host restart expires old pending cards rather than replaying a paused tool. The current native approval still waits; the later Inbox continuation slice owns non-blocking behavior.
+
+Computer and Browser first-use authorization covers a native Session, so its notification has no approval buttons and requires Web review; it cannot be granted by an IM Allow once.
+
+![A reviewed test DM receives a native approval notification](/guides/lark/approvals/route-sent-dark.jpg)
+
+In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both the test card and a native tool approval card. This historical screenshot records **delivery accepted / decision pending**; it does not show an IM decision or tool execution. A later authorized native Windows window qualified BotHarness source `8936777b` with checked Provider source `1422b07f`: the Human's Lark **Allow once** click produced exactly one successful native Node print, and a distinct **Reject** click produced the native rejection error without a replacement call. The Human confirmed the final cards showed **Executed** and **Rejected**. The route was disabled, QA pairing revoked, identity unbound and local receiver stopped before restoring production within the ten-minute limit. The Human then confirmed normal production replies in both Lark and Discord. See [#1029](https://github.com/BotHarness/BotHarness/issues/1029) for the source-specific evidence and recovery checks; this qualification does not update the published Provider pin or deploy the feature.
+
+![Actual recovery: notifications off and the old request expired](/guides/lark/approvals/recovery-dark.jpg)
+
+[Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
+
 ## Images in Channel history
 
 In the image-capable #1021 candidate, an authorized Lark image or supported image-bearing post appears inside its original Channel bubble. The source name above it still opens source details. Images load when visible; select an image to enlarge it, and use **Retry** after a failed load. Text and multiple images stay in their native order in one message.

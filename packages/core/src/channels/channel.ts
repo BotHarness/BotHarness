@@ -1,3 +1,4 @@
+import { parseToolApprovalActor } from '../workspaces/tool-approval-actor.js';
 import { createHash } from 'node:crypto';
 
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
@@ -493,6 +494,7 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     )
       return false;
     const decision = toolDecision as Record<string, unknown>;
+    if (decision['actor'] !== undefined && !parseToolApprovalActor(decision['actor'])) return false;
     if (
       typeof decision['requestMessageId'] !== 'string' ||
       (decision['outcome'] !== 'allowed-once' &&

@@ -807,6 +807,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       warn: (message) => ctx.logger.warn(message),
     },
   );
+  ctx.effect(
+    () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
+    'botharness: approved IM tool controls',
+  );
   userQuestions = new ChannelUserQuestions(
     core.channels,
     core.ownership,
@@ -820,7 +824,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     async (request, next) => (await userQuestions.ask(request)) ?? next(),
     { global: true },
   );
-  const approvedCalls = new Set<symbol>();
+  const approvedCalls = new Map<symbol, (name: string, args: unknown) => boolean>();
+  ctx.effect(() => () => approvedCalls.clear(), 'botharness: one-call approval execution fences');
   ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
   ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
     global: true,
@@ -847,7 +852,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (computerTools.needsAuthorization?.(agent.session.id) !== true) return next();
         const authorizationScope = computerTools.authorizationScope?.();
         const computerApproval = ctx.get('approval') as ApprovalService | undefined;
-        const untrackComputer = toolApproval.track(execution);
+        const untrackComputer = toolApproval.track(execution, 'web-only');
         if (computerApproval === undefined || untrackComputer === undefined) {
           return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
         }
@@ -868,7 +873,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
               reason:
                 'Computer Target changed while awaiting Human approval; request a new action.',
             };
-          approvedCalls.add(execution.token);
+          const guard = toolApproval.executionGuard(agent, execution.callId);
+          if (!guard || !guard(execution.name, execution.arguments))
+            return { kind: 'deny', reason: 'Approval authority changed before execution' };
+          approvedCalls.set(execution.token, guard);
           return await next();
         } catch {
           return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -892,7 +900,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (browserTools.needsAuthorization?.(agent.session.id) !== true) return next();
         const browserAuthorizationScope = browserTools.authorizationScope?.(agent.session.id);
         const browserApproval = ctx.get('approval') as ApprovalService | undefined;
-        const untrackBrowser = toolApproval.track(execution);
+        const untrackBrowser = toolApproval.track(execution, 'web-only');
         if (browserApproval === undefined || untrackBrowser === undefined) {
           return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
         }
@@ -913,7 +921,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
               reason:
                 'Browser authority changed while awaiting Human approval; request a new action.',
             };
-          approvedCalls.add(execution.token);
+          const guard = toolApproval.executionGuard(agent, execution.callId);
+          if (!guard || !guard(execution.name, execution.arguments))
+            return { kind: 'deny', reason: 'Approval authority changed before execution' };
+          approvedCalls.set(execution.token, guard);
           return await next();
         } catch {
           return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -960,7 +971,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }
         if (!toolApproval.validAfterDecision(agent, execution.callId))
           return { kind: 'deny', reason: 'Approval rule scope changed' };
-        approvedCalls.add(execution.token);
+        const guard = toolApproval.executionGuard(agent, execution.callId);
+        if (!guard || !guard(execution.name, execution.arguments))
+          return { kind: 'deny', reason: 'Approval authority changed before execution' };
+        approvedCalls.set(execution.token, guard);
         return await next();
       } catch {
         return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -972,7 +986,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
 
   ctx.tools.guard(({ agent, name, arguments: args, token }) => {
-    const allowedOnce = approvedCalls.delete(token);
+    const approvalGuard = approvedCalls.get(token);
+    approvedCalls.delete(token);
+    if (approvalGuard && !approvalGuard(name, args))
+      return 'Approval authority or operation changed before execution';
+    const allowedOnce = approvalGuard !== undefined;
     return agent === undefined
       ? undefined
       : grantToolExecutionDenial(
@@ -1300,6 +1318,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      try {
+        core.externalMessaging.approvals.result(session.id, event);
+      } catch {
+        ctx.logger.warn('approval-result-publication-failed');
+      }
       core.usage?.handleSessionEvent(session.id, event);
       handleCompactionEvent(
         {

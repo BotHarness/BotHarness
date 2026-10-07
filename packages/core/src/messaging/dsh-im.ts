@@ -8,6 +8,8 @@ import type {
   MessagingReplyRoute,
   MessagingHistoryQuery,
   MessagingHistoryPage,
+  MessagingApprovalCard,
+  MessagingApprovalAck,
 } from './provider.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
 
@@ -20,6 +22,18 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  approvalCardVersion?: 1;
+  approvalCardChecked?(
+    botId: string,
+    route: MessagingReplyRoute | MessagingReceipt,
+    card: MessagingApprovalCard,
+    options: {
+      expectedFingerprint: string;
+      signal: AbortSignal;
+      beforeSend(): boolean;
+      update?: boolean;
+    },
+  ): Promise<{ sent?: true; updated?: true; receipt?: MessagingReceipt }>;
   fileVersion?: 1;
   replyContextVersion?: 1;
   replyReceiptVersion?: 1;
@@ -62,6 +76,7 @@ export interface DshImOutboundService {
       sourceVideos?: boolean;
       sourceQuotes?: boolean;
       ordinaryText?: boolean;
+      onAction?(event: unknown, context: { signal: AbortSignal }): Promise<MessagingApprovalAck>;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
@@ -266,6 +281,7 @@ function providerFailure(error: unknown): MessagingProviderError {
     'consumer-unavailable',
     'file-upload-failed',
     'file-provider-rejected',
+    'card-provider-rejected',
     'private-context-unavailable',
     'private-context-rejected',
     'send-permission-denied',
@@ -368,6 +384,55 @@ export function createDshImProvider(
       if (target === undefined) throw new MessagingError('provider-unavailable');
       return { account: current, target };
     },
+    ...(platform === 'feishu' &&
+    host.approvalCardVersion === 1 &&
+    typeof host.approvalCardChecked === 'function'
+      ? {
+          async approvalCard(input: Parameters<NonNullable<MessagingProvider['approvalCard']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (
+              !info.connected ||
+              ![
+                'approval-card-checked',
+                'approval-card-update-checked',
+                'approval-action-consumer',
+              ].every((cap) => info.capabilities.includes(cap))
+            )
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
+            try {
+              const result = await host.approvalCardChecked!(
+                input.accountRef,
+                input.route,
+                input.card,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                  beforeSend: input.beforeSend,
+                  ...(input.update ? { update: true } : {}),
+                },
+              );
+              if (input.update) {
+                if (result.updated !== true)
+                  throw new MessagingProviderError('provider-result-unknown', 'unknown');
+                return { updated: true as const };
+              }
+              if (
+                result.sent !== true ||
+                result.receipt?.version !== 1 ||
+                !result.receipt.messageId ||
+                result.receipt.conversationId !== input.route.conversationId
+              )
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return { sent: true as const, receipt: result.receipt };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
     ...(host.replyContextVersion === 1 &&
     host.replyReceiptVersion === 1 &&
     host.replyFenceVersion === 1 &&
@@ -487,6 +552,36 @@ export function createDshImProvider(
               info.capabilities.includes('source-video-checked') &&
               info.capabilities.includes('reply-video-fence-checked')
                 ? { sourceVideos: true }
+                : {}),
+              ...(platform === 'feishu' &&
+              host.approvalCardVersion === 1 &&
+              info.capabilities.includes('approval-action-consumer') &&
+              input.onAction
+                ? {
+                    onAction: async (raw: unknown, context: { signal: AbortSignal }) => {
+                      const event = z
+                        .object({
+                          version: z.literal(1),
+                          channel: z.literal('feishu'),
+                          botId: identifier,
+                          fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+                          actorId: identifier,
+                          conversationId: identifier,
+                          messageId: identifier,
+                          requestId: z.string().uuid(),
+                          action: z.enum(['allowed-once', 'rejected']),
+                        })
+                        .strict()
+                        .parse(raw);
+                      context.signal.throwIfAborted();
+                      if (
+                        event.botId !== input.accountRef ||
+                        event.fingerprint !== input.fingerprint
+                      )
+                        throw new MessagingError('untrusted-source');
+                      return input.onAction!(event, context.signal);
+                    },
+                  }
                 : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&

@@ -79,7 +79,7 @@ describe('operational database owner', () => {
 
     const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     expect(upgraded.mode).toBe('ready');
-    expect(upgraded.generation).toBe(59);
+    expect(upgraded.generation).toBe(BOT_HARNESS_SCHEMA_PLAN.targetGeneration);
     const module = attachOperationalModule(upgraded, 'pairing-migration-check');
     expect(
       module.read((database) =>

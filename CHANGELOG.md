@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- A reviewed Lark operator can receive tool approvals in a named management DM and use **Allow once** or **Reject**; callbacks recheck the actual actor and exact native call, while the Profile distinguishes delivery, accepted decision and native execution result. Known-unsent retries are bounded; uncertain delivery and old cards after restart cannot authorize execution ([#1029](https://github.com/BotHarness/BotHarness/issues/1029), [ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)).
+
 - AX isolated Profiles can reuse a machine-local OpenCode Go credential and native default model after one hidden-input setup, preserving independent Profile configuration; the qualified DSH 0.2.0 RC1 adapter supplies the actual Session header required for real Go replies ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [guide](docs/agents/ax-model.md)).
 
 - Qualified personal WeChat owner-DM text reports use the canonical external-only Outbox with current-authorization fences and actionable private-context refusal. Profile exposes explicit posting; client acknowledgement and any genuine native server message ID remain distinct, without claiming delivery/read receipts ([#910](https://github.com/BotHarness/BotHarness/issues/910), [guide](docs/wechat-connection.md)).
@@ -17,7 +19,6 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
 - PersonaBots can read native WeChat quoted text or resolve a missing quote from currently authorized retained private-conversation records; source details distinguish native, retained and unavailable content, and bounded local context reads support cursor continuation without claiming remote WeChat history ([#908](https://github.com/BotHarness/BotHarness/issues/908), [guide](docs/wechat-connection.md)).
-
 - Added Lark private `/pair` requests with authenticated Web review, explicit Bot-scoped capabilities and revocation that survives restart; pairing messages stay outside the Bot Inbox and Memory, while IM decision controls follow separately ([#1027](https://github.com/BotHarness/BotHarness/issues/1027), [guide](docs/lark-connection.md), [ADR-0136](docs/adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)).
 - Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
@@ -34,6 +35,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Documented native Windows candidate installation and approval verification, including physical AppData paths, isolated Profile package-manager pins, actual Shell exit evidence and process timestamp guards, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md). The bilingual [Lark guide](docs/lark-connection.md) records real Human Allow once/Reject qualification on exact candidate sources; this documentation update does not change runtime behavior ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md), [中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)).
 
