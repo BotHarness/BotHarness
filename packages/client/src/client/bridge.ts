@@ -137,6 +137,12 @@ export interface ModelCatalogEntryView {
   modelName: string;
   efforts: { id: string; name: string }[];
   defaultEffort?: string;
+  credential?: 'missing' | 'invalid';
+}
+
+export interface ModelCatalogView {
+  models: ModelCatalogEntryView[];
+  default?: ModelRouteView;
 }
 
 export interface ModelPresetView {
@@ -166,10 +172,18 @@ export async function loadActivitySnapshot(
   return unwrap(call, 'activitySnapshot', {}, signal);
 }
 
-export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogEntryView[]> {
+export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogView> {
   const value = asRecord(await unwrap(call, 'modelCatalog', {}));
   if (!Array.isArray(value?.['models'])) throw new Error('Invalid model catalog');
-  return value['models'] as ModelCatalogEntryView[];
+  const fallback = asRecord(value['default']);
+  return {
+    models: value['models'] as ModelCatalogEntryView[],
+    ...(typeof fallback?.['provider'] === 'string' && typeof fallback['model'] === 'string'
+      ? {
+          default: { provider: fallback['provider'], model: fallback['model'] },
+        }
+      : {}),
+  };
 }
 
 export async function loadModelPresets(call: BridgeCall): Promise<ModelPresetView[]> {

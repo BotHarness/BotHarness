@@ -275,7 +275,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
-  modelCatalog(): Promise<{ models: ModelCatalogEntry[] }> {
+  modelCatalog(): Promise<{
+    models: ModelCatalogEntry[];
+    default?: ModelRoute;
+  }> {
     return unwrapAsync(this.methods.modelCatalog({}));
   }
 

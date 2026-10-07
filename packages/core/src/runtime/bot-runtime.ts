@@ -17,6 +17,8 @@ import {
   type AttachmentSaveInput,
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
+import { mentionPeople, withMentionNames } from '../messaging/mention-text.js';
+import type { MessagingInboundEvent } from '../messaging/provider.js';
 import type { OutboxIntent, OutboundMessaging } from '../messaging/outbound.js';
 import type {
   ExternalSource,
@@ -563,6 +565,7 @@ interface DigestRow {
   external_sender_id?: string | null;
   external_platform?: string | null;
   external_message_id?: string | null;
+  external_mentions?: string | null;
   reply_session_id?: string | null;
   reply_source_event_id?: string | null;
 }
@@ -571,8 +574,24 @@ function groupMessageAuthor(row: DigestRow, humanName = 'Human'): string {
   if (row.author_kind === 'bot') return `PersonaBot ${row.author_slug ?? 'unknown'}`;
   if (row.author_kind === 'system') return 'Channel system';
   if (row.author_kind === 'bridged')
-    return `${row.external_sender ?? row.external_sender_id ?? 'unknown'} (${row.external_platform ?? 'external'}, sender ${row.external_sender_id ?? 'unknown'}, external message ${row.external_message_id ?? 'unknown'})`;
+    return `${row.external_sender ?? row.external_sender_id ?? 'unknown'} (${row.external_platform ?? 'external'}, sender ${row.external_sender_id ?? 'unknown'}, external message ${row.external_message_id ?? 'unknown'}${mentionedLabel(rowMentions(row))})`;
   return humanName;
+}
+
+function rowMentions(row: DigestRow): MessagingInboundEvent['mentions'] {
+  if (!row.external_mentions) return [];
+  const parsed: unknown = JSON.parse(row.external_mentions);
+  return Array.isArray(parsed) ? (parsed as MessagingInboundEvent['mentions']) : [];
+}
+
+function mentionedLabel(mentions: MessagingInboundEvent['mentions']): string {
+  return mentions.length === 0
+    ? ''
+    : `, mentioned ${mentions.map((mention) => `${mention.name ?? mention.id} (${mention.id})`).join(', ')}`;
+}
+
+function groupMessageBody(row: DigestRow): string {
+  return withMentionNames(row.body, rowMentions(row));
 }
 
 interface GroupContext {
@@ -765,7 +784,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External ${unit.external.event.conversation.kind === 'dm' ? 'private message' : `work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}`}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, conversation: unit.external.conversationName, conversationKind: unit.external.event.conversation.kind, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, voice: unit.external.event.voice, quote: unit.external.quote, nativeQuote: unit.external.event.quote, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External ${unit.external.event.conversation.kind === 'dm' ? 'private message' : `work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}`}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, conversation: unit.external.conversationName, conversationKind: unit.external.event.conversation.kind, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, people: mentionPeople(unit.external.event.actor, unit.external.event.mentions), at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, voice: unit.external.event.voice, quote: unit.external.quote, nativeQuote: unit.external.event.quote, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(withMentionNames(unit.summary, unit.external.event.mentions))}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Mentions in the text appear as @name; to @ the sender or a mentioned person in a Lark, Slack or Discord reply, write <@ID> anywhere in the bridge_reply text with their id from people; never write other mention markup yourself. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.schedule !== undefined) {
       const schedule = unit.schedule;
@@ -1374,6 +1393,7 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
                  json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions,
       json_extract(e.payload_json, '$.assignmentReply.sessionId') AS reply_session_id,
       json_extract(e.payload_json, '$.assignmentReply.sourceEventId') AS reply_source_event_id`;
     const candidates = database
@@ -2135,7 +2155,8 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.name') AS external_sender,
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
-                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id
+                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
            WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
@@ -2241,7 +2262,8 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.name') AS external_sender,
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
-                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id`;
+                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions`;
     const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
       .all(botSlug, channelId, GROUP_PROMPT_CHANNEL_LIMIT) as unknown as DigestRow[];
@@ -2281,7 +2303,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
       ...context.rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${groupMessageBody(row).slice(0, GROUP_CONTEXT_BODY_LIMIT)}${groupMessageBody(row).length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${groupMessageBody(row).length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
       ),
       context.omittedCount > 0
         ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
@@ -2305,7 +2327,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
       ...rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${groupMessageBody(row).slice(0, 1000)}`,
       ),
       ...(omittedCount > 0
         ? [

@@ -247,7 +247,7 @@ describe('Model entry', () => {
     const host = await render({
       modelPlanState: vi.fn(async () => (plan === undefined ? {} : { plan })),
       modelPresets: vi.fn(async () => []),
-      modelCatalog: vi.fn(async () => catalog),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
       setModelPlan,
     } as unknown as BridgeActions);
     expect(cards(host)).toContain('Not set. Click to choose a model');
@@ -277,6 +277,63 @@ describe('Model entry', () => {
     expect(cards(host)).toContain('flash · high');
     expect(cards(host)).toContain('Task model');
     expect(cards(host)).toContain('k2 · Default');
+  });
+
+  it('preselects the DSH default model and offers keyless providers as unpickable', async () => {
+    const k2 = { provider: 'kimi', model: 'k2' };
+    const setModelPlan = vi.fn(async (): Promise<ModelPlanView> => ({
+      revision: 1,
+      sourcePresetId: '',
+      sourcePresetName: '',
+      orchestrator: k2,
+      assignmentDefault: k2,
+      appliedAt: '',
+    }));
+    await render({
+      modelPlanState: vi.fn(async () => ({})),
+      modelPresets: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({
+        models: [
+          { ...catalog[0]!, credential: 'missing' as const },
+          { ...catalog[1]!, credential: 'missing' as const },
+          catalog[2]!,
+        ],
+        default: { provider: 'kimi', model: 'k2' },
+      })),
+      setModelPlan,
+    } as unknown as BridgeActions);
+    await openEditor(document.body);
+
+    expect(combobox('Main model').value).toBe('Kimi K2');
+    expect(combobox('Task model').value).toBe('Kimi K2');
+    await act(async () => combobox('Main model').focus());
+    await act(async () => {
+      const input = combobox('Main model');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    expect(options.map((option) => [option.textContent, option.disabled])).toEqual([
+      ['Kimi K2Moonshot', false],
+      ['FlashDeepSeek · needs an API key', true],
+      ['ProDeepSeek · needs an API key', true],
+    ]);
+
+    await act(async () => button('Save').click());
+    expect(setModelPlan).toHaveBeenCalledWith(
+      'ada',
+      0,
+      { provider: 'kimi', model: 'k2' },
+      { provider: 'kimi', model: 'k2' },
+      [
+        {
+          provider: 'kimi',
+          model: 'k2',
+          allowedEfforts: [''],
+          defaultEffort: '',
+        },
+      ],
+    );
   });
 
   it('fills from a preset, applies it untouched, and unlinks it after an edit', async () => {
@@ -315,7 +372,7 @@ describe('Model entry', () => {
     const host = await render({
       modelPlanState: vi.fn(async () => ({ plan })),
       modelPresets: vi.fn(async () => presets),
-      modelCatalog: vi.fn(async () => catalog),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
       applyModelPreset,
       setModelPlan,
     } as unknown as BridgeActions);
@@ -391,7 +448,7 @@ describe('Model entry', () => {
     const host = await render({
       modelPlanState: vi.fn(async () => ({ plan })),
       modelPresets: vi.fn(async () => [...presets]),
-      modelCatalog: vi.fn(async () => catalog),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
       createModelPreset,
       applyModelPreset,
     } as unknown as BridgeActions);
@@ -437,7 +494,7 @@ describe('Model entry', () => {
     const host = await render({
       modelPlanState: vi.fn(async () => (++reads === 3 ? stale : { plan })),
       modelPresets: vi.fn(async () => []),
-      modelCatalog: vi.fn(async () => catalog),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
       setModelPlan: vi.fn(async () => {
         plan = { ...plan, revision: 2, orchestrator: { provider: 'kimi', model: 'k2' } };
         return plan;

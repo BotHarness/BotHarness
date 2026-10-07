@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Slack DMs to a bound app now reach the Bot's Inbox and get answered in the DM without opening a thread, and Discord apps appear in **Bind app** again. The development IM provider moves to a dsh-im build with Slack DM intake, Discord checked delivery and checked Slack/Discord reply mentions ([#1125](https://github.com/BotHarness/BotHarness/issues/1125), [External identities guide](docs/channel-sidebar/external-identities.md)).
+
 - One Bot can bind several apps of the same platform, such as two Lark apps: each app's DMs and @mentions reach the same Inbox and replies go out through the app that received them. **Bind app** lists every connected app and greys out the ones a Bot already uses, naming that Bot, and External identities lists the Bot's apps grouped by platform. A shared reply from a Bot with two apps in the same group refuses with a clear message ([#1110](https://github.com/BotHarness/BotHarness/issues/1110), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - An app's conversation list in **Edit identity** is now manageable: conversations sort into **Waiting**, **Active**, **Muted** and **Blocked**. **Mute** keeps messages in the Inbox without waking the Bot, **Rules** edits one group's collection and wake, and **Block** (confirmed) cancels unsent replies and keeps the conversation out even after restart or unbinding and rebinding; **Allow again** starts fresh with no backfill. A new **New conversations** setting chooses **Admit automatically** or **Ask me first**; waiting conversations keep only names and counts, never message text. At most 20 new conversations per app join automatically each hour and 500 stay active; beyond that they wait with the reason shown ([#1109](https://github.com/BotHarness/BotHarness/issues/1109), [External identities guide](docs/channel-sidebar/external-identities.md)).
@@ -49,9 +51,11 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- Bots now read IM mentions as names instead of platform placeholders: Lark `@_user_1` and Slack `<@U…>` reach the model as `@Name` (or `@id` when the platform gave no name), and each external message lists its sender and mentioned people with their platform IDs. A Bot can @ the sender or anyone mentioned in that message by writing `<@ID>` anywhere in its `bridge_reply` text, on Lark, Slack and Discord (Slack and Discord ping through the IM provider's checked mentions, or fall back to `@Name` text on an older provider); any other id or mention tag is sent as plain text ([#1126](https://github.com/BotHarness/BotHarness/issues/1126)).
 - **Bind app** no longer hides apps the IM plugin can't serve yet. A Discord app whose plugin lacks checked sending now shows greyed out with **update the IM plugin to bind this app**, instead of silently missing from the list ([#1123](https://github.com/BotHarness/BotHarness/issues/1123)).
 - **Bind app** no longer lists apps already bound to the same Bot; they are already shown under External identities ([#1127](https://github.com/BotHarness/BotHarness/issues/1127)).
 
+- The Model dialog no longer offers routes that cannot run: once a real turn fails because a provider has no API key or an invalid one, that provider's models are listed last as **needs an API key** or **API key invalid** and cannot be picked or saved, until DSH credentials, settings or adapters change. A Bot without a Model Plan now starts the dialog on DSH's default model instead of the first catalog entry ([#1124](https://github.com/BotHarness/BotHarness/issues/1124)).
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation

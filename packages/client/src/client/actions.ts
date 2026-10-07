@@ -152,7 +152,7 @@ import {
   setModelPlanAssignments,
   setModelPlan,
   setStandingLimits,
-  type ModelCatalogEntryView,
+  type ModelCatalogView,
   type ModelPresetView,
   type ModelPlanView,
   type ModelRouteView,
@@ -290,7 +290,7 @@ export interface BridgeActions {
     text: string,
   ): Promise<OutboxIntent>;
 
-  modelCatalog(): Promise<ModelCatalogEntryView[]>;
+  modelCatalog(): Promise<ModelCatalogView>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
   modelPlanState(slug: string): Promise<ModelPlanStateView>;

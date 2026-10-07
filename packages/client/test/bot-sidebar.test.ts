@@ -162,7 +162,7 @@ function stubActions(): BridgeActions {
     messagingSend: vi.fn(async () => {
       throw new Error('unexpected IM send');
     }),
-    modelCatalog: vi.fn(async () => []),
+    modelCatalog: vi.fn(async () => ({ models: [] })),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
     modelPlanState: vi.fn(async () => ({})),

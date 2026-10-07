@@ -1406,23 +1406,24 @@ window.__ModuleLoader__.load({
 .bh-combobox-toggle:hover { background: var(--dsw-alias-interactive-bg-hover); }
 .bh-combobox-toggle:disabled { opacity: 0.5; cursor: default; }
 .bh-combobox-list {
-  position: fixed; z-index: 1100; padding: 4px; box-sizing: border-box;
-  max-height: 260px; overflow-y: auto;
+  position: fixed; z-index: 1100; box-sizing: border-box;
+  background: var(--dsw-alias-bg-base);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
 }
-.bh-combobox-list > button {
+.bh-combobox-scroll > button {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   width: 100%; min-height: 34px; padding: 6px 8px;
   border: 0; border-radius: 6px; background: transparent;
   color: var(--dsw-alias-label-primary); text-align: left; font: inherit; font-size: 13px; line-height: 20px; cursor: pointer;
   overflow-wrap: anywhere;
 }
-.bh-combobox-list > button[aria-selected="true"] { font-weight: 600; }
-.bh-combobox-list > button:disabled { color: var(--dsw-alias-label-tertiary); cursor: default; }
-.bh-combobox-list > button:not(:disabled):hover, .bh-combobox-list > button[data-active] {
+.bh-combobox-scroll > button[aria-selected="true"] { font-weight: 600; }
+.bh-combobox-scroll > button:disabled { color: var(--dsw-alias-label-tertiary); cursor: default; }
+.bh-combobox-scroll > button:not(:disabled):hover, .bh-combobox-scroll > button[data-active] {
   background: var(--dsw-alias-interactive-bg-hover);
 }
+.bh-combobox-scroll { max-height: 260px; overflow-y: auto; padding: 4px; box-sizing: border-box; }
 .bh-combobox-hint { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
 .bh-combobox-empty { padding: 6px 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
 `;
@@ -1545,7 +1546,7 @@ window.__ModuleLoader__.load({
 						},
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { size: 16 })
 					}),
-					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
+					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
 						compact: true,
 						ref: panel,
 						id: listId,
@@ -1557,28 +1558,31 @@ window.__ModuleLoader__.load({
 							width: root.current?.getBoundingClientRect().width ?? 200,
 							visibility: position === null ? "hidden" : void 0
 						},
-						children: [shown.length === 0 && emptyLabel !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bh-combobox-empty",
-							children: emptyLabel
-						}) : null, shown.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-							id: `${listId}-${index}`,
-							type: "button",
-							role: "option",
-							"aria-selected": option.value === current,
-							"data-value": option.value,
-							"data-active": index === highlighted || void 0,
-							disabled: option.disabled,
-							tabIndex: -1,
-							onPointerDown: (event) => event.preventDefault(),
-							onMouseEnter: () => {
-								if (option.disabled !== true) setActive(option.value);
-							},
-							onClick: () => select(option.value),
-							children: [option.label, option.hint === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								className: "bh-combobox-hint",
-								children: option.hint
-							})]
-						}, option.value))]
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: "bh-combobox-scroll",
+							children: [shown.length === 0 && emptyLabel !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: "bh-combobox-empty",
+								children: emptyLabel
+							}) : null, shown.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+								id: `${listId}-${index}`,
+								type: "button",
+								role: "option",
+								"aria-selected": option.value === current,
+								"data-value": option.value,
+								"data-active": index === highlighted || void 0,
+								disabled: option.disabled,
+								tabIndex: -1,
+								onPointerDown: (event) => event.preventDefault(),
+								onMouseEnter: () => {
+									if (option.disabled !== true) setActive(option.value);
+								},
+								onClick: () => select(option.value),
+								children: [option.label, option.hint === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: "bh-combobox-hint",
+									children: option.hint
+								})]
+							}, option.value))]
+						})
 					}), document.body) : null
 				]
 			});
