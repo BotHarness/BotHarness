@@ -29,7 +29,7 @@ import {
 } from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
 import {
-  mentionMarkup,
+  withInlineMentions,
   mentionPeople,
   withMentionNames,
   withoutMentionMarkup,
@@ -1511,13 +1511,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             text: {
               type: 'string',
               required: true,
-              description: 'Plain text reply, at most 4000 characters.',
-            },
-            mention_user_ids: {
-              type: 'array',
-              items: { type: 'string' },
               description:
-                'Optional platform user ids to @ at the start of the reply, taken from the source people list (its sender or someone it mentioned). Lark, Slack and Discord; other platforms refuse it.',
+                'Plain text reply, at most 4000 characters. To @ the sender or someone the source mentioned, write <@ID> anywhere in the text with their id from the source people list (Lark, Slack and Discord); any other id is sent as plain text.',
             },
           },
           output: {
@@ -1528,24 +1523,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_reply: unavailable');
-            const ids = args.mention_user_ids ?? [];
-            let text = withoutMentionMarkup(args.text);
-            if (ids.length > 0) {
-              const source = active.run.externalMessaging.read(args.source_event_id);
-              const people = mentionPeople(source.event.actor, source.event.mentions);
-              const markup = [...new Set(ids)].map((id) => {
-                const person = people.find((candidate) => candidate.id === id);
-                if (person === undefined)
-                  throw new Error(
-                    `bridge_reply: ${id} is not the sender or a person mentioned in this source`,
+            const messaging = active.run.externalMessaging;
+            const source = /<@!?[A-Za-z0-9_-]+>/u.test(args.text)
+              ? messaging.read(args.source_event_id)
+              : undefined;
+            const text =
+              source === undefined
+                ? withoutMentionMarkup(args.text)
+                : withInlineMentions(
+                    source.platform,
+                    args.text,
+                    mentionPeople(source.event.actor, source.event.mentions),
                   );
-                return mentionMarkup(source.platform, person.id, person.name);
-              });
-              text = `${markup.join(' ')} ${text}`;
-            }
-            return JSON.stringify(
-              await active.run.externalMessaging.reply(args.source_event_id, text),
-            );
+            return JSON.stringify(await messaging.reply(args.source_event_id, text));
           },
         }),
       );

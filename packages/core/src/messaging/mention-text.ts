@@ -48,16 +48,30 @@ export function mentionMarkup(platform: string, id: string, name?: string): stri
   throw new Error(`Mentions are not supported on ${platform}`);
 }
 
-export function leadingMentions(text: string): {
+export function withInlineMentions(
+  platform: string,
+  text: string,
+  people: readonly { id: string; name?: string }[],
+): string {
+  return withoutMentionMarkup(text).replace(/<@!?([A-Za-z0-9_-]{1,128})>/gu, (_tag, id: string) => {
+    const person = people.find((candidate) => candidate.id === id);
+    if (person === undefined) return `@${id}`;
+    try {
+      return mentionMarkup(platform, person.id, person.name);
+    } catch {
+      return `@${person.name ?? person.id}`;
+    }
+  });
+}
+
+export function mentionTags(text: string): {
   mentions: { id: string; name: string }[];
-  text: string;
+  render(tag: (mention: { id: string; name: string }) => string): string;
 } {
-  const mentions: { id: string; name: string }[] = [];
-  let rest = text;
-  for (;;) {
-    const match = /^<at user_id="([A-Za-z0-9_-]{1,128})">([^<]*)<\/at>\s*/u.exec(rest);
-    if (match === null) return { mentions, text: rest };
-    mentions.push({ id: match[1]!, name: match[2]! });
-    rest = rest.slice(match[0].length);
-  }
+  const pattern = /<at user_id="([A-Za-z0-9_-]{1,128})">([^<]*)<\/at>/gu;
+  return {
+    mentions: [...text.matchAll(pattern)].map((match) => ({ id: match[1]!, name: match[2]! })),
+    render: (tag) =>
+      text.replace(pattern, (_markup, id: string, name: string) => tag({ id, name })),
+  };
 }

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   mentionMarkup,
   mentionPeople,
+  mentionTags,
+  withInlineMentions,
   withMentionNames,
   withoutMentionMarkup,
 } from '../src/messaging/mention-text.js';
@@ -48,5 +50,28 @@ describe('mention text for the model', () => {
       withoutMentionMarkup('hi <at user_id="all">所有人</at> and <AT user_id="ou_1"></at>!'),
     ).toBe('hi @所有人 and @someone!');
     expect(withoutMentionMarkup('broken <at user_id="all"> tag')).toBe('broken  tag');
+  });
+
+  it('turns inline <@ID> into platform markup only for people in the source', () => {
+    const people = [
+      { id: 'U1', name: 'Ada' },
+      { id: 'ou_2', name: 'Bea' },
+    ];
+    expect(
+      withInlineMentions('slack', 'ok <@U1>, ask <@U9> <at user_id="all">x</at>', people),
+    ).toBe('ok <at user_id="U1">Ada</at>, ask @U9 @x');
+    expect(withInlineMentions('feishu', 'hi <@ou_2>!', people)).toBe(
+      'hi <at user_id="ou_2">Bea</at>!',
+    );
+    expect(withInlineMentions('weixin', 'hi <@U1>', people)).toBe('hi @Ada');
+  });
+
+  it('renders every mention tag in place', () => {
+    const tags = mentionTags('a <at user_id="U1">Ada</at> b <at user_id="U2"></at>');
+    expect(tags.mentions).toEqual([
+      { id: 'U1', name: 'Ada' },
+      { id: 'U2', name: '' },
+    ]);
+    expect(tags.render((mention) => `<@${mention.id}>`)).toBe('a <@U1> b <@U2>');
   });
 });

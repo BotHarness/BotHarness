@@ -54,16 +54,19 @@ function provider(platform: 'slack' | 'discord' | 'feishu', capabilities: string
 it('sends leading mentions as checked mention ids when the provider supports them', async () => {
   for (const platform of ['slack', 'discord'] as const) {
     const { calls, reply } = provider(platform, ['reply-mention-checked']);
-    await reply('<at user_id="U1">Ada</at> <at user_id="U2">Bea</at> done');
+    await reply('ok <at user_id="U1">Ada</at>, ask <at user_id="U2">Bea</at> done');
     await reply('no mention');
-    expect(calls).toEqual([{ text: 'done', mentionUserIds: ['U1', 'U2'] }, { text: 'no mention' }]);
+    expect(calls).toEqual([
+      { text: 'ok <@U1>, ask <@U2> done', mentionUserIds: ['U1', 'U2'] },
+      { text: 'no mention' },
+    ]);
   }
 });
 
 it('falls back to @name text without the capability and leaves Lark markup alone', async () => {
   const slack = provider('slack', []);
-  await slack.reply('<at user_id="U1">Ada</at> <at user_id="U2"></at> done');
-  expect(slack.calls).toEqual([{ text: '@Ada @U2 done' }]);
+  await slack.reply('hi <at user_id="U1">Ada</at> and <at user_id="U2"></at> done');
+  expect(slack.calls).toEqual([{ text: 'hi @Ada and @U2 done' }]);
   const lark = provider('feishu', ['reply-mention-checked']);
   await lark.reply('<at user_id="ou_1">Ada</at> done');
   expect(lark.calls).toEqual([{ text: '<at user_id="ou_1">Ada</at> done' }]);
