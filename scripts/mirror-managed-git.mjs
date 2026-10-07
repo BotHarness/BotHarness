@@ -48,32 +48,42 @@ try {
     if (sha256(bytes) !== asset.sha256) throw new Error(`${asset.name}: checksum mismatch`);
     const file = join(work, asset.name);
     writeFileSync(file, bytes);
-    execFileSync(
-      'npx',
-      [
-        'wrangler',
-        'r2',
-        'object',
-        'put',
-        `${bucket}/${prefix}/${asset.name}`,
-        '--file',
-        file,
-        '--remote',
-        '--content-type',
-        'application/gzip',
-        '--cache-control',
-        'public, max-age=31536000, immutable',
-      ],
-      {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          CLOUDFLARE_ACCOUNT_ID:
-            process.env.CLOUDFLARE_ACCOUNT_ID ?? '332e72d480d7cb3e60ee671d3ca0cad0',
-          NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`.trim(),
-        },
-      },
-    );
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        execFileSync(
+          'npx',
+          [
+            'wrangler',
+            'r2',
+            'object',
+            'put',
+            `${bucket}/${prefix}/${asset.name}`,
+            '--file',
+            file,
+            '--remote',
+            '--content-type',
+            'application/gzip',
+            '--cache-control',
+            'public, max-age=31536000, immutable',
+          ],
+          {
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              CLOUDFLARE_ACCOUNT_ID:
+                process.env.CLOUDFLARE_ACCOUNT_ID ?? '332e72d480d7cb3e60ee671d3ca0cad0',
+              NODE_OPTIONS:
+                `${process.env.NODE_OPTIONS ?? ''} --no-network-family-autoselection --dns-result-order=ipv4first`.trim(),
+            },
+          },
+        );
+        break;
+      } catch (error) {
+        if (attempt >= 3) throw error;
+        console.log(`retrying upload of ${asset.name} (attempt ${attempt + 1} of 3)`);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+      }
+    }
     rmSync(file);
     const uploaded = await download(mirrorUrl(asset.name));
     if (sha256(uploaded) !== asset.sha256)
