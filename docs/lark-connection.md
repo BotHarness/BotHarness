@@ -2,21 +2,19 @@
 
 Install the plugin first using the [illustrated installation guide](/docs/installation), then return here after a local Bot DM works.
 
-Connect a PersonaBot to a work group: connect the application bot, bind its identity and authorize a group, then choose whether incoming messages belong in the Bot Inbox or a local Channel.
+Connect a PersonaBot to Lark in three steps: connect the application bot, bind it to the Bot, and send a test message. After binding, DMs to the app and @mentions of it in its groups reach this Bot’s Inbox, and the Bot replies in place. You don’t save a delivery target or authorize each conversation.
 
-This guide starts with **Lark international, an application bot, a test group and mentions-only intake**. Feishu uses the same sequence, with a Feishu application and the Feishu platform selected.
+This guide starts with **Lark international, an application bot and a test group**. Feishu uses the same sequence, with a Feishu application and the Feishu platform selected.
 
 ## Understand the three settings
 
-| Setting                   | Location                                                            | Purpose                                                     |
-| ------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------- |
-| IM application connection | Settings → IM Bots → Feishu                                         | Connect this Host to a Lark / Feishu application bot        |
-| External identity         | Bot DM → Channel sidebar → External identities                      | Choose who this Bot speaks as externally                    |
-| External connector        | Bot DM → External connectors, or a Group Channel's detailed Profile | Choose which external group and messages enter this Channel |
+| Setting                   | Location                                                      | Purpose                                                                                        |
+| ------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| IM application connection | Settings → IM Bots → Feishu (overview: Settings → IM apps)    | Connect this Host to a Lark / Feishu application bot                                           |
+| External identity         | Bot DM → Channel sidebar → External identities → **Bind app** | Bind the app to this Bot, then manage its conversations: mute, rules, block, sync to a Channel |
+| External connector        | Bot DM → Channel sidebar → External connectors                | Advanced: edit Channel syncs and save send targets for apps that can’t address conversations   |
 
-**Once the app is bound, DMs and @mentions just work.** Under External identities, click **+ Bind app** and pick this Lark app. DMs to it and @mentions of it in groups it belongs to then go straight to this Bot’s Inbox, and the Bot replies in place, with no saved delivery target, conversation authorization or reception switch. See [External identities](/docs/channel-sidebar/external-identities).
-
-Saved targets and group authorization in sections 3 and 4 below still apply when you want unmentioned group messages, a local Channel for the group, or proactive posts from the Bot. An external connector does not lend the app to other Bots.
+Where the Bot can speak is decided by the platform: the groups the app was added to and the permissions you published. An app belongs to one Bot; binding it does not lend it to other Bots.
 
 This guide combines actual setup controls with a Profile that completed real Lark connection. Configured captures come from the #823 qualified product (`0.0.0-test.823.6` / Provider `4.32.0-botharness.2`), using the dedicated “BotHarness IM QA #78” group. Empty forms show where to enter values; they are not proof of connection. No App Secret appears in the media. Use the browser image menu to view the original size.
 
@@ -70,7 +68,7 @@ This is a **step-by-step edit of actual UI screenshots**, not an uninterrupted r
 
 [Download video](/guides/lark/lark-setup-walkthrough.mp4) · [English captions](/guides/lark/lark-setup.en.vtt) · [中文字幕](/guides/lark/lark-setup.zh.vtt)
 
-Chapters: 0:00 App credentials and permissions → 0:32 Local connection → 0:48 Events and publishing → 1:12 Delivery target → 1:20 Identity and group authorization → 1:36 Message source. The executable steps remain below.
+Chapters: 0:00 App credentials and permissions → 0:32 Local connection → 0:48 Events and publishing → 1:12 Delivery target → 1:20 Identity and group authorization → 1:36 Message source. The video records the earlier flow, which saved a delivery target and authorized the group before binding; binding the app is now enough. The executable steps remain below.
 
 ## 2. Prepare an application bot
 
@@ -90,7 +88,7 @@ Enable permissions by purpose:
 - `im:message.group_msg`: obtain all group messages; needed for ordinary-message intake, group history and topic following. Request this sensitive permission when needed.
 - `im:resource`: upload images and files; needed when sending attachments.
 
-Your organization determines availability and approval requirements. Even with all-group-message permission, BotHarness only processes explicitly authorized groups and configured intake conditions. See the official [message receive event](https://open.larksuite.com/document/server-docs/im-v1/message/events/receive) and [message history API](https://open.larksuite.com/document/server-docs/im-v1/message/get-2).
+Your organization determines availability and approval requirements. Even with all-group-message permission, BotHarness only takes ordinary messages from groups whose **Rules** allow them; mentions and DMs are admitted on their own. See the official [message receive event](https://open.larksuite.com/document/server-docs/im-v1/message/events/receive) and [message history API](https://open.larksuite.com/document/server-docs/im-v1/message/get-2).
 
 ### Compare the actual console configuration
 
@@ -141,92 +139,63 @@ _Figure 1: Select international Lark for a Lark application. Enter secrets only 
 
 ![Actual test application connected to the Provider](/guides/lark/06-connected.webp)
 
-_Figure 1b: A green online status (运行正常 in Chinese) proves transport connectivity. Identity binding, group authorization and correlated message/reply verification are separate checks._
+_Figure 1b: A green online status (运行正常 in Chinese) proves transport connectivity. Binding the app to a Bot and a correlated message/reply are separate checks._
 
-Next, configure a **delivery target** for this account:
+The account is ready for binding. You don’t need a delivery target to receive or reply; it is only needed for [saved send targets](#advanced-saved-send-targets).
 
-1. Open the connected bot's settings, then **Delivery targets → New target**.
-2. Choose the test group from **Choose from conversations you have chatted in**, checking its name and Chat ID; alternatively, enter its native platform group ID (`oc_…`) manually. A group name or message ID is not a Chat ID.
-3. Set a call alias such as `lark-test-group`, click **Test**, confirm the test message in Lark, then **Save target**.
+## 4. Bind the app to a PersonaBot
 
-A fresh application may have no conversation suggestions. In the #824 test, a preliminary @mention did not immediately populate this list and used the Provider’s standalone Session before PersonaBot binding. Enter a verified native group Chat ID manually, then Test and Save; ask your group administrator for the ID if needed. A standalone reply or discovery message is not canonical BotHarness receipt.
+In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the right.
 
-![Actual saved group delivery target](/guides/lark/16-delivery-target.webp)
+1. Under **External identities**, click **+ Bind app**, choose the connected application under **App** and confirm. One Bot can bind several apps, including several Lark apps; an app already bound to another Bot is not offered.
+2. The identity row shows **Ready**: DMs to the app and @mentions of it in groups it belongs to now reach this Bot’s Inbox.
+3. Choose how **New conversations** are admitted. **Admit automatically** (the default) adds each new DM or group on its first admitted message. **Ask me first** holds it under **Waiting** until you allow it. At most 20 new conversations are admitted per hour and 500 stay active per app; more wait for you.
 
-_Account settings → Delivery settings → Delivery targets. Testing and saving a target checks the sending destination; PersonaBot identity binding and authorization come next._
+![Bound Lark app with its conversation list grouped as Waiting, Active, Muted and Blocked](/guides/channel-sidebar/19c-app-conversations-en.webp)
 
-## 4. Bind a PersonaBot identity and authorize the group
+_Each admitted DM or group appears in the app’s conversation list. **Mute** keeps the conversation but stops the Bot from being woken by it. **Rules** sets which group messages are received, for example ordinary messages without a mention. **Block** refuses the conversation durably until you click **Allow again**; nothing sent while blocked is backfilled._
 
-In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the right. Under **External identities**, click **Connect Lark / Feishu** (Setup guide), then select the application platform, IM account and saved group target. Each group is verified separately; another group’s successful reply cannot verify this group. **Locate** highlights the matching sidebar row, expanding **External connectors** when needed; committed configuration and correlated receipt/reply determine completion.
+**Connect Lark / Feishu** (the setup guide in External identities) tracks the same three steps: connect the app, bind it to this Bot and send a test message. **Locate** highlights the matching control; steps are marked done only from real configuration and a correlated reply.
 
-![Annotated identity and group setup: bind identity, authorize the specific group, then optionally add a Channel connector](/guides/lark/05-identity-routing-annotated.webp)
+![The setup guide with three steps: connect the app, bind it, send a test message](/guides/lark/28-setup-guide.en.webp)
 
-_Walkthrough: 1 Bind identity → 2 Authorize the specific group → 3 Optionally connect a Channel. This is an AI-assisted annotated composite of the screenshots, showing an unconnected demonstration account; the original UI screenshots remain below for comparison._
+## 5. Optional: sync a conversation into a local Channel
 
-1. Under **External identities → + Bind app**, select the connected application under **App** and click **Bind app**. Once it shows **Ready**, DMs and @mentions already reach the Inbox; continue with the authorization steps below only for unmentioned messages, a Channel or proactive sends.
-2. Under **External connectors**, click **Authorize a conversation**. In the **Conversation authorization** dialog, select that IM account and the saved **send target**.
-3. Click **Bind and authorize this target**. Check the group, account and local intake destination.
-4. For the first test, retain **This Bot's Inbox only** and **mentions only**. This needs no additional local group and does not add messages to the Bot DM history.
+Lark conversations reach the Bot Inbox by default. Adding a new sync from the app is being redesigned: **External connectors** will take a conversation from any connected app, whether or not a Bot has it bound, and stream it into a Channel as context.
 
-![PersonaBot identity binding dialog before an IM account is configured](/guides/lark/02-identity.webp)
+Existing syncs keep working: edit, pause or remove them under **External connectors**. A sync uses the same authority as the conversation itself; it does not grant group access or lend the app to another Bot. A Channel can receive several sources, and a source can reach several Channels. **Syncs decide what is received; each member Bot’s Attention / wake policy decides when it is processed.** External messages show the source name above the bubble; clicking it opens details. Ordinary local replies are not broadcast to Lark.
 
-_Screenshots in this section show the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
+Adjust behaviour after the first successful test:
 
-_Figure 2: The identity belongs to the PersonaBot. If the selector is empty, check the application connection, Provider version and saved target. Human QR login is not Bot identity binding._
-
-![PersonaBot Profile before external identity and group authorization are configured](/guides/lark/03-authorize.webp)
-
-_Figure 3: Bind the identity, then authorize a specific group under External connectors → Authorize a conversation. The demonstration has no account yet, so authorization controls are unavailable._
-
-![Actual bound Lark identity and authorized group, using Inbox-only and mention-only collection](/guides/lark/07-granted.webp)
-
-_Figure 3b: The real test group is authorized and reception is connected. Ordinary-message collection remains disabled; policy inheritance and collection scope are separate fields._
-
-Each Bot can bind multiple platforms, with one identity per platform. It uses its own identity across local Channels. Other Bots in a shared Channel need their own identity and target authorization to reply externally.
-
-## 5. Optional: display messages in a local Channel
-
-Skip this section if you want Lark conversations to enter only the Bot Inbox. For a local team timeline, open an existing Group Channel's detailed Profile and add the receiving Bot as a member first. You can also route the source into a Bot DM's message history from that DM's sidebar: **External connectors → + Add connector**.
-
-In a Group Channel's detailed Profile, use **External connectors → Add connector**:
-
-1. Select the **authorized Lark group**. This does not create an account or grant new group access; return to the preceding section if the list is empty.
-2. Check the **delivery destination**: shared Channel, DM message history or Bot Inbox only. Choices depend on the current Channel.
-3. Enter a recognizable **connector name**, such as “Lark team group.”
-4. Retain **Inherit global defaults**, or explicitly choose **mentions of the receiving identity only**, enable intake and save.
-
-![Channel connector dialog with source, destination, name and intake condition](/guides/lark/04-connector.webp)
-
-_Screenshot shows the earlier Profile layout; in a Bot DM these settings now live in the sidebar's External connectors entry._
-
-_Figure 4: Source, destination and intake condition are separate choices. Saving is unavailable in the demonstration until a real group is authorized._
-
-A Channel can receive several sources, and a source can route to several destinations. **Connectors decide what is received; each member Bot's Attention / wake policy decides when it is processed.** External messages show the source name above the bubble; clicking it opens details. Ordinary local replies are not automatically broadcast to Lark.
-
-Adjust advanced behavior after the first successful test:
-
-- Manage global defaults in **Settings → Bot settings**. Profiles can inherit or override them; changes affect future messages and do not import past history.
-- For ordinary messages without mentions, publish the required application permission and subscription, send an unmentioned message in the authorized test group, and refresh the verification result. All-message intake stays unavailable until genuine ordinary-message delivery is verified.
-- Choose count/time harvest or per-message wake in group intake and wake settings. Inbox admission does not require an immediate reply; the Bot can decide whether to participate.
-- Receiving unmentioned replies in a topic requires explicitly following that topic; replying once does not automatically follow it. The platform must actually deliver those events to the application.
-- An external connector's Switch pauses intake while preserving configuration and history. Deleting it does not remove received messages. Unbinding an identity is separate and affects that Bot's external behavior using it.
+- Manage global defaults in **Settings → Bot settings**. A group’s **Rules** can inherit or override them; changes affect future messages and do not import past history.
+- For ordinary messages without mentions, publish `im:message.group_msg` and the subscription, send an unmentioned message in the group and refresh. Ordinary intake stays unavailable until genuine delivery is verified.
+- Receiving unmentioned replies in a topic requires explicitly following that topic.
 
 ## 6. Verify the complete path
 
-Start with a small test: **mention the application bot** in the authorized Lark group and send “Please reply here with LARK-OK.” Avoid testing several Bots or routes at once.
+Start small: **mention the application bot** in a test group and send “Please reply here with LARK-OK.” Avoid testing several Bots at once.
 
-Confirm each result:
-
-1. The message appears in the Bot DM's right-hand **Bot Inbox**, with the correct Lark group source, original sender and content.
+1. The message appears in the Bot DM’s right-hand **Bot Inbox** with the correct Lark group, sender and content, and the group appears under **Active** in the app’s conversation list.
 2. Source details show the external message ID, Source Event ID and topic information when present.
-3. Lark receives `LARK-OK` from this Bot's own application identity in the original conversation. A topic test should reply in the same topic.
-4. With default mentions-only intake, send an ordinary unmentioned message and confirm it does not create ordinary intake for this Bot. Explicitly followed topics use their topic policy.
+3. Lark receives `LARK-OK` from this Bot’s own app in the original conversation. A topic test replies in the same topic.
+4. Send an ordinary unmentioned message and confirm it does not reach this Bot unless the group’s **Rules** allow ordinary messages.
 
-**Lark's green or gray read circle does not establish whether a Bot received a message.** Use the local Inbox source record and actual external reply.
+**Lark’s green or gray read circle does not show whether a Bot received a message.** Use the local Inbox source record and the actual reply.
 
 ![Real source details, native message ID and Source Event ID](/guides/lark/08-source.webp)
 
-_In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details. This example retains real topic and message identifiers; a platform ID appears if the sender name cannot be resolved._
+_In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details._
+
+## Advanced: saved send targets
+
+Lark lists and addresses conversations directly, so a Lark app never needs a saved target to receive, reply or post proactively. Saved send targets remain as a fallback for apps whose Provider can’t list or address conversations:
+
+1. In the connected bot’s settings, open **Delivery targets → New target**, choose or enter the conversation, click **Test** and **Save target**.
+2. In the Bot DM sidebar, open **External connectors → Save a send target (advanced)**, choose the app and the saved target, and confirm.
+
+![Actual saved group delivery target](/guides/lark/16-delivery-target.webp)
+
+_Screenshot shows the earlier flow, where a target was required before binding._
 
 ## 7. Request reviewed IM authority in a Lark DM
 
@@ -301,16 +270,16 @@ These additional captures use the integrated source preview in a fresh isolated 
 
 ## Troubleshooting
 
-| Symptom                                              | Check first                                                                                                                                                                        |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application missing or connection fails              | Lark / Feishu selection, organization, App ID / Secret and running Host                                                                                                            |
-| Connected but no selectable IM account               | Qualified Provider, online account, tested and saved target; refresh the sidebar                                                                                                   |
-| Group missing from authorized list                   | Bound Bot identity, saved delivery target, explicit authorization in that Bot's External connectors entry and membership in the shared Channel                                     |
-| Mention does not enter Inbox                         | Application bot in the group; application permissions, long-connection `im.message.receive_v1` subscription, published version and approval; local authorization and intake Switch |
-| Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                   |
-| History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                          |
-| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity and send authorization for the target                                                                               |
-| No message in local DM                               | Check for Inbox-only routing; it is a valid separate destination, not a lost message                                                                                               |
+| Symptom                                              | Check first                                                                                                                                                                                      |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Application missing or connection fails              | Lark / Feishu selection, organization, App ID / Secret and running Host                                                                                                                          |
+| Connected but the app is missing from Bind app       | Qualified Provider, online account; an app already bound to another Bot is not offered (see Settings → IM apps)                                                                                  |
+| Group missing from the conversation list             | The app was added to the group, a first message @mentioned it, and the conversation isn't waiting (Ask me first or the hourly limit) or blocked                                                  |
+| Mention does not enter Inbox                         | Application bot in the group; application permissions, long-connection `im.message.receive_v1` subscription, published version and approval; identity enabled, conversation not muted or blocked |
+| Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                                 |
+| History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                                        |
+| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity and `im:message:send_as_bot`                                                                                                      |
+| No message in local DM                               | Conversations reach the Bot Inbox by default; only an existing sync (see **External connectors**) shows them in a Channel                                                                        |
 
 When requesting help, include the platform, reproduction steps, a public-safe error code and checks already performed. Do not include App Secrets, access tokens or unrelated group messages.
 
@@ -336,7 +305,7 @@ _Confirm the test message in the designated group, then save the target._
 
 ![Account, target, identity and authorization confirmed](/guides/lark/23-new-app-guide.webp)
 
-_The first four steps derive from real configuration; tour clicks cannot mark them complete._
+_The earlier five-step guide; the current guide has three steps (app, bind, verify). Steps derive from real configuration; tour clicks cannot mark them complete._
 
 ![Native topic mention and own-identity reply](/guides/lark/24-new-app-topic-reply.webp)
 
@@ -380,8 +349,8 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 
 In the image-capable #1021 candidate, an authorized Lark image or supported image-bearing post appears inside its original Channel bubble. The source name above it still opens source details. Images load when visible; select an image to enlarge it, and use **Retry** after a failed load. Text and multiple images stay in their native order in one message.
 
-This requires an external connector with a history destination. Inbox-only reception does not place images in Channel history. Keep the application's existing message permissions: a mentions-only group source still requires a real Bot mention in a supported native post. This feature does not enable ordinary group-message access.
+This requires the conversation to be synced to a Channel. Inbox-only reception does not place images in Channel history. Keep the application's existing message permissions: a mentions-only group source still requires a real Bot mention in a supported native post. This feature does not enable ordinary group-message access.
 
-Pausing the connector keeps already acquired images readable but stops new image acquisition. Unbinding its identity or revoking source authorization makes that path unavailable, including cached images. A separately valid source path remains independent. Refresh and restart retain authorized acquired images; purged or missing originals are not downloaded again. Previews support PNG, JPEG, GIF and WebP up to 25 MiB. An unsupported format or oversized image shows an explicit state.
+Pausing the sync keeps already acquired images readable but stops new image acquisition. Unbinding its identity or revoking source authorization makes that path unavailable, including cached images. A separately valid source path remains independent. Refresh and restart retain authorized acquired images; purged or missing originals are not downloaded again. Previews support PNG, JPEG, GIF and WebP up to 25 MiB. An unsupported format or oversized image shows an explicit state.
 
 Human image viewing does not make the Bot understand images or change its attention, model context or permissions. Real platform acceptance and screenshots for this candidate are tracked in [#1021](https://github.com/BotHarness/BotHarness/issues/1021); they are not implied by the older onboarding evidence above.

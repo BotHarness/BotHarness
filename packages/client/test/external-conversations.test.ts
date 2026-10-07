@@ -136,3 +136,31 @@ it('groups conversations, confirms Block before sending it, and sends revision-c
   await act(async () => root.unmount());
   container.remove();
 });
+
+it('shows where an entry is synced and offers no Sync action on the row', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const routed = {
+    ...entry('g1', 'Team', false),
+    bridgeRoutes: [{ channelId: 'c1' }],
+  } as unknown as MessagingSnapshot['grants'][number];
+  await act(async () =>
+    root.render(
+      createElement(ExternalConversations, {
+        identity,
+        snapshot: { ...snapshot, grants: [routed] },
+        busy: false,
+        t: zhTranslate,
+        change: vi.fn(),
+        rules: vi.fn(),
+        channels: [{ id: 'c1', name: 'Intake' }],
+      }),
+    ),
+  );
+  expect(container.textContent).toContain('已同步到 Intake');
+  expect([...container.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('同步');
+  await act(async () => root.unmount());
+  container.remove();
+});

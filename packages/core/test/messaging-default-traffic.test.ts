@@ -586,3 +586,31 @@ it('holds new conversations past the hourly limit instead of creating entries', 
     expect.objectContaining({ conversation: { kind: 'dm', id: 'oc_20' }, reason: 'hourly-limit' }),
   ]);
 });
+
+it('syncs an implicit group entry into a Channel, which then receives its later mentions', async () => {
+  const fx = await fixture();
+  await fx.receive(mention('first'));
+  const entry = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  const room = fx.core.channels.createGroup({ name: 'Team room', members: ['ada'] });
+  await fx.core.externalMessaging.inbound.channelBridge(room.id, {
+    kind: 'add',
+    grantId: entry.id,
+    expectedGrantRevision: entry.revision,
+    delivery: 'channel',
+    name: 'Team',
+    enabled: true,
+    collection: 'mentions',
+    collectionInheritance: 'inherit',
+  });
+  await fx.receive({ ...mention('second'), at: new Date(Date.now() + 1000).toISOString() });
+  const placed = fx.query(
+    `SELECT json_extract(e.payload_json, '$.external.event.messageId') AS messageId FROM channel_placements p JOIN source_events e USING(source_event_id) WHERE p.channel_id = '${room.id}'`,
+  );
+  expect(placed).toEqual([{ messageId: 'om-second' }]);
+  const routes = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!.bridgeRoutes;
+  expect(routes?.map((route) => route.channelId)).toContain(room.id);
+  const synced = await fx.core.externalMessaging.channelBridges(room.id);
+  expect(synced.bridges.map((row) => [row.name, row.delivery])).toEqual([['Team', 'channel']]);
+  const dm = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
+  expect((await fx.core.externalMessaging.channelBridges(dm.id)).bridges).toEqual([]);
+});

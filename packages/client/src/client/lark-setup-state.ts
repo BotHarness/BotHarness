@@ -1,13 +1,9 @@
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 
-export const LARK_SETUP_STEPS = ['account', 'target', 'identity', 'grant', 'verify'] as const;
+export const LARK_SETUP_STEPS = ['app', 'bind', 'verify'] as const;
 export type LarkSetupStep = (typeof LARK_SETUP_STEPS)[number];
 
-export function larkSetupState(
-  snapshot: MessagingSnapshot | undefined,
-  accountKey: string,
-  targetRef = '',
-) {
+export function larkSetupState(snapshot: MessagingSnapshot | undefined, accountKey: string) {
   const account = snapshot?.accounts.find(
     (a) => a.platform === 'feishu' && `${a.providerId}:${a.ref}` === accountKey,
   );
@@ -24,8 +20,6 @@ export function larkSetupState(
     snapshot?.grants.filter(
       (g) =>
         g.bindingId === identity?.id &&
-        !!targetRef &&
-        g.targetRef === targetRef &&
         !g.revokedAt &&
         g.availability === 'available' &&
         g.receiveScope &&
@@ -43,13 +37,7 @@ export function larkSetupState(
     grants,
     receipt,
     providerReady: snapshot?.setup?.providerReady === true,
-    next: !account?.connected
-      ? 'account'
-      : !identity
-        ? 'identity'
-        : !grants.length
-          ? 'grant'
-          : 'verify',
+    next: !account?.connected ? 'app' : !identity ? 'bind' : 'verify',
     complete:
       snapshot?.setup?.providerReady === true &&
       !!account?.connected &&

@@ -26,7 +26,7 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First
 | [Model](/docs/channel-sidebar/model)                             | Check and change the models this Bot uses for chat and new Assignments.                               |
 | [Wake policy](/docs/channel-sidebar/wake-policy)                 | Choose, per source, whether this Bot wakes right away, after a digest, or not.                        |
 | [External identities](/docs/channel-sidebar/external-identities) | Bind who this Bot speaks as on Lark / Feishu, Slack or WeChat; IM pairing and approval notifications. |
-| [External connectors](/docs/channel-sidebar/external-connectors) | Authorize external conversations and choose which messages reach this DM or Bot Inbox.                |
+| [External connectors](/docs/channel-sidebar/external-connectors) | Edit and pause conversations synced into a Channel; advanced saved send targets.                      |
 
 | In a local group                                             | What you can do                                                         |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |

@@ -1167,7 +1167,7 @@ export function createOutboundMessaging(options: {
             .filter(
               (route) =>
                 route.channelId === channelId ||
-                (current.type === 'dm' && route.channelId === null),
+                (current.type === 'dm' && route.channelId === null && g.origin !== 'implicit'),
             )
             .map((route) => ({
               ...source(g),
