@@ -2171,7 +2171,7 @@ export const en = {
   'setup.accepted': 'Platform accepted the reply; echo not observed. Check the original topic.',
   'setup.awaiting': 'Received; waiting for this identity to reply.',
   'setup.optional':
-    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in Channel connectors. Defaults, Attention and wake policy remain separate.',
+    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in External connectors. Defaults, Attention and wake policy remain separate.',
   'setup.failed':
     'Status check failed or controls are unavailable. Keep the configuration, open actual settings after closing the guide, then retry.',
   'setup.checking': 'Checking…',
@@ -2771,7 +2771,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'message.draftInterrupted': 'Reply interrupted and not sent.',
   'message.draftExpired': 'Draft reply was not sent.',
   'message.sending': 'Sending',
-  'main.group.note': 'Invite Bots or add a channel connector in the Channel Profile.',
+  'main.group.note': 'Invite Bots or add an external connector in the Channel Profile.',
   'main.localChat': 'Local chat',
   'main.localChat.with': 'This is a local conversation with {name}',
   'message.mention.openDm': 'Open DM with {bot}',

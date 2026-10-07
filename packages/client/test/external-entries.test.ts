@@ -41,6 +41,7 @@ import {
   ExternalIdentitiesEntry,
 } from '../src/client/external-entries.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { useMessagingSnapshot } from '../src/client/messaging-store.js';
 import { revealSidebarAnchor } from '../src/client/sidebar-anchor.js';
 import { combobox, comboboxOption, openCombobox } from './primitive-mocks.js';
 
@@ -227,4 +228,22 @@ it('keeps disabled combobox options out of keyboard and click selection', async 
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
   );
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('online');
+});
+
+it('clears a failed load after a successful explicit refresh', async () => {
+  const messagingSnapshot = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValue(snapshot);
+  const store = { messagingSnapshot } as unknown as BridgeActions;
+  let refresh: () => Promise<void> = async () => undefined;
+  function Probe() {
+    const state = useMessagingSnapshot('refresh-probe', store);
+    refresh = state.refresh;
+    return createElement('div', { ref: state.mount }, state.failed ? 'failed' : 'ok');
+  }
+  await act(async () => root.render(createElement(Probe)));
+  expect(host.textContent).toBe('failed');
+  await act(async () => refresh());
+  expect(host.textContent).toBe('ok');
 });

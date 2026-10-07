@@ -187,4 +187,27 @@ describe('Standing memory', () => {
     act(() => root.unmount());
     host.remove();
   });
+
+  it('follows roster updates to the saved limits', async () => {
+    const actions = { setStandingLimits: vi.fn() } as unknown as BridgeActions;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const render = (summary: BotSummary) =>
+      act(async () =>
+        root.render(
+          createElement(
+            'ul',
+            null,
+            createElement(StandingLimitsRow, { bot: summary, actions, t: zhTranslate }),
+          ),
+        ),
+      );
+    await render(bot);
+    expect(host.textContent).toContain('SOUL.md 5,000 · MEMORY.md 3,000');
+    await render({ ...bot, standingLimits: { soul: 8000, coreMemory: 3000 } });
+    expect(host.textContent).toContain('SOUL.md 8,000 · MEMORY.md 3,000');
+    act(() => root.unmount());
+    host.remove();
+  });
 });

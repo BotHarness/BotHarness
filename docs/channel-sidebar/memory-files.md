@@ -6,7 +6,7 @@ Open a **Bot DM → Channel sidebar → Memory files**. The tree belongs to this
 
 ## Standing memory limits
 
-Below the file tree, the **Standing memory limits** row shows the current limits, for example `SOUL.md 5,000 · MEMORY.md 3,000`, with a **Customized** chip after a change. Click it to set both character limits, then **Save limits**; **Restore defaults** returns to 5,000 and 3,000. New limits apply from the next Session.
+Below the file tree, the **Standing memory limits** row shows the current limits, for example `SOUL.md 5,000 · MEMORY.md 3,000`, with a **Customized** chip after a change. Click it to set both character limits, then **Save limits**; **Restore defaults** returns to 5,000 and 3,000. New limits apply from the next Session, or from the next compaction of the current Session.
 
 ![The Standing memory limits row and dialog](/guides/channel-sidebar/23-standing-limits-zh.webp)
 

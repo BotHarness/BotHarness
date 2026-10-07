@@ -91,7 +91,7 @@
 - **设计头像**：选择插画 / 线条风格、预设、部件、形状滑块和颜色。编辑期间是预览，点击保存才应用，取消放弃草稿；上传图片存在时，实际显示优先使用图片。
 - **活动概览**：图钉控制哪些卡片显示在 Profile 小窗。Token 用量的时间范围、模型/提供商分组、筛选和自定义日期只改变统计视图；不会切换模型。缺失的用量显示未知，不当作零。
 - **人格 / 记忆文件**：在右侧「记忆文件」查看对应文件，使用文件可用的编辑/预览操作。Profile 没有把全部创建字段重复为编辑表单。
-- **常驻记忆上限** 已移到 Channel sidebar：在 **Bot 私聊 → 记忆文件 → 常驻记忆上限** 设置 `SOUL.md` 与 `MEMORY.md` 的字符上限，从下一个 Session 生效；见 [Bot 灵魂与核心记忆](/zh/docs/soul-and-core-memory)。
+- **常驻记忆上限** 已移到 Channel sidebar：在 **Bot 私聊 → 记忆文件 → 常驻记忆上限** 设置 `SOUL.md` 与 `MEMORY.md` 的字符上限，从下一个 Session 或当前 Session 下次压缩时生效；见 [Bot 灵魂与核心记忆](/zh/docs/soul-and-core-memory)。
 - **外部身份与外部连接器** 也已从 Profile 移到 Bot 私聊的 Channel sidebar：见 [外部身份](/zh/docs/channel-sidebar/external-identities) 与 [外部连接器](/zh/docs/channel-sidebar/external-connectors)。
 
 ## Bot 唤醒策略与本地群聊

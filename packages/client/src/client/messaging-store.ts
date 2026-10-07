@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type RefCallback } from 'react';
+import { useRef, useState, useSyncExternalStore, type RefCallback } from 'react';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type { BridgeActions } from './actions.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
@@ -41,18 +41,22 @@ export function useMessagingSnapshot(
   const read = (): MessagingSnapshot | undefined => snapshots.get(slug);
   const snapshot = useSyncExternalStore(subscribe, read, read);
   const [failed, setFailed] = useState(false);
-  const refresh = (): Promise<void> => refreshMessaging(slug, actions);
+  const latest = useRef(0);
+  const track = async (isActive: () => boolean): Promise<void> => {
+    const sequence = ++latest.current;
+    const current = () => isActive() && sequence === latest.current;
+    try {
+      await refreshMessaging(slug, actions);
+      if (current()) setFailed(false);
+    } catch (error) {
+      if (current()) setFailed(true);
+      throw error;
+    }
+  };
+  const refresh = (): Promise<void> => track(() => true);
   const mount = useMountedResource<HTMLElement>(() => {
     let active = true;
-    const load = (): void =>
-      void refreshMessaging(slug, actions).then(
-        () => {
-          if (active) setFailed(false);
-        },
-        () => {
-          if (active) setFailed(true);
-        },
-      );
+    const load = (): void => void track(() => active).catch(() => undefined);
     load();
     const unsubscribe = subscribeMessagingDefaults(load);
     return () => {

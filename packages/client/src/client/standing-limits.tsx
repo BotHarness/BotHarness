@@ -85,9 +85,14 @@ export function StandingLimitsRow({
   actions: Pick<BridgeActions, 'setStandingLimits'>;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const [saved, setSaved] = useState<StandingLimitsView>(
-    bot.standingLimits ?? DEFAULT_STANDING_LIMITS,
-  );
+  const [override, setOverride] = useState<{
+    base: StandingLimitsView | undefined;
+    value: StandingLimitsView;
+  }>();
+  const saved =
+    override !== undefined && override.base === bot.standingLimits
+      ? override.value
+      : (bot.standingLimits ?? DEFAULT_STANDING_LIMITS);
   const [open, setOpen] = useState(false);
   const [soul, setSoul] = useState(String(saved.soul));
   const [coreMemory, setCoreMemory] = useState(String(saved.coreMemory));
@@ -123,7 +128,10 @@ export function StandingLimitsRow({
         soul: soulLimit,
         coreMemory: coreMemoryLimit,
       });
-      setSaved(updated.standingLimits ?? { soul: soulLimit, coreMemory: coreMemoryLimit });
+      setOverride({
+        base: bot.standingLimits,
+        value: updated.standingLimits ?? { soul: soulLimit, coreMemory: coreMemoryLimit },
+      });
       setOpen(false);
     } catch (cause) {
       setError(errorMessage(cause));
