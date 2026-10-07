@@ -52,6 +52,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- Window Companions lean behind the grab point when dragged left or right and settle against the window content edge without a floor gap ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)).
+
 - Bots now read IM mentions as names instead of platform placeholders: Lark `@_user_1` and Slack `<@U…>` reach the model as `@Name` (or `@id` when the platform gave no name), and each external message lists its sender and mentioned people with their platform IDs. A Bot can @ the sender or anyone mentioned in that message by writing `<@ID>` anywhere in its `bridge_reply` text, on Lark, Slack and Discord (Slack and Discord ping through the IM provider's checked mentions, or fall back to `@Name` text on an older provider); any other id or mention tag is sent as plain text ([#1126](https://github.com/BotHarness/BotHarness/issues/1126)).
 - **Bind app** no longer hides apps the IM plugin can't serve yet. A Discord app whose plugin lacks checked sending now shows greyed out with **update the IM plugin to bind this app**, instead of silently missing from the list ([#1123](https://github.com/BotHarness/BotHarness/issues/1123)).
 - **Bind app** no longer lists apps already bound to the same Bot; they are already shown under External identities ([#1127](https://github.com/BotHarness/BotHarness/issues/1127)).

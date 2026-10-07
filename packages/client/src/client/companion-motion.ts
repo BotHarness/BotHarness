@@ -56,7 +56,7 @@ export class CompanionMotion {
       ...this.point,
       x: nextX,
       y: nextY,
-      tilt: reduced ? 0 : Math.max(-18, Math.min(18, -this.vx / 35)),
+      tilt: reduced ? 0 : Math.max(-18, Math.min(18, this.vx / 35)),
       squash: reduced ? 0 : -0.055,
       phase: 'drag',
     });
@@ -119,7 +119,7 @@ export class CompanionMotion {
             this.landing = 220;
           }
         }
-        tilt += (-this.vx / 45 - tilt) * (1 - Math.exp(-9 * dt));
+        tilt += (this.vx / 45 - tilt) * (1 - Math.exp(-9 * dt));
         squash *= Math.exp(-12 * dt);
       } else if (phase === 'land') {
         this.vx *= Math.exp(-16 * dt);

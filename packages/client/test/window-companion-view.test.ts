@@ -80,6 +80,10 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     };
     await act(() => pointer('pointerdown', 700, 750));
     await act(() => pointer('pointermove', 400, 400));
+    expect(character.style.transform).toMatch(/^rotate\(-[\d.]+deg\)/u);
+    await act(() => pointer('pointermove', 450, 400));
+    expect(character.style.transform).toMatch(/^rotate\([\d.]+deg\)/u);
+    await act(() => pointer('pointermove', 400, 400));
     const lifted = Number.parseFloat(surface.style.bottom);
     expect(lifted).toBeGreaterThan(12);
     const draggedLeft = surface.style.left;
@@ -115,14 +119,14 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       });
       positions.push(Number.parseFloat(surface.style.bottom));
     }
-    expect(positions.some((bottom) => bottom > 12 && bottom < lifted)).toBe(true);
-    expect(positions.every((bottom) => bottom >= 12 && bottom <= window.innerHeight - 108)).toBe(
+    expect(positions.some((bottom) => bottom > 0 && bottom < lifted)).toBe(true);
+    expect(positions.every((bottom) => bottom >= 0 && bottom <= window.innerHeight - 120)).toBe(
       true,
     );
-    const firstContact = positions.findIndex((bottom) => bottom === 12);
+    const firstContact = positions.findIndex((bottom) => bottom === 0);
     expect(firstContact).toBeGreaterThan(0);
-    expect(positions.slice(firstContact + 1).some((bottom) => bottom > 12)).toBe(true);
-    expect(surface.style.bottom).toBe('12px');
+    expect(positions.slice(firstContact + 1).some((bottom) => bottom > 0)).toBe(true);
+    expect(surface.style.bottom).toBe('0px');
     expect(openDm).not.toHaveBeenCalled();
     await act(() =>
       character.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
@@ -137,7 +141,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     });
     expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
     await act(() => pointer('pointerup', 700, 200));
-    expect(surface.style.bottom).toBe('12px');
+    expect(surface.style.bottom).toBe('0px');
     await act(() => vi.runOnlyPendingTimers());
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => character.click());

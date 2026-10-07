@@ -171,7 +171,7 @@ export function WindowCompanionView({
         data-reading={view.reading}
         data-sync={view.sync}
         data-motion={point.phase}
-        style={{ left: point.x, bottom: 12 + point.y }}
+        style={{ left: point.x, bottom: point.y }}
         onPointerEnter={enter}
         onPointerLeave={leave}
         onFocusCapture={enter}
