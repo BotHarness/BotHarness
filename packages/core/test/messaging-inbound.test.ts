@@ -1013,6 +1013,9 @@ it('enriches display names without changing canonical identity and preserves har
         .list({ botSlug: 'ada' })
         .items.find((item) => item.sourceKind === 'bridge-message')!;
       expect(run.inbox).toContain(`Message om-1 [Source Event ${source.id}]`);
+      expect(run.inbox).toContain('"@ou-bot Please reply in this topic"');
+      expect(run.inbox).toContain('{"role":"mentioned","id":"ou-bot"}');
+      expect(run.inbox).not.toContain('@_user_1');
       const page = await run.externalMessaging!.context(source.id, { scope: 'thread' });
       expect(page.messages[0]).toMatchObject({
         sourceEventId: source.id,

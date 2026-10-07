@@ -11,6 +11,7 @@ import type {
   MessagingApprovalCard,
   MessagingApprovalAck,
 } from './provider.js';
+import { mentionTags } from './mention-text.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
 
 interface DshImTarget {
@@ -95,6 +96,7 @@ export interface DshImOutboundService {
       signal: AbortSignal;
       receipt?: true;
       beforeSend?: () => boolean;
+      mentionUserIds?: string[];
     },
   ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
   historyChecked?(
@@ -743,9 +745,27 @@ export function createDshImProvider(
           },
           async reply(input: Parameters<NonNullable<MessagingProvider['reply']>>[0]) {
             try {
-              const result = await host.replyChecked!(input.accountRef, input.route, input.text, {
+              const tags =
+                platform === 'slack' || platform === 'discord'
+                  ? mentionTags(input.text)
+                  : { mentions: [], render: () => input.text };
+              const checkedMentions =
+                tags.mentions.length > 0 &&
+                (await host.describeBot(input.accountRef)).capabilities.includes(
+                  'reply-mention-checked',
+                );
+              const text =
+                tags.mentions.length === 0
+                  ? input.text
+                  : tags.render((mention) =>
+                      checkedMentions ? `<@${mention.id}>` : `@${mention.name || mention.id}`,
+                    );
+              const result = await host.replyChecked!(input.accountRef, input.route, text, {
                 expectedFingerprint: input.fingerprint,
                 signal: input.signal,
+                ...(checkedMentions
+                  ? { mentionUserIds: [...new Set(tags.mentions.map((mention) => mention.id))] }
+                  : {}),
                 ...(host.replyReceiptVersion === 1 ? { receipt: true as const } : {}),
                 ...(host.replyFenceVersion === 1 && input.beforeSend
                   ? { beforeSend: input.beforeSend }
