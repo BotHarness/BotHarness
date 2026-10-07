@@ -530,7 +530,7 @@ export function MessagingGrantRow({
   );
 }
 
-function GroupReceptionSettings({
+export function GroupReceptionSettings({
   policy,
   verified,
   busy,

@@ -93,6 +93,7 @@ describe('bridge typert service', () => {
       'messagingTargets',
       'messagingAuthorize',
       'messagingRevoke',
+      'messagingConversation',
       'messagingSend',
       'modelCatalog',
       'modelPresets',

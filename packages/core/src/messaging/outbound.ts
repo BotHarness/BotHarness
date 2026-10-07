@@ -19,7 +19,20 @@ import {
   type MessagingDefaults,
   type MessagingDefaultsInput,
 } from './defaults.js';
-import type { GroupReceptionPolicy } from './group-policy.js';
+import { initializeGroupReceptionPolicy, type GroupReceptionPolicy } from './group-policy.js';
+import {
+  admissionBound,
+  listBlocks,
+  listHeld,
+  readBlock,
+  readHeld,
+  removeBlock,
+  removeHeld,
+  writeBlock,
+  type BlockedConversation,
+  type HeldConversation,
+  type MessagingConversationInput,
+} from './conversations.js';
 import { bridgeChannel, humanBridgeChannel } from './channel-target.js';
 import {
   channelBridgeRoutes,
@@ -112,6 +125,8 @@ export interface MessagingGrant {
   channelBridge?: ChannelBridgeConfiguration;
   bridgeRoutes?: ChannelBridgeRoute[];
   origin?: 'explicit' | 'implicit';
+  muted?: boolean;
+  preferenceRevision?: number;
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -188,6 +203,8 @@ export interface MessagingSnapshot {
     threadPolicies?: ThreadReceptionView[];
     ordinaryDelivery?: 'verified' | 'unverified';
   })[];
+  heldConversations?: HeldConversation[];
+  blockedConversations?: BlockedConversation[];
   intents: OutboxIntent[];
 }
 
@@ -235,6 +252,7 @@ export interface OutboundMessaging {
     targetDigest: string;
   }): Promise<MessagingGrant>;
   revoke(botSlug: string, grantId: string): void;
+  conversation(botSlug: string, input: MessagingConversationInput): Promise<void>;
   send(
     botSlug: string,
     grantId: string,
@@ -311,6 +329,24 @@ export function createOutboundMessaging(options: {
     if (provider(id).token !== token) throw new MessagingError('provider-unavailable');
   };
   const binding = (id: string) => database.read((db) => readMessagingIdentity(db, id));
+  const revokePendingIntents = (db: DatabaseSync, grantId: string, at: string) => {
+    const pending = db
+      .prepare("SELECT id FROM messaging_outbox WHERE grant_id = ? AND state = 'pending'")
+      .all(grantId) as unknown as { id: string }[];
+    for (const row of pending) {
+      const intent = readIntent(row.id);
+      db.prepare('UPDATE messaging_outbox SET state = ?, body = ? WHERE id = ?').run(
+        'grant-revoked',
+        JSON.stringify({
+          ...intent,
+          state: 'grant-revoked',
+          reason: 'grant-revoked',
+          settledAt: at,
+        }),
+        row.id,
+      );
+    }
+  };
   const enabledBinding = (id: string, revision?: number) =>
     database.read((db) => assertMessagingIdentity(db, id, revision));
   const bounded = async <T>(work: Promise<T>): Promise<T> => {
@@ -1344,6 +1380,15 @@ export function createOutboundMessaging(options: {
           .filter((i) => i.platform === 'feishu' && !i.revokedAt)
           .map((i) => ({ name: i.name, status: i.reception ?? 'unavailable' })),
         grants,
+        heldConversations: database.read((db) =>
+          identities.flatMap((identity) => listHeld(db, identity.id)),
+        ),
+        blockedConversations: database
+          .read((db) => listBlocks(db, botSlug))
+          .map((block) => {
+            const owner = identities.find((identity) => identity.fingerprint === block.fingerprint);
+            return owner ? { ...block, bindingId: owner.id } : block;
+          }),
         channelTargets,
         intents,
         setup: {
@@ -1458,28 +1503,139 @@ export function createOutboundMessaging(options: {
             grantId,
           );
 
-          const pending = db
-            .prepare("SELECT id FROM messaging_outbox WHERE grant_id = ? AND state = 'pending'")
-            .all(grantId) as unknown as { id: string }[];
-          for (const row of pending) {
-            const intent = readIntent(row.id);
-            db.prepare('UPDATE messaging_outbox SET state = ?, body = ? WHERE id = ?').run(
-              'grant-revoked',
-              JSON.stringify({
-                ...intent,
-                state: 'grant-revoked',
-                reason: 'grant-revoked',
-                settledAt: revokedAt,
-              }),
-              row.id,
-            );
-          }
+          revokePendingIntents(db, grantId, revokedAt);
         },
         ['grants', 'bindings', 'outbox'],
       );
       inbound.revoke(grantId);
       for (const attempt of inFlight.values())
         if (attempt.fileGrantId === grantId) attempt.controller.abort();
+    },
+    async conversation(botSlug, input) {
+      active(botSlug);
+      if (input.kind === 'mute') {
+        transaction(
+          (db) => {
+            const value = grant(botSlug, input.grantId);
+            if (value.revokedAt !== undefined || !value.receiveScope)
+              throw new MessagingError('grant-revoked');
+            if ((value.preferenceRevision ?? 0) !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            const next: MessagingGrant = {
+              ...value,
+              muted: input.muted,
+              preferenceRevision: input.expectedRevision + 1,
+            };
+            db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+              JSON.stringify(next),
+              value.id,
+            );
+          },
+          ['grants'],
+        );
+        inbound.startEntry(input.grantId);
+        return;
+      }
+      if (input.kind === 'block') {
+        transaction(
+          (db) => {
+            const value = grant(botSlug, input.grantId);
+            if (value.revokedAt !== undefined || !value.receiveScope)
+              throw new MessagingError('grant-revoked');
+            if (value.revision !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            const at = now();
+            const revision = value.revision + 1;
+            db.prepare(
+              'UPDATE messaging_grants SET body = ?, revoked_at = ?, revision = ? WHERE id = ?',
+            ).run(JSON.stringify({ ...value, revokedAt: at, revision }), at, revision, value.id);
+            revokePendingIntents(db, value.id, at);
+            const conversation = {
+              kind: value.receiveScope.kind,
+              id: value.receiveScope.conversationId,
+            };
+            writeBlock(db, {
+              botSlug,
+              fingerprint: value.fingerprint,
+              conversation,
+              name: value.targetName,
+              blockedAt: at,
+            });
+            removeHeld(db, value.bindingId, conversation);
+          },
+          ['grants', 'outbox'],
+        );
+        inbound.revoke(input.grantId);
+        for (const attempt of inFlight.values())
+          if (attempt.fileGrantId === input.grantId) attempt.controller.abort();
+        inbound.startEntry(input.grantId);
+        return;
+      }
+      const created = transaction(
+        (db) => {
+          const identity = readMessagingIdentity(db, input.bindingId);
+          if (identity.botSlug !== botSlug || identity.revokedAt)
+            throw new MessagingError('identity-unbound');
+          const held = readHeld(db, input.bindingId, input.conversation);
+          const blocked = readBlock(db, botSlug, identity.fingerprint, input.conversation);
+          if (input.kind === 'block-held') {
+            if (!held || held.revision !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            writeBlock(db, {
+              botSlug,
+              fingerprint: identity.fingerprint,
+              conversation: input.conversation,
+              name: held.name,
+              blockedAt: now(),
+            });
+            removeHeld(db, input.bindingId, input.conversation);
+            return undefined;
+          }
+          const source = input.from === 'held' ? held : blocked;
+          if (!source || source.revision !== input.expectedRevision)
+            throw new MessagingError('conversation-stale');
+          if (!identity.enabled) throw new MessagingError('identity-paused');
+          const existing = db
+            .prepare(
+              `SELECT 1 FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL
+                AND json_extract(body, '$.receiveScope.kind') = ?
+                AND json_extract(body, '$.receiveScope.conversationId') = ?`,
+            )
+            .get(input.bindingId, input.conversation.kind, input.conversation.id);
+          if (existing) throw new MessagingError('conversation-stale');
+          if (admissionBound(db, input.bindingId, new Date(now())) === 'active-limit')
+            throw new MessagingError('conversation-limit');
+          const at = now();
+          const value: MessagingGrant = {
+            id: randomUUID(),
+            bindingId: identity.id,
+            botSlug,
+            providerId: identity.providerId,
+            accountRef: identity.accountRef,
+            accountName: identity.name,
+            fingerprint: identity.fingerprint,
+            platform: identity.platform,
+            targetRef: '',
+            targetName: source.name,
+            targetDigest: '',
+            revision: 1,
+            createdAt: at,
+            receiveAfter: at,
+            receiveScope: { kind: input.conversation.kind, conversationId: input.conversation.id },
+            origin: 'implicit',
+          };
+          db.prepare(
+            'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',
+          ).run(value.id, value.bindingId, botSlug, 1, at, JSON.stringify(value));
+          if (input.conversation.kind === 'group') initializeGroupReceptionPolicy(db, value.id);
+          removeHeld(db, input.bindingId, input.conversation);
+          removeBlock(db, botSlug, identity.fingerprint, input.conversation);
+          return value.id;
+        },
+        ['grants', 'bindings'],
+      );
+      if (created !== undefined) inbound.startEntry(created);
+      else options.onReceptionChanged?.();
     },
     async send(botSlug, grantId, requestId, text, sourceEventId, file, report = false) {
       active(botSlug);

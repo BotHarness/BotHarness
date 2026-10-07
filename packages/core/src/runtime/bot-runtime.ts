@@ -1025,13 +1025,14 @@ class BotRuntimeImplementation implements BotRuntime {
     if (this.#closed || !this.#externalMessaging?.inbound.available(botSlug, sourceEventId)) return;
     const row = this.#database.read((db) =>
       db
-        .prepare(`SELECT a.attempt_state, a.reason, e.channel_id, e.message_id FROM inbox_admissions a
+        .prepare(`SELECT a.attempt_state, a.reason, a.wake_mode, e.channel_id, e.message_id FROM inbox_admissions a
       JOIN source_events e USING(source_event_id) WHERE a.bot_slug = ? AND a.source_event_id = ?`)
         .get(botSlug, sourceEventId),
     ) as
       | {
           attempt_state: string;
           reason: string;
+          wake_mode: string | null;
           channel_id: string | null;
           message_id: string | null;
         }
@@ -1047,7 +1048,8 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#admitChannelMessage(row.channel_id, row.message_id, 'group-ordinary');
       return;
     }
-    if (!row || !['pending', 'retryable'].includes(row.attempt_state)) return;
+    if (!row || !['pending', 'retryable'].includes(row.attempt_state) || row.wake_mode === 'silent')
+      return;
     const active = this.#activeTurns.get(botSlug);
     if (
       (row.reason === 'group-mention' || row.reason === 'human-dm') &&
@@ -5319,7 +5321,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
       WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
     ) SELECT source_event_id, body, created_at, attempt_state FROM pending
-      WHERE reason = 'group-mention' OR (reason = 'human-dm' AND wake_mode = 'all') OR (reason = 'group-ordinary' AND (
+      WHERE (reason = 'group-mention' AND wake_mode IS NOT 'silent') OR (reason = 'human-dm' AND wake_mode = 'all') OR (reason = 'group-ordinary' AND (
         wake_mode = 'all' OR (wake_mode = 'digest' AND (pending_count >= wake_count OR
           (julianday(?) - julianday(first_at)) * 86400000 >= wake_interval_ms)) OR
         (? = 1 AND has_mention = 1 AND wake_mode IN ('digest', 'mentions'))))

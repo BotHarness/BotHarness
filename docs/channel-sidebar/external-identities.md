@@ -33,17 +33,37 @@ A `/pair` command doesn’t enter the Inbox. [IM administrator pairing](/docs/la
 
 ![Ready state after binding an app](/guides/channel-sidebar/18b-bind-app-ready-en.webp)
 
-## See the conversations
+## Manage the conversations
 
-The first DM or @mention that reaches the Inbox records its conversation. Click the app row and look under **Conversations** in the **Edit identity** dialog: each conversation shows its name (the person’s name for a DM, the group ID for a group), DM or Group, and the last message time. The list is read-only for now; mute, reception rules and block come in a later release.
+The first DM or @mention that reaches the Inbox records its conversation. Click the app row and look under **Conversations** in the **Edit identity** dialog. Each conversation shows its name (the person’s name for a DM, the group ID for a group), DM or Group, and the last message time, sorted into four groups:
 
-![The app’s conversation list](/guides/channel-sidebar/19b-app-conversations-en.webp)
+| Group       | What it means                                                                         | Actions                                   |
+| ----------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Waiting** | A new conversation that hasn’t been let in yet, with the reason and its message count | **Allow**, **Block**                      |
+| **Active**  | Messages reach the Inbox and wake the Bot                                             | **Mute**, **Rules** (groups), **Block**   |
+| **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Block** |
+| **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                           |
+
+- **Rules** opens the same collection and wake settings as a group in External connectors, for this one group.
+- **Block** asks for confirmation. Replies that haven’t been sent yet are cancelled, and old messages can no longer be replied to. The block stays across restarts and even after you unbind and bind the same app to this Bot again.
+- **Allow again** starts a fresh conversation from the next message. Messages sent while it was blocked are not backfilled, and its old rules are not restored.
+
+### New conversations
+
+**New conversations** in the same dialog decides what happens the first time someone DMs the app or @mentions it in a new group (personal WeChat only has its owner, so it has no such setting):
+
+- **Admit automatically** (default): the message goes straight to the Inbox.
+- **Ask me first**: the conversation waits under **Waiting**. Only its name, first and last seen time and message count are kept, never the message text. After **Allow**, the next message is admitted.
+
+To keep a busy app from flooding the Inbox, at most 20 new conversations per app join automatically each hour, and an app holds at most 500 active conversations. Past either limit, new conversations wait under **Waiting** and the row says which limit was hit. **Waiting** keeps the 200 most recent conversations per app.
+
+![The app’s conversation list](/guides/channel-sidebar/19c-app-conversations-en.webp)
 
 ## Edit, reconnect or unbind
 
 Click an app row to open **Edit identity**.
 
-1. Change the **Local display name** or the identity’s default behavior after binding: inherit the global default, or choose a custom value.
+1. Change the **Local display name**, the identity’s default behavior after binding (inherit the global default, or choose a custom value), or **New conversations**.
 2. Click **Save identity**.
 3. **Reconnect** revalidates the same app and its existing conversations. A changed app requires unbinding and binding again.
 4. **Unbind** (red) asks for confirmation and lists the conversations it invalidates. After unbinding, the app stops delivering to this Bot and old conversations can no longer be replied to. Accepted messages and source history are retained; the shared app and its credentials are not removed.

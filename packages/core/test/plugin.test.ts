@@ -353,6 +353,7 @@ describe('plugin entry', () => {
       'messagingTargets',
       'messagingAuthorize',
       'messagingRevoke',
+      'messagingConversation',
       'messagingSend',
       'modelCatalog',
       'modelPresets',

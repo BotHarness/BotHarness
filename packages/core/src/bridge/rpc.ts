@@ -8,6 +8,7 @@ import type {
   MessagingDefaultsPlatform,
 } from '../messaging/defaults.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
+import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
@@ -258,6 +259,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   messagingRevoke(slug: string, grantId: string): Promise<{ revoked: true }> {
     return unwrapAsync(this.methods.messagingRevoke({ slug, grantId }));
+  }
+  messagingConversation(
+    slug: string,
+    input: MessagingConversationInput,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingConversation({ slug, input }));
   }
   messagingSend(
     slug: string,
@@ -1016,6 +1023,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingTargets',
   'messagingAuthorize',
   'messagingRevoke',
+  'messagingConversation',
   'messagingSend',
   'modelCatalog',
   'modelPresets',

@@ -60,6 +60,14 @@ function IdentitiesForBot({
           await actions.messagingIdentity(slug, input);
           await refresh();
         }}
+        conversation={async (input) => {
+          await actions.messagingConversation(slug, input);
+          await refresh();
+        }}
+        rules={async (grantId, input) => {
+          await actions.messagingGroupPolicy(slug, grantId, input);
+          await refresh();
+        }}
       />
       <LarkSetupGuide
         snapshot={snapshot}

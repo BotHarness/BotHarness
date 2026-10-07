@@ -49,6 +49,7 @@ import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
@@ -3650,6 +3651,13 @@ export async function setMessagingGroupPolicy(
   policy: GroupReceptionInput,
 ): Promise<void> {
   await unwrap(call, 'messagingGroupPolicy', { slug, grantId, policy });
+}
+export async function manageMessagingConversation(
+  call: BridgeCall,
+  slug: string,
+  input: MessagingConversationInput,
+): Promise<void> {
+  await unwrap(call, 'messagingConversation', { slug, input });
 }
 export async function setMessagingReceive(
   call: BridgeCall,
