@@ -1517,7 +1517,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Optional platform user ids to @ at the start of the reply, taken from the source people list (its sender or someone it mentioned). Lark only for now; Slack and Discord refuse it.',
+                'Optional platform user ids to @ at the start of the reply, taken from the source people list (its sender or someone it mentioned). Lark, Slack and Discord; other platforms refuse it.',
             },
           },
           output: {

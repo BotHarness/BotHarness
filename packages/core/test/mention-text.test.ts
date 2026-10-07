@@ -36,7 +36,7 @@ describe('mention text for the model', () => {
 
   it('writes platform mention markup and refuses unsupported platforms', () => {
     expect(mentionMarkup('feishu', 'ou_123', 'Ada <x>')).toBe('<at user_id="ou_123">Ada x</at>');
-    expect(() => mentionMarkup('slack', 'U123')).toThrow('not supported on slack');
+    expect(mentionMarkup('slack', 'U123')).toBe('<at user_id="U123"></at>');
     expect(() => mentionMarkup('weixin', 'wxid')).toThrow('not supported on weixin');
     expect(() => mentionMarkup('feishu', 'ou"><at user_id="all')).toThrow(
       'Invalid platform user id',

@@ -43,7 +43,21 @@ export function withoutMentionMarkup(text: string): string {
 
 export function mentionMarkup(platform: string, id: string, name?: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id)) throw new Error(`Invalid platform user id ${id}`);
-  if (platform === 'feishu' || platform === 'lark')
+  if (['feishu', 'lark', 'slack', 'discord'].includes(platform))
     return `<at user_id="${id}">${(name ?? '').replace(/[<>&"]/gu, '')}</at>`;
   throw new Error(`Mentions are not supported on ${platform}`);
+}
+
+export function leadingMentions(text: string): {
+  mentions: { id: string; name: string }[];
+  text: string;
+} {
+  const mentions: { id: string; name: string }[] = [];
+  let rest = text;
+  for (;;) {
+    const match = /^<at user_id="([A-Za-z0-9_-]{1,128})">([^<]*)<\/at>\s*/u.exec(rest);
+    if (match === null) return { mentions, text: rest };
+    mentions.push({ id: match[1]!, name: match[2]! });
+    rest = rest.slice(match[0].length);
+  }
 }
