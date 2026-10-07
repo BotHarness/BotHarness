@@ -17,6 +17,21 @@ import { Document, isMap, isSeq, parseDocument } from 'yaml';
 export const AX_MODEL_PATH = join(homedir(), '.config', 'botharness', 'ax-model.json');
 export const GO_KEY_REF = 'OPENCODE_GO_API_KEY';
 export const DEFAULT_GO_MODEL = 'deepseek-v4-flash';
+export const GO_SESSION_PATCH = resolve(
+  import.meta.dirname,
+  '../patches/@deepseek-ai__dsh-llm-pi-ai@0.2.0-rc.1.patch',
+);
+
+export function axRuntimeWorkspace(source) {
+  const document = parseDocument(source);
+  if (document.errors.length || !isMap(document.contents))
+    throw new Error('Invalid AX runtime workspace');
+  document.setIn(
+    ['patchedDependencies', '@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.1'],
+    GO_SESSION_PATCH,
+  );
+  return String(document);
+}
 
 function protectedPath(path, directory = false) {
   const stat = lstatSync(path);

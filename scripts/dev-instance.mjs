@@ -30,6 +30,7 @@ import {
   axModelEnvironment,
   assertInstalledGoModel,
   axModelPatch,
+  axRuntimeWorkspace,
 } from './dev-model.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -270,9 +271,15 @@ async function main() {
   const secret = resolveDevSecret();
   options.axModel = resolveAxModel();
   mkdirSync(options.home, { recursive: true });
-  if (options.productArtifacts) {
-    verifiedProductArtifacts(options.productArtifacts);
-    options.runtime = join(options.home, 'packaged-cli');
+  if (options.productArtifacts || options.axModel) {
+    const version = options.productArtifacts
+      ? verifiedProductArtifacts(options.productArtifacts).dsh
+      : JSON.parse(readFileSync(join(options.worktree, 'package.json'), 'utf8')).devDependencies[
+          '@deepseek-ai/dsh'
+        ];
+    if (options.axModel && version !== '0.2.0-rc.1')
+      throw new Error('AX Go session qualification requires DSH 0.2.0-rc.1');
+    options.runtime = join(options.home, options.productArtifacts ? 'packaged-cli' : 'ax-cli');
     mkdirSync(options.runtime, { recursive: true });
     const runtimeWorkspace = join(options.runtime, 'pnpm-workspace.yaml');
     if (!existsSync(runtimeWorkspace))
@@ -280,9 +287,11 @@ async function main() {
         runtimeWorkspace,
         "packages: [.]\nallowBuilds:\n  '@deepseek-ai/dsh-subprocess-local': true\n  '@google/genai': false\n  koffi: true\n  node-pty: true\n  protobufjs: false\n",
       );
+    if (options.axModel)
+      writeFileSync(runtimeWorkspace, axRuntimeWorkspace(readFileSync(runtimeWorkspace, 'utf8')));
     writeFileSync(
       join(options.runtime, 'package.json'),
-      `${JSON.stringify({ name: 'botharness-packaged-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': verifiedProductArtifacts(options.productArtifacts).dsh } }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'botharness-isolated-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': version } }, null, 2)}\n`,
     );
     const [command, args] = pnpmCommand(['install']);
     run(command, args, { cwd: options.runtime });

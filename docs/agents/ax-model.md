@@ -40,6 +40,28 @@ DeepSeek setup remains the fallback when no AX selection exists. To rotate the s
 inspect and remove the private file yourself, then rerun setup; active Hosts keep their inherited
 environment until restarted.
 
+### Native Go Session header on DSH 0.2.0 RC1
+
+OpenCode Go requires `x-opencode-session` for the actual conversation as well as request
+attribution. The pinned native adapter forwards `sessionId` to its underlying SDK but omits
+this header; the first real QA turn failed with HTTP 400 `MissingSessionID`.
+
+For an opted-in AX launch, the helper installs an independent pinned CLI under the isolated
+home's `ax-cli` directory (or `packaged-cli` for product-artifact qualification). It applies the
+reviewed `dsh-llm-pi-ai@0.2.0-rc.1` pnpm patch: only the Go route adds the actual
+`GenerateOptions.sessionId`, removes case-insensitive collisions with a configured static
+header, and retains native `User-Agent` attribution and other headers. Missing Session identity
+stays missing; no fixed, random or substitute identity is supplied. Other Providers keep their
+existing headers. The Go qualification refuses a different DSH version until reverified.
+
+This changes no global CLI or application permissions. Each opted-in AX home gets its own
+runtime, while model selection and the credential reference remain launch Patches. See the
+[Go request requirements](https://opencode.ai/docs/go/#where-can-i-use-it) and
+[upstream DSH discussion](https://github.com/deepseek-ai/deepseek-harness/discussions/5495).
+Remove this temporary patch only after the pinned upstream adapter passes the same regression
+and a real DM verification. The qualification's [actual DM screenshot](../qa/ax-opencode-go-reply.png)
+shows the model using `channel_send` and the committed reply in the Channel.
+
 Open the launcher's local login URL, create/use a QA PersonaBot and obtain a real DM reply before
 claiming model usability. `check` and `/api` health establish configuration and transport only.
 Model access and Lark App ID/App Secret are separate credentials; Lark still uses the normal DSH

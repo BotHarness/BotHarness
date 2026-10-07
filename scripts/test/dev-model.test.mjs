@@ -18,6 +18,7 @@ import {
   assertInstalledGoModel,
   axModelEnvironment,
   axModelPatch,
+  axRuntimeWorkspace,
   DEFAULT_GO_MODEL,
   resolveAxModel,
   saveAxModel,
@@ -34,6 +35,18 @@ afterEach(() => {
 });
 
 describe('AX native OpenCode Go reuse', () => {
+  it('qualifies the independent CLI without replacing other workspace decisions', () => {
+    const workspace = parse(
+      axRuntimeWorkspace(
+        'packages: [.]\nallowBuilds: {koffi: true}\npatchedDependencies: {other: other.patch}\n',
+      ),
+    );
+    expect(workspace.allowBuilds).toEqual({ koffi: true });
+    expect(workspace.patchedDependencies.other).toBe('other.patch');
+    expect(workspace.patchedDependencies['@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.1']).toContain(
+      '/patches/',
+    );
+  });
   it('requires explicit setup, then shares a protected key with successive launches', () => {
     const { path } = fixture();
     expect(
