@@ -36,7 +36,12 @@ import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createProfileCardBuiltins } from './profile-cards-builtins.js';
 import { createGroupProfileCards } from './group-profile.js';
 import { createProfileCardRegistry } from './profile-cards.js';
-import { createBridgeCall, loadActivitySnapshot, loadSessionBotOwner } from './bridge.js';
+import {
+  createBridgeCall,
+  loadActivitySnapshot,
+  loadSessionBotOwner,
+  botExists,
+} from './bridge.js';
 import {
   SessionOwnerLeading,
   SessionReturnAction,
@@ -128,6 +133,7 @@ export function apply(ctx: ClientContext): void {
   });
   const companion = new WindowCompanion({
     storage,
+    exists: (botId) => botExists(call, botId),
     onActivity: (snapshot) => store.applyActivity(snapshot),
     context: async () => {
       const response = await fetch('/api/botharness/companion', { credentials: 'same-origin' });
@@ -146,10 +152,13 @@ export function apply(ctx: ClientContext): void {
   });
   ctx.effect(() => {
     void companion.start();
+    let mirrored: 'live' | 'stale' | undefined;
     const off = companion.subscribe(() => {
       const value = companion.getSnapshot();
-      if (value.selection === undefined) return;
-      const sync = value.sync === 'live' ? 'live' : 'stale';
+      if (value.selection === undefined && mirrored === undefined) return;
+      const sync = value.selection === undefined || value.sync === 'live' ? 'live' : 'stale';
+      if (sync === mirrored) return;
+      mirrored = value.selection === undefined ? undefined : sync;
       store.setActivitySync(sync);
       if (typeof document !== 'undefined') {
         if (sync === 'stale') document.documentElement.dataset['botharnessActivity'] = 'stale';

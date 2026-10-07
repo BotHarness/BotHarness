@@ -6,6 +6,48 @@ afterEach(() => {
   for (const owner of controllers.splice(0)) owner.dispose();
 });
 
+it('checks a closed stream against a fresh Registry result and preserves pins on lookup failure or replacement', async () => {
+  const streams: EventTarget[] = [];
+  let result = async (): Promise<boolean> => {
+    throw new Error('Registry unavailable');
+  };
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    exists: () => result(),
+    source: () => {
+      const events = new EventTarget();
+      streams.push(events);
+      return {
+        readyState: 2,
+        addEventListener: events.addEventListener.bind(events),
+        close() {},
+      };
+    },
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  streams[0]!.dispatchEvent(new Event('error'));
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection?.botId).toBe('ada');
+  expect(owner.getSnapshot().sync).toBe('stale');
+  let resolve: ((exists: boolean) => void) | undefined;
+  result = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  streams[0]!.dispatchEvent(new Event('error'));
+  owner.select('grace');
+  resolve!(false);
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection?.botId).toBe('grace');
+  result = async () => false;
+  streams[1]!.dispatchEvent(new Event('error'));
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection).toBeUndefined();
+});
+
 it('restores selection per Profile without old cards, consumes outside Bot mode, and closes when removed', async () => {
   const saved = new Map<string, string>();
   const streams: { target: EventTarget; close: ReturnType<typeof vi.fn> }[] = [];

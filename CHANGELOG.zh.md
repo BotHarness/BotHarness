@@ -52,6 +52,8 @@
 
 ### Fixed
 
+- 取消窗口伙伴钉选会清除其 Activity 连接异常提示；成功加载 Bot 名单后，会清理已删除 Bot 的恢复钉选，网络失败仍保留用户钉选偏好（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
 - 窗口伙伴向左右拖动时，身体按惯性落后于抓取点；落地贴住窗口内容区底边，不再保留底部间隙（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
 
 - Bot 读到的 IM @ 改成名字，不再是平台占位符：飞书的 `@_user_1` 和 Slack 的 `<@U…>` 以 `@名字` 交给模型（平台没给名字时用 `@ID`），每条外部消息还列出发送人和被 @ 的人及其平台 ID。Bot 在 `bridge_reply` 正文任意位置写 `<@ID>`，就能在飞书、Slack 或 Discord 上 @ 这条消息的发送人或其中被 @ 的人（Slack 和 Discord 通过 IM Provider 的 checked @ 提醒，旧版 Provider 退回 `@名字` 文字）；其他 ID 或 @ 标记按纯文本发出（[#1126](https://github.com/BotHarness/BotHarness/issues/1126)）。

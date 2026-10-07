@@ -36,6 +36,7 @@ export interface CompanionViewState {
   reading: boolean;
 }
 interface CompanionStream {
+  readonly readyState?: number;
   addEventListener(name: string, listener: (event: Event) => void): void;
   close(): void;
 }
@@ -43,6 +44,7 @@ interface CompanionDependencies {
   onActivity?(snapshot: PersonaBotActivitySnapshot): void;
   storage?: ConfigStorage | undefined;
   context(): Promise<{ profileId: string }>;
+  exists?(botId: string): Promise<boolean>;
   source(url: string): CompanionStream;
 }
 const object = (value: unknown): Record<string, unknown> | undefined =>
@@ -317,7 +319,15 @@ export class WindowCompanion {
       } else this.update({ cards: [...this.state.cards, card].slice(-20) });
     });
     stream.addEventListener('error', () => {
-      if (!this.disposed && this.stream === stream) this.update({ sync: 'stale' });
+      if (this.disposed || this.stream !== stream) return;
+      this.update({ sync: 'stale' });
+      if (stream.readyState === 2)
+        void this.deps
+          .exists?.(selection.botId)
+          .then((exists) => {
+            if (!exists && !this.disposed && this.stream === stream) this.remove();
+          })
+          .catch(() => undefined);
     });
   }
   dispose(): void {
