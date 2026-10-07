@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- AX isolated Profiles can reuse a machine-local OpenCode Go credential and native default model after one hidden-input setup, preserving independent Profile configuration; the qualified DSH 0.2.0 RC1 adapter supplies the actual Session header required for real Go replies ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [guide](docs/agents/ax-model.md)).
+
 - Qualified personal WeChat owner-DM text reports use the canonical external-only Outbox with current-authorization fences and actionable private-context refusal. Profile exposes explicit posting; client acknowledgement and any genuine native server message ID remain distinct, without claiming delivery/read receipts ([#910](https://github.com/BotHarness/BotHarness/issues/910), [guide](docs/wechat-connection.md)).
 
 - Personal WeChat paired-owner messages can use Channel connectors for explicit local DM/Group placement or Inbox-only reception, sharing one Source Event with independent member wake policy. Shared readers need their own identity and Grant to reply; native WeChat groups and threads remain unsupported ([#909](https://github.com/BotHarness/BotHarness/issues/909)).

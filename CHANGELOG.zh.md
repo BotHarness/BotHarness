@@ -9,6 +9,8 @@
 
 ### Added
 
+- AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。
+
 - 个人微信已授权扫码者私聊支持受控主动文字报告，复用纯外部 Outbox、发送前授权检查及私有上下文缺失的恢复提示；Profile 可显式投递，客户端确认和实际返回的原生服务器消息 ID 分开记录，不宣称送达或已读回执（[#910](https://github.com/BotHarness/BotHarness/issues/910)，[指南](docs/wechat-connection.md)）。
 
 - 个人微信扫码者私聊支持频道连接器，可明确投递到本地 DM／群聊或仅进入 Bot Inbox；多个目标引用同一 Source Event，各成员独立设置唤醒。共享阅读者对外回复仍需自己的身份和授权，不代表支持原生微信群或话题（[#909](https://github.com/BotHarness/BotHarness/issues/909)）。
