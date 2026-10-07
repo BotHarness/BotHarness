@@ -12,7 +12,7 @@ import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { WindowCompanion } from './window-companion.js';
 import { CompanionMotion } from './companion-motion.js';
-import type { CompanionBubbles } from './companion-bubbles.js';
+import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -39,7 +39,8 @@ export function WindowCompanionView({
   latest.current = view;
   const [motion] = useState(() => new CompanionMotion());
   const [point, setPoint] = useState(motion.point);
-  const [bubbleOffset, setBubbleOffset] = useState(0);
+  const [bubble, setBubble] = useState<BubblePlacement | undefined>(undefined);
+  const bubbleOffset = bubble?.offset ?? 0;
   const root = useRef<HTMLDivElement | null>(null);
   const pointer = useRef<
     | {
@@ -131,21 +132,28 @@ export function WindowCompanionView({
           const previousPoint = motion.point;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
           if (state.selection) {
-            if (state.selection.activity || state.sync !== 'live' || state.cards.length)
-              setBubbleOffset(
-                bubbles?.place(
-                  state.selection.botId,
-                  next.x,
-                  next.y,
-                  next.width,
-                  window.innerHeight,
-                  state.cards.length > 0,
-                  state.reading,
-                ) ?? 0,
+            if (state.selection.activity || state.sync !== 'live' || state.cards.length) {
+              const placement = bubbles?.place(
+                state.selection.botId,
+                next.x,
+                next.y,
+                next.width,
+                window.innerHeight,
+                state.reading
+                  ? state.cards.length
+                  : Math.min(state.cards.length, state.capacity.layers),
+                state.reading,
               );
-            else {
+              setBubble((previous) =>
+                previous?.offset === placement?.offset &&
+                previous?.left === placement?.left &&
+                previous?.cardHeight === placement?.cardHeight
+                  ? previous
+                  : placement,
+              );
+            } else {
               bubbles?.remove(state.selection.botId);
-              setBubbleOffset(0);
+              setBubble(undefined);
             }
           }
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
@@ -204,7 +212,9 @@ export function WindowCompanionView({
     { id: 'remove', label: t('companion.remove') },
   ];
   const cards = view.reading ? view.cards : view.cards.slice(-view.capacity.layers);
-  const bubbleLeft = Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
+  const bubbleLeft = bubble
+    ? bubble.left - point.x
+    : Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
   return (
     <div ref={mount} className="bh-root bh-companion-stage">
       <section
@@ -248,10 +258,11 @@ export function WindowCompanionView({
               left: bubbleLeft,
               bottom: 174 + bubbleOffset,
               height: view.reading
-                ? Math.min(
+                ? (bubble?.cardHeight ??
+                  Math.min(
                     cards.length * 112,
                     Math.max(112, window.innerHeight - point.y - 174 - bubbleOffset - 16),
-                  )
+                  ))
                 : 112,
             }}
           >

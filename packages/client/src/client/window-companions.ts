@@ -92,6 +92,9 @@ export class WindowCompanions {
   private scheduled = false;
   private sending = false;
   private dirty = false;
+  private controlFailed = false;
+  private retryAttempt = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private disposed = false;
   constructor(private readonly deps: Dependencies) {}
   getSnapshot = () => this.state;
@@ -165,7 +168,7 @@ export class WindowCompanions {
           this.remove(selected.botId);
           return;
         }
-        if (value) this.preferences.set(selected.botId, value);
+        this.preferences.set(selected.botId, value);
         this.save();
         this.notify();
       },
@@ -179,6 +182,7 @@ export class WindowCompanions {
     this.children.delete(botId);
     this.preferences.delete(botId);
     if (!this.children.size) {
+      this.resetRetry();
       this.stream?.close();
       this.stream = undefined;
       this.consumerId = undefined;
@@ -187,6 +191,7 @@ export class WindowCompanions {
     this.save();
   }
   configureCapacity(value: CompanionCapacity): void {
+    this.revision++;
     this.state = { ...this.state, capacity: capacity(value) };
     for (const child of this.children.values()) child.setCapacity(this.state.capacity);
     this.schedule();
@@ -224,6 +229,7 @@ export class WindowCompanions {
         this.connect();
       } catch (error) {
         this.streams.delete(botId);
+        this.revision++;
         this.state = { ...this.state, sync: 'stale' };
         this.notify();
         throw error;
@@ -262,10 +268,18 @@ export class WindowCompanions {
         this.consumerId = value['consumerId'];
         for (const child of this.streams.values()) child.ready = false;
         this.schedule();
+      } else if (value['consumerId'] !== this.consumerId) return;
+      if (
+        typeof value['selectionRevision'] === 'number' &&
+        value['selectionRevision'] >= this.revision
+      ) {
+        this.controlFailed = false;
+        this.resetRetry();
       }
       this.deps.onActivity?.(activity);
-      this.state = { ...this.state, sync: 'live' };
+      this.state = { ...this.state, sync: this.controlFailed ? 'stale' : 'live' };
       this.notify();
+      const activityByBot = new Map(activity.bots.map((item) => [item.slug, item]));
       for (const bot of value['bots']) {
         const data = record(bot);
         if (typeof data?.['slug'] !== 'string') continue;
@@ -286,7 +300,7 @@ export class WindowCompanions {
               bot,
               activity: {
                 ...activity,
-                bots: activity.bots.filter((item) => item.slug === data['slug']),
+                bots: activityByBot.has(data['slug']) ? [activityByBot.get(data['slug'])!] : [],
               },
             }),
           }),
@@ -309,12 +323,14 @@ export class WindowCompanions {
     stream.addEventListener('error', () => {
       if (this.disposed || this.stream !== stream) return;
       this.consumerId = undefined;
+      this.resetRetry();
       this.state = { ...this.state, sync: 'stale' };
       for (const child of this.streams.values()) child.events.dispatchEvent(new Event('error'));
       this.notify();
     });
   }
   private schedule(): void {
+    this.resetRetry();
     this.dirty = true;
     if (this.scheduled || this.disposed) return;
     this.scheduled = true;
@@ -333,33 +349,52 @@ export class WindowCompanions {
     if (this.sending || !this.consumerId || this.disposed) return;
     this.sending = true;
     const stream = this.stream;
+    let consumerId = this.consumerId;
     try {
       while (this.dirty && this.consumerId && this.stream === stream && !this.disposed) {
         this.dirty = false;
+        consumerId = this.consumerId;
         await this.deps.update({
-          consumerId: this.consumerId,
+          consumerId,
           selections: [...this.streams].map(([botId, item]) => ({ botId, dm: item.dm })),
           capacity: this.state.capacity.retention,
           revision: this.revision,
         });
       }
     } catch {
-      if (!this.disposed && this.stream === stream) {
+      if (!this.disposed && this.stream === stream && this.consumerId === consumerId) {
+        this.controlFailed = true;
         this.state = { ...this.state, sync: 'stale' };
         for (const child of this.streams.values()) {
           child.failed = true;
           child.events.dispatchEvent(new Event('error'));
         }
         this.notify();
+        if (this.retryAttempt < 2) {
+          this.retryTimer = setTimeout(
+            () => {
+              this.retryTimer = undefined;
+              this.dirty = true;
+              void this.send();
+            },
+            [250, 1000][this.retryAttempt++]!,
+          );
+        }
       }
     } finally {
       this.sending = false;
       if (this.dirty && this.consumerId) void this.send();
     }
   }
+  private resetRetry(): void {
+    if (this.retryTimer !== undefined) clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
+    this.retryAttempt = 0;
+  }
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.resetRetry();
     for (const child of this.children.values()) child.dispose();
     this.stream?.close();
     this.stream = undefined;

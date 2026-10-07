@@ -1,6 +1,121 @@
 import { expect, it, vi } from 'vitest';
 import { WindowCompanions } from '../src/client/window-companions.js';
 
+it('retries a temporarily rejected selection without reopening the feed and keeps stale until acknowledgement', async () => {
+  vi.useFakeTimers();
+  const events = new EventTarget();
+  const updates: { consumerId: string; revision: number }[] = [];
+  const source = vi.fn(() => ({
+    readyState: 1,
+    addEventListener: events.addEventListener.bind(events),
+    close() {},
+  }));
+  const owner = new WindowCompanions({
+    context: async () => ({ profileId: 'qa' }),
+    source,
+    update: async (value) => {
+      updates.push(value);
+      if (updates.length === 1) throw new Error('Temporary failure');
+    },
+  });
+  const emit = (revision: number, bots: string[]) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/selection', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          consumerId: 'live',
+          selectionRevision: revision,
+          bots: bots.map((slug) => ({ slug, name: slug, paused: false })),
+          activity: {
+            generation: 'host',
+            revision,
+            bots: bots.map((slug) => ({ slug, state: 'idle' })),
+          },
+        }),
+      }),
+    );
+  try {
+    await owner.start();
+    owner.select('ada');
+    await Promise.resolve();
+    events.dispatchEvent(
+      new MessageEvent('companion/baseline', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          consumerId: 'live',
+          selectionRevision: 0,
+          bots: [],
+          activity: { generation: 'host', revision: 0, bots: [] },
+        }),
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(owner.getSnapshot().sync).toBe('stale');
+    emit(0, []);
+    expect(owner.getSnapshot().sync).toBe('stale');
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(updates).toHaveLength(2);
+    emit(updates.at(-1)!.revision, ['ada']);
+    expect(owner.getSnapshot().sync).toBe('live');
+    expect(owner.get('ada')!.getSnapshot().bot?.slug).toBe('ada');
+    expect(source).toHaveBeenCalledOnce();
+  } finally {
+    owner.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it('ignores an old consumer rejection after a new baseline and bounds persistent selection retries', async () => {
+  vi.useFakeTimers();
+  const events = new EventTarget();
+  let rejectOld: (error: Error) => void = () => {};
+  const update = vi.fn(async (value: { consumerId: string }) => {
+    if (value.consumerId === 'old')
+      return new Promise<void>((_resolve, reject) => {
+        rejectOld = reject;
+      });
+    throw new Error('Unavailable');
+  });
+  const owner = new WindowCompanions({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({
+      readyState: 1,
+      addEventListener: events.addEventListener.bind(events),
+      close() {},
+    }),
+    update,
+  });
+  const baseline = (consumerId: string) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/baseline', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          consumerId,
+          selectionRevision: 0,
+          bots: [],
+          activity: { generation: 'host', revision: 0, bots: [] },
+        }),
+      }),
+    );
+  try {
+    await owner.start();
+    owner.select('ada');
+    await Promise.resolve();
+    baseline('old');
+    await vi.advanceTimersByTimeAsync(0);
+    baseline('new');
+    rejectOld(new Error('Gone'));
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(update.mock.calls.filter(([value]) => value.consumerId === 'new')).toHaveLength(3);
+    expect(owner.getSnapshot().sync).toBe('stale');
+    owner.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    owner.dispose();
+    vi.useRealTimers();
+  }
+});
+
 it('removes only a confirmed missing Bot after subscription rejection and keeps the remaining shared feed', async () => {
   const events = new EventTarget();
   const source = vi.fn(() => ({

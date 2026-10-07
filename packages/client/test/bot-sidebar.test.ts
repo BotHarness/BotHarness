@@ -1,4 +1,6 @@
-import { createElement, type ReactNode } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -61,6 +63,7 @@ import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
+import { WindowCompanions } from '../src/client/window-companions.js';
 
 const AT = '2026-09-19T00:00:00.000Z';
 
@@ -517,6 +520,62 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
+  it('selects and removes a companion through the real DM context menu without changing Channel pins', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    store.setRoster([BOT], [DM_CHANNEL]);
+    const actions = stubActions();
+    const source = vi.fn(() => ({ addEventListener() {}, close() {} }));
+    const companion = new WindowCompanions({
+      context: async () => ({ profileId: 'sidebar-qa' }),
+      source,
+      update: async () => {},
+    });
+    await companion.start();
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    try {
+      await act(() =>
+        root.render(
+          createElement(BotSidebar, {
+            wide: true,
+            actions,
+            companion,
+            useBotModePrefs: ((selector: (snapshot: BotModePrefsSnapshot) => unknown) =>
+              selector(prefs)) as never,
+            setSortMode,
+            setSectionSortMode,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const open = () =>
+        node
+          .querySelector('[data-channel-id="dm-atlas"]')!
+          .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await act(open);
+      expect(
+        menuWithItem('companion').items.find((item) => item['id'] === 'companion')?.['label'],
+      ).toBe(zhTranslate('companion.show'));
+      await act(() => menuWithItem('companion').onSelect!('companion'));
+      expect(companion.get('atlas')?.getSnapshot().selection?.botId).toBe('atlas');
+      expect(actions.setChannelPinned).not.toHaveBeenCalled();
+      expect(source).toHaveBeenCalledOnce();
+      captured.menus.length = 0;
+      await act(open);
+      expect(
+        menuWithItem('companion').items.find((item) => item['id'] === 'companion')?.['label'],
+      ).toBe(zhTranslate('companion.remove'));
+      await act(() => menuWithItem('companion').onSelect!('companion'));
+      expect(companion.get('atlas')).toBeUndefined();
+      expect(actions.setChannelPinned).not.toHaveBeenCalled();
+    } finally {
+      await act(() => root.unmount());
+      node.remove();
+      companion.dispose();
+    }
+  });
+
   it('keeps Activity Center out of the Channel roster in both layouts', () => {
     store.select({ kind: 'inbox' });
     expect(renderSidebar()).not.toContain('bh-human-inbox-entry');

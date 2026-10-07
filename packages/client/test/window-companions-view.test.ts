@@ -3,12 +3,9 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { WindowCompanions } from '../src/client/window-companions.js';
-import {
-  WindowCompanionsView,
-  CompanionPin,
-  CompanionSettings,
-} from '../src/client/window-companions-view.js';
+import { WindowCompanionsView, CompanionSettings } from '../src/client/window-companions-view.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { GroupChannelHeader } from '../src/client/group-channel-header.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -19,7 +16,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   }: {
     anchor: ReactNode;
     open: boolean;
-    items: { id: string; label?: string }[];
+    items: { id: string; label?: string; disabled?: boolean }[];
     onSelect(id: string): void;
   }) =>
     createElement(
@@ -32,7 +29,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
             .map((item) =>
               createElement(
                 'button',
-                { key: item.id, onClick: () => onSelect(item.id) },
+                { key: item.id, disabled: item.disabled, onClick: () => onSelect(item.id) },
                 item.label,
               ),
             )
@@ -54,6 +51,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconNewChatOutlineRegular: () => null,
   IconPinFillRegular: () => null,
   IconPinOutlineRegular: () => null,
+  Tooltip: ({ children }: { children: ReactNode }) => children,
 }));
 
 it('pins independently, exposes right-click controls and applies global bounded card capacity', async () => {
@@ -92,8 +90,26 @@ it('pins independently, exposes right-click controls and applies global bounded 
         createElement(
           'div',
           {},
-          createElement(CompanionPin, { companion: owner, botId: 'ada', t: zhTranslate }),
-          createElement(CompanionPin, { companion: owner, botId: 'grace', t: zhTranslate }),
+          createElement(GroupChannelHeader, {
+            companion: owner,
+            channel: {
+              id: 'qa-group',
+              type: 'group',
+              name: 'QA',
+              members: ['ada', 'grace'],
+              createdAt: '2026-10-08T00:00:00Z',
+              updatedAt: '2026-10-08T00:00:00Z',
+            },
+            title: 'QA',
+            members: [
+              { personaBotId: 'ada', name: 'Ada' },
+              { personaBotId: 'grace', name: 'Grace' },
+            ],
+            expanded: false,
+            onOpenActivity() {},
+            onToggleProfile() {},
+            t: zhTranslate,
+          }),
           createElement(WindowCompanionsView, {
             companion: owner,
             openDm() {},
@@ -107,6 +123,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
     );
     const pins = node.querySelectorAll<HTMLButtonElement>('.bh-companion-pin');
     expect(pins).toHaveLength(2);
+    expect(pins[0]!.getAttribute('aria-label')).toContain('Ada');
+    expect(pins[1]!.getAttribute('aria-label')).toContain('Grace');
+    expect(node.querySelector('button button')).toBeNull();
     await act(() => {
       pins[0]!.click();
       pins[1]!.click();
@@ -151,7 +170,25 @@ it('pins independently, exposes right-click controls and applies global bounded 
     expect(bubbles[0]!.style.bottom).not.toBe(bubbles[1]!.style.bottom);
     expect([...pins].map((pin) => pin.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
     const grace = node.querySelector<HTMLElement>('[data-bot="grace"]')!;
+    await act(() => {
+      for (let i = 0; i < 3; i++)
+        events.dispatchEvent(
+          new MessageEvent('companion/message', {
+            data: JSON.stringify({
+              generation: 'host',
+              botId: 'grace',
+              messageId: `grace-${i}`,
+              channelId: 'grace-dm',
+              channelName: 'Grace',
+              body: `Grace ${i}`,
+            }),
+          }),
+        );
+    });
     await act(() => grace.querySelector<HTMLButtonElement>('.bh-companion-character')!.focus());
+    await act(() => {
+      for (const callback of [...frames.values()]) callback(performance.now() + 30);
+    });
     const readingAnchor = grace.querySelector<HTMLElement>('.bh-companion-activity')!.style.bottom;
     await act(() => {
       events.dispatchEvent(
@@ -174,7 +211,33 @@ it('pins independently, exposes right-click controls and applies global bounded 
     expect(grace.querySelector<HTMLElement>('.bh-companion-activity')!.style.bottom).toBe(
       readingAnchor,
     );
-    expect(grace.querySelector('.bh-companion-card')).toBeNull();
+    expect(grace.querySelectorAll('.bh-companion-card')).toHaveLength(3);
+    expect(grace.textContent).not.toContain('Independent message');
+    const bounds = (botId: string) => {
+      const character = node.querySelector<HTMLElement>(`[data-bot="${botId}"]`)!;
+      const cards = character.querySelector<HTMLElement>('.bh-companion-cards')!;
+      const left = Number.parseFloat(character.style.left) + Number.parseFloat(cards.style.left);
+      const bottom = Number.parseFloat(cards.style.bottom);
+      return {
+        left,
+        right: left + 320,
+        bottom,
+        top: bottom + Number.parseFloat(cards.style.height),
+      };
+    };
+    const graceBounds = bounds('grace');
+    const adaBounds = bounds('ada');
+    expect(
+      adaBounds.right <= graceBounds.left ||
+        adaBounds.left >= graceBounds.right ||
+        adaBounds.top <= graceBounds.bottom ||
+        adaBounds.bottom >= graceBounds.top,
+    ).toBe(true);
+    await act(() => {
+      owner.get('grace')!.reading(false);
+      for (const card of owner.get('grace')!.getSnapshot().cards)
+        owner.get('grace')!.dismiss(card.messageId);
+    });
     await act(() => owner.get('grace')!.configure({ activity: false }));
     for (let tick = 1; tick <= 2; tick++)
       await act(() => {
