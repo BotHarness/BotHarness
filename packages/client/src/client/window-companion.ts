@@ -1,5 +1,9 @@
 import type { CompanionBot, CompanionMessage } from '../../../core/src/companions/feed.js';
 import {
+  companionSourceEnabled,
+  companionMessageIdentity,
+} from '../../../core/src/companions/sources.js';
+import {
   messagePreview,
   messageGraphemeBoundaries,
 } from '../../../core/src/channels/message-preview.js';
@@ -61,21 +65,6 @@ function decode(event: Event): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
-}
-
-function eligible(
-  source: unknown,
-  selection: CompanionSelection,
-): source is NonNullable<CompanionMessage['source']> {
-  return (
-    (source === 'own-dm' ||
-      source === 'bot-dm' ||
-      source === 'shared-group' ||
-      source === 'bot-group') &&
-    (source === 'own-dm' || source === 'bot-dm' ? selection.dm : selection.group) &&
-    (selection.visibility !== 'own-dm' || source === 'own-dm') &&
-    (selection.visibility !== 'shared' || (source !== 'bot-dm' && source !== 'bot-group'))
-  );
 }
 
 export class WindowCompanion {
@@ -247,8 +236,13 @@ export class WindowCompanion {
       return;
     this.update({ cards });
   }
-  dismiss(messageId: string): void {
-    this.update({ cards: this.state.cards.filter((card) => card.messageId !== messageId) });
+  dismiss(messageId: string, channelId?: string): void {
+    this.update({
+      cards: this.state.cards.filter(
+        (card) =>
+          card.messageId !== messageId || (channelId !== undefined && card.channelId !== channelId),
+      ),
+    });
   }
   private save(): void {
     this.deps.onSelection?.(this.state.selection);
@@ -269,11 +263,15 @@ export class WindowCompanion {
     const selection = this.state.selection;
     const cards =
       preserve && selection
-        ? this.state.cards.filter((card) => eligible(card.source ?? 'own-dm', selection))
+        ? this.state.cards.filter((card) =>
+            companionSourceEnabled(card.source ?? 'own-dm', selection),
+          )
         : [];
     const pending =
       preserve && selection
-        ? this.pendingCards.filter((card) => eligible(card.source ?? 'own-dm', selection))
+        ? this.pendingCards.filter((card) =>
+            companionSourceEnabled(card.source ?? 'own-dm', selection),
+          )
         : [];
     const seen = preserve ? this.seen : [];
     this.disconnect();
@@ -310,7 +308,9 @@ export class WindowCompanion {
           ? bot['appearance']
           : undefined;
       if (
-        (baseline && this.preservedGeneration !== activity.generation) ||
+        (baseline &&
+          this.preservedGeneration !== activity.generation &&
+          !(value?.['recovered'] === true && this.generation === activity.generation)) ||
         (this.generation !== undefined && this.generation !== activity.generation)
       ) {
         this.seen = [];
@@ -339,7 +339,7 @@ export class WindowCompanion {
       const value = decode(event);
       const current = this.state.selection;
       const source = value?.['source'] ?? 'own-dm';
-      if (!current || !eligible(source, current)) return;
+      if (!current || !companionSourceEnabled(source, current)) return;
       if (
         value?.['generation'] !== this.generation ||
         value['botId'] !== selection.botId ||
@@ -350,10 +350,10 @@ export class WindowCompanion {
         typeof value['channelId'] !== 'string' ||
         typeof value['channelName'] !== 'string' ||
         typeof value['body'] !== 'string' ||
-        this.seen.includes(value['messageId'])
+        this.seen.includes(companionMessageIdentity(value['channelId'], value['messageId']))
       )
         return;
-      this.seen.push(value['messageId']);
+      this.seen.push(companionMessageIdentity(value['channelId'], value['messageId']));
       if (this.seen.length > this.state.capacity.retention * 4) this.seen.shift();
       const body = messagePreview(value['body']);
       const card: CompanionCard = {

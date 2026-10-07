@@ -13,6 +13,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { WindowCompanion } from './window-companion.js';
 import { CompanionMotion } from './companion-motion.js';
 import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
+import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -111,6 +112,7 @@ export function WindowCompanionView({
         setPoint(next);
       };
       const tick = (now: number) => {
+        frame = 0;
         const milliseconds = Math.min(100, Math.max(0, now - previous));
         previous = now;
         const reduced = reducedMotion();
@@ -162,14 +164,23 @@ export function WindowCompanionView({
           if (next !== previousPoint) setPoint(next);
           if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
-        frame = requestAnimationFrame(tick);
+        if (!document.hidden) frame = requestAnimationFrame(tick);
+      };
+      const visibility = () => {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        previous = performance.now();
+        elapsed = 0;
+        if (!document.hidden) frame = requestAnimationFrame(tick);
       };
       measure();
-      frame = requestAnimationFrame(tick);
+      visibility();
       window.addEventListener('resize', measure);
+      document.addEventListener('visibilitychange', visibility);
       return () => {
         cancelAnimationFrame(frame);
         window.removeEventListener('resize', measure);
+        document.removeEventListener('visibilitychange', visibility);
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
@@ -267,10 +278,11 @@ export function WindowCompanionView({
             }}
           >
             {cards.map((card, index) => {
+              const identity = companionMessageIdentity(card.channelId, card.messageId);
               const layer = cards.length - index - 1;
               const context = [
                 card.source === 'bot-dm' ? card.participants?.join(' ↔ ') : '',
-                card.canOpen === false || unavailable.has(card.messageId)
+                card.canOpen === false || unavailable.has(identity)
                   ? t('companion.sourceUnavailable')
                   : '',
               ]
@@ -278,7 +290,7 @@ export function WindowCompanionView({
                 .join(' · ');
               return (
                 <li
-                  key={card.messageId}
+                  key={identity}
                   ref={(node) => {
                     if (node) node.inert = !view.reading && layer !== 0;
                   }}
@@ -305,12 +317,12 @@ export function WindowCompanionView({
                           try {
                             await openChannel(card.channelId, card.messageId);
                             setUnavailable(
-                              (prior) => new Set([...prior].filter((id) => id !== card.messageId)),
+                              (prior) => new Set([...prior].filter((id) => id !== identity)),
                             );
                           } catch {
                             setUnavailable(
                               (prior) =>
-                                new Set([...prior, card.messageId].slice(-view.capacity.retention)),
+                                new Set([...prior, identity].slice(-view.capacity.retention)),
                             );
                           }
                         }}
@@ -327,7 +339,7 @@ export function WindowCompanionView({
                     <button
                       type="button"
                       aria-label={t('companion.dismiss')}
-                      onClick={() => companion.dismiss(card.messageId)}
+                      onClick={() => companion.dismiss(card.messageId, card.channelId)}
                     >
                       <IconCloseFillRegular size={14} />
                     </button>

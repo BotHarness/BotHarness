@@ -248,6 +248,17 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     const surface = node.querySelector('.bh-companion');
     if (!(character instanceof HTMLButtonElement) || !(surface instanceof HTMLElement))
       throw new Error('Missing companion controls');
+    const visibility = vi.spyOn(document, 'hidden', 'get');
+    visibility.mockReturnValue(true);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(frames.size).toBe(0);
+    visibility.mockReturnValue(false);
+    await act(() => {
+      vi.advanceTimersByTime(30_000);
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(frames.size).toBe(1);
+    visibility.mockRestore();
     character.setPointerCapture = vi.fn();
     character.releasePointerCapture = vi.fn();
     const pointer = (type: string, x: number, y: number, id = 1) => {

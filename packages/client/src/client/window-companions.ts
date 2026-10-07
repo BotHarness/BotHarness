@@ -2,6 +2,11 @@ import { parseActivitySnapshot } from './activity-live.js';
 import type { PersonaBotActivitySnapshot } from './store.js';
 import type { ConfigStorage } from './roster-config.js';
 import {
+  companionSources,
+  companionSourceEnabled,
+  type CompanionEpochs,
+} from '../../../core/src/companions/sources.js';
+import {
   WindowCompanion,
   type CompanionSelection,
   type CompanionStream,
@@ -18,6 +23,7 @@ interface SubscriptionUpdate {
     dm: boolean;
     group: boolean;
     visibility: CompanionSelection['visibility'];
+    epochs: CompanionEpochs;
   }[];
   capacity: number;
   revision: number;
@@ -38,6 +44,7 @@ interface VirtualStream {
   ready: boolean;
   revision: number;
   failed: boolean;
+  epochs: CompanionEpochs;
 }
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -92,8 +99,14 @@ export class WindowCompanions {
   private children = new Map<string, WindowCompanion>();
   private preferences = new Map<string, CompanionSelection>();
   private streams = new Map<string, VirtualStream>();
+  private admissions = new Map<
+    string,
+    Pick<VirtualStream, 'dm' | 'group' | 'visibility' | 'epochs'>
+  >();
   private stream: CompanionStream | undefined;
   private consumerId: string | undefined;
+  private generation: string | undefined;
+  private recovering = false;
   private profileId: string | undefined;
   private revision = 0;
   private scheduled = false;
@@ -188,6 +201,7 @@ export class WindowCompanions {
     this.children.get(botId)?.dispose();
     this.children.delete(botId);
     this.preferences.delete(botId);
+    this.admissions.delete(botId);
     if (!this.children.size) {
       this.resetRetry();
       this.stream?.close();
@@ -236,7 +250,21 @@ export class WindowCompanions {
       ready: false,
       revision: ++this.revision,
       failed: false,
+      epochs: {
+        'own-dm': this.revision,
+        'bot-dm': this.revision,
+        'shared-group': this.revision,
+        'bot-group': this.revision,
+      },
     };
+    const previous = this.admissions.get(botId);
+    if (previous) {
+      virtual.epochs = { ...previous.epochs };
+      for (const source of companionSources)
+        if (companionSourceEnabled(source, previous) !== companionSourceEnabled(source, virtual))
+          virtual.epochs[source] = this.revision;
+    }
+    this.admissions.set(botId, virtual);
     this.streams.set(botId, virtual);
     if (!this.stream) {
       try {
@@ -279,6 +307,8 @@ export class WindowCompanions {
       )
         return;
       if (baseline) {
+        this.recovering = value['recovered'] === true && this.generation === activity.generation;
+        this.generation = activity.generation;
         this.consumerId = value['consumerId'];
         for (const child of this.streams.values()) child.ready = false;
         this.schedule();
@@ -311,6 +341,7 @@ export class WindowCompanions {
           new MessageEvent(name, {
             data: JSON.stringify({
               profileId: this.profileId,
+              recovered: this.recovering,
               bot,
               activity: {
                 ...activity,
@@ -375,6 +406,7 @@ export class WindowCompanions {
             dm: item.dm,
             group: item.group,
             visibility: item.visibility,
+            epochs: item.epochs,
           })),
           capacity: this.state.capacity.retention,
           revision: this.revision,
@@ -419,6 +451,7 @@ export class WindowCompanions {
     this.stream = undefined;
     this.children.clear();
     this.streams.clear();
+    this.admissions.clear();
     this.listeners.clear();
   }
 }
