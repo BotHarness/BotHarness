@@ -29,6 +29,7 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  channels,
   botName = (slug) => slug,
 }: {
   snapshot: MessagingSnapshot | undefined;
@@ -36,6 +37,7 @@ export function ExternalIdentityList({
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  channels?: { id: string; name: string }[];
   botName?(slug: string): string;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
@@ -413,6 +415,7 @@ export function ExternalIdentityList({
                     t={t}
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
+                    {...(channels ? { channels } : {})}
                   />
                 </div>
               ) : null}

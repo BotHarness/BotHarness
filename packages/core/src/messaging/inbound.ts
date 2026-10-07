@@ -663,8 +663,11 @@ export function createInboundMessaging(options: {
                     UNION ALL SELECT 1 FROM channel_placements WHERE source_event_id = ?
                     LIMIT 1`)
                   .get(candidate, candidate, candidate);
+                const implicitDefault =
+                  latest.origin === 'implicit' &&
+                  (event.conversation.kind === 'dm' || event.mentionedAccount);
                 const id = persistSource(db, latest, event);
-                if (existing) return id;
+                if (existing && !implicitDefault) return id;
                 const row = db
                   .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
                   .get(id) as { payload_json: string };
@@ -702,6 +705,7 @@ export function createInboundMessaging(options: {
                       continue;
                     }
                   }
+                  if (implicitDefault) continue;
                   const reason =
                     event.conversation.kind === 'dm'
                       ? 'human-dm'
@@ -1496,7 +1500,7 @@ export function createInboundMessaging(options: {
         entry = providers.get(value.providerId);
         if (!entry?.provider.consume || !entry.provider.reply)
           throw new MessagingError('provider-incompatible');
-        inspected = await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
+        inspected = await bounded(inspectGrant(entry.provider, value));
         if (
           providers.get(value.providerId) !== entry ||
           !inspected.account.connected ||

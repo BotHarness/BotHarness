@@ -2559,6 +2559,13 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-conversation-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); }
 .bh-conversation-group-title small { font-weight: 400; margin-left: 2px; }
 .bh-conversation-reason { font-size: 12px; color: var(--dsw-alias-state-warning-primary, var(--dsw-alias-label-secondary)); }
+.bh-conversation-list .bh-card-main { padding-block: 7px 2px; }
+.bh-conversation-list .bh-card-body { gap: 2px; }
+.bh-conversation-list .bh-card-detail { display: grid; gap: 6px; padding-bottom: 6px; }
+.bh-conversation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bh-conversation-sync { display: grid; gap: 6px; }
+.bh-conversation-sync-title { display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 500; }
+.bh-conversation-sync .bh-modal-footer { gap: 6px; }
 .bh-conversation-confirm { display: grid; gap: 8px; }
 .bh-conversation-confirm p { margin: 0; }
 .bh-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
@@ -2567,7 +2574,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-sidebar-modal { width: min(440px, calc(100vw - 32px)); }
 .bh-sidebar-modal-form, .bh-im-grant-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-size: 13px; }
 .bh-sidebar-modal-form p, .bh-im-grant-body p { margin: 0; }
-.bh-sidebar-modal-form ul { margin: 0; padding-left: 18px; }
+.bh-sidebar-modal-form ul:not(.bh-card-list) { margin: 0; padding-left: 18px; }
 .bh-sidebar-modal-subject { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; overflow-wrap: anywhere; }
 .bh-sidebar-modal-subject .bh-bridge-secondary { width: 100%; margin-top: 0; font-weight: 400; }
 .bh-muted { color: var(--dsw-alias-label-secondary); }
