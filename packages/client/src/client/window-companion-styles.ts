@@ -12,7 +12,9 @@ export const WINDOW_COMPANION_CSS = `
   position: absolute; inset: 0; pointer-events: none; overflow: hidden;
 }
 .bh-companion { position: absolute; width: 96px; height: 96px; pointer-events: auto; }
-.bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; }
+.bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; transform-origin: center 20%; transition: transform 140ms ease-out, transform-origin 140ms ease-out; }
+.bh-companion[data-motion='fall'] .bh-companion-character,
+.bh-companion[data-motion='land'] .bh-companion-character { transform-origin: center bottom; transition: transform 70ms ease-out, transform-origin 140ms ease-out; }
 .bh-companion-character:active { cursor: grabbing; }
 .bh-companion .bh-persona-avatar[data-surface='companion'],
 .bh-companion .bh-persona-avatar[data-surface='companion']::before,

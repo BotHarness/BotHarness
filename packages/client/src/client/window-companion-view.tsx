@@ -11,6 +11,7 @@ import { attentionCount } from './activity-attention.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { WindowCompanion } from './window-companion.js';
+import { CompanionMotion } from './companion-motion.js';
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -29,12 +30,20 @@ export function WindowCompanionView({
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
   latest.current = view;
-  const [point, setPoint] = useState({ x: 0, y: 0, width: 0 });
-  const pointRef = useRef(point);
-  pointRef.current = point;
+  const [motion] = useState(() => new CompanionMotion());
+  const [point, setPoint] = useState(motion.point);
   const root = useRef<HTMLDivElement | null>(null);
   const pointer = useRef<
-    | { id: number; x: number; y: number; originX: number; originY: number; moved: boolean }
+    | {
+        id: number;
+        x: number;
+        y: number;
+        lastX: number;
+        lastY: number;
+        originX: number;
+        originY: number;
+        moved: boolean;
+      }
     | undefined
   >(undefined);
   const direction = useRef(1);
@@ -44,6 +53,16 @@ export function WindowCompanionView({
   const [menu, setMenu] = useState(false);
   const menuOpen = useRef(false);
   menuOpen.current = menu;
+  const reducedMotion = (): boolean =>
+    document.documentElement.dataset['botharnessMotion'] === 'reduce';
+  const persistPosition = (): void => companion.configure({ position: motion.position() });
+  const cancelDrag = (event: { pointerId: number }): void => {
+    if (!pointer.current || pointer.current.id !== event.pointerId || motion.point.phase !== 'drag')
+      return;
+    pointer.current = undefined;
+    setPoint(motion.release(performance.now(), reducedMotion(), true));
+    persistPosition();
+  };
   const leave = (): void => {
     hovering.current = false;
     if (exit.current !== undefined) clearTimeout(exit.current);
@@ -65,23 +84,26 @@ export function WindowCompanionView({
       let frame = 0;
       let previous = performance.now();
       let elapsed = 0;
+      let measured = false;
       const measure = () => {
         const width = node.getBoundingClientRect().width;
-        const x = Math.max(
-          8,
-          Math.min(
-            Math.max(8, width - 104),
-            (latest.current.selection?.position ?? 0.75) * Math.max(0, width - 104),
-          ),
-        );
-        const next = { x, y: 0, width };
-        pointRef.current = next;
+        const next = measured
+          ? motion.resize(width, window.innerHeight)
+          : motion.measure(width, window.innerHeight, latest.current.selection?.position ?? 0.75);
+        measured = true;
+        const drag = pointer.current;
+        if (drag) {
+          drag.x = drag.lastX;
+          drag.y = drag.lastY;
+          drag.originX = next.x;
+          drag.originY = next.y;
+        }
         setPoint(next);
       };
       const tick = (now: number) => {
         const milliseconds = Math.min(100, Math.max(0, now - previous));
         previous = now;
-        const reduced = document.documentElement.dataset['botharnessMotion'] === 'reduce';
+        const reduced = reducedMotion();
         const state = latest.current;
         if (!document.hidden) {
           elapsed += milliseconds;
@@ -89,25 +111,21 @@ export function WindowCompanionView({
             companion.advance(elapsed, reduced);
             elapsed = 0;
           }
-          if (
+          const walking = Boolean(
             state.selection?.walking &&
             state.bot?.paused !== true &&
             state.sync === 'live' &&
             !state.reading &&
+            motion.point.phase === 'rest' &&
             !pointer.current &&
-            !reduced
-          ) {
-            const value = pointRef.current;
-            const limit = Math.max(8, value.width - 104);
-            let x = value.x + direction.current * milliseconds * 0.018;
-            if (x <= 8 || x >= limit) {
-              x = Math.max(8, Math.min(limit, x));
-              direction.current *= -1;
-            }
-            const next = { ...value, x };
-            pointRef.current = next;
-            setPoint(next);
-          }
+            !reduced,
+          );
+          const previousPoint = motion.point;
+          const next = motion.advance(milliseconds, reduced, walking, direction.current);
+          if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
+            direction.current *= -1;
+          if (next !== previousPoint) setPoint(next);
+          if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
         frame = requestAnimationFrame(tick);
       };
@@ -152,6 +170,7 @@ export function WindowCompanionView({
         aria-label={t('companion.label', { name: bot.name })}
         data-reading={view.reading}
         data-sync={view.sync}
+        data-motion={point.phase}
         style={{ left: point.x, bottom: 12 + point.y }}
         onPointerEnter={enter}
         onPointerLeave={leave}
@@ -275,6 +294,9 @@ export function WindowCompanionView({
         <button
           type="button"
           className="bh-companion-character"
+          style={{
+            transform: `rotate(${point.tilt}deg) scale(${1 + point.squash}, ${1 - point.squash})`,
+          }}
           aria-label={t('companion.drag', { name: bot.name })}
           onClick={() => {
             if (!pointer.current?.moved) openDm(bot.slug);
@@ -282,69 +304,58 @@ export function WindowCompanionView({
           onKeyDown={(event) => {
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
-              const x = Math.max(
-                8,
-                Math.min(
-                  Math.max(8, point.width - 104),
-                  point.x + (event.key === 'ArrowLeft' ? -24 : 24),
-                ),
-              );
-              const next = { ...point, x };
-              pointRef.current = next;
-              setPoint(next);
-              companion.configure({ position: x / Math.max(1, point.width - 104) });
+              setPoint(motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)));
+              persistPosition();
             }
           }}
           onPointerDown={(event) => {
-            if (event.button !== 0) return;
+            if (event.button !== 0 || pointer.current) return;
             if (clickReset.current !== undefined) clearTimeout(clickReset.current);
             event.currentTarget.setPointerCapture(event.pointerId);
             pointer.current = {
               id: event.pointerId,
               x: event.clientX,
               y: event.clientY,
-              originX: point.x,
-              originY: point.y,
+              lastX: event.clientX,
+              lastY: event.clientY,
+              originX: motion.point.x,
+              originY: motion.point.y,
               moved: false,
             };
+            setPoint(motion.grab(performance.now(), reducedMotion()));
           }}
           onPointerMove={(event) => {
             const drag = pointer.current;
             if (!drag || drag.id !== event.pointerId) return;
             const dx = event.clientX - drag.x;
             const dy = drag.y - event.clientY;
+            drag.lastX = event.clientX;
+            drag.lastY = event.clientY;
             drag.moved ||= Math.hypot(dx, dy) > 6;
             if (!drag.moved) return;
-            const next = {
-              width: point.width,
-              x: Math.max(8, Math.min(Math.max(8, point.width - 104), drag.originX + dx)),
-              y: Math.max(0, Math.min(window.innerHeight - 120, drag.originY + dy)),
-            };
-            pointRef.current = next;
-            setPoint(next);
+            setPoint(
+              motion.drag(drag.originX + dx, drag.originY + dy, performance.now(), reducedMotion()),
+            );
           }}
           onPointerUp={(event) => {
             const drag = pointer.current;
             if (!drag || drag.id !== event.pointerId) return;
             event.currentTarget.releasePointerCapture(event.pointerId);
-            const next = { ...pointRef.current, y: 0 };
-            pointRef.current = next;
-            setPoint(next);
-            companion.configure({ position: next.x / Math.max(1, next.width - 104) });
             if (drag.moved) {
+              setPoint(motion.release(performance.now(), reducedMotion()));
+              persistPosition();
               event.preventDefault();
               clickReset.current = setTimeout(() => {
                 clickReset.current = undefined;
                 pointer.current = undefined;
               }, 0);
-            } else pointer.current = undefined;
+            } else {
+              pointer.current = undefined;
+              setPoint(motion.release(performance.now(), reducedMotion(), true));
+            }
           }}
-          onPointerCancel={() => {
-            pointer.current = undefined;
-            const next = { ...pointRef.current, y: 0 };
-            pointRef.current = next;
-            setPoint(next);
-          }}
+          onPointerCancel={cancelDrag}
+          onLostPointerCapture={cancelDrag}
         >
           <PersonaBotAvatar
             personaBotId={bot.slug}

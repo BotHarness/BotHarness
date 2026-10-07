@@ -73,27 +73,73 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       throw new Error('Missing companion controls');
     character.setPointerCapture = vi.fn();
     character.releasePointerCapture = vi.fn();
-    const pointer = (type: string, x: number, y: number) => {
+    const pointer = (type: string, x: number, y: number, id = 1) => {
       const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
-      Object.defineProperty(event, 'pointerId', { value: 1 });
+      Object.defineProperty(event, 'pointerId', { value: id });
       character.dispatchEvent(event);
     };
     await act(() => pointer('pointerdown', 700, 750));
     await act(() => pointer('pointermove', 400, 400));
-    expect(Number.parseFloat(surface.style.bottom)).toBeGreaterThan(12);
+    const lifted = Number.parseFloat(surface.style.bottom);
+    expect(lifted).toBeGreaterThan(12);
+    const draggedLeft = surface.style.left;
+    await act(() => window.dispatchEvent(new Event('resize')));
+    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    await act(() => pointer('pointermove', 400, 400));
+    expect(surface.style.left).toBe(draggedLeft);
+    await act(() => {
+      pointer('pointerdown', 400, 400, 2);
+      pointer('pointermove', 800, 100, 2);
+      pointer('pointercancel', 800, 100, 2);
+      pointer('lostpointercapture', 800, 100, 2);
+    });
+    expect(surface.style.left).toBe(draggedLeft);
+    expect(surface.dataset['motion']).toBe('drag');
     await act(() => {
       pointer('pointerup', 400, 400);
       character.click();
     });
+    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    await act(() => window.dispatchEvent(new Event('resize')));
+    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(surface.dataset['motion']).toBe('fall');
+    expect(openDm).not.toHaveBeenCalled();
+    const positions: number[] = [];
+    await act(() => owner.reading(true));
+    for (let index = 0; index < 240; index += 1) {
+      await act(() => {
+        vi.advanceTimersByTime(16);
+        const callbacks = [...frames.values()];
+        frames.clear();
+        for (const callback of callbacks) callback(performance.now());
+      });
+      positions.push(Number.parseFloat(surface.style.bottom));
+    }
+    expect(positions.some((bottom) => bottom > 12 && bottom < lifted)).toBe(true);
+    expect(positions.every((bottom) => bottom >= 12 && bottom <= window.innerHeight - 108)).toBe(
+      true,
+    );
+    const firstContact = positions.findIndex((bottom) => bottom === 12);
+    expect(firstContact).toBeGreaterThan(0);
+    expect(positions.slice(firstContact + 1).some((bottom) => bottom > 12)).toBe(true);
     expect(surface.style.bottom).toBe('12px');
     expect(openDm).not.toHaveBeenCalled();
-    await act(() => vi.runOnlyPendingTimers());
     await act(() =>
       character.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
     );
     expect(owner.getSnapshot().selection?.position).toBeCloseTo(
       Number.parseFloat(surface.style.left) / 896,
     );
+    document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    await act(() => {
+      pointer('pointerdown', 400, 750);
+      pointer('pointermove', 700, 200);
+    });
+    expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
+    await act(() => pointer('pointerup', 700, 200));
+    expect(surface.style.bottom).toBe('12px');
+    await act(() => vi.runOnlyPendingTimers());
+    delete document.documentElement.dataset['botharnessMotion'];
     await act(() => character.click());
     expect(openDm).toHaveBeenCalledExactlyOnceWith('ada');
     await act(() => {
@@ -111,6 +157,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     node.remove();
     measurement.mockRestore();
     vi.unstubAllGlobals();
+    delete document.documentElement.dataset['botharnessMotion'];
     vi.useRealTimers();
   }
 });
