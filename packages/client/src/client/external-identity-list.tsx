@@ -275,7 +275,14 @@ export function ExternalIdentityList({
                   disabled={busy}
                   value={accountKey}
                   onSelect={setAccountKey}
-                  options={[...accounts]
+                  options={accounts
+                    .filter(
+                      (account) =>
+                        !identities.some(
+                          (i) =>
+                            i.providerId === account.providerId && i.accountRef === account.ref,
+                        ),
+                    )
                     .sort(
                       (a, b) =>
                         Number(a.boundBotSlug !== undefined || !a.connected) -
@@ -291,16 +298,10 @@ export function ExternalIdentityList({
                           ? account.connected
                             ? platform(account.platform)
                             : t('identity.appOffline', { platform: platform(account.platform) })
-                          : identities.some(
-                                (i) =>
-                                  i.providerId === account.providerId &&
-                                  i.accountRef === account.ref,
-                              )
-                            ? t('identity.appThisBot', { platform: platform(account.platform) })
-                            : t('identity.appUsedBy', {
-                                platform: platform(account.platform),
-                                name: botName(account.boundBotSlug),
-                              }),
+                          : t('identity.appUsedBy', {
+                              platform: platform(account.platform),
+                              name: botName(account.boundBotSlug),
+                            }),
                       disabled: !account.connected || account.boundBotSlug !== undefined,
                     }))}
                 />

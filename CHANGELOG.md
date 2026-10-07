@@ -46,6 +46,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- **Bind app** no longer lists apps already bound to the same Bot; they are already shown under External identities ([#1127](https://github.com/BotHarness/BotHarness/issues/1127)).
+
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
