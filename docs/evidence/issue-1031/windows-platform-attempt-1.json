@@ -1,0 +1,53 @@
+{
+  "issue": 1031,
+  "attempt": 1,
+  "rootSource": "9717d6f460fe41c5598d49d4b90e462cb0a9496b",
+  "providerSource": "8f1c67b65ee6d112e068babe945037f5ddea54a6",
+  "nativeWindows": true,
+  "humanAuthorized": true,
+  "serverRestoreSeconds": 540,
+  "localCutoffSeconds": 480,
+  "windowArmedAtUTC": "2026-10-07T07:57:45.88Z",
+  "productionRestorationVerifiedAtUTC": "2026-10-07T08:05:36.385Z",
+  "outageUpperBoundSeconds": 471,
+  "freshPairingVerified": true,
+  "capabilities": ["answer"],
+  "nativeQuestionCount": 2,
+  "platformResult": {
+    "code": 11310,
+    "errorPath": "ROOT -> body -> elements -> [1](tag: form)",
+    "reason": "max_length 2000 exceeds the default maximum 1000",
+    "cardCreationAccepted": false
+  },
+  "deliveryProjection": "unknown-outcome",
+  "deliveryReplay": false,
+  "canonicalAnswers": 0,
+  "afterRestartNativeQuestion": "expired",
+  "qaCleanup": {
+    "routeDisabled": true,
+    "pairingsRevoked": 1,
+    "identitiesUnbound": 1,
+    "providerDisabled": true,
+    "errors": [],
+    "localReceiverStopped": true
+  },
+  "production": {
+    "serviceRestored": true,
+    "withinTenMinutes": true,
+    "humanConfirmedLarkAndDiscord": true
+  },
+  "followup": {
+    "providerSource": "a9f6cbc72369df7b522658158dc102ad66826ebe",
+    "formInputMaximum": 1000,
+    "sdkFormCustomMaximum": 1000,
+    "explicitTextNativeMaximumUnchanged": 2000,
+    "checkedProviderTestsPassed": 791,
+    "existingPlatformSkips": 5,
+    "packageVerified": true,
+    "realLarkSubmissionQualified": false,
+    "freshWindowRequired": true,
+    "runtimeFiles": 400,
+    "runtimeSha256": "0432ab4075100b87bb2d383b7d232fd059790dcda6f63ac9ddf890a5b93f3039",
+    "packageSha256": "675d82faf0f92f8da7cf82bc15d4d09334dc76252c3bfff9f43a388856d251f5"
+  }
+}
