@@ -46,7 +46,7 @@ export interface CreatePersonaBotInput {
 }
 
 export type CreatePersonaBotResult =
-  | { ok: true; record: PersonaBotRecord }
+  | { ok: true; record: PersonaBotRecord; httpsFallback?: { from: string; to: string } }
   | {
       ok: false;
       reason:

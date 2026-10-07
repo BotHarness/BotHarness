@@ -1291,6 +1291,20 @@ export const zh = {
   'profile.avatar.shape': '五官布局',
   'profile.avatar.spacing': '间距',
   'roster.activityStale': '活动同步已中断，头像显示的是最后一次观察到的状态，正在重新连接…',
+  'git.settings.title': 'Git',
+  'git.settings.description':
+    'Bot 的记忆仓库用这个 Git 读写。可用的系统 Git 优先；没有时用 DeepSeekBot 安装的托管 Git。',
+  'git.settings.system': '{version}（系统）',
+  'git.settings.managed': '{version}（托管）',
+  'git.settings.tooOld': '{version} 太旧，不可用',
+  'git.settings.unavailable': '不可用',
+  'git.settings.loading': '检测中…',
+  'git.settings.error': '检测失败',
+  'bot.create.httpsFallback.title': '已改用 HTTPS 导入',
+  'bot.create.httpsFallback.body': '这个 SSH 地址克隆失败：',
+  'bot.create.httpsFallback.now':
+    '已自动改用对应的 HTTPS 地址导入成功，之后这个 Bot 会通过它同步：',
+  'bot.create.httpsFallback.done': '完成',
   'git.unavailable.title': '需要 Git 才能创建 Bot',
   'git.unavailable.missing': '这台电脑上没有找到 Git。',
   'git.unavailable.unrunnable': '找到了 Git，但它无法运行。macOS 需要先安装命令行开发者工具。',
@@ -3346,6 +3360,20 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'profile.avatar.spacing': 'Spacing',
   'roster.activityStale':
     'Activity sync is interrupted. Avatars show the last observed state while reconnecting…',
+  'git.settings.title': 'Git',
+  'git.settings.description':
+    "Bot memory repositories are read and written with this Git. A usable system Git comes first; otherwise DeepSeekBot's Managed Git is used.",
+  'git.settings.system': '{version} (system)',
+  'git.settings.managed': '{version} (managed)',
+  'git.settings.tooOld': '{version} is too old to use',
+  'git.settings.unavailable': 'Unavailable',
+  'git.settings.loading': 'Checking…',
+  'git.settings.error': 'Check failed',
+  'bot.create.httpsFallback.title': 'Imported over HTTPS',
+  'bot.create.httpsFallback.body': 'Cloning this SSH address failed:',
+  'bot.create.httpsFallback.now':
+    'The matching HTTPS address worked instead, and this Bot will sync through it from now on:',
+  'bot.create.httpsFallback.done': 'Done',
   'git.unavailable.title': 'Bot mode needs Git',
   'git.unavailable.missing': 'Git was not found on this computer.',
   'git.unavailable.unrunnable':

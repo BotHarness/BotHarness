@@ -8,7 +8,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import { BridgeCallError, errorMessage } from './bridge.js';
+import { BridgeCallError, errorMessage, type CreatedBot } from './bridge.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
@@ -101,6 +101,7 @@ export function CreatePersonaBotModal({
   const [roles, setRoles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [cause, setCause] = useState<unknown | undefined>(undefined);
+  const [fallback, setFallback] = useState<CreatedBot | undefined>(undefined);
   const invalid =
     displayName.trim().length === 0 || (source === 'git' && gitUrl.trim().length === 0);
 
@@ -133,9 +134,10 @@ export function CreatePersonaBotModal({
         sectionId,
       )
       .then(
-        () => {
+        (created) => {
           setCreating(false);
-          onCreated();
+          if (created.httpsFallback === undefined) onCreated();
+          else setFallback(created);
         },
         (rejection: unknown) => {
           setCause(rejection);
@@ -143,6 +145,33 @@ export function CreatePersonaBotModal({
         },
       );
   };
+
+  if (fallback?.httpsFallback !== undefined) {
+    const { from, to } = fallback.httpsFallback;
+    const done = (): void => {
+      void actions.openCreatedBot(fallback, sectionId).finally(onCreated);
+    };
+    return (
+      <Modal
+        open
+        onClose={done}
+        closeLabel={t('common.close')}
+        title={t('bot.create.httpsFallback.title')}
+        footer={
+          <Button variant="primary" onClick={done} data-https-fallback-done>
+            {t('bot.create.httpsFallback.done')}
+          </Button>
+        }
+      >
+        <div className="bh-personabot-form" data-https-fallback>
+          <span>{t('bot.create.httpsFallback.body')}</span>
+          <code className="bh-https-fallback-url">{from}</code>
+          <span>{t('bot.create.httpsFallback.now')}</span>
+          <code className="bh-https-fallback-url">{to}</code>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal

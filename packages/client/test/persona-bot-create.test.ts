@@ -138,26 +138,34 @@ describe('PersonaBot creation form', () => {
 });
 
 async function withForm(
-  test: (host: HTMLDivElement, create: ReturnType<typeof vi.fn>) => Promise<void>,
+  test: (
+    host: HTMLDivElement,
+    create: ReturnType<typeof vi.fn>,
+    onCreated: ReturnType<typeof vi.fn>,
+    open: ReturnType<typeof vi.fn>,
+  ) => Promise<void>,
   source: 'empty' | 'git' = 'empty',
+  created: Record<string, unknown> = { slug: 'bot', displayName: 'Bot' },
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
-  const create = vi.fn(async () => undefined);
+  const create = vi.fn(async () => created);
+  const onCreated = vi.fn();
+  const open = vi.fn(async () => undefined);
   try {
     await act(async () =>
       root.render(
         createElement(CreatePersonaBotModal, {
-          actions: { createBot: create } as unknown as BridgeActions,
+          actions: { createBot: create, openCreatedBot: open } as unknown as BridgeActions,
           source,
           onCancel: vi.fn(),
-          onCreated: vi.fn(),
+          onCreated,
         }),
       ),
     );
-    await test(host, create);
+    await test(host, create, onCreated, open);
   } finally {
     await act(async () => root.unmount());
     host.remove();
@@ -229,6 +237,54 @@ describe('editable creation starting points', () => {
         undefined,
       );
     }, 'git');
+  });
+
+  it('closes right away after a normal GitHub import', async () => {
+    await withForm(async (host, _create, onCreated) => {
+      await typeText(host, 'input[placeholder="例如：小研"]', 'Imported');
+      await typeText(
+        host,
+        'input[placeholder="https://github.com/owner/repo.git"]',
+        'https://github.com/owner/repo.git',
+      );
+      await submit(host);
+      expect(onCreated).toHaveBeenCalledOnce();
+      expect(host.querySelector('[data-https-fallback]')).toBeNull();
+    }, 'git');
+  });
+
+  it('tells the Human when an SSH import switched to HTTPS before closing', async () => {
+    await withForm(
+      async (host, _create, onCreated, open) => {
+        await typeText(host, 'input[placeholder="例如：小研"]', 'Imported');
+        await typeText(
+          host,
+          'input[placeholder="https://github.com/owner/repo.git"]',
+          'git@github.com:owner/repo.git',
+        );
+        await submit(host);
+        expect(onCreated).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
+        const notice = host.querySelector('[data-https-fallback]')!;
+        expect(host.textContent).toContain('已改用 HTTPS 导入');
+        expect(notice.textContent).toContain('git@github.com:owner/repo.git');
+        expect(notice.textContent).toContain('https://github.com/owner/repo.git');
+        await act(async () =>
+          [...host.querySelectorAll('button')].find((b) => b.textContent === '完成')!.click(),
+        );
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ slug: 'bot' }), undefined);
+        expect(onCreated).toHaveBeenCalledOnce();
+      },
+      'git',
+      {
+        slug: 'bot',
+        displayName: 'Imported',
+        httpsFallback: {
+          from: 'git@github.com:owner/repo.git',
+          to: 'https://github.com/owner/repo.git',
+        },
+      },
+    );
   });
 
   it('allows the blank starting point to stay blank', async () => {

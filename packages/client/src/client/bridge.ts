@@ -1405,11 +1405,25 @@ export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
 }
 
+export interface HttpsFallback {
+  from: string;
+  to: string;
+}
+
+export type CreatedBot = BotSummary & { httpsFallback?: HttpsFallback };
+
+function parseHttpsFallback(value: unknown): HttpsFallback | undefined {
+  const item = asRecord(value);
+  return typeof item?.['from'] === 'string' && typeof item['to'] === 'string'
+    ? { from: item['from'], to: item['to'] }
+    : undefined;
+}
+
 export async function createPersonaBot(
   call: BridgeCall,
   input: CreatePersonaBotInput,
   signal?: AbortSignal,
-): Promise<BotSummary> {
+): Promise<CreatedBot> {
   const value = await unwrap(
     call,
     input.gitUrl === undefined ? 'create' : 'createFromGit',
@@ -1418,7 +1432,8 @@ export async function createPersonaBot(
   );
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
-  return bot;
+  const httpsFallback = parseHttpsFallback(asRecord(value)?.['httpsFallback']);
+  return httpsFallback === undefined ? bot : { ...bot, httpsFallback };
 }
 
 function botZipUrl(path: string, params: Record<string, string>): string {

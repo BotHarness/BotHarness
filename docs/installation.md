@@ -70,6 +70,10 @@ To install Git yourself instead:
 
 After installing it yourself, restart DeepSeek Harness and click **Check again** in Bot mode.
 
+The **Git** row in DeepSeekBot settings shows the Git version in use and whether it is your system Git or the Managed Git.
+
+When you import a Bot from an SSH address such as `git@github.com:owner/repo.git` and the Host has no SSH key for it, DeepSeekBot retries once with the matching HTTPS address and tells you it switched. The Bot then syncs over HTTPS. Addresses with a custom SSH port are not converted.
+
 ## Other installation methods
 
 The [official DSH packaging reference](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) also supports CLI installation into a named Profile:

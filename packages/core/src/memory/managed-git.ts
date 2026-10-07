@@ -164,12 +164,12 @@ export function createGitService(options: GitServiceOptions): GitService {
 
   const installed = (): boolean => existsSync(join(installDir, 'installed.json'));
 
-  const activate = (): void => {
-    if (active) return;
-    const path = env['PATH'] ?? '';
+  const activate = (): string | undefined => {
+    const previous = env['PATH'];
+    const path = previous ?? '';
     if (!path.split(delimiter).includes(binDir)) env['PATH'] = binDir + delimiter + path;
-    active = true;
     resetGitCapabilities();
+    return previous;
   };
 
   const snapshot = (git: GitAvailability): GitStatus => {
@@ -188,9 +188,16 @@ export function createGitService(options: GitServiceOptions): GitService {
   const resolve = (): GitStatus => {
     const system = probe();
     if (system.available || active || !installed()) return snapshot(system);
-    activate();
+    const previous = activate();
     const managed = probe();
-    return snapshot(managed.available ? managed : system);
+    if (managed.available) {
+      active = true;
+      return snapshot(managed);
+    }
+    if (previous === undefined) delete env['PATH'];
+    else env['PATH'] = previous;
+    resetGitCapabilities();
+    return snapshot(system);
   };
 
   const download = async (target: string, received: (bytes: number) => void): Promise<void> => {
@@ -277,8 +284,14 @@ export function createGitService(options: GitServiceOptions): GitService {
         join(staging, 'installed.json'),
         `${JSON.stringify({ release: MANAGED_GIT_RELEASE, asset: asset?.name })}\n`,
       );
-      rmSync(installDir, { recursive: true, force: true });
-      renameSync(staging, installDir);
+      const previous = `${staging}.previous`;
+      if (existsSync(installDir)) renameSync(installDir, previous);
+      try {
+        renameSync(staging, installDir);
+      } catch (error) {
+        if (existsSync(previous)) renameSync(previous, installDir);
+        throw new InstallError('unpack', detail(error));
+      }
       for (const entry of readdirSync(root)) {
         if (entry !== MANAGED_GIT_RELEASE)
           rmSync(join(root, entry), { recursive: true, force: true });
@@ -296,6 +309,7 @@ export function createGitService(options: GitServiceOptions): GitService {
     } finally {
       rmSync(archive, { force: true });
       rmSync(staging, { recursive: true, force: true });
+      rmSync(`${staging}.previous`, { recursive: true, force: true });
     }
   };
 

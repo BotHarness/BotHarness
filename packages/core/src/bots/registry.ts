@@ -455,11 +455,15 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     },
     async createFromGit(input) {
       const { gitUrl, ...recordInput } = input;
-      return createFromStaging(recordInput, '.git-import-', async (staging) => {
+      let httpsFallback: { from: string; to: string } | undefined;
+      const result = await createFromStaging(recordInput, '.git-import-', async (staging) => {
         if (options.cloneMemory === undefined) return 'memory-unavailable';
         const cloned = await options.cloneMemory(staging, gitUrl);
-        return cloned.ok ? undefined : cloned.code;
+        if (!cloned.ok) return cloned.code;
+        httpsFallback = cloned.httpsFallback;
+        return undefined;
       });
+      return result.ok && httpsFallback !== undefined ? { ...result, httpsFallback } : result;
     },
     async createFromFiles(input) {
       const { files, history, ...recordInput } = input;

@@ -355,7 +355,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     gitUrl: string,
     roles?: string[],
     description?: string,
-  ): Promise<{ bot: PersonaBotDetail }> {
+  ): Promise<{ bot: PersonaBotDetail; httpsFallback?: { from: string; to: string } }> {
     return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
   }
 

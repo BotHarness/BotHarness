@@ -782,6 +782,13 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
   color: var(--dsw-alias-label-secondary);
   background: var(--bh-hover);
 }
+.bh-https-fallback-url {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bh-hover);
+  font-size: 12px;
+  word-break: break-all;
+}
 .bh-git-unavailable {
   display: flex;
   flex-direction: column;
@@ -5105,6 +5112,12 @@ button.bh-bot-nav > svg {
   font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
+}
+.bh-settings-row-value {
+  flex: none;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
 }
 .bh-assignment-limit-controls {
   display: flex;
