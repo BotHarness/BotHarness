@@ -1,4 +1,4 @@
-# ADR-0138: WeChat external reports use private owner context
+# ADR-0139: WeChat external reports use private owner context
 
 - Status: Accepted design; candidate qualification and Human QA tracked on #910
 - Date: 2026-10-07
