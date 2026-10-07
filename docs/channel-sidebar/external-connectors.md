@@ -11,7 +11,7 @@ Open **Bot DM → Channel sidebar → External connectors**. It lists the extern
 | One row per sync                  | Sync name, a state chip (**Receiving**, **Connecting**, **Paused** or **Unavailable**; plus **Bot Inbox only** when it does not add DM history) and “platform · external conversation · condition”. The Switch pauses or resumes intake. |
 | **Save a send target (advanced)** | Only for apps that can’t list or address conversations: save one target the Bot can post to proactively. Receiving and replying don’t need it.                                                                                           |
 
-When nothing is synced yet, the entry says where syncing starts: open the app under External identities and click **Sync** on a conversation row.
+When nothing is synced, the entry says **No external sources connected**. Adding a sync here, from any connected app whether or not a Bot has it bound, is being redesigned.
 
 **Syncs decide what is received; the Bot’s [Wake policy](/docs/channel-sidebar/wake-policy) decides when it is processed.**
 

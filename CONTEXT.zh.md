@@ -433,7 +433,7 @@ Channel 不属于任何 Channel section 时的 membership state。未分组 Chan
 _避免使用_：default folder、inbox、fixed bottom bucket
 
 **Bridge**：
-从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，UI 从会话行的「同步到 Channel / Sync to a Channel」开始创建，并列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
+从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
 _避免使用_：integration、adapter、裸用 connector
 
 **App**：

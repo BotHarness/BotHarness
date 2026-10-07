@@ -2562,7 +2562,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-conversation-list .bh-card-main { padding-block: 7px 2px; }
 .bh-conversation-list .bh-card-body { gap: 2px; }
 .bh-conversation-list .bh-card-detail { display: grid; gap: 6px; padding-bottom: 6px; }
-.bh-conversation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: -8px; }
+.bh-conversation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .bh-conversation-sync { display: grid; gap: 6px; }
 .bh-conversation-sync-title { display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 500; }
 .bh-conversation-sync .bh-modal-footer { gap: 6px; }

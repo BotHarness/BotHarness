@@ -76,20 +76,6 @@ function IdentitiesForBot({
           await refresh();
         }}
         channels={syncChannels}
-        sync={async (grant, channelId) => {
-          await actions.channelBridge(channelId, {
-            kind: 'add',
-            grantId: grant.id,
-            expectedGrantRevision: grant.revision,
-            delivery: 'channel',
-            name: grant.targetName || grant.receiveScope?.conversationId || grant.id,
-            enabled: true,
-            ...(grant.platform === 'weixin'
-              ? { collection: 'all' as const, collectionInheritance: 'custom' as const }
-              : { collection: 'mentions' as const, collectionInheritance: 'inherit' as const }),
-          });
-          await refresh();
-        }}
         botName={(owner) => state.bots.find((item) => item.slug === owner)?.displayName ?? owner}
       />
       <LarkSetupGuide snapshot={snapshot} t={t} refresh={refresh} />

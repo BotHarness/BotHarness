@@ -161,15 +161,9 @@ _Each admitted DM or group appears in the app’s conversation list. **Mute** ke
 
 ## 5. Optional: sync a conversation into a local Channel
 
-Skip this if Lark conversations should stay in the Bot Inbox. To show a Lark group in a local timeline as well:
+Lark conversations reach the Bot Inbox by default. Adding a new sync from the app is being redesigned: **External connectors** will take a conversation from any connected app, whether or not a Bot has it bound, and stream it into a Channel as context.
 
-1. In the app’s conversation list, click **Sync** on the group’s row. Lark DMs stay in the Bot Inbox.
-2. Under **Sync to a Channel**, choose the Bot DM or a Group Channel the Bot belongs to. Channels the conversation already reaches are disabled.
-3. Click **Start syncing**. The row then shows **Synced to …**.
-
-![Sync panel on a conversation row with the Channel chooser](/guides/lark/29-sync-channel.en.webp)
-
-Syncing uses the same authority as the conversation itself; it does not grant group access or lend the app to another Bot. Edit, pause or remove a sync later under **External connectors**. A Channel can receive several sources, and a source can reach several Channels. **Syncs decide what is received; each member Bot’s Attention / wake policy decides when it is processed.** External messages show the source name above the bubble; clicking it opens details. Ordinary local replies are not broadcast to Lark.
+Existing syncs keep working: edit, pause or remove them under **External connectors**. A sync uses the same authority as the conversation itself; it does not grant group access or lend the app to another Bot. A Channel can receive several sources, and a source can reach several Channels. **Syncs decide what is received; each member Bot’s Attention / wake policy decides when it is processed.** External messages show the source name above the bubble; clicking it opens details. Ordinary local replies are not broadcast to Lark.
 
 Adjust behaviour after the first successful test:
 
@@ -285,7 +279,7 @@ These additional captures use the integrated source preview in a fresh isolated 
 | Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                                 |
 | History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                                        |
 | Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity and `im:message:send_as_bot`                                                                                                      |
-| No message in local DM                               | Conversations reach the Bot Inbox by default; use **Sync** on the conversation row to show it in a Channel                                                                                       |
+| No message in local DM                               | Conversations reach the Bot Inbox by default; only an existing sync (see **External connectors**) shows them in a Channel                                                                        |
 
 When requesting help, include the platform, reproduction steps, a public-safe error code and checks already performed. Do not include App Secrets, access tokens or unrelated group messages.
 

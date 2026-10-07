@@ -758,7 +758,6 @@ export const zh = {
   'bridge.confirmDelete': '删除此连接器',
   'bridge.save': '保存外部连接器',
   'bridge.empty': '尚未接入外部信息。',
-  'bridge.moved': '要把外部会话同步到 Channel，请在「外部身份」打开应用，在会话行点「同步」。',
   'bridge.source': '来源',
   'bridge.conversation': '外部会话',
   'bridge.condition': '接收条件',
@@ -821,17 +820,17 @@ export const zh = {
   'identity.newConversations.ask': '先问我',
   'identity.newConversationsHint':
     '自动接收：新的私聊或 @ 直接进入收件箱。先问我：新会话先出现在「等待处理」，只记录会话名称和次数，不保存消息内容；允许后从下一条消息开始接收。',
-  'conversation.sync': '同步',
-  'conversation.syncTarget': '同步到 Channel',
-  'conversation.syncConfirm': '开始同步',
-  'conversation.syncEmpty': '没有可同步的 Channel',
-  'conversation.syncHint':
-    '这个会话的消息会同时出现在所选 Channel 里，回复仍从原应用发出。之后可在「外部连接器」中修改或移除。',
   'conversation.syncedTo': '已同步到 {names}',
   'conversation.active': '活跃',
   'conversation.muted': '已静音',
   'conversation.waiting': '等待处理',
   'conversation.blocked': '已屏蔽',
+  'conversation.muteHint': '消息照常进入收件箱，但不唤醒 Bot。Bot 仍可回复。',
+  'conversation.unmuteHint': '恢复：新消息会再次唤醒 Bot。',
+  'conversation.rulesHint': '设置这个群里哪些消息会唤醒 Bot。',
+  'conversation.blockHint': '丢弃这个会话的所有消息，并取消尚未发出的回复。需要确认。',
+  'conversation.allowHint': '放行这个会话，之后的消息会进入收件箱并唤醒 Bot。',
+  'conversation.allowAgainHint': '从下一条消息开始重新接收，屏蔽期间的消息不会补收。',
   'conversation.mute': '静音',
   'conversation.unmute': '取消静音',
   'conversation.rules': '规则',
@@ -2899,8 +2898,6 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.confirmDelete': 'Delete this connector',
   'bridge.save': 'Save connector',
   'bridge.empty': 'No external sources connected.',
-  'bridge.moved':
-    'To sync an external conversation into a Channel, open the app under External identities and click Sync on its conversation row.',
   'bridge.source': 'Source',
   'bridge.conversation': 'External conversation',
   'bridge.condition': 'Conditions',
@@ -2970,17 +2967,21 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.newConversations.ask': 'Ask me first',
   'identity.newConversationsHint':
     'Admit automatically: new DMs and @mentions go straight to the Inbox. Ask me first: a new conversation waits under Waiting with only its name and message count, never the message text; once allowed, the next message is admitted.',
-  'conversation.sync': 'Sync',
-  'conversation.syncTarget': 'Sync to a Channel',
-  'conversation.syncConfirm': 'Start syncing',
-  'conversation.syncEmpty': 'No Channel to sync to',
-  'conversation.syncHint':
-    'Messages from this conversation also appear in the chosen Channel, and replies still go out through the same app. Edit or remove the sync later under External connectors.',
   'conversation.syncedTo': 'Synced to {names}',
   'conversation.active': 'Active',
   'conversation.muted': 'Muted',
   'conversation.waiting': 'Waiting',
   'conversation.blocked': 'Blocked',
+  'conversation.muteHint':
+    'Messages still reach the Inbox but don’t wake the Bot. The Bot can still reply.',
+  'conversation.unmuteHint': 'New messages wake the Bot again.',
+  'conversation.rulesHint': 'Choose which messages in this group wake the Bot.',
+  'conversation.blockHint':
+    'Drop every message from this conversation and cancel unsent replies. Asks to confirm.',
+  'conversation.allowHint':
+    'Let this conversation in: its messages reach the Inbox and wake the Bot.',
+  'conversation.allowAgainHint':
+    'Receive again from the next message. Messages sent while blocked are not recovered.',
   'conversation.mute': 'Mute',
   'conversation.unmute': 'Unmute',
   'conversation.rules': 'Rules',

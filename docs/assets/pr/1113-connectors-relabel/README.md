@@ -2,12 +2,12 @@
 
 Captured from a real DSH 0.2.0-rc.1 instance with the QA fake IM provider and the real OpenCode Go model.
 
-## Sync a group into a Channel from its conversation row
+## Conversation rows: actions on their own row, a tooltip on each
 
 |     | Light                      | Dark                      |
 | --- | -------------------------- | ------------------------- |
-| zh  | ![](sync-v3-zh-light.webp) | ![](sync-v3-zh-dark.webp) |
-| en  | ![](sync-v3-en-light.webp) | ![](sync-v3-en-dark.webp) |
+| zh  | ![](rows-v4-zh-light.webp) | ![](rows-v4-zh-dark.webp) |
+| en  | ![](rows-v4-en-light.webp) | ![](rows-v4-en-dark.webp) |
 
 ## External connectors: syncs plus the advanced send target
 

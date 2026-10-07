@@ -154,7 +154,7 @@ The #908 live test received an item-ID-only quote: WeChat supplied neither the q
 
 The #909 installed-product test used `0.0.0-test.909.2` with the unchanged Provider `4.32.0-botharness.10`. One paired-owner conversation delivered the same canonical Source Event to a local shared Group and the receiving Bot's separate Inbox. The Human confirmed all four original-WeChat replies.
 
-Keep the receiving PersonaBot's WeChat app bound. Create a local Group with this Bot and its collaborators. In the Bot DM sidebar, open the app under **External identities**, click **Sync** on the paired-owner DM row, choose that Group under **Sync to a Channel** and click **Start syncing**. Edit the sync's name or pause it later under **External connectors**. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
+Keep the receiving PersonaBot's WeChat app bound. Create a local Group with this Bot and its collaborators. Adding a new sync is being redesigned around **External connectors**; an existing sync keeps working, and its name or pause state is edited there. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
 
 ![WeChat-specific connector configuration, light theme](/guides/wechat/channel-connector-config-light.jpg)
 

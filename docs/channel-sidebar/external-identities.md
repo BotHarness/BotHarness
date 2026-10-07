@@ -37,15 +37,15 @@ A `/pair` command doesn’t enter the Inbox. [IM administrator pairing](/docs/la
 
 The first DM or @mention that reaches the Inbox records its conversation. Click the app row and look under **Conversations** in the **Edit identity** dialog. Each conversation shows its name (the person’s name for a DM, the group ID for a group), DM or Group, and the last message time, sorted into four groups:
 
-| Group       | What it means                                                                         | Actions                                                      |
-| ----------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Waiting** | A new conversation that hasn’t been let in yet, with the reason and its message count | **Allow**, **Block**                                         |
-| **Active**  | Messages reach the Inbox and wake the Bot                                             | **Mute**, **Rules** (groups), **Sync** (groups), **Block**   |
-| **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Sync** (groups), **Block** |
-| **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                                              |
+| Group       | What it means                                                                         | Actions                                   |
+| ----------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Waiting** | A new conversation that hasn’t been let in yet, with the reason and its message count | **Allow**, **Block**                      |
+| **Active**  | Messages reach the Inbox and wake the Bot                                             | **Mute**, **Rules** (groups), **Block**   |
+| **Muted**   | Messages still reach the Inbox but never wake the Bot; you can still reply            | **Unmute**, **Rules** (groups), **Block** |
+| **Blocked** | Messages are dropped and the conversation never comes back on its own                 | **Allow again**                           |
 
 - **Rules** opens collection and wake settings for this one group.
-- **Sync** shows a group (or the personal WeChat owner DM) in a local Channel too. Choose the Bot DM or a Group Channel the Bot belongs to under **Sync to a Channel**, then click **Start syncing**; the row then shows **Synced to …**. Replies still go out through the same app. Edit, pause or remove the sync under [External connectors](/docs/channel-sidebar/external-connectors).
+- Hover any action to see what it does. A conversation that is already synced into a Channel shows **Synced to …**; manage syncs under [External connectors](/docs/channel-sidebar/external-connectors).
 - **Block** asks for confirmation. Replies that haven’t been sent yet are cancelled, and old messages can no longer be replied to. The block stays across restarts and even after you unbind and bind the same app to this Bot again.
 - **Allow again** starts a fresh conversation from the next message. Messages sent while it was blocked are not backfilled, and its old rules are not restored.
 

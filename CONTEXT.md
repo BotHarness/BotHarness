@@ -435,7 +435,7 @@ The membership state of a Channel that belongs to no Channel section. Ungrouped 
 _Avoid_: default folder, inbox, fixed bottom bucket
 
 **Bridge**:
-A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. For an IM conversation the UI starts it from the conversation's row as **Sync to a Channel** (同步到 Channel) and lists it under External connectors (外部连接器); the PersonaBot's own external identity is a separate thing.
+A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. For an IM conversation it is listed under External connectors (外部连接器); the PersonaBot's own external identity is a separate thing.
 _Avoid_: integration, adapter, connector (bare)
 
 **App**:

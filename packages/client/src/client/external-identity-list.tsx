@@ -30,7 +30,6 @@ export function ExternalIdentityList({
   conversation,
   rules,
   channels,
-  sync,
   botName = (slug) => slug,
 }: {
   snapshot: MessagingSnapshot | undefined;
@@ -39,7 +38,6 @@ export function ExternalIdentityList({
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   channels?: { id: string; name: string }[];
-  sync?(grant: MessagingSnapshot['grants'][number], channelId: string): Promise<void>;
   botName?(slug: string): string;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
@@ -418,9 +416,6 @@ export function ExternalIdentityList({
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
                     {...(channels ? { channels } : {})}
-                    {...(sync
-                      ? { sync: (grant, channelId) => operate(() => sync(grant, channelId)) }
-                      : {})}
                   />
                 </div>
               ) : null}

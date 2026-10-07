@@ -1,13 +1,11 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { MessagingIdentityView } from '../../../core/src/messaging/identity.js';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type { BotHarnessTranslate } from './locale.js';
-import { Combobox } from './combobox.js';
 import { GroupReceptionSettings } from './messaging-grant.js';
-import { MessagingHelp } from './messaging-help.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
 type Grant = MessagingSnapshot['grants'][number];
@@ -24,7 +22,6 @@ export function ExternalConversations({
   change,
   rules,
   channels = [],
-  sync,
 }: {
   identity: MessagingIdentityView;
   snapshot: MessagingSnapshot | undefined;
@@ -33,11 +30,8 @@ export function ExternalConversations({
   change(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   channels?: { id: string; name: string }[];
-  sync?(grant: Grant, channelId: string): Promise<void>;
 }): ReactElement {
   const [open, setOpen] = useState<string>();
-  const [syncing, setSyncing] = useState<string>();
-  const [channelId, setChannelId] = useState('');
   const [confirm, setConfirm] = useState<string>();
   const time = (value: string) => new Date(value).toLocaleString();
   const entries = (snapshot?.grants ?? []).filter(
@@ -50,17 +44,25 @@ export function ExternalConversations({
   const kind = (value: 'dm' | 'group') =>
     t(value === 'dm' ? 'identity.kind.dm' : 'identity.kind.group');
   const icon = (value: 'dm' | 'group') => (value === 'dm' ? 'user' : 'users');
-  const small = (label: string, onClick: () => void, danger = false, pressed?: boolean) => (
-    <Button
-      size="sm"
-      variant="ghost"
-      className={danger ? 'bh-im-danger-text' : undefined}
-      aria-pressed={pressed}
-      disabled={busy}
-      onClick={onClick}
-    >
-      {label}
-    </Button>
+  const small = (
+    label: string,
+    hint: string,
+    onClick: () => void,
+    danger = false,
+    pressed?: boolean,
+  ) => (
+    <Tooltip label={hint} portal side="top" maxWidth={280} delayMs={300}>
+      <Button
+        size="sm"
+        variant="outline"
+        className={danger ? 'bh-im-danger-outline' : undefined}
+        aria-pressed={pressed}
+        disabled={busy}
+        onClick={onClick}
+      >
+        {label}
+      </Button>
+    </Tooltip>
   );
   const actions = (label: string, buttons: ReactNode, panel?: ReactNode): ReactNode => (
     <>
@@ -101,55 +103,10 @@ export function ExternalConversations({
     (grant.bridgeRoutes ?? [])
       .map((route) => channels.find((c) => c.id === route.channelId)?.name)
       .filter((name): name is string => name !== undefined);
-  const syncDetail = (grant: Grant): ReactNode =>
-    syncing === grant.id && sync ? (
-      <div className="bh-conversation-sync">
-        <span className="bh-conversation-sync-title">
-          {t('conversation.syncTarget')}
-          <MessagingHelp
-            title={t('conversation.syncTarget')}
-            text={t('conversation.syncHint')}
-            t={t}
-          />
-        </span>
-        <Combobox
-          label={t('conversation.syncTarget')}
-          toggleLabel={t('conversation.syncTarget')}
-          placeholder={t('im.select')}
-          emptyLabel={t('conversation.syncEmpty')}
-          value={channelId}
-          disabled={busy}
-          onSelect={setChannelId}
-          options={channels.map((c) => ({
-            value: c.id,
-            label: c.name,
-            disabled: (grant.bridgeRoutes ?? []).some((route) => route.channelId === c.id),
-          }))}
-        />
-        <div className="bh-modal-footer">
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setSyncing(undefined)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={busy || !channelId}
-            onClick={() => {
-              const target = channelId;
-              setSyncing(undefined);
-              void sync(grant, target);
-            }}
-          >
-            {t('conversation.syncConfirm')}
-          </Button>
-        </div>
-      </div>
-    ) : undefined;
   const entryRow = (grant: Grant) => {
     const scope = grant.receiveScope!;
     const name = grant.targetName || scope.conversationId;
     const panel =
-      syncDetail(grant) ??
       confirmBlock(
         grant.id,
         name,
@@ -185,6 +142,7 @@ export function ExternalConversations({
           <>
             {small(
               t(grant.muted ? 'conversation.unmute' : 'conversation.mute'),
+              t(grant.muted ? 'conversation.unmuteHint' : 'conversation.muteHint'),
               () =>
                 void change({
                   kind: 'mute',
@@ -196,29 +154,21 @@ export function ExternalConversations({
             {grant.groupPolicy
               ? small(
                   t('conversation.rules'),
+                  t('conversation.rulesHint'),
                   () => {
                     setConfirm(undefined);
-                    setSyncing(undefined);
                     setOpen(open === grant.id ? undefined : grant.id);
                   },
                   false,
                   open === grant.id,
                 )
               : null}
-            {sync && (scope.kind === 'group' || grant.platform === 'weixin')
-              ? small(
-                  t('conversation.sync'),
-                  () => {
-                    setConfirm(undefined);
-                    setOpen(undefined);
-                    setChannelId('');
-                    setSyncing(syncing === grant.id ? undefined : grant.id);
-                  },
-                  false,
-                  syncing === grant.id,
-                )
-              : null}
-            {small(t('conversation.block'), () => setConfirm(grant.id), true)}
+            {small(
+              t('conversation.block'),
+              t('conversation.blockHint'),
+              () => setConfirm(grant.id),
+              true,
+            )}
           </>,
           panel,
         )}
@@ -246,6 +196,7 @@ export function ExternalConversations({
           <>
             {small(
               t('conversation.allow'),
+              t('conversation.allowHint'),
               () =>
                 void change({
                   kind: 'allow',
@@ -255,7 +206,12 @@ export function ExternalConversations({
                   expectedRevision: held.revision,
                 }),
             )}
-            {small(t('conversation.block'), () => setConfirm(key), true)}
+            {small(
+              t('conversation.block'),
+              t('conversation.blockHint'),
+              () => setConfirm(key),
+              true,
+            )}
           </>,
           confirmBlock(
             key,
@@ -286,6 +242,7 @@ export function ExternalConversations({
         block.name || block.conversation.id,
         small(
           t('conversation.allowAgain'),
+          t('conversation.allowAgainHint'),
           () =>
             void change({
               kind: 'allow',

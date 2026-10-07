@@ -118,11 +118,11 @@ Also send one plain, unmentioned message. With mentions-only intake and no expli
 
 ## 6. Optional: sync a channel into a local Channel
 
-By default Slack messages reach only the Bot Inbox and do not occupy local DM history. To show a Slack channel in a local timeline, click **Sync** on its row in the app's conversation list, choose the Bot DM or a Group Channel the Bot belongs to under **Sync to a Channel** and click **Start syncing**. Each member Bot of a shared Channel keeps its own Attention/wake policy.
+By default Slack messages reach only the Bot Inbox and do not occupy local DM history. Adding a new sync is being redesigned: **External connectors** will take a conversation from any connected app and stream it into a Channel. Existing syncs keep working. Each member Bot of a shared Channel keeps its own Attention/wake policy.
 
 ![Actual shared Channel external connector dialog using an already authorized Slack group](/guides/slack/12-connector.webp)
 
-_This #845 capture shows the earlier connector dialog. Syncs now start from the conversation row; edit, pause or remove them later under **External connectors**._
+_This #845 capture shows the earlier connector dialog. Edit, pause or remove existing syncs under **External connectors**._
 
 Pausing a sync stops new intake while keeping its configuration and history. Removing it does not delete earlier messages. Disabling an external identity and pausing a sync are separate actions.
 

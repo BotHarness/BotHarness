@@ -14,7 +14,6 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
 }));
 import { ExternalConversations } from '../src/client/external-conversations.js';
 import { zhTranslate } from '../src/client/locale.js';
-import { chooseOption } from './primitive-mocks.js';
 
 const identity = {
   id: 'binding',
@@ -138,9 +137,8 @@ it('groups conversations, confirms Block before sending it, and sends revision-c
   container.remove();
 });
 
-it('syncs an entry into a Channel it does not reach yet and shows where it is synced', async () => {
+it('shows where an entry is synced and offers no Sync action on the row', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  const sync = vi.fn(async () => undefined);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -152,44 +150,17 @@ it('syncs an entry into a Channel it does not reach yet and shows where it is sy
     root.render(
       createElement(ExternalConversations, {
         identity,
-        snapshot: {
-          ...snapshot,
-          grants: [
-            routed,
-            {
-              ...entry('g3', 'Owner', false),
-              receiveScope: { kind: 'dm', conversationId: 'oc_dm' },
-            } as unknown as MessagingSnapshot['grants'][number],
-          ],
-        },
+        snapshot: { ...snapshot, grants: [routed] },
         busy: false,
         t: zhTranslate,
         change: vi.fn(),
         rules: vi.fn(),
-        channels: [
-          { id: 'c1', name: 'Intake' },
-          { id: 'c2', name: 'Sales' },
-        ],
-        sync,
+        channels: [{ id: 'c1', name: 'Intake' }],
       }),
     ),
   );
   expect(container.textContent).toContain('已同步到 Intake');
-  const active = container.querySelectorAll('section')[1]!;
-  expect(
-    [...active.querySelectorAll('button')].filter((b) => b.textContent === '同步'),
-  ).toHaveLength(1);
-  await act(async () =>
-    [...active.querySelectorAll('button')].find((b) => b.textContent === '同步')!.click(),
-  );
-  const start = () =>
-    [...active.querySelectorAll('button')].find((b) => b.textContent === '开始同步')!;
-  expect(start().disabled).toBe(true);
-  await chooseOption('同步到 Channel', 'c1');
-  expect(start().disabled).toBe(true);
-  await chooseOption('同步到 Channel', 'c2');
-  await act(async () => start().click());
-  expect(sync).toHaveBeenCalledWith(routed, 'c2');
+  expect([...container.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('同步');
   await act(async () => root.unmount());
   container.remove();
 });

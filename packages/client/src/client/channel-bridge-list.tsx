@@ -245,7 +245,7 @@ export function ChannelBridgeList({
           />
         ))}
         {snapshot && !snapshot.bridges.length ? (
-          <li className="bh-card-row bh-muted bh-card-note">{t('bridge.moved')}</li>
+          <li className="bh-card-row bh-muted bh-card-note">{t('bridge.empty')}</li>
         ) : null}
         {children}
       </SidebarCardList>
