@@ -30,13 +30,17 @@ _Avoid_: Bot slug, display name, handle, username
 The Human-facing name of a PersonaBot and the primary label shown by an `@` picker. Names may repeat; the selected mention token retains the PersonaBot ID.
 _Avoid_: identifier, slug, username
 
-**Role badge**:
-One of zero or more Human-facing job or position labels shown beside a PersonaBot's display name. Role badges are descriptive only and never grant authority or identify the PersonaBot.
-_Avoid_: Bot tag, permission role, category
+**Tag**:
+One of zero or more Human-facing labels shown beside a PersonaBot's display name, such as a job or a speciality. Tags are descriptive only and never grant authority or identify the PersonaBot. They travel with the Bot when it is shared.
+_Avoid_: role badge (historical), 职位, permission role, category
 
-**Bot description**:
-An optional, brief Human-authored self-introduction that explains who a PersonaBot is, what it does, or what it is good at.
-_Avoid_: Soul, role badge, system prompt
+**Bio**:
+An optional Human-authored self-introduction of at most 160 characters that explains who a PersonaBot is, what it does, or what it is good at. It travels with the Bot when it is shared.
+_Avoid_: Bot description (historical), Soul, Tag, system prompt
+
+**Profile Banner**:
+The wide header image of a PersonaBot Profile, shown behind its Avatar. It is either a generated pixel scene saved as a recipe of scene and seed, first seeded from the Display name when the Bot is created, or a Human-supplied image. It travels with the Bot when it is shared; a Group has none.
+_Avoid_: cover, header, background, wallpaper
 
 **Soul**:
 A PersonaBot's character, voice, and standing instructions, kept in the root `SOUL.md` of its Memory Repository and delivered to each Session's system prompt from a snapshot frozen at that Session's first prompt assembly, together with its Core Memory. It has no write protection: an authorized Agent or Human may revise it; an edit reaches new Sessions or the next compaction, not a running prefix.
@@ -427,8 +431,8 @@ The membership state of a Channel that belongs to no Channel section. Ungrouped 
 _Avoid_: default folder, inbox, fixed bottom bucket
 
 **Bridge**:
-A configured connection from an external source to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor.
-_Avoid_: integration, connector, adapter
+A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. The UI calls it an External connector (外部连接器); the Bot's own external identity is a separate thing.
+_Avoid_: integration, adapter, connector (bare)
 
 **Bot Inbox**:
 The PersonaBot-level view of Source Events admitted for its attention, whether or not an event belongs to a Channel. It is not a second content store: reading is an explicit act, and ignoring is allowed.
@@ -675,7 +679,7 @@ The DSH-native left column of the client, which in Bot mode renders the Roster. 
 _Avoid_: left sidebar, main sidebar, navigation
 
 **Channel sidebar**:
-The right-side region of the Bot mode panel, scoped to the currently selected Channel: a group Channel shows its membership and Channel management entries, and a PersonaBot DM shows that PersonaBot's own entries such as Assignments, Memory, and its Bot Inbox. It is not the DSH session-scoped native right column.
+The right-side region of the Bot mode panel, scoped to the currently selected Channel: a group Channel shows its membership and Channel management entries, and a PersonaBot DM shows that PersonaBot's own entries such as Assignments, Memory, its Bot Inbox, and its operational configuration: Model Plan, Wake Policy, external identities, External connectors and approvals. It is not the DSH session-scoped native right column.
 _Avoid_: PersonaBot navigation, right panel, session panel, inspector, workbench
 
 **Channel body**:
@@ -687,12 +691,20 @@ One registered, collapsible item of a Channel sidebar: a stable id, label, order
 _Avoid_: widget, card, tab, destination, Channel section
 
 **PersonaBot Profile**:
-The per-PersonaBot surface for its shareable identity and its read-only activity: the identity travels with the Bot when it is shared (Display name, Avatar, Bot description), and the activity is token usage derived from its owned Sessions, event activity from its Bot Inbox Admissions, and Memory commit activity. Operational configuration such as its Model Plan, Wake Policy, external identities, Bridges and approvals is never part of it; that lives in the Channel sidebar. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
+The per-PersonaBot surface for its shareable identity and its read-only activity: the identity travels with the Bot when it is shared (Display name, Avatar, Profile Banner, Tags, Bio), and the activity is token usage derived from its owned Sessions, event activity from its Bot Inbox Admissions, and Memory commit activity. Operational configuration such as its Model Plan, Wake Policy, external identities, Bridges and approvals is never part of it; that lives in the Channel sidebar. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
 _Avoid_: account, dashboard, bot page, profile (bare), settings page
 
 **Group Profile**:
 The per-Group Channel surface for the Group's name and avatar and its activity from committed Channel messages. It shows message counts by day and by author, distinguishing Human and PersonaBot authors; Group configuration such as member Wake Policy and Bridges lives in the Channel sidebar. The Group header opens its popover and expanded Channel-body view; DM Channels have only their PersonaBot Profile.
 _Avoid_: PersonaBot token usage, Group management sidebar, DM Channel Profile
+
+**Approver**:
+An external IM user who has been paired with one PersonaBot and granted the approval capability by the Web Human. Approval requests go to the Approval destinations; the first accepted decision from any Approver wins. Seeing a request, being in the group it was posted to, or sharing a display name gives no authority, and a decision from anyone else is refused without reaching the PersonaBot.
+_Avoid_: admin, moderator, group member, recipient
+
+**Approval destination**:
+An IM conversation, private or group, chosen from the PersonaBot's External connectors, to which the Host posts each committed approval request. Receiving it is not authority to decide.
+_Avoid_: approver, notification channel, webhook
 
 **Profile popover**:
 The compact form of a PersonaBot or Group Profile, anchored to the avatar in the Channel body header. It shows only the Profile Cards the Human pinned for that scope and offers entry into the Profile view.
