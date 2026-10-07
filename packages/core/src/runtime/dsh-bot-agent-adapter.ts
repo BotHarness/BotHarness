@@ -1059,7 +1059,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_targets',
           description:
-            'List your currently authorized external group targets, including own identity and grant_id. Does not grant any new authorization.',
+            'List your currently authorized external report targets, including qualified WeChat paired-owner DMs, own identity and grant_id. Does not grant any new authorization.',
           parameters: {},
           output: {
             schema: { type: 'string' },

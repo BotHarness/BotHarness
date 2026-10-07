@@ -1144,14 +1144,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .strict()
         .safeParse(payload);
       if (!input.success) return Promise.resolve(invalidInput('Invalid send'));
-      return messagingCall(async (service) => ({
-        intent: await service.send(
-          input.data.slug,
-          input.data.grantId,
-          input.data.requestId,
-          input.data.text,
-        ),
-      }));
+      return messagingCall(async (service) => {
+        const { slug, grantId, requestId, text } = input.data;
+        const snapshot = await service.snapshot(slug);
+        const grant = snapshot.grants.find((value) => value.id === grantId);
+        return {
+          intent:
+            grant?.platform === 'weixin'
+              ? await service.post(slug, grantId, requestId, text)
+              : await service.send(slug, grantId, requestId, text),
+        };
+      });
     },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();

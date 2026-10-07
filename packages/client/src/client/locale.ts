@@ -903,6 +903,11 @@ export const zh = {
   'im.dmLabel': '私聊',
   'im.weixinUser': '微信用户',
   'im.weixinReplyOnly': '支持回复已收取的微信私聊文字和文件；主动发送尚未开放。',
+  'im.weixinProactive':
+    '可向已授权的扫码绑定者私聊主动发送文字。需要有效的私聊上下文；仅发送到微信，不加入本地私聊记录。平台接受不代表真实送达或已读。',
+  'im.weixinContextRequired':
+    '微信私聊上下文缺失或发送被拒绝。请在原微信私聊发送一条新消息，核对授权和收取状态，再明确发起新的投递；不会自动重试。',
+  'im.clientAcknowledgement': '客户端确认 ID（不代表送达或已读）',
   'im.receivedAs': '接收身份：{name}',
   'im.readDetails': '读取记录 · {count} 次',
   'im.sourceError': '无法读取已保存的外部消息',
@@ -924,7 +929,7 @@ export const zh = {
   'im.inspectReply': '查看回复到 {name} 的消息',
   'im.threadId': '话题 ID',
   'im.sentAs': '发送身份：{name}',
-  'im.externalOnly': '仅发送到外部平台，未加入本地频道历史。平台接受不代表对方已读。',
+  'im.externalOnly': '仅向外部平台投递，未加入本地频道历史。平台接受不证明对方收到或已读。',
   'im.echoConfirmed': '已核对平台自身消息回传。',
   'im.outboxId': '发送记录 ID',
   'im.externalMessageId': '外部消息 ID',
@@ -2918,6 +2923,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.weixinUser': 'WeChat user',
   'im.weixinReplyOnly':
     'Replies to received WeChat DM text and files are supported; proactive sending is not available yet.',
+  'im.weixinProactive':
+    'Post text to the explicitly authorized QR-paired owner DM using valid private context. Delivery is WeChat-only, with no local DM mirror. Provider acceptance does not prove delivery or reading.',
+  'im.weixinContextRequired':
+    'Private WeChat context is missing or the send was rejected. Send a fresh message in the original WeChat DM, check authorization and reception, then explicitly start a new delivery. There is no automatic retry.',
+  'im.clientAcknowledgement': 'Client acknowledgement ID (not delivery or reading proof)',
   'im.receivedAs': 'Received as {name}',
   'im.readDetails': 'Read history · {count} reads',
   'im.sourceError': 'Unable to read the retained external message',
@@ -2940,7 +2950,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.threadId': 'Topic ID',
   'im.sentAs': 'Sent as {name}',
   'im.externalOnly':
-    'Sent only to the external platform, without local Channel history. Platform acceptance does not mean the recipient has read it.',
+    'Posted only to the external platform, without local Channel history. Platform acceptance does not prove recipient delivery or reading.',
   'im.echoConfirmed': 'Platform own-message echo verified.',
   'im.outboxId': 'Outbox intent ID',
   'im.externalMessageId': 'External message ID',
