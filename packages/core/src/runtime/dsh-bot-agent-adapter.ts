@@ -1059,7 +1059,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_targets',
           description:
-            'List your currently authorized external group targets, including own identity and grant_id. Does not grant any new authorization.',
+            'List your currently authorized external report targets, including qualified WeChat paired-owner DMs, own identity and grant_id. Does not grant any new authorization.',
           parameters: {},
           output: {
             schema: { type: 'string' },
@@ -1323,7 +1323,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_context',
           description:
-            'Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby covers the +/-5 minute Chat window and supplements sparse sides to before_count (default 10) / after_count (default 5) human texts, excluding anchor; minima never truncate a dense window. Follow all nextCursor pages for coverage, not a native around-message endpoint; Chat listing may omit topic replies, so use thread for topic content. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope/count settings; expires in 30 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',
+            'For WeChat use retained (latest retained sources, newest first) or retained-nearby (before_count/after_count around anchor, excluding anchor): only canonical locally retained authorized private-conversation records, never remote history/search. Other platforms: explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby covers the +/-5 minute Chat window and supplements sparse sides to before_count (default 10) / after_count (default 5) human texts, excluding anchor; minima never truncate a dense window. Follow all nextCursor pages for coverage, not a native around-message endpoint; Chat listing may omit topic replies, so use thread for topic content. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope/count settings; expires in 30 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',
           parameters: {
             source_event_id: {
               type: 'string',
@@ -1333,7 +1333,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             scope: {
               type: 'string',
               required: true,
-              enum: ['group', 'nearby', 'thread'],
+              enum: ['group', 'nearby', 'thread', 'retained', 'retained-nearby'],
               description: 'Provider context scope.',
             },
             cursor: {
@@ -1343,12 +1343,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             before_count: {
               type: 'number',
               description:
-                'nearby only: minimum preceding Human text messages, integer 0-20; default 10.',
+                'nearby: minimum preceding; retained-nearby: up to this many preceding Human text messages, integer 0-20; default 10.',
             },
             after_count: {
               type: 'number',
               description:
-                'nearby only: minimum following Human text messages, integer 0-20; default 5. Reads existing messages without waiting.',
+                'nearby: minimum following; retained-nearby: up to this many following Human text messages, integer 0-20; default 5. Reads existing messages without waiting.',
             },
             max_characters: {
               type: 'number',

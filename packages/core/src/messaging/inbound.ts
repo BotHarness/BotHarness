@@ -6,6 +6,12 @@ import {
   pendingReceptionPaths,
   type ReceptionPath,
 } from './reception-paths.js';
+import {
+  retainedContextPage,
+  resolveRetainedQuote,
+  type QuoteResolution,
+  type RetainedCursor,
+} from './retained-context.js';
 import { fanoutMessagingConsumer } from './consumer-fanout.js';
 import {
   commitThreadReceptionPolicy,
@@ -42,7 +48,7 @@ import {
   MessagingError,
   type MessagingInboundEvent,
   type MessagingProvider,
-  type MessagingHistoryScope,
+  type MessagingContextScope,
   type MessagingReplyRoute,
 } from './provider.js';
 
@@ -67,15 +73,16 @@ function ordinaryThreadReply(event: MessagingInboundEvent): boolean {
 export interface ExternalContextRead {
   at: string;
   sessionId: string;
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   outcome: 'read' | 'refused';
   sourceEventIds: string[];
   omitted: number;
   incomplete: boolean;
   reason?: string;
+  coverage?: ExternalContextResult['coverage'];
 }
 export interface ExternalContextResult {
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   messages: {
     sourceEventId: string;
     messageId: string;
@@ -88,13 +95,13 @@ export interface ExternalContextResult {
   }[];
   omitted: number;
   incomplete: boolean;
-  coverage: 'provider-visible-human-text';
+  coverage: 'provider-visible-human-text' | 'retained-local-sources';
   nextCursor?: string;
   window?: { start: number; end: number };
   requiredCharacters?: number;
 }
 export interface ExternalContextQuery {
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   cursor?: string;
   maxCharacters?: number;
   beforeCount?: number;
@@ -118,6 +125,7 @@ export interface ExternalSource {
   report?: RelatedReport;
   contextReads?: ExternalContextRead[];
   contextMessages?: ExternalContextResult['messages'];
+  quote?: QuoteResolution;
 }
 
 export interface InboxSourceShare {
@@ -237,7 +245,7 @@ export function createInboundMessaging(options: {
       botSlug: string;
       sourceEventId: string;
       revision: number;
-      scope: MessagingHistoryScope;
+      scope: MessagingContextScope;
       providerCursor?: string | undefined;
       offset: number;
       digest: string;
@@ -245,6 +253,7 @@ export function createInboundMessaging(options: {
       counts: string;
     }
   >();
+  const retainedCursors = new Map<string, RetainedCursor>();
   const sourceId = (value: MessagingGrant, event: MessagingInboundEvent) =>
     'im-' +
     createHash('sha256')
@@ -274,8 +283,11 @@ export function createInboundMessaging(options: {
         JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
         JSON.stringify(previous.event.attachments ?? []) !==
           JSON.stringify(event.attachments ?? []) ||
+        JSON.stringify(previous.event.contentParts ?? null) !==
+          JSON.stringify(event.contentParts ?? null) ||
         JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null) ||
-        JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null)
+        JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null) ||
+        JSON.stringify(previous.event.quote ?? null) !== JSON.stringify(event.quote ?? null)
       )
         throw new MessagingError('source-conflict');
       const mentions = previous.event.mentions.map((mention) => {
@@ -497,7 +509,7 @@ export function createInboundMessaging(options: {
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
-          if (event.conversation.kind === 'dm') {
+          if (event.conversation.kind === 'dm' && !latest.bridgeRoutes) {
             if (latest.receiveTargetChannelId || latest.channelBridge || latest.bridgeRoutes)
               throw new MessagingError('capability-unavailable');
             const id = transaction(
@@ -529,7 +541,7 @@ export function createInboundMessaging(options: {
               });
             return { accepted: true };
           }
-          if (!event.mentionedAccount) {
+          if (event.conversation.kind === 'group' && !event.mentionedAccount) {
             lease.ordinaryVerified = true;
             if (ordinaryThreadReply(event))
               lease.ordinaryThreads.set(event.reply.threadId!, event.reply.rootId!);
@@ -567,6 +579,7 @@ export function createInboundMessaging(options: {
                   )
                     return false;
                   if (
+                    event.conversation.kind === 'group' &&
                     !event.mentionedAccount &&
                     (thread?.mode === 'exclude' ||
                       (thread?.mode !== 'follow' &&
@@ -607,8 +620,11 @@ export function createInboundMessaging(options: {
                       value.botSlug,
                     );
                     if (commit) placed.push(commit);
-                    if (!event.mentionedAccount) {
-                      const channel = bridgeChannel(db, route.channelId, value.botSlug);
+                    const channel = bridgeChannel(db, route.channelId, value.botSlug);
+                    if (
+                      !event.mentionedAccount &&
+                      !(event.conversation.kind === 'dm' && channel.type === 'dm')
+                    ) {
                       for (const slug of admitBridgeMembers(
                         db,
                         id,
@@ -628,23 +644,33 @@ export function createInboundMessaging(options: {
                       continue;
                     }
                   }
-                  const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
+                  const reason =
+                    event.conversation.kind === 'dm'
+                      ? 'human-dm'
+                      : event.mentionedAccount
+                        ? 'group-mention'
+                        : 'group-ordinary';
                   const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
                   const ordinary =
                     thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
-                  const wake = event.mentionedAccount
-                    ? policy.wake
-                    : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
-                      ? ordinary.wake
-                      : policy.wake;
+                  const wake =
+                    event.conversation.kind === 'dm' || event.mentionedAccount
+                      ? policy.wake
+                      : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
+                        ? ordinary.wake
+                        : policy.wake;
                   const count =
-                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
-                      ? (policy.digestCount ?? ordinary.count)
-                      : ordinary.count;
+                    event.conversation.kind === 'dm'
+                      ? (policy.digestCount ?? 1)
+                      : reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                        ? (policy.digestCount ?? ordinary.count)
+                        : ordinary.count;
                   const seconds =
-                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
-                      ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
-                      : ordinary.intervalSeconds;
+                    event.conversation.kind === 'dm'
+                      ? (policy.digestIntervalSeconds ?? 30)
+                      : reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                        ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
+                        : ordinary.intervalSeconds;
                   db.prepare(`INSERT OR IGNORE INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
                   wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision, external_default_revision)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -891,7 +917,12 @@ export function createInboundMessaging(options: {
       );
     }
   };
-  const read = (botSlug: string, id: string): ExternalSource => {
+  const read = (
+    botSlug: string,
+    id: string,
+    includeQuote = true,
+    includeContext = true,
+  ): ExternalSource => {
     const row = database.read((db) =>
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
@@ -914,9 +945,10 @@ export function createInboundMessaging(options: {
       database.read((db) => bridgeChannel(db, retained.localChannelId!, botSlug));
     const ownsContext = grant(retained.grantId).botSlug === botSlug;
     const { contextReads, ...sharedSource } = retained;
-    const latest = ownsContext
-      ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
-      : undefined;
+    const latest =
+      ownsContext && includeContext
+        ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
+        : undefined;
     const contextMessages: ExternalContextResult['messages'] = [];
     for (const sourceEventId of latest?.sourceEventIds ?? []) {
       const context = database.read((db) =>
@@ -925,6 +957,14 @@ export function createInboundMessaging(options: {
           .get(sourceEventId),
       ) as { body: string; payload_json: string } | undefined;
       if (!context) continue;
+      if (latest?.coverage === 'retained-local-sources') {
+        try {
+          read(botSlug, sourceEventId, false, false);
+        } catch (error) {
+          if (!(error instanceof MessagingError)) throw error;
+          continue;
+        }
+      }
       const item = (JSON.parse(context.payload_json) as { external: ExternalSource }).external;
       contextMessages.push({
         sourceEventId,
@@ -937,11 +977,30 @@ export function createInboundMessaging(options: {
         ...(item.event.reply.threadId ? { threadId: item.event.reply.threadId } : {}),
       });
     }
-    const report = database.read((db) =>
-      relatedReport(db, grant(retained.grantId), retained.event.reply),
-    );
+    const value = grant(retained.grantId);
+    const quote =
+      includeQuote && retained.event.quote
+        ? database.read((db) =>
+            resolveRetainedQuote(
+              db,
+              value,
+              retained,
+              (candidate) => {
+                try {
+                  return read(botSlug, candidate, false, false);
+                } catch (error) {
+                  if (!(error instanceof MessagingError)) throw error;
+                  return undefined;
+                }
+              },
+              valid(value),
+            ),
+          )
+        : undefined;
+    const report = database.read((db) => relatedReport(db, value, retained.event.reply));
     return {
       ...(report ? { report } : {}),
+      ...(quote ? { quote } : {}),
       ...(contextMessages.length === 0 ? {} : { contextMessages }),
       ...sharedSource,
       ...(ownsContext && contextReads ? { contextReads } : {}),
@@ -983,7 +1042,11 @@ export function createInboundMessaging(options: {
       }
       return undefined;
     });
-    if (!channelId || retained.event.conversation.kind !== 'group')
+    if (
+      !channelId ||
+      (retained.event.conversation.kind !== 'group' &&
+        !(retained.platform === 'weixin' && retained.event.conversation.kind === 'dm'))
+    )
       throw new MessagingError('source-unavailable');
     const { contextReads: _reads, receptionPaths: _paths, ...shared } = retained;
     return { ...shared, body: row.body, localChannelId: channelId };
@@ -1236,7 +1299,14 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
-      if (value.platform === 'weixin' || value.receiveScope?.kind === 'dm')
+      const privateSource = value.platform === 'weixin';
+      if (value.receiveScope?.kind === 'dm' && !privateSource)
+        throw new MessagingError('capability-unavailable');
+      if (
+        privateSource &&
+        input.kind !== 'delete' &&
+        (input.collection !== 'all' || input.collectionInheritance === 'inherit')
+      )
         throw new MessagingError('capability-unavailable');
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
@@ -1275,10 +1345,12 @@ export function createInboundMessaging(options: {
           inspected.account.fingerprint !== value.fingerprint ||
           inspected.target.ref !== value.targetRef ||
           inspected.target.digest !== value.targetDigest ||
-          !inspected.target.receiveScope
+          !inspected.target.receiveScope ||
+          (privateSource && inspected.target.receiveScope.kind !== 'dm')
         )
           throw new MessagingError('rebind-required');
         if (
+          !privateSource &&
           input.collectionInheritance !== 'inherit' &&
           input.collection === 'all' &&
           !leases.get(value.id)?.ordinaryVerified
@@ -1804,7 +1876,7 @@ export function createInboundMessaging(options: {
       return result;
     },
     async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
-      if (!['group', 'nearby', 'thread'].includes(query.scope))
+      if (!['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(query.scope))
         throw new MessagingError('invalid-history-query');
       const maxCharacters = query.maxCharacters ?? 12000;
       if (!Number.isInteger(maxCharacters) || maxCharacters < 1000 || maxCharacters > 24000)
@@ -1812,14 +1884,16 @@ export function createInboundMessaging(options: {
       const beforeCount = query.beforeCount ?? 10;
       const afterCount = query.afterCount ?? 5;
       if (
-        (query.scope !== 'nearby' &&
+        (!['nearby', 'retained-nearby'].includes(query.scope) &&
           (query.beforeCount !== undefined || query.afterCount !== undefined)) ||
         ![beforeCount, afterCount].every(
           (count) => Number.isInteger(count) && count >= 0 && count <= 20,
         )
       )
         throw new MessagingError('invalid-history-query');
-      const counts = query.scope === 'nearby' ? `${beforeCount}:${afterCount}` : '';
+      const counts = ['nearby', 'retained-nearby'].includes(query.scope)
+        ? `${beforeCount}:${afterCount}`
+        : '';
       const source = read(botSlug, sourceEventId);
       const value = grant(source.grantId);
       const entry = providers.get(value.providerId);
@@ -1881,6 +1955,55 @@ export function createInboundMessaging(options: {
       };
       try {
         signal.throwIfAborted();
+        if (query.scope === 'retained' || query.scope === 'retained-nearby') {
+          if (source.platform !== 'weixin')
+            throw new MessagingError('history-capability-unavailable');
+          if (!entry) throw new MessagingError('provider-unavailable');
+          const inspected = await cancellable(
+            entry.provider.inspect(value.accountRef, value.targetRef),
+          );
+          signal.throwIfAborted();
+          assertCurrent();
+          if (
+            inspected.account.fingerprint !== value.fingerprint ||
+            inspected.target.digest !== value.targetDigest ||
+            inspected.target.receiveScope?.conversationId !== source.event.conversation.id
+          )
+            throw new MessagingError('rebind-required');
+          const result = database.read((db) =>
+            retainedContextPage(db, {
+              botSlug,
+              source,
+              value,
+              query,
+              maxCharacters,
+              beforeCount,
+              afterCount,
+              cursors: retainedCursors,
+              read: (id) => {
+                try {
+                  return read(botSlug, id, false, false);
+                } catch (error) {
+                  if (!(error instanceof MessagingError)) throw error;
+                  return undefined;
+                }
+              },
+            }),
+          );
+          signal.throwIfAborted();
+          assertCurrent();
+          audit({
+            at,
+            sessionId,
+            scope: query.scope,
+            outcome: 'read',
+            sourceEventIds: result.messages.map((item) => item.sourceEventId),
+            omitted: result.omitted,
+            incomplete: result.incomplete,
+            coverage: result.coverage,
+          });
+          return result;
+        }
         if (!entry?.provider.history) throw new MessagingError('history-capability-unavailable');
         if (query.scope === 'thread' && !source.event.reply.threadId)
           throw new MessagingError('thread-unavailable');

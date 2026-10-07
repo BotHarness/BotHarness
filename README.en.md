@@ -35,7 +35,7 @@ This repository is **BotHarness**, the plugin layer that gives DSH agents a pers
 DeepSeekBot in three minutes: a crew of bots with their own identity, persona and memory, working together in a small town. Click the poster to play.
 
 <p align="center">
-  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
+  <a href="https://media.botharness.ai/pv/botharness-town-v19-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
 </p>
 
 <a id="install"></a>
@@ -134,7 +134,7 @@ Tell a Bot "every morning at 9, read the logs and send me a summary" and it crea
 
 The [Bot Marketplace](https://market.botharness.ai) lists Bots shared as public GitHub repositories. In Bot mode, click **+ → Bot Marketplace** next to Messages and browse by topic or keyword. Install first shows the source repository and its latest commit and reminds you it's third-party content; confirm and its Memory repository is cloned into a new PersonaBot. You can also paste a repository URL to list it right away.
 
-To share your own Bot, check its Memory for anything private, then follow the [Share a Bot guide](docs/share-bot.md) to have the Bot publish itself to GitHub and add the `botharness-bot` topic. DeepSeekBot keeps `.botharness/bot.json` (name, roles, avatar) up to date in every Bot's Memory, so the Marketplace shows the same Bot you see in your sidebar.
+To share your own Bot, check its Memory for anything private, then follow the [Share a Bot guide](docs/share-bot.md) to have the Bot publish itself to GitHub and add the `botharness-bot` topic. DeepSeekBot keeps `.botharness/bot.json` (name, roles, avatar) up to date in every Bot's Memory, so the Marketplace shows the same Bot you see in your sidebar. To hand a Bot over without publishing it, export a zip from the Bot profile instead; see [Export and import a Bot](docs/bot-zip.md).
 
 <a id="updates"></a>
 

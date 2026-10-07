@@ -2,6 +2,10 @@
 
 Sharing a Bot publishes its Memory Repository as a public GitHub repository. When someone finds it in the Bot Marketplace and clicks **Install**, the repository is cloned into a new Bot with the same memory. Your Bot itself, its chats, Workspace grants and IM connections are not shared, and later conversations on your side are not synced to installed copies.
 
+## Not ready to go public? Send a zip
+
+To hand a Bot to someone you know, or move it to another computer, you don't need GitHub: export a zip from **Share and export** on the Bot profile, and the other person uses **Import from zip** to get a new Bot. See [Export and import a Bot](/docs/bot-zip).
+
 ## Before publishing: check what becomes public
 
 Anyone can read a public repository, including files deleted earlier in its Git history. Memory may hold personal details you told the Bot, keys, or summaries of private conversations. Look through it first:

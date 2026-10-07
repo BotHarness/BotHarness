@@ -12,6 +12,10 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 - Recorded Windows physical AppData paths, isolated Profile package-manager qualification, native Shell result checks and process timestamp guards in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
+- Recorded the native Go Session header requirement and the qualified DSH 0.2.0 RC1 adapter patch in the [local development guide](../dsh-dev/SKILL.md), verified with an actual model call and committed DM reply; DSH/Cordis vocabulary and Skill behavior remain unchanged ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [AX guide](../../../docs/agents/ax-model.md)).
+
+- Linked the application-defined Human Channel media authority and candidate Lark image guide; DSH/Cordis vocabulary, API Gateway ownership and Skill behavior remain unchanged ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](../../../docs/lark-connection.md), [ADR](../../../docs/adr/0135-human-bridge-media-uses-channel-source-authority.md)).
+
 - Recorded the distinction between edited application role files and frozen instructions in a persisted QA Session in the [local development guide](../dsh-dev/SKILL.md), verified from real DSH 0.2.0 RC1 model events; platform vocabulary and Skill behavior remain unchanged ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
 
 - Updated the downstream Discord verification guide with the real deleted-source classification defect, fresh patched-model source/permission refusals, exact restoration, native App/Bot and wrong-guild boundaries, and development-source mention/reply qualification; DSH vocabulary and Skill behavior are unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](../../../docs/dev/verification/discord-855-mention-reply.md)).

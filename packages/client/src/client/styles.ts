@@ -12,6 +12,10 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
+  /* @bh-bridge-media-aliases:start — reuse the pinned native focus and muted labels. */
+  --bh-bridge-media-focus: var(--dsw-alias-state-business-primary);
+  --bh-bridge-media-muted: var(--dsw-alias-label-secondary);
+  /* @bh-bridge-media-aliases:end */
   /* @bh-memory-graph-aliases:start — the pinned DSH theme has no radius
      variables; these match its measured 4/6/10px native controls. */
   --bh-memory-radius-chip: 4px;
@@ -777,6 +781,32 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
   line-height: 16px;
   color: var(--dsw-alias-label-secondary);
   background: var(--bh-hover);
+}
+.bh-git-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 2px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--bh-hover);
+}
+.bh-git-unavailable-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+.bh-git-unavailable-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.bh-git-unavailable-actions a {
+  color: var(--dsw-alias-state-business-primary);
 }
 .bh-row-status {
   margin-left: 4px;
@@ -1715,6 +1745,170 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-market-risk strong {
   color: var(--dsw-alias-state-warning-primary);
   font-size: 13px;
+}
+.bh-bot-zip-export {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-bot-zip-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.bh-bot-zip-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-bot-zip-file-name[data-empty] {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-bot-zip-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-bot-zip-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-picker-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.bh-bot-zip-picker-count {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-bot-zip-picker-loading {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-tree,
+.bh-bot-zip-tree-group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-bot-zip-tree {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 4px 0;
+}
+.bh-bot-zip-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding-right: 10px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-tree-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-bot-zip-tree-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+span.bh-bot-zip-tree-toggle {
+  cursor: default;
+}
+.bh-bot-zip-tree-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+}
+.bh-bot-zip-tree-label input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--dsw-alias-state-business-primary);
+}
+.bh-bot-zip-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-bot-zip-tree-always {
+  flex: none;
+  border-radius: 4px;
+  padding: 0 6px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 18px;
+}
+.bh-bot-zip-history {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.bh-bot-zip-history[data-disabled] {
+  cursor: default;
+}
+.bh-bot-zip-history input {
+  flex: none;
+  margin: 3px 0 0;
+  accent-color: var(--dsw-alias-state-business-primary);
+}
+.bh-bot-zip-history-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-bot-zip-history-text strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.bh-bot-zip-history[data-disabled] .bh-bot-zip-history-text strong {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-bot-zip-tree-size {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Hidden Channel recovery is portaled under body; never depend on .bh-root. */
@@ -3121,6 +3315,12 @@ button.bh-profile-heat-cell:focus-visible {
 button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-message-file:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
+.bh-bridge-media-content { white-space: pre-wrap; }
+.bh-bridge-image { max-width: min(100%, 360px); }
+.bh-bridge-image-button { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 12px; }
+.bh-bridge-image-button:focus-visible { outline: 2px solid var(--bh-bridge-media-focus); outline-offset: 2px; }
+.bh-bridge-image-state { display: flex; align-items: center; gap: 8px; min-height: 96px; color: var(--bh-bridge-media-muted); }
+.bh-bridge-image-expanded { display: block; max-width: 100%; max-height: 75vh; margin: auto; object-fit: contain; }
 .bh-message-image-link { display: block; max-width: min(100%, 360px); }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
 .bh-message-file { display: inline-flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 42px; padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; text-decoration: none; }
@@ -4107,6 +4307,16 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
 }
+.bh-external-quote {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-radius: var(--dsw-radius-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bh-external-quote p { margin: 6px 0; }
 .bh-external-message-text {
   width: fit-content;
   max-width: 100%;

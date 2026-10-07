@@ -22,6 +22,10 @@ export interface MessagingAttachment {
   mediaType?: string;
 }
 
+export type MessagingContentPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'attachment'; id: string };
+
 export interface MessagingVoice {
   transcript: 'platform' | 'unavailable';
   itemId?: string;
@@ -37,6 +41,16 @@ export interface MessagingVideo {
   playLength?: number;
 }
 
+export interface MessagingQuote {
+  serverMessageId?: string;
+  itemId?: string;
+  text?: string;
+  summary?: string;
+  attachmentKind?: 'image' | 'audio' | 'file' | 'video';
+  partial?: { start: string; end: string; startIndex: number; endIndex: number; digest: string };
+}
+export type MessagingContextScope = MessagingHistoryScope | 'retained' | 'retained-nearby';
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu' | 'slack' | 'discord' | 'weixin';
@@ -51,8 +65,10 @@ export interface MessagingInboundEvent {
   at: string;
   text: string;
   attachments?: MessagingAttachment[];
+  contentParts?: MessagingContentPart[];
   voice?: MessagingVoice;
   video?: MessagingVideo;
+  quote?: MessagingQuote;
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }
@@ -89,6 +105,7 @@ export interface MessagingReceipt {
   version: 1;
   identityKind?: 'client-acknowledgement';
   messageId: string;
+  serverMessageId?: string;
   conversationId: string;
 }
 
@@ -209,6 +226,7 @@ export interface MessagingProvider {
     conversationId: string;
     text: string;
     signal: AbortSignal;
+    beforeSend?: () => boolean;
   }): Promise<{ accepted: true; receipt: MessagingReceipt }>;
   send(input: {
     accountRef: string;

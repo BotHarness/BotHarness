@@ -56,6 +56,16 @@ See [Settings guide](/docs/settings) for appearance, concurrency, persona, atten
 
 The initial installation has no IM accounts connected. After the local DM works, follow [Connect a Bot to Lark / Feishu](/docs/lark-connection). App credentials, external identity binding and group authorization are separate steps; installing the plugin does not authorize external groups.
 
+## Git
+
+Bot mode needs Git 2.28 or newer on the computer that runs DSH, because each Bot's memory is a Git repository. When Git is missing or too old, Bot mode says so at the top of the roster and turns off creating and importing Bots until Git works.
+
+- **macOS**: run `xcode-select --install` in Terminal and follow the prompt, or install Git with Homebrew (`brew install git`).
+- **Windows**: install [Git for Windows](https://git-scm.com/download/win) with the default options.
+- **Linux**: install the `git` package with your distribution's package manager, for example `sudo apt install git`. Ubuntu 20.04 ships Git 2.25; use the [git-core PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa) for a newer one.
+
+Then restart DeepSeek Harness and click **Check again** in Bot mode.
+
 ## Other installation methods
 
 The [official DSH packaging reference](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) also supports CLI installation into a named Profile:

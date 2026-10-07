@@ -1061,6 +1061,52 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       return undefined;
     bridgeOrigin = origin as NonNullable<ChannelMessage['bridgeOrigin']>;
   }
+  let bridgeMedia: ChannelMessage['bridgeMedia'];
+  if (record['bridgeMedia'] !== undefined) {
+    const media = asRecord(record['bridgeMedia']);
+    if (
+      !bridgeOrigin ||
+      !media ||
+      Object.keys(media).some((key) => !['items', 'parts'].includes(key)) ||
+      !Array.isArray(media['items']) ||
+      media['items'].length > 32
+    )
+      return;
+    const ids = new Set<string>();
+    for (const raw of media['items']) {
+      const item = asRecord(raw);
+      if (
+        !item ||
+        item['kind'] !== 'image' ||
+        typeof item['id'] !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(item['id']) ||
+        typeof item['name'] !== 'string' ||
+        ids.has(item['id']) ||
+        Object.keys(item).some((key) => !['id', 'kind', 'name'].includes(key))
+      )
+        return;
+      ids.add(item['id']);
+    }
+    if (media['parts'] !== undefined) {
+      if (!Array.isArray(media['parts']) || media['parts'].length > 256) return;
+      for (const raw of media['parts']) {
+        const part = asRecord(raw);
+        if (
+          !part ||
+          Object.keys(part).some(
+            (key) => !(part['kind'] === 'text' ? ['kind', 'text'] : ['kind', 'id']).includes(key),
+          ) ||
+          (part['kind'] === 'text'
+            ? typeof part['text'] !== 'string' || part['text'].length > 16000
+            : part['kind'] !== 'attachment' ||
+              typeof part['id'] !== 'string' ||
+              !ids.has(part['id']))
+        )
+          return;
+      }
+    }
+    bridgeMedia = media as NonNullable<ChannelMessage['bridgeMedia']>;
+  }
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
   const replyTo = record['replyTo'];
@@ -1278,6 +1324,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(bridgeOrigin === undefined ? {} : { bridgeOrigin }),
+    ...(bridgeMedia === undefined ? {} : { bridgeMedia }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(replyToPreview === undefined ? {} : { replyToPreview }),
   };
@@ -1377,6 +1424,106 @@ export async function createPersonaBot(
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
   return bot;
+}
+
+function botZipUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(`./api/botharness/${path}`, document.baseURI);
+  url.search = new URLSearchParams(params).toString();
+  return url.href;
+}
+
+async function botZipError(response: Response): Promise<BridgeCallError> {
+  let code = response.status === 413 ? 'too-large' : 'unavailable';
+  let message = `Bot zip request failed (${response.status})`;
+  try {
+    const error = asRecord(asRecord(await response.json())?.['error']);
+    if (typeof error?.['code'] === 'string') code = error['code'];
+    if (typeof error?.['message'] === 'string') message = error['message'];
+  } catch {}
+  return new BridgeCallError(code, message);
+}
+
+function attachmentFileName(header: string | null, fallback: string): string {
+  const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(header ?? '')?.[1];
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {}
+  }
+  return fallback;
+}
+
+export async function importBotZip(file: File, signal?: AbortSignal): Promise<BotSummary> {
+  const response = await fetch(botZipUrl('bot-zip/import', { name: file.name }), {
+    method: 'POST',
+    headers: { 'content-type': 'application/zip' },
+    body: file,
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const bot = parseBotSummary(asRecord(await response.json())?.['bot']);
+  if (bot === undefined) throw new Error('invalid Bot zip import response');
+  return bot;
+}
+
+export interface BotZipFileListing {
+  files: Array<{ path: string; size: number }>;
+  always: string[];
+}
+
+export async function loadBotZipFiles(
+  slug: string,
+  signal?: AbortSignal,
+): Promise<BotZipFileListing> {
+  const response = await fetch(botZipUrl('bot-zip/files', { slug }), {
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const value = asRecord(await response.json());
+  const files: BotZipFileListing['files'] = [];
+  for (const item of Array.isArray(value?.['files']) ? value['files'] : []) {
+    const entry = asRecord(item);
+    if (typeof entry?.['path'] === 'string' && typeof entry['size'] === 'number') {
+      files.push({ path: entry['path'], size: entry['size'] });
+    }
+  }
+  const always = Array.isArray(value?.['always'])
+    ? value['always'].filter((path): path is string => typeof path === 'string')
+    : [];
+  return { files, always };
+}
+
+export interface BotZipExportChoice {
+  include?: readonly string[];
+  history?: boolean;
+}
+
+export async function downloadBotZip(
+  slug: string,
+  fallbackName: string,
+  choice: BotZipExportChoice = {},
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; name: string }> {
+  const { include } = choice;
+  const query = include === undefined ? { slug, ...(choice.history ? { history: '1' } : {}) } : {};
+  const response = await fetch(botZipUrl('bot-zip', query), {
+    credentials: 'same-origin',
+    ...(include === undefined
+      ? {}
+      : {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug, include }),
+        }),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  return {
+    blob: await response.blob(),
+    name: attachmentFileName(response.headers.get('content-disposition'), `${fallbackName}.zip`),
+  };
 }
 
 export async function loadMarketplacePage(
@@ -1529,6 +1676,34 @@ export function parseTelemetryStatus(value: unknown): TelemetryStatus {
     preference: item['preference'] !== false,
     ...(lockedBy === undefined ? {} : { lockedBy }),
   };
+}
+
+export type GitUnavailableReason = 'missing' | 'unrunnable' | 'too-old';
+
+export type GitAvailability =
+  | { available: true; version: string }
+  | { available: false; reason: GitUnavailableReason; version?: string };
+
+const GIT_UNAVAILABLE_REASONS: readonly GitUnavailableReason[] = [
+  'missing',
+  'unrunnable',
+  'too-old',
+];
+
+export function parseGitAvailability(value: unknown): GitAvailability {
+  const item = asRecord(value);
+  const version = typeof item?.['version'] === 'string' ? item['version'] : undefined;
+  if (item?.['available'] === true && version !== undefined) return { available: true, version };
+  const reason = GIT_UNAVAILABLE_REASONS.find((candidate) => candidate === item?.['reason']);
+  if (item?.['available'] !== false || reason === undefined) throw new Error('invalid Git status');
+  return { available: false, reason, ...(version === undefined ? {} : { version }) };
+}
+
+export async function loadGitAvailability(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<GitAvailability> {
+  return parseGitAvailability(await unwrap(call, 'gitStatus', {}, signal));
 }
 
 export async function loadTelemetryStatus(
@@ -3461,7 +3636,7 @@ export async function readMessagingSource(
           path &&
           strings(path, ['routeId', 'grantId', 'reason', 'mode']) &&
           (path['channelId'] === null || typeof path['channelId'] === 'string') &&
-          ['group-mention', 'group-ordinary'].includes(String(path['reason'])) &&
+          ['group-mention', 'group-ordinary', 'human-dm'].includes(String(path['reason'])) &&
           ['all', 'immediate', 'digest', 'mentions', 'silent', 'context', 'conditional'].includes(
             String(path['mode']),
           ) &&
@@ -3486,7 +3661,13 @@ export async function readMessagingSource(
         const read = asRecord(value);
         return (
           strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
-          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(
+            String(read?.['scope']),
+          ) &&
+          (read?.['coverage'] === undefined ||
+            ['provider-visible-human-text', 'retained-local-sources'].includes(
+              String(read['coverage']),
+            )) &&
           ['read', 'refused'].includes(String(read?.['outcome'])) &&
           typeof read?.['incomplete'] === 'boolean' &&
           Number.isInteger(read?.['omitted']) &&

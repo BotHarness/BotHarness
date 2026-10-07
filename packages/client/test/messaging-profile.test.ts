@@ -27,6 +27,102 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 import { MessagingProfile } from '../src/client/messaging-profile.js';
 import { zhTranslate } from '../src/client/locale.js';
 
+it('WeChat Profile exposes only qualified proactive sending and separates client acknowledgement from native identity', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const grant: MessagingGrant = {
+    id: 'wechat-grant',
+    bindingId: 'wechat-binding',
+    botSlug: 'ada',
+    providerId: 'dsh-im/weixin',
+    accountRef: 'wechat',
+    accountName: 'Own WeChat',
+    fingerprint: 'a'.repeat(64),
+    platform: 'weixin',
+    targetRef: 'owner',
+    targetName: 'Paired owner',
+    targetDigest: 'b'.repeat(64),
+    revision: 1,
+    createdAt: '2026-10-07T00:00:00Z',
+  };
+  let qualified = false;
+  const intent = {
+    id: 'wechat-post',
+    botSlug: 'ada',
+    grantId: grant.id,
+    grantRevision: 1,
+    text: 'External-only report',
+    state: 'provider-accepted' as const,
+    createdAt: grant.createdAt,
+    report: {
+      providerId: grant.providerId,
+      accountRef: grant.accountRef,
+      fingerprint: grant.fingerprint,
+      platform: 'weixin',
+      accountName: grant.accountName,
+      targetName: grant.targetName,
+      conversationId: 'owner',
+    },
+    receipt: {
+      version: 1 as const,
+      identityKind: 'client-acknowledgement' as const,
+      messageId: 'dsh-weixin-client',
+      conversationId: 'owner',
+    },
+  };
+  const actions = {
+    openSession: vi.fn(),
+    approvalRoute: vi.fn(),
+    approvalTest: vi.fn(),
+    approvalRetry: vi.fn(),
+    pairingReview: vi.fn(),
+    messagingIdentity: vi.fn(),
+    messagingGroupPolicy: vi.fn(),
+    messagingThreadPolicy: vi.fn(),
+    messagingReceive: vi.fn(),
+    messagingChannelTarget: vi.fn(),
+    messagingTargets: vi.fn(),
+    messagingAuthorize: vi.fn(),
+    messagingRevoke: vi.fn(),
+    messagingSend: vi.fn(),
+    messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
+      accounts: [],
+      grants: [{ ...grant, availability: 'available', reception: 'off', canPost: qualified }],
+      intents: [intent],
+    }),
+  };
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+    );
+    expect(host.querySelector('textarea')).toBeNull();
+    qualified = true;
+    await act(async () =>
+      [...host.querySelectorAll('button')]
+        .find((b) => b.textContent === zhTranslate('im.refresh'))!
+        .click(),
+    );
+    expect(host.querySelector('textarea')).not.toBeNull();
+    expect(host.textContent).toContain(zhTranslate('im.weixinProactive'));
+    expect(actions.messagingSend).not.toHaveBeenCalled();
+    await act(async () =>
+      [...host.querySelectorAll('button')].find((b) => b.textContent === intent.text)!.click(),
+    );
+    const dialog = host.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(
+      `${zhTranslate('im.clientAcknowledgement')}: dsh-weixin-client`,
+    );
+    expect(dialog.textContent).toContain(
+      `${zhTranslate('im.externalMessageId')}: ${zhTranslate('im.notAvailable')}`,
+    );
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
 it('requires explicit target authorization and an explicit send; unknown outcomes survive refresh without resend', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const account = {

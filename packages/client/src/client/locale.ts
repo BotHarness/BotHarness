@@ -453,6 +453,9 @@ export const zh = {
   'roster.menu.createChannel': '创建频道',
   'roster.menu.createSection': '创建频道分组',
   'roster.menu.marketplace': 'Bot 市场',
+  'roster.menu.createBot.empty': '从零创建',
+  'roster.menu.createBot.git': '从 GitHub 导入',
+  'roster.menu.createBot.zip': '从 zip 导入',
   'market.title': 'Bot 市场',
   'market.description': '浏览公开 GitHub 仓库分享的 Bot，安装后会成为一个新的 PersonaBot。',
   'market.submit.label': 'GitHub 仓库地址',
@@ -545,8 +548,6 @@ export const zh = {
   'bot.create.description': '名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。',
   'bot.create.creating': '创建中',
   'bot.create.importing': '正在克隆仓库…',
-  'bot.create.source.label': '记忆来源',
-  'bot.create.source.empty': '从空白创建',
   'bot.create.persona.preset': '人格起点',
   'bot.create.persona.blank': '空白',
   'bot.create.persona.colleague': '同事',
@@ -578,7 +579,6 @@ export const zh = {
 # 互动边界
 与 Human 的关系、需要遵守的设定和希望避开的内容：[填写]。
 `,
-  'bot.create.source.git': '从 Git 仓库导入',
   'bot.create.gitUrl.label': 'Git 仓库地址',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -596,10 +596,57 @@ export const zh = {
   'bot.create.error.identity': '系统未能分配唯一身份，请重试。',
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
-  'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
+  'bot.create.error.gitMissing':
+    '请安装 Git 2.28 或更新版本，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
   'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
   'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
   'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
+  'bot.create.gitTitle': '从 GitHub 导入 PersonaBot',
+  'bot.create.gitInSection': '在「{name}」中从 GitHub 导入 PersonaBot',
+  'botZip.import.title': '从 zip 导入 PersonaBot',
+  'botZip.import.inSection': '在「{name}」中从 zip 导入 PersonaBot',
+  'botZip.import.description':
+    '选择别人分享给你的 Bot zip，或你在另一台设备上导出的 zip。导入会创建一个新的 Bot，名称、岗位和头像来自 zip 里的 .botharness/bot.json。',
+  'botZip.import.choose': '选择 zip 文件',
+  'botZip.import.change': '重新选择',
+  'botZip.import.none': '还没有选择文件',
+  'botZip.import.riskTitle': '这是第三方内容',
+  'botZip.import.risk':
+    'zip 里的文件会成为新 Bot 的 Memory，可能包含有害内容或会被 Bot 执行的指令。请只导入你信任的来源。',
+  'botZip.import.submit': '导入',
+  'botZip.import.importing': '正在导入…',
+  'botZip.import.failed': '导入失败：{error}',
+  'botZip.error.invalid': '这不是有效的 zip 文件，或文件已损坏。',
+  'botZip.error.unsafe': 'zip 里有不安全的路径（例如 ../ 或符号链接），已拒绝导入。',
+  'botZip.error.tooLarge': 'zip 太大了：文件和解压后的内容都不能超过 100 MB。',
+  'botZip.error.empty': 'zip 里没有文件。',
+  'botZip.export.title': '分享与导出',
+  'botZip.export.description':
+    '把这个 Bot 的 Memory 文件打包成 zip，发给别人，或在另一台设备上导入。Git 历史可选；会话、IM 绑定和凭证都不会放进去。',
+  'botZip.export.button': '导出 zip',
+  'botZip.export.confirmTitle': '导出 {name}',
+  'botZip.export.confirmBody':
+    '默认包含这个 Bot 当前的全部 Memory 文件（包括还没提交的修改）。取消勾选不想分享的文件或文件夹；.botharness/bot.json 和头像始终包含，被 .gitignore 忽略的文件不会出现在这里。',
+  'botZip.export.warningTitle': '分享前请先检查',
+  'botZip.export.warning':
+    'Memory 里可能记着密码、API Key，或聊天中提到的个人信息。发给别人之前，先确认这些文件里没有不该分享的内容。',
+  'botZip.export.submit': '导出',
+  'botZip.export.exporting': '正在打包…',
+  'botZip.export.failed': '导出失败：{error}',
+  'botZip.export.files': '要导出的文件',
+  'botZip.export.selected': '已选 {count} / {total} 个文件',
+  'botZip.export.selectAll': '全选',
+  'botZip.export.selectNone': '全不选',
+  'botZip.export.always': '始终包含',
+  'botZip.export.expand': '展开 {name}',
+  'botZip.export.collapse': '折叠 {name}',
+  'botZip.export.loading': '正在读取文件列表…',
+  'botZip.export.loadFailed': '读取文件列表失败：{error}',
+  'botZip.export.history': '包含 Git 历史',
+  'botZip.export.historyHint':
+    '带上所有分支、标签和提交记录，导入后可以在「记忆演化」里看到。历史里也有已经删掉的内容，分享前请确认。',
+  'botZip.export.historyPartial':
+    '取消勾选了文件时不能包含 Git 历史，否则别人仍能从历史里看到这些文件。',
   'main.author.human': '你',
   'main.author.system': '系统',
   'main.date.locale': 'zh-CN',
@@ -679,6 +726,14 @@ export const zh = {
   'im.origin': '外部来源',
   'im.senderNameLabel': '发送人',
   'im.senderLabel': '发送人 ID',
+  'bridgeMedia.image': '外部图片',
+  'bridgeMedia.enlarge': '放大图片',
+  'bridgeMedia.loading': '正在加载图片…',
+  'bridgeMedia.unavailable': '图片来源当前不可访问',
+  'bridgeMedia.tooLarge': '图片超过 25 MiB 上限',
+  'bridgeMedia.format': '不支持预览此图片格式',
+  'bridgeMedia.failed': '图片加载失败',
+  'bridgeMedia.retry': '重试',
   'im.platformLabel': '平台',
   'im.platform.weixin': '微信',
   'im.receiveHintDM':
@@ -708,24 +763,27 @@ export const zh = {
   'bridge.save': '保存频道连接器',
   'bridge.empty': '尚未接入外部信息。',
   'bridge.source': '来源',
-  'bridge.conversation': '外部群',
+  'bridge.conversation': '外部会话',
   'bridge.condition': '接收条件',
   'bridge.account': '接收身份',
   'bridge.state': '状态',
   'bridge.enabled': '启用',
   'bridge.actions': '操作',
   'bridge.name': '连接器名称',
+  'bridge.ownerDM': '扫码绑定者私聊消息',
+  'bridge.wechatDMHint':
+    '仅接收已授权的扫码绑定者私聊。微信没有子话题；投递到本地群不代表支持微信群。',
   'bridge.mentions': '仅收 @ 接收身份',
   'bridge.all': '所有普通文字消息',
   'bridge.enableFor': '启用频道连接器：{name}',
   'bridge.editFor': '编辑频道连接器：{name}',
   'bridge.deleteFor': '删除频道连接器：{name}',
   'bridge.enableDraft': '接收新消息',
-  'bridge.authorizedSource': '已授权的外部群',
+  'bridge.authorizedSource': '已授权的外部会话',
   'bridge.noSources':
-    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定外部身份并明确授权测试群。同一来源可接入多个目标，各路径独立管理。',
+    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定外部身份并明确授权外部会话。同一来源可接入多个目标，各路径独立管理。',
   'bridge.addHint':
-    '只使用已授权的群。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或群授权。',
+    '只使用已授权的会话。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或会话授权。',
   'bridge.receiver': '接收身份：{name}。这不授予其他成员以该身份发言的权限。',
   'bridge.target': '本地目标：{name}',
   'bridge.providerHint':
@@ -737,7 +795,7 @@ export const zh = {
   'bridge.retainHint':
     '保留成员 Bot 的外部身份、独立发送授权、已接收消息和记录的策略。以后接入需要明确添加。',
   'bridge.wakeHint': '频道连接器决定收什么；每个成员 Bot 的 Attention／唤醒策略决定何时处理。',
-  'bridge.failed': '未能完成操作。请刷新核对身份、群授权与连接状态后重试。',
+  'bridge.failed': '未能完成操作。请刷新核对身份、会话授权与连接状态后重试。',
   'bridge.stale': '配置已在另一处更改。请关闭窗口、刷新后重新编辑；输入已保留。',
   'bridge.state.off': '已暂停',
   'bridge.state.receiving': '正在收件',
@@ -845,6 +903,19 @@ export const zh = {
   'im.voiceTranscriptUnavailableHint':
     '微信未提供这条语音的转写文本。有原始音频时可尝试播放或下载；播放不会识别内容，需要内容时请补发文字。',
   'im.voiceDuration': '{seconds} 秒',
+  'im.quoteNative': '微信提供的引用内容',
+  'im.quoteRetained': '从本地保留记录找到的引用',
+  'im.quoteUnavailable': '引用内容不可用',
+  'im.quoteUnavailableHint':
+    '微信未提供引用正文，或当前授权范围内没有可读取的原始记录。无法判断是否已删除。',
+  'im.quoteSummary': '微信引用摘要：{text}',
+  'im.quotePartial': '微信标记了局部引用；不代表原消息全文。',
+  'im.quoteAttachment': '引用包含 {kind}，此处不自动下载引用附件。',
+  'im.quoteDetails': '引用详情',
+  'im.quoteServerId': '引用的服务器消息 ID：{id}',
+  'im.quoteItemId': '引用内容条目 ID：{id}',
+  'im.contextRetainedExplanation':
+    '仅查询当前授权私聊中已保留的本地来源记录，不是微信远端历史或搜索。下方展示最近返回的一页。',
   'im.voiceItemId': '语音内容 ID：{id}',
   'im.voiceEncoding': '原生编码：{type}',
   'im.voiceSampleRate': '原生采样率：{rate} Hz',
@@ -870,6 +941,11 @@ export const zh = {
   'im.dmLabel': '私聊',
   'im.weixinUser': '微信用户',
   'im.weixinReplyOnly': '支持回复已收取的微信私聊文字和文件；主动发送尚未开放。',
+  'im.weixinProactive':
+    '可向已授权的扫码绑定者私聊主动发送文字。需要有效的私聊上下文；仅发送到微信，不加入本地私聊记录。平台接受不代表真实送达或已读。',
+  'im.weixinContextRequired':
+    '微信私聊上下文缺失或发送被拒绝。请在原微信私聊发送一条新消息，核对授权和收取状态，再明确发起新的投递；不会自动重试。',
+  'im.clientAcknowledgement': '客户端确认 ID（不代表送达或已读）',
   'im.receivedAs': '接收身份：{name}',
   'im.readDetails': '读取记录 · {count} 次',
   'im.sourceError': '无法读取已保存的外部消息',
@@ -891,7 +967,7 @@ export const zh = {
   'im.inspectReply': '查看回复到 {name} 的消息',
   'im.threadId': '话题 ID',
   'im.sentAs': '发送身份：{name}',
-  'im.externalOnly': '仅发送到外部平台，未加入本地频道历史。平台接受不代表对方已读。',
+  'im.externalOnly': '仅向外部平台投递，未加入本地频道历史。平台接受不证明对方收到或已读。',
   'im.echoConfirmed': '已核对平台自身消息回传。',
   'im.outboxId': '发送记录 ID',
   'im.externalMessageId': '外部消息 ID',
@@ -1252,6 +1328,14 @@ export const zh = {
   'profile.avatar.shape': '五官布局',
   'profile.avatar.spacing': '间距',
   'roster.activityStale': '活动同步已中断，头像显示的是最后一次观察到的状态，正在重新连接…',
+  'git.unavailable.title': '需要 Git 才能创建 Bot',
+  'git.unavailable.missing': '这台电脑上没有找到 Git。',
+  'git.unavailable.unrunnable': '找到了 Git，但它无法运行。macOS 需要先安装命令行开发者工具。',
+  'git.unavailable.tooOld': 'Git {version} 版本太旧，需要 2.28 或更新版本。',
+  'git.unavailable.hint': '安装或升级后重启 DeepSeek Harness，就能创建和导入 Bot。',
+  'git.unavailable.guide': '安装说明',
+  'git.unavailable.guideUrl': 'https://botharness.ai/zh/docs/installation/#git',
+  'git.unavailable.recheck': '重新检测',
   'profile.avatar.unsupported':
     '这个头像使用的版本当前不可用，暂时显示保存时的静态图片，无法编辑或播放角色动画。原始设置已保留，版本恢复后会自动还原。',
   'profile.avatar.bangs': '刘海',
@@ -2404,6 +2488,9 @@ export const en = {
   'roster.menu.createChannel': 'Create channel',
   'roster.menu.createSection': 'Create channel section',
   'roster.menu.marketplace': 'Bot Marketplace',
+  'roster.menu.createBot.empty': 'Start empty',
+  'roster.menu.createBot.git': 'Import from GitHub',
+  'roster.menu.createBot.zip': 'Import from zip',
   'market.title': 'Bot Marketplace',
   'market.description':
     'Browse Bots shared as public GitHub repositories. Installing one creates a new PersonaBot.',
@@ -2503,8 +2590,6 @@ export const en = {
     'The name is used in lists and @mentions; the internal identity is generated. Roles and description may stay empty.',
   'bot.create.creating': 'Creating',
   'bot.create.importing': 'Cloning repository…',
-  'bot.create.source.label': 'Memory source',
-  'bot.create.source.empty': 'Start empty',
   'bot.create.persona.preset': 'Persona starting point',
   'bot.create.persona.blank': 'Blank',
   'bot.create.persona.colleague': 'Colleague',
@@ -2538,7 +2623,6 @@ My tone, vocabulary and habits: [fill in]. Characteristic phrases: [fill in].
 # Interaction boundaries
 My relationship with the Human, established lore and topics to avoid: [fill in].
 `,
-  'bot.create.source.git': 'Import Git repository',
   'bot.create.gitUrl.label': 'Git repository URL',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -2557,12 +2641,60 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bot.create.error.invalid': 'Check the Bot name, roles, or description.',
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
   'bot.create.error.gitMissing':
-    'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
+    'Install Git 2.28 or newer and make it available on PATH, then restart DeepSeek Harness and retry.',
   'bot.create.error.gitUrl': 'Enter a valid HTTPS or SSH repository URL.',
   'bot.create.error.clone':
     'Clone failed. Check the URL, network, and Git credentials on the Host.',
   'bot.create.error.cloneTimeout':
     'Clone timed out. Check the network or retry with a smaller repository.',
+  'bot.create.gitTitle': 'Import a PersonaBot from GitHub',
+  'bot.create.gitInSection': 'Import a PersonaBot from GitHub into “{name}”',
+  'botZip.import.title': 'Import a PersonaBot from zip',
+  'botZip.import.inSection': 'Import a PersonaBot from zip into “{name}”',
+  'botZip.import.description':
+    'Choose a Bot zip someone shared with you, or one you exported on another device. Importing creates a new Bot; its name, roles and avatar come from .botharness/bot.json in the zip.',
+  'botZip.import.choose': 'Choose zip file',
+  'botZip.import.change': 'Choose another',
+  'botZip.import.none': 'No file chosen yet',
+  'botZip.import.riskTitle': 'This is third-party content',
+  'botZip.import.risk':
+    'The files in the zip become the new Bot’s Memory and may contain harmful content or instructions the Bot will follow. Only import from sources you trust.',
+  'botZip.import.submit': 'Import',
+  'botZip.import.importing': 'Importing…',
+  'botZip.import.failed': 'Import failed: {error}',
+  'botZip.error.invalid': 'This is not a valid zip file, or it is damaged.',
+  'botZip.error.unsafe':
+    'The zip has unsafe paths (such as ../ or symbolic links), so it was not imported.',
+  'botZip.error.tooLarge':
+    'The zip is too large: the file and its unpacked contents must each stay under 100 MB.',
+  'botZip.error.empty': 'The zip has no files.',
+  'botZip.export.title': 'Share and export',
+  'botZip.export.description':
+    'Pack this Bot’s Memory files into a zip to send to someone or import on another device. Git history is optional; Sessions, IM bindings and credentials are never included.',
+  'botZip.export.button': 'Export zip',
+  'botZip.export.confirmTitle': 'Export {name}',
+  'botZip.export.confirmBody':
+    'Every current Memory file of this Bot is included by default (uncommitted changes too). Untick files or folders you don’t want to share; .botharness/bot.json and the avatar are always included, and files ignored by .gitignore don’t show up here.',
+  'botZip.export.warningTitle': 'Check before you share',
+  'botZip.export.warning':
+    'Memory can hold passwords, API keys, or personal details mentioned in chats. Before you send it to anyone, make sure these files hold nothing you shouldn’t share.',
+  'botZip.export.submit': 'Export',
+  'botZip.export.exporting': 'Packing…',
+  'botZip.export.failed': 'Export failed: {error}',
+  'botZip.export.files': 'Files to export',
+  'botZip.export.selected': '{count} of {total} files selected',
+  'botZip.export.selectAll': 'Select all',
+  'botZip.export.selectNone': 'Select none',
+  'botZip.export.always': 'Always included',
+  'botZip.export.expand': 'Expand {name}',
+  'botZip.export.collapse': 'Collapse {name}',
+  'botZip.export.loading': 'Reading the file list…',
+  'botZip.export.loadFailed': 'Couldn’t read the file list: {error}',
+  'botZip.export.history': 'Include Git history',
+  'botZip.export.historyHint':
+    'Adds every branch, tag and commit, shown under Memory evolution after import. History also holds content that was deleted, so check before you share.',
+  'botZip.export.historyPartial':
+    'Git history can’t be included when files are unticked, because the history would still show those files.',
   'main.author.human': 'You',
   'main.author.system': 'System',
   'main.date.locale': 'en-US',
@@ -2643,6 +2775,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.origin': 'External origin',
   'im.senderNameLabel': 'Sender',
   'im.senderLabel': 'Sender ID',
+  'bridgeMedia.image': 'External image',
+  'bridgeMedia.enlarge': 'Enlarge image',
+  'bridgeMedia.loading': 'Loading image…',
+  'bridgeMedia.unavailable': 'Image source is currently unavailable',
+  'bridgeMedia.tooLarge': 'Image exceeds the 25 MiB limit',
+  'bridgeMedia.format': 'This image format cannot be previewed',
+  'bridgeMedia.failed': 'Image failed to load',
+  'bridgeMedia.retry': 'Retry',
   'im.platformLabel': 'Platform',
   'im.platform.weixin': 'WeChat',
   'im.receiveHintDM':
@@ -2673,24 +2813,27 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.save': 'Save Bridge',
   'bridge.empty': 'No external sources connected.',
   'bridge.source': 'Source',
-  'bridge.conversation': 'External group',
+  'bridge.conversation': 'External conversation',
   'bridge.condition': 'Conditions',
   'bridge.account': 'Receiving identity',
   'bridge.state': 'State',
   'bridge.enabled': 'Enabled',
   'bridge.actions': 'Actions',
   'bridge.name': 'Bridge name',
+  'bridge.ownerDM': 'Paired-owner DM messages',
+  'bridge.wechatDMHint':
+    'Receives only the authorized paired-owner DM. WeChat has no topics here; delivery to a local Group does not enable native WeChat groups.',
   'bridge.mentions': 'Only mentions of the receiving identity',
   'bridge.all': 'All ordinary text messages',
   'bridge.enableFor': 'Enable Bridge: {name}',
   'bridge.editFor': 'Edit Bridge: {name}',
   'bridge.deleteFor': 'Delete Bridge: {name}',
   'bridge.enableDraft': 'Receive new messages',
-  'bridge.authorizedSource': 'Authorized external group',
+  'bridge.authorizedSource': 'Authorized external conversation',
   'bridge.noSources':
-    'No source available. Bind a member Bot’s external identity and explicitly authorize a group in its Profile first. The same source can be connected to multiple independently managed targets.',
+    'No source available. Bind a member Bot’s external identity and explicitly authorize a conversation in its Profile first. The same source can be connected to multiple independently managed targets.',
   'bridge.addHint':
-    'Uses an existing authorized group only. Future messages enter this Channel; earlier Inbox history stays. No new external account or group authorization is created.',
+    'Uses an existing authorized conversation only. Future messages enter this Channel; earlier Inbox history stays. No new external account or conversation authorization is created.',
   'bridge.receiver':
     'Receiving identity: {name}. Other members do not gain permission to speak as this identity.',
   'bridge.target': 'Local target: {name}',
@@ -2705,7 +2848,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.wakeHint':
     'Bridge decides what to collect; each member Bot’s Attention and wake policy decides when to process it.',
   'bridge.failed':
-    'Operation could not complete. Refresh and check identity, group authorization and connection before retrying.',
+    'Operation could not complete. Refresh and check identity, conversation authorization and connection before retrying.',
   'bridge.stale':
     'Configuration changed elsewhere. Close, refresh and reopen to edit; your input is retained.',
   'bridge.state.off': 'Paused',
@@ -2822,6 +2965,20 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceTranscriptUnavailableHint':
     'WeChat did not provide a transcript. You can try playback or download the original audio; speech recognition is not configured here. Please send text.',
   'im.voiceDuration': '{seconds} s',
+  'im.quoteNative': 'Quote supplied by WeChat',
+  'im.quoteRetained': 'Quote found in retained local records',
+  'im.quoteUnavailable': 'Quoted content unavailable',
+  'im.quoteUnavailableHint':
+    'WeChat did not supply the quoted body, or no readable original exists in the current authorized records. Deletion cannot be inferred.',
+  'im.quoteSummary': 'WeChat quote summary: {text}',
+  'im.quotePartial': 'WeChat marked a partial quote; this is not the full original message.',
+  'im.quoteAttachment':
+    'Quote contains {kind}; quoted attachments are not downloaded automatically.',
+  'im.quoteDetails': 'Quote details',
+  'im.quoteServerId': 'Quoted server message ID: {id}',
+  'im.quoteItemId': 'Quoted item ID: {id}',
+  'im.contextRetainedExplanation':
+    'Only locally retained sources in the currently authorized private conversation. This is not remote WeChat history or search. The latest returned page is shown below.',
   'im.voiceItemId': 'Voice item ID: {id}',
   'im.voiceEncoding': 'Native encoding: {type}',
   'im.voiceSampleRate': 'Native sample rate: {rate} Hz',
@@ -2851,6 +3008,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.weixinUser': 'WeChat user',
   'im.weixinReplyOnly':
     'Replies to received WeChat DM text and files are supported; proactive sending is not available yet.',
+  'im.weixinProactive':
+    'Post text to the explicitly authorized QR-paired owner DM using valid private context. Delivery is WeChat-only, with no local DM mirror. Provider acceptance does not prove delivery or reading.',
+  'im.weixinContextRequired':
+    'Private WeChat context is missing or the send was rejected. Send a fresh message in the original WeChat DM, check authorization and reception, then explicitly start a new delivery. There is no automatic retry.',
+  'im.clientAcknowledgement': 'Client acknowledgement ID (not delivery or reading proof)',
   'im.receivedAs': 'Received as {name}',
   'im.readDetails': 'Read history · {count} reads',
   'im.sourceError': 'Unable to read the retained external message',
@@ -2873,7 +3035,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.threadId': 'Topic ID',
   'im.sentAs': 'Sent as {name}',
   'im.externalOnly':
-    'Sent only to the external platform, without local Channel history. Platform acceptance does not mean the recipient has read it.',
+    'Posted only to the external platform, without local Channel history. Platform acceptance does not prove recipient delivery or reading.',
   'im.echoConfirmed': 'Platform own-message echo verified.',
   'im.outboxId': 'Outbox intent ID',
   'im.externalMessageId': 'External message ID',
@@ -3246,6 +3408,16 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'profile.avatar.spacing': 'Spacing',
   'roster.activityStale':
     'Activity sync is interrupted. Avatars show the last observed state while reconnecting…',
+  'git.unavailable.title': 'Bot mode needs Git',
+  'git.unavailable.missing': 'Git was not found on this computer.',
+  'git.unavailable.unrunnable':
+    'Git was found but cannot run. On macOS, install the Command Line Developer Tools first.',
+  'git.unavailable.tooOld': 'Git {version} is too old; 2.28 or newer is required.',
+  'git.unavailable.hint':
+    'After installing or upgrading, restart DeepSeek Harness to create and import Bots.',
+  'git.unavailable.guide': 'How to install',
+  'git.unavailable.guideUrl': 'https://botharness.ai/docs/installation/#git',
+  'git.unavailable.recheck': 'Check again',
   'profile.avatar.unsupported':
     'This Avatar uses a version that is not available right now, so its saved still image is shown and editing and character animation are paused. The original design is kept and returns when the version is available again.',
   'profile.avatar.bangs': 'Bangs',

@@ -214,6 +214,10 @@ export interface ChannelMessage {
 
   userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
+  bridgeMedia?: {
+    items: { id: string; kind: 'image'; name: string }[];
+    parts?: import('../messaging/provider.js').MessagingContentPart[];
+  };
   bridgeOrigin?: {
     sourceEventId: string;
     platform: string;

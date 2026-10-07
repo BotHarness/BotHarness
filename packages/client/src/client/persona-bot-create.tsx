@@ -67,6 +67,7 @@ function Field({
 
 export function CreatePersonaBotModal({
   actions,
+  source = 'empty',
   sectionId,
   sectionName,
   t = zhTranslate,
@@ -74,6 +75,7 @@ export function CreatePersonaBotModal({
   onCreated,
 }: {
   actions: BridgeActions;
+  source?: 'empty' | 'git';
   sectionId?: string;
   sectionName?: string;
   t?: BotHarnessTranslate | undefined;
@@ -81,14 +83,12 @@ export function CreatePersonaBotModal({
   onCreated: () => void;
 }): ReactElement {
   const displayNameId = useId();
-  const sourceId = useId();
   const gitUrlId = useId();
   const roleId = useId();
   const descriptionId = useId();
   const personaId = useId();
   const personaPresetId = useId();
   const [displayName, setDisplayName] = useState('');
-  const [source, setSource] = useState<'empty' | 'git'>('empty');
   const [personaPreset, setPersonaPreset] = useState<'blank' | 'colleague' | 'roleplay'>('blank');
   const [personaDrafts, setPersonaDrafts] = useState(() => ({
     blank: '',
@@ -153,8 +153,10 @@ export function CreatePersonaBotModal({
       closeLabel={t('common.close')}
       title={
         sectionName === undefined
-          ? t('bot.create.title')
-          : t('bot.create.inSection', { name: sectionName })
+          ? t(source === 'git' ? 'bot.create.gitTitle' : 'bot.create.title')
+          : t(source === 'git' ? 'bot.create.gitInSection' : 'bot.create.inSection', {
+              name: sectionName,
+            })
       }
       description={t('bot.create.description')}
       footer={
@@ -171,17 +173,6 @@ export function CreatePersonaBotModal({
       }
     >
       <div className="bh-personabot-form">
-        <SegmentedControl
-          id={sourceId}
-          label={t('bot.create.source.label')}
-          value={source}
-          options={[
-            { value: 'empty', label: t('bot.create.source.empty') },
-            { value: 'git', label: t('bot.create.source.git') },
-          ]}
-          disabled={creating}
-          onChange={setSource}
-        />
         {source === 'git' ? (
           <Field
             id={gitUrlId}

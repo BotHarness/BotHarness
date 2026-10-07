@@ -392,10 +392,11 @@ export function MessagingProfile({
                       }}
                     />
                   ) : null}
-                  {grant.platform === 'weixin' ? (
+                  {grant.platform === 'weixin' && !grant.canPost ? (
                     <p>{t('im.weixinReplyOnly')}</p>
                   ) : (
                     <>
+                      {grant.platform === 'weixin' ? <p>{t('im.weixinProactive')}</p> : null}
                       <label className="bh-im-field">
                         <span>{t('im.message')}</span>
                         <textarea
@@ -553,6 +554,10 @@ export function MessagingProfile({
             {report.state === 'unknown-outcome' ? (
               <p className="bh-external-notice">{t('im.noRetry')}</p>
             ) : null}
+            {report.reason === 'private-context-unavailable' ||
+            report.reason === 'private-context-rejected' ? (
+              <p className="bh-external-context-hint">{t('im.weixinContextRequired')}</p>
+            ) : null}
             {report.echo ? <p>{t('im.echoConfirmed')}</p> : null}
             <details className="bh-external-details">
               <summary>{t('im.originDetails')}</summary>
@@ -561,8 +566,16 @@ export function MessagingProfile({
                   {t('im.outboxId')}: {report.id}
                 </p>
                 <p>
-                  {t('im.externalMessageId')}: {report.receipt?.messageId ?? t('im.notAvailable')}
+                  {t('im.externalMessageId')}:{' '}
+                  {report.receipt?.identityKind === 'client-acknowledgement'
+                    ? (report.receipt.serverMessageId ?? t('im.notAvailable'))
+                    : (report.receipt?.messageId ?? t('im.notAvailable'))}
                 </p>
+                {report.receipt?.identityKind === 'client-acknowledgement' ? (
+                  <p>
+                    {t('im.clientAcknowledgement')}: {report.receipt.messageId}
+                  </p>
+                ) : null}
                 <p>
                   {t('im.conversationId')}: {origin?.conversationId}
                 </p>

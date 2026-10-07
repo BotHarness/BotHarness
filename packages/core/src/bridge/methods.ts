@@ -152,6 +152,7 @@ import type {
   BotAttentionState,
 } from '../runtime/attention.js';
 import type { BotSourcePolicy, BotSourcePolicyStore } from '../runtime/source-policy.js';
+import { probeGit, type GitAvailability } from '../memory/git-probe.js';
 import {
   BotScheduleError,
   type BotSchedule,
@@ -458,6 +459,7 @@ export interface BridgeMethods {
   releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
   releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
+  gitStatus(): BridgeResult<GitAvailability>;
   telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -506,6 +508,7 @@ export interface BridgeMethodsDeps {
     setPreference(enabled: boolean): TelemetryStatus;
     capture?: TelemetryCapture;
   };
+  gitProbe?: () => GitAvailability;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -725,6 +728,11 @@ function createFailure(
           code: 'git-clone-timeout',
           message: 'Git clone timed out. Retry or check Host network access.',
         },
+      };
+    case 'invalid-zip':
+      return {
+        ok: false,
+        error: { code: 'invalid-zip', message: 'The zip file could not be unpacked.' },
       };
     case 'memory-unavailable':
       return {
@@ -1189,14 +1197,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .strict()
         .safeParse(payload);
       if (!input.success) return Promise.resolve(invalidInput('Invalid send'));
-      return messagingCall(async (service) => ({
-        intent: await service.send(
-          input.data.slug,
-          input.data.grantId,
-          input.data.requestId,
-          input.data.text,
-        ),
-      }));
+      return messagingCall(async (service) => {
+        const { slug, grantId, requestId, text } = input.data;
+        const snapshot = await service.snapshot(slug);
+        const grant = snapshot.grants.find((value) => value.id === grantId);
+        return {
+          intent:
+            grant?.platform === 'weixin'
+              ? await service.post(slug, grantId, requestId, text)
+              : await service.send(slug, grantId, requestId, text),
+        };
+      });
     },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
@@ -1617,6 +1628,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ok: true,
         value: deps.telemetry?.status() ?? { enabled: false, preference: false },
       };
+    },
+    gitStatus() {
+      return { ok: true, value: (deps.gitProbe ?? probeGit)() };
     },
     telemetrySet(payload) {
       const enabled = asObject(payload)['enabled'];

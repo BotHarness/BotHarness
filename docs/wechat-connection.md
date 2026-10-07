@@ -1,6 +1,6 @@
 # Connect a Bot to personal WeChat
 
-The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Section 7 describes platform-provided voice transcripts; section 8 describes the #906 original-audio candidate. Section 9 describes the #907 native-video candidate. Group messages, other contacts, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
+The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Section 7 describes platform-provided voice transcripts; section 8 describes the #906 original-audio candidate. Section 9 describes the #907 native-video candidate. Section 12 adds explicitly authorized external-only text reports. Groups, other contacts, remote history/search and scheduled-work UI remain separate slices. Enterprise WeChat is a separate integration.
 
 ## Before you start
 
@@ -125,6 +125,98 @@ For actual processing, authorize a writable Workspace for that PersonaBot. The B
 In the real QA run, the Bot saved the original into an explicitly authorized isolated Workspace and, after once-only native Tool approvals, produced the first three seconds using ffmpeg. Independent inspection confirmed a 204,644-byte, three-second H.264 result and an unchanged input. The Bot imported that result and sent it using its own identity; the Provider accepted the reply. This is file processing, not semantic video understanding.
 
 Inspect the returned video in the original WeChat conversation and independently verify its actual contents. Tool processing, a working browser player, or Provider acceptance alone is not model video understanding, recipient delivery, a read receipt or byte equality. Unsupported formats retain original-download or refusal paths; this slice does not add arbitrary video transcoding or automatic video-model input.
+
+## 10. Quote a message and read retained context
+
+In WeChat, use **Quote** on a message in the paired-owner private conversation, then write your follow-up. Open that source from the PersonaBot's Inbox in BotHarness. The quoted block distinguishes **Quote supplied by WeChat**, **Quote found in retained local records**, and **Quoted content unavailable**. Expand **Quote details** to inspect native IDs and any resolved Source Event.
+
+WeChat can provide embedded quoted text, a display summary, an item ID, a server message ID, or partial-quote metadata. A summary is not promoted to the original body; item IDs stay separate from server message IDs. When WeChat omits the body, BotHarness resolves a genuine server message ID only from readable canonical records in the same currently authorized account/private conversation. An unknown, unretained or inaccessible reference stays unavailable; this does not prove that the original was deleted. Quoted attachments are not automatically fetched. A quote never creates a Thread.
+
+Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Source Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
+
+Reads return at most 20 records per page and obey a JSON budget (1,000–24,000 characters, default 12,000). Follow `nextCursor` with the same source, scope and counts. The cursor fixes the initial record boundary, so later arrivals are excluded; it expires after 30 minutes or a Host restart. A changed Grant/identity or revoked authorization refuses continuation. If a single record exceeds the budget, `requiredCharacters` indicates the budget needed. Reading context creates no new Inbox delivery, wake, subscription, local DM or external send. The source panel shows the Bot's read audit and latest page.
+
+WeChat reply receipts remain client acknowledgements. They cannot be used to resolve a server-message-ID-only quote of a Bot reply. Embedded native quoted text can still be shown; without that text or a genuine retained server ID, the quote remains unavailable. Section 12 separately preserves native server IDs returned by proactive reports.
+
+The #908 live test received an item-ID-only quote: WeChat supplied neither the quoted body nor a server message ID. BotHarness kept the quote explicitly unavailable. The Bot read the original canonical Source Event through two retained-context pages and one nearby query, then sent `BH908-QUOTE-OK 紫色风铃42` to the same authorized private conversation. The Provider accepted the send, and the Human confirmed receipt with a native WeChat screenshot. Embedded-body and server-ID resolution variants are covered by regressions, not claimed as live-tested client variants.
+
+![Real item-ID-only quote shown as unavailable, light theme](/guides/wechat/quote-after-light.jpg)
+
+![The same source and quote in dark theme](/guides/wechat/quote-after-dark.jpg)
+
+![Read audit and the original retained message, with its test password](/guides/wechat/quote-context-light.jpg)
+
+![Human-confirmed reply in the original quoted-message conversation](/guides/wechat/native-quote-reply.png)
+
+## 11. Share a private source through a local Channel
+
+The #909 installed-product test used `0.0.0-test.909.2` with the unchanged Provider `4.32.0-botharness.10`. One paired-owner conversation delivered the same canonical Source Event to a local shared Group and the receiving Bot's separate Inbox. The Human confirmed all four original-WeChat replies.
+
+Keep the receiving PersonaBot's WeChat identity and paired-owner DM authorization. Create a local Group with this Bot and its collaborators. In its Profile, choose **Channel connectors → Add connector**, select the authorized paired-owner conversation, name the connector and save. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
+
+![WeChat-specific connector configuration, light theme](/guides/wechat/channel-connector-config-light.jpg)
+
+![The same private-source configuration, dark theme](/guides/wechat/channel-connector-config-dark.jpg)
+
+Each Group member chooses its own Channel message policy: process each message, harvest by count/time, or receive silently. In the live test, the receiver processed its Inbox immediately while a collaborator waited for two shared messages. The collaborator used `bridge_read` to inspect both real sources and replied locally with `channel_send`. That Bot had no WeChat identity or Grant. Reading shared text does not lend the receiver's external identity: external replies, context and attachment access still require the acting Bot's own valid binding and Grant.
+
+![Shared reader waiting after the first message; the second message triggers harvest](/guides/wechat/routing-inbox-pending-dark.jpg)
+
+![Three native messages in the shared Channel and the reader's actual Source Event acknowledgements, light theme](/guides/wechat/routing-shared-light.jpg)
+
+![The same shared-source history, dark theme](/guides/wechat/routing-shared-dark.jpg)
+
+The receiver can retain a separate Inbox-only path governed by its private-message policy. Inbox-only adds no Human DM history; only an explicit local DM destination displays the source there. Local DM routing, duplicate input, connector deletion and receiver departure are regression-tested; this live run qualified the shared Group plus Inbox-only combination.
+
+Switch-off preserves history and stops future placements for this route while other enabled destinations continue. In the live test, the paused message reached only the receiver's Inbox and was answered in WeChat. Resume plus a same-Profile restart preserved message IDs and settings without backfilling that message. A new postrestart message reached the shared Channel and was processed by the reader's changed **Every message** policy. Delete keeps accepted history; receiver departure stops new routing there. Identity, target authorization and connector switches have separate scopes.
+
+![Member policies and enabled connector after restart](/guides/wechat/routing-profile-light.jpg)
+
+![Paused shared connector; the independent Inbox-only route continues](/guides/wechat/routing-paused-dark.jpg)
+
+This short sampled browser recording shows the real connector switch and saved status changes; native WeChat receipt is established by the live messages and Human confirmations above.
+
+<video controls preload="none" playsInline poster="/guides/wechat/routing-profile-light.jpg" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/wechat/routing-switch-demo.mp4" type="video/mp4" />
+</video>
+
+[Download the connector-switch recording](/guides/wechat/routing-switch-demo.mp4)
+
+## 12. Send an external-only text report
+
+Keep the PersonaBot's own enabled WeChat identity and explicitly authorize its QR-paired owner DM. In its Profile, expand **Channel Bridge and authorization**. A qualified Provider exposes **Message → Send message**. Write a unique report and send explicitly. It creates a canonical Outbox report in WeChat only, without a local Human DM mirror or new Inbox Admission. The Bot can use the same capability through `bridge_targets`, `bridge_post` and `bridge_outbox`. This adds no scheduler.
+
+![Qualified owner-DM posting controls, light theme](/guides/wechat/proactive-after-light.jpg)
+
+![The same real Profile in dark theme](/guides/wechat/proactive-after-dark.jpg)
+
+The paired owner first sends a message in the original WeChat conversation while this Bot's authorized intake is running. Private context stays inside the Provider and is never renewed by synthetic heartbeats. A local retention ceiling does not promise server validity. Missing context or native rejection fails with recovery instructions: check identity/authorization/intake, send a fresh message in the same DM, then explicitly request a new report. Re-pairing needs new authorization; another contact cannot substitute for this conversation.
+
+![Real missing-context refusal and fresh-message recovery](/guides/wechat/proactive-after-context-light.jpg)
+
+Open **Recent sends** to inspect report content and outcome. **Platform accepted** proves neither recipient delivery nor reading. **Origin details** separates the client acknowledgement from a genuine native server message ID actually returned; absent server IDs remain unavailable. Inspect an uncertain outcome with the same request ID rather than blindly resending. Revocation or changed/disabled identity refuses new sends; old Outbox records remain inspectable.
+
+![A real accepted report, with separate native and client IDs](/guides/wechat/proactive-after-receipt-light.jpg)
+
+The #910 final UI candidate is locally packed product `0.0.0-test.910.1` / managed Provider `4.32.0-botharness.12`, fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` on DSH `0.2.0-rc.1`. A fresh-computer Human pairing produced a real missing-context refusal; fresh owner intake restored posting. The Human confirmed `BH910-PROACTIVE-OWNER-0632` in WeChat, and `910 FOLLOWUP 蓝色灯塔63` entered the same canonical Inbox. Profile posting left local DM history unchanged. The preceding packed build `0.0.0-test.910` used a real model to post `BH910-MODEL-POST-0640`; Provider acceptance and independent Human receipt are both confirmed. Final UI recapture and restart preserved both reports and the Inbox. Observed server IDs do not promise every response supplies one. The Human supplied a native screenshot showing both reports and the follow-up; it is delivery evidence, not a read receipt. Public release and deployment remain separate.
+
+![Human-provided native WeChat screenshot showing both reports and the follow-up](/guides/wechat/native-proactive-reports.png)
+
+![The follow-up's canonical source, native message ID and Source Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
+
+![The same canonical follow-up source in dark theme](/guides/wechat/proactive-followup-source-dark.jpg)
+
+![Installed-model report receipt, with separate server ID and client acknowledgement, light theme](/guides/wechat/proactive-model-receipt-light.jpg)
+
+![The same installed-model receipt in dark theme](/guides/wechat/proactive-model-receipt-dark.jpg)
+
+The recording shows real Profile input, send, Outbox settlement and receipt inspection. It proves browser behavior; recipient receipt comes from the independent Human check.
+
+<video controls preload="none" playsInline poster="/guides/wechat/proactive-after-light.jpg" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/wechat/proactive-send-demo.mp4" type="video/mp4" />
+</video>
+
+[Download the proactive-send recording](/guides/wechat/proactive-send-demo.mp4)
 
 ## Pause or reconnect
 

@@ -1,6 +1,7 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import {
+  loadGitAvailability,
   reviewPairing,
   setApprovalRoute,
   testApprovalRoute,
@@ -76,6 +77,11 @@ import {
   loadGroupWakePolicies,
   deleteGroupChannel,
   createPersonaBot,
+  downloadBotZip,
+  importBotZip,
+  loadBotZipFiles,
+  type BotZipExportChoice,
+  type BotZipFileListing,
   createRosterSection,
   errorMessage,
   loadWorkspaceOptions,
@@ -307,6 +313,7 @@ export interface BridgeActions {
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
+  refreshGit(signal?: AbortSignal): Promise<void>;
   openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
@@ -489,6 +496,9 @@ export interface BridgeActions {
     allBotMention?: AllBotMention,
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
+  importBotZip(file: File, sectionId?: string): Promise<BotSummary>;
+  botZipFiles(slug: string): Promise<BotZipFileListing>;
+  exportBotZip(slug: string, displayName: string, choice?: BotZipExportChoice): Promise<void>;
   marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
   marketplaceChallenge(): Promise<AltchaChallenge>;
   marketplaceSubmit(url: string, altcha: string): Promise<MarketplaceEntry>;
@@ -626,6 +636,15 @@ export function createActions(
     return channel?.id === selection.channelId && channel.type === 'dm'
       ? channel.botSlug
       : undefined;
+  };
+
+  const refreshGit = async (signal?: AbortSignal): Promise<void> => {
+    try {
+      const git = await loadGitAvailability(call, signal);
+      if (signal?.aborted !== true) clientStore.setGit(git);
+    } catch (error) {
+      if (signal?.aborted !== true) console.warn('botharness: Git status check failed', error);
+    }
   };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
@@ -984,6 +1003,18 @@ export function createActions(
     }
   };
 
+  const openCreatedBot = async (
+    bot: BotSummary,
+    sectionId: string | undefined,
+  ): Promise<BotSummary> => {
+    const channel = await openDmChannel(call, bot.slug, bot.displayName);
+    clientStore.upsertBot(bot);
+    clientStore.upsertChannel(channel);
+    await placeCreatedChannelFirst(channel.id, sectionId);
+    await actions.openBot(bot.slug);
+    return bot;
+  };
+
   const actions: BridgeActions = {
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
@@ -1054,6 +1085,7 @@ export function createActions(
       ),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
+      void refreshGit(signal);
       try {
         const [bots, channels] = await Promise.all([
           loadBots(call, signal),
@@ -1069,6 +1101,7 @@ export function createActions(
       await refreshRoster(signal);
     },
     refreshRoster,
+    refreshGit,
     async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
@@ -1959,13 +1992,24 @@ export function createActions(
       return true;
     },
     async createBot(input, sectionId) {
-      const bot = await createPersonaBot(call, input);
-      const channel = await openDmChannel(call, bot.slug, bot.displayName);
-      clientStore.upsertBot(bot);
-      clientStore.upsertChannel(channel);
-      await placeCreatedChannelFirst(channel.id, sectionId);
-      await actions.openBot(bot.slug);
-      return bot;
+      return openCreatedBot(await createPersonaBot(call, input), sectionId);
+    },
+    async importBotZip(file, sectionId) {
+      return openCreatedBot(await importBotZip(file), sectionId);
+    },
+    botZipFiles(slug) {
+      return loadBotZipFiles(slug);
+    },
+    async exportBotZip(slug, displayName, choice) {
+      const { blob, name } = await downloadBotZip(slug, displayName, choice);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = name;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
     async createGroup(name, sectionId) {
       const channel = await createGroupChannel(call, name);

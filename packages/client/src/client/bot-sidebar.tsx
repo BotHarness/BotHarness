@@ -73,6 +73,8 @@ import { needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
+import { ImportBotZipModal } from './bot-zip.js';
+import { GitUnavailableNotice, gitReady } from './git-unavailable-notice.js';
 import { MarketplaceModal } from './marketplace.js';
 import {
   defaultStorage,
@@ -724,7 +726,7 @@ function RailChannel({
 }
 
 type CreateRequest =
-  | { kind: 'bot'; sectionId?: string }
+  | { kind: 'bot'; source: 'empty' | 'git' | 'zip'; sectionId?: string }
   | {
       kind: 'section';
       moveChannelId?: string;
@@ -1046,7 +1048,8 @@ export function BotSidebar({
 
   const selectMenu = (id: string): void => {
     setMenuOpen(false);
-    if (id === 'bot') setCreateRequest({ kind: 'bot' });
+    const source = botCreateSource(id);
+    if (source !== undefined) setCreateRequest({ kind: 'bot', source });
     if (id === 'channel') setCreateRequest({ kind: 'channel' });
     if (id === 'section') setCreateRequest({ kind: 'section' });
     if (id === 'marketplace') setCreateRequest({ kind: 'marketplace' });
@@ -1552,6 +1555,13 @@ export function BotSidebar({
           {t('roster.activityStale')}
         </div>
       ) : null}
+      <GitUnavailableNotice
+        git={state.git}
+        onRecheck={() => {
+          void actions.refreshGit();
+        }}
+        t={t}
+      />
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}
@@ -1663,7 +1673,7 @@ export function BotSidebar({
                 </button>
               </Tooltip>
             }
-            items={menuItems(t)}
+            items={menuItems(t, gitReady(state.git))}
             onSelect={selectMenu}
             onClose={() => {
               setMenuOpen(false);
@@ -1681,7 +1691,12 @@ export function BotSidebar({
       {state.status === 'ready' && state.bots.length === 0 ? (
         <div className="bh-empty-create">
           <span>{t('roster.empty')}</span>
-          <Button variant="outline" size="sm" onClick={() => setCreateRequest({ kind: 'bot' })}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!gitReady(state.git)}
+            onClick={() => setCreateRequest({ kind: 'bot', source: 'empty' })}
+          >
             {t('roster.empty.create')}
           </Button>
         </div>
@@ -2181,11 +2196,12 @@ export function BotSidebar({
                           <IconPlusOutlineRegular />
                         </button>
                       }
-                      items={sectionCreateMenuItems(t)}
+                      items={sectionCreateMenuItems(t, gitReady(state.git))}
                       onSelect={(id) => {
                         setSectionCreateMenuId(undefined);
-                        if (id === 'bot') {
-                          setCreateRequest({ kind: 'bot', sectionId: section.id });
+                        const source = botCreateSource(id);
+                        if (source !== undefined) {
+                          setCreateRequest({ kind: 'bot', source, sectionId: section.id });
                         }
                         if (id === 'channel') {
                           setCreateRequest({ kind: 'channel', sectionId: section.id });
@@ -2205,10 +2221,25 @@ export function BotSidebar({
           );
         })}
       </div>
-      {createRequest?.kind === 'bot' ? (
+      {createRequest?.kind === 'bot' && createRequest.source === 'zip' ? (
+        <ImportBotZipModal
+          t={t}
+          actions={actions}
+          {...(createSectionId === undefined ? {} : { sectionId: createSectionId })}
+          {...(createSection === undefined ? {} : { sectionName: createSection.name })}
+          onCancel={() => {
+            setCreateRequest(undefined);
+          }}
+          onImported={() => {
+            setCreateRequest(undefined);
+          }}
+        />
+      ) : null}
+      {createRequest?.kind === 'bot' && createRequest.source !== 'zip' ? (
         <CreatePersonaBotModal
           t={t}
           actions={actions}
+          source={createRequest.source}
           {...(createSectionId === undefined ? {} : { sectionId: createSectionId })}
           {...(createSection === undefined ? {} : { sectionName: createSection.name })}
           onCancel={() => {
@@ -2600,12 +2631,25 @@ export function ChannelMoveMenu({
   );
 }
 
-function menuItems(t: BotHarnessTranslate): MenuEntry[] {
+function botCreateSource(id: string): 'empty' | 'git' | 'zip' | undefined {
+  if (id === 'bot' || id === 'bot:empty') return 'empty';
+  if (id === 'bot:git') return 'git';
+  if (id === 'bot:zip') return 'zip';
+  return undefined;
+}
+
+function menuItems(t: BotHarnessTranslate, gitAvailable: boolean): MenuEntry[] {
+  const disabled = !gitAvailable;
   return [
     {
       id: 'bot',
       label: t('roster.menu.createBot'),
       icon: <IconAgentPresetOutlineRegular size={16} />,
+      submenu: [
+        { id: 'bot:empty', label: t('roster.menu.createBot.empty'), disabled },
+        { id: 'bot:git', label: t('roster.menu.createBot.git'), disabled },
+        { id: 'bot:zip', label: t('roster.menu.createBot.zip'), disabled },
+      ],
     },
     {
       id: 'channel',
@@ -2625,6 +2669,6 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
   ];
 }
 
-function sectionCreateMenuItems(t: BotHarnessTranslate): MenuEntry[] {
-  return menuItems(t).filter((item) => item.id === 'bot' || item.id === 'channel');
+function sectionCreateMenuItems(t: BotHarnessTranslate, gitAvailable: boolean): MenuEntry[] {
+  return menuItems(t, gitAvailable).filter((item) => item.id === 'bot' || item.id === 'channel');
 }

@@ -2,6 +2,8 @@ import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { gitSupportsSinceAsFilter } from './git-probe.js';
+
 export interface MemoryCommit {
   sha: string;
   message: string;
@@ -41,9 +43,18 @@ function activityArgs(sinceIso: string): string[] {
     '--exclude=refs/botharness/recovery/*',
     '--exclude=refs/stash',
     '--all',
-    '--since-as-filter=' + sinceIso,
+    ...(gitSupportsSinceAsFilter() ? ['--since-as-filter=' + sinceIso] : []),
     '--pretty=format:%cI',
   ];
+}
+
+function activityAt(output: string, sinceIso: string): Array<{ at: string }> {
+  const since = Date.parse(sinceIso);
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !(Date.parse(line) < since))
+    .map((at) => ({ at }));
 }
 
 function readActivity(root: string, args: string[]): Promise<string> {
@@ -147,11 +158,7 @@ export function createMemoryGit(root: string): MemoryGit {
       return commits;
     },
     async activitySnapshot(sinceIso) {
-      const commits = (await readActivity(root, activityArgs(sinceIso)))
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((at) => ({ at }));
+      const commits = activityAt(await readActivity(root, activityArgs(sinceIso)), sinceIso);
       const dirty =
         (
           await readActivity(root, [
@@ -165,16 +172,15 @@ export function createMemoryGit(root: string): MemoryGit {
     },
     activitySince(sinceIso) {
       try {
-        return run(root, [
-          '--no-optional-locks',
-          '-c',
-          'core.fsmonitor=false',
-          ...activityArgs(sinceIso),
-        ])
-          .split('\n')
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0)
-          .map((at) => ({ at }));
+        return activityAt(
+          run(root, [
+            '--no-optional-locks',
+            '-c',
+            'core.fsmonitor=false',
+            ...activityArgs(sinceIso),
+          ]),
+          sinceIso,
+        );
       } catch {
         return [];
       }

@@ -469,6 +469,7 @@ describe('plugin entry', () => {
       'releaseRestart',
       'telemetryStatus',
       'telemetrySet',
+      'gitStatus',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',

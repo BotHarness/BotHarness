@@ -30,6 +30,8 @@ import {
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
+import { createChannelMediaAccess } from './channel-media.js';
+import { sourceMediaUploadId } from './media-identity.js';
 import { decodeWeChatVoice, MAX_VOICE_INPUT_BYTES } from '../attachments/wechat-audio.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createInboundMessaging, type InboundMessaging, type ExternalSource } from './inbound.js';
@@ -201,6 +203,12 @@ export interface OutboundMessaging {
     attachmentId: string,
     signal?: AbortSignal,
   ): Promise<ChannelAttachmentRef>;
+  readChannelMedia(input: {
+    channelId: string;
+    sourceEventId: string;
+    attachmentId: string;
+    signal: AbortSignal;
+  }): Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>;
   prepareAudio(
     botSlug: string,
     sourceEventId: string,
@@ -505,7 +513,8 @@ export function createOutboundMessaging(options: {
         owner.botSlug === botSlug ||
         owner.providerId !== value.providerId ||
         source.platform !== value.platform ||
-        source.event.conversation.kind !== 'group' ||
+        (source.event.conversation.kind !== 'group' &&
+          !(source.platform === 'weixin' && source.event.conversation.kind === 'dm')) ||
         !source.localChannelId
       )
         throw new MessagingError('source-unavailable');
@@ -549,6 +558,18 @@ export function createOutboundMessaging(options: {
       throw new MessagingError('stale-route');
     return route;
   };
+  const channelMedia = options.attachments
+    ? createChannelMediaAccess({
+        database,
+        attachments: options.attachments,
+        active: options.isBotActive,
+        provider(id) {
+          const entry = provider(id);
+          return { provider: entry.provider, assertCurrent: () => current(id, entry.token) };
+        },
+        ...(options.warn ? { warn: options.warn } : {}),
+      })
+    : undefined;
   const service: OutboundMessaging = {
     approvals,
     inbound,
@@ -738,6 +759,10 @@ export function createOutboundMessaging(options: {
         connectorEnabled(updated.platform);
       return updated;
     },
+    readChannelMedia(input) {
+      if (!channelMedia) throw new MessagingError('capability-unavailable');
+      return channelMedia(input);
+    },
     async acquireFile(botSlug, sourceEventId, attachmentId, signal) {
       if (options.attachments === undefined || !inbound.available(botSlug, sourceEventId))
         throw new MessagingError('source-unavailable');
@@ -779,24 +804,12 @@ export function createOutboundMessaging(options: {
       let abort: (() => void) | undefined;
       try {
         validate();
-        const hash = createHash('sha256')
-          .update(
-            JSON.stringify([
-              value.providerId,
-              value.fingerprint,
-              source.event.conversation.id,
-              attachment.id,
-            ]),
-          )
-          .digest('hex')
-          .slice(0, 32);
-        const uploadId = [
-          hash.slice(0, 8),
-          hash.slice(8, 12),
-          '4' + hash.slice(13, 16),
-          '8' + hash.slice(17, 20),
-          hash.slice(20),
-        ].join('-');
+        const uploadId = sourceMediaUploadId(
+          value.providerId,
+          value.fingerprint,
+          source.event.conversation.id,
+          attachment.id,
+        );
         const interrupted = new Promise<never>((_, reject) => {
           abort = () => reject(new MessagingError('transfer-cancelled'));
           combined.addEventListener('abort', abort, { once: true });
@@ -1068,7 +1081,7 @@ export function createOutboundMessaging(options: {
       const grants = snapshots.flatMap((snapshot, index) =>
         current.members.includes(channel.members[index]!)
           ? snapshot.grants.filter(
-              (grant) => grant.platform !== 'weixin' && grant.receiveScope?.kind !== 'dm',
+              (grant) => grant.platform === 'weixin' || grant.receiveScope?.kind !== 'dm',
             )
           : [],
       );
@@ -1731,6 +1744,21 @@ export function createOutboundMessaging(options: {
                       conversationId: conversationId!,
                       text,
                       signal: controller.signal,
+                      beforeSend: () => {
+                        try {
+                          active(botSlug);
+                          current(acceptedGrant.providerId, entry.token);
+                          enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+                          const latest = grant(botSlug, grantId);
+                          return (
+                            !controller.signal.aborted &&
+                            !latest.revokedAt &&
+                            latest.revision === acceptedGrant.revision
+                          );
+                        } catch {
+                          return false;
+                        }
+                      },
                     })
                 : entry.provider.send({
                     accountRef: acceptedGrant.accountRef,

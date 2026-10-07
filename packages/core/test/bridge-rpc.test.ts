@@ -209,6 +209,7 @@ describe('bridge typert service', () => {
       'releaseRestart',
       'telemetryStatus',
       'telemetrySet',
+      'gitStatus',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',
@@ -261,6 +262,7 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.releaseRestart)).toEqual([]);
     expect(parameterNames(service.telemetryStatus)).toEqual([]);
     expect(parameterNames(service.telemetrySet)).toEqual(['enabled']);
+    expect(parameterNames(service.gitStatus)).toEqual([]);
     expect(parameterNames(service.scheduleList)).toEqual(['slug']);
     expect(parameterNames(service.scheduleCreate)).toEqual(['slug', 'input']);
     expect(parameterNames(service.scheduleUpdate)).toEqual(['slug', 'id', 'change']);
