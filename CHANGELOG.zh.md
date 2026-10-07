@@ -24,7 +24,7 @@
 - 导出 zip 时可以选择文件：导出窗口列出 Bot 的全部 Memory 文件和文件夹，默认全选，可展开、折叠、全选或全不选，取消勾选的文件不会进入 zip；`.botharness/bot.json` 和头像始终包含（[#1063](https://github.com/BotHarness/BotHarness/issues/1063)）。
 - 导出 zip 时可以勾选「包含 Git 历史」，带上所有分支、标签和提交记录；只有全选文件时才可用。导入这样的 zip 会保留这些分支、标签和历史并切到导出时的分支，不带远程地址和原机器的 Git 配置（[#1064](https://github.com/BotHarness/BotHarness/issues/1064)）。
 - 新增[导出与导入 Bot](docs/bot-zip.md)教程：zip 里有什么、导出时选择文件和 Git 历史、从 zip 导入，以及分享前和导入前的安全提醒；「分享 Bot」和「记忆文件」教程链接到它（[#1065](https://github.com/BotHarness/BotHarness/issues/1065)）。
-- Bot 模式会在创建 Bot 之前检查 Host 上的 Git。没有 Git、Git 无法运行（例如 macOS 未安装命令行工具时的占位程序）或版本低于 2.28 时，名册顶部会说明原因并链接到安装教程新增的 [Git 一节](docs/installation.md#git)，在「重新检测」找到可用的 Git 之前禁用创建和导入 Bot；创建时仍遇到不可用的 Git，会报告为缺少 Git，而不是笼统的记忆错误（[#1096](https://github.com/BotHarness/BotHarness/issues/1096)，[ADR-0139](docs/adr/0139-the-host-falls-back-to-a-managed-git.md)）。
+- Bot 模式会在创建 Bot 之前检查 Host 上的 Git。没有 Git、Git 无法运行（例如 macOS 未安装命令行工具时的占位程序）或版本低于 2.28 时，名册顶部会说明原因并链接到安装教程新增的 [Git 一节](docs/installation.md#git)，在「重新检测」找到可用的 Git 之前禁用创建和导入 Bot；创建时仍遇到不可用的 Git，会报告为缺少 Git，而不是笼统的记忆错误（[#1096](https://github.com/BotHarness/BotHarness/issues/1096)，[ADR-0140](docs/adr/0140-the-host-falls-back-to-a-managed-git.md)）。
 
 ### Fixed
 
