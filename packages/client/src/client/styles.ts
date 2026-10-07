@@ -782,6 +782,32 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
   color: var(--dsw-alias-label-secondary);
   background: var(--bh-hover);
 }
+.bh-https-fallback-code {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family-mono, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bh-https-fallback-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: -4px;
+  color: var(--dsw-alias-label-caption);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-https-fallback-detail {
+  font-family: var(--dsw-font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
 .bh-git-unavailable {
   display: flex;
   flex-direction: column;
@@ -5105,6 +5131,12 @@ button.bh-bot-nav > svg {
   font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
+}
+.bh-settings-row-value {
+  flex: none;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
 }
 .bh-assignment-limit-controls {
   display: flex;

@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import { isStandingLimits, type StandingLimits } from '../memory/soul.js';
 import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
 import { createHash } from 'node:crypto';
@@ -46,7 +47,7 @@ export interface CreatePersonaBotInput {
 }
 
 export type CreatePersonaBotResult =
-  | { ok: true; record: PersonaBotRecord }
+  | { ok: true; record: PersonaBotRecord; httpsFallback?: HttpsFallback }
   | {
       ok: false;
       reason:

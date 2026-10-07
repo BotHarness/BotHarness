@@ -79,6 +79,7 @@ import {
   loadGroupWakePolicies,
   deleteGroupChannel,
   createPersonaBot,
+  type CreatedBot,
   downloadBotZip,
   importBotZip,
   loadBotZipFiles,
@@ -500,7 +501,8 @@ export interface BridgeActions {
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
     allBotMention?: AllBotMention,
   ): Promise<boolean>;
-  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
+  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<CreatedBot>;
+  openCreatedBot(bot: BotSummary, sectionId?: string): Promise<void>;
   importBotZip(file: File, sectionId?: string): Promise<BotSummary>;
   botZipFiles(slug: string): Promise<BotZipFileListing>;
   exportBotZip(slug: string, displayName: string, choice?: BotZipExportChoice): Promise<void>;
@@ -2025,7 +2027,12 @@ export function createActions(
       return true;
     },
     async createBot(input, sectionId) {
-      return openCreatedBot(await createPersonaBot(call, input), sectionId);
+      const created = await createPersonaBot(call, input);
+      if (created.httpsFallback === undefined) await openCreatedBot(created, sectionId);
+      return created;
+    },
+    async openCreatedBot(bot, sectionId) {
+      await openCreatedBot(bot, sectionId);
     },
     async importBotZip(file, sectionId) {
       return openCreatedBot(await importBotZip(file), sectionId);

@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
@@ -373,7 +374,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     gitUrl: string,
     roles?: string[],
     description?: string,
-  ): Promise<{ bot: PersonaBotDetail }> {
+  ): Promise<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }> {
     return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
   }
 

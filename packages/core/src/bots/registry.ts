@@ -26,7 +26,7 @@ import {
 } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
-import type { MemoryCloneResult } from '../memory/clone.js';
+import type { HttpsFallback, MemoryCloneResult } from '../memory/clone.js';
 import { restoreBotHistory, writeBotFiles } from './bot-zip.js';
 import type { ZipEntry } from './zip-archive.js';
 import {
@@ -455,11 +455,15 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     },
     async createFromGit(input) {
       const { gitUrl, ...recordInput } = input;
-      return createFromStaging(recordInput, '.git-import-', async (staging) => {
+      let httpsFallback: HttpsFallback | undefined;
+      const result = await createFromStaging(recordInput, '.git-import-', async (staging) => {
         if (options.cloneMemory === undefined) return 'memory-unavailable';
         const cloned = await options.cloneMemory(staging, gitUrl);
-        return cloned.ok ? undefined : cloned.code;
+        if (!cloned.ok) return cloned.code;
+        httpsFallback = cloned.httpsFallback;
+        return undefined;
       });
+      return result.ok && httpsFallback !== undefined ? { ...result, httpsFallback } : result;
     },
     async createFromFiles(input) {
       const { files, history, ...recordInput } = input;

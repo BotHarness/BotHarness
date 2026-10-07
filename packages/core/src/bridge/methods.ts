@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
@@ -348,7 +349,9 @@ export interface BridgeMethods {
   activitySnapshot(payload: unknown): BridgeResult<PersonaBotActivitySnapshot>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-  createFromGit(payload: unknown): Promise<BridgeResult<{ bot: PersonaBotDetail }>>;
+  createFromGit(
+    payload: unknown,
+  ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -1591,7 +1594,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           deps.telemetry?.capture?.('marketplace_bot_installed');
         } catch {}
       }
-      return { ok: true, value: detailOf(result.record) };
+      return {
+        ok: true,
+        value: {
+          ...detailOf(result.record),
+          ...(result.httpsFallback === undefined ? {} : { httpsFallback: result.httpsFallback }),
+        },
+      };
     },
     marketplaceList(payload) {
       const source = asObject(payload);

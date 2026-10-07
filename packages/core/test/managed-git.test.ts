@@ -240,6 +240,25 @@ describe.skipIf(process.platform === 'win32')('Managed Git install', () => {
     expect(systemEnv['PATH']).toBe('/usr/bin');
   });
 
+  it('leaves PATH alone when an installed Managed Git cannot run, and reinstalls over it', async () => {
+    const first = setup();
+    const installer = createGitService(first.options);
+    installer.install();
+    await installer.settled();
+    const real = join(managedGitRoot(first.dshHome), MANAGED_GIT_RELEASE, 'dist', 'bin', 'git');
+    writeFileSync(real, '#!/bin/sh\nexit 1\n');
+
+    const env: NodeJS.ProcessEnv = { PATH: join(first.dshHome, 'empty-bin') };
+    const restarted = createGitService({ ...first.options, env, probe: probeWith(env) });
+    expect(restarted.resolve()).toMatchObject({ available: false, reason: 'missing' });
+    expect(env['PATH']).toBe(join(first.dshHome, 'empty-bin'));
+
+    restarted.install();
+    await restarted.settled();
+    expect(restarted.status()).toMatchObject({ available: true, source: 'managed' });
+    expect(readdirSync(managedGitRoot(first.dshHome))).toEqual([MANAGED_GIT_RELEASE]);
+  });
+
   it('does not offer an install on a platform without a pinned build', () => {
     const { options } = setup({ platform: 'freebsd', arch: 'x64' });
     const git = createGitService(options);

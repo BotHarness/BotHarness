@@ -70,6 +70,10 @@ Bot 的记忆是一个 Git 仓库，所以运行 DSH 的电脑需要 Git 2.28 �
 
 自己装好后重启 DeepSeek Harness，在 Bot 模式里点 **重新检测**。
 
+DeepSeekBot 设置里的 **Git** 一行会显示正在使用的 Git 版本，以及它是系统 Git 还是托管 Git。
+
+从 SSH 地址（例如 `git@github.com:owner/repo.git`）导入 Bot 时，如果这台电脑没有对应的 SSH 密钥，DeepSeekBot 会自动改用对应的 HTTPS 地址重试一次，并告诉你已经切换；之后这个 Bot 通过 HTTPS 同步。带自定义 SSH 端口的地址不会转换。
+
 ## 其他导入方式
 
 [DSH 官方打包文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)也支持通过 CLI 安装到指定 Profile：

@@ -1410,11 +1410,47 @@ export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
 }
 
+export type SshFailureReason =
+  | 'auth'
+  | 'host-key'
+  | 'unreachable'
+  | 'ssh-missing'
+  | 'timeout'
+  | 'other';
+
+const SSH_FAILURE_REASONS: readonly SshFailureReason[] = [
+  'auth',
+  'host-key',
+  'unreachable',
+  'ssh-missing',
+  'timeout',
+  'other',
+];
+
+export interface HttpsFallback {
+  from: string;
+  to: string;
+  reason: SshFailureReason;
+  detail?: string;
+}
+
+export type CreatedBot = BotSummary & { httpsFallback?: HttpsFallback };
+
+function parseHttpsFallback(value: unknown): HttpsFallback | undefined {
+  const item = asRecord(value);
+  if (typeof item?.['from'] !== 'string' || typeof item['to'] !== 'string') return undefined;
+  const reason = SSH_FAILURE_REASONS.find((known) => known === item['reason']) ?? 'other';
+  const detail = item['detail'];
+  return typeof detail === 'string' && detail.length > 0
+    ? { from: item['from'], to: item['to'], reason, detail }
+    : { from: item['from'], to: item['to'], reason };
+}
+
 export async function createPersonaBot(
   call: BridgeCall,
   input: CreatePersonaBotInput,
   signal?: AbortSignal,
-): Promise<BotSummary> {
+): Promise<CreatedBot> {
   const value = await unwrap(
     call,
     input.gitUrl === undefined ? 'create' : 'createFromGit',
@@ -1423,7 +1459,8 @@ export async function createPersonaBot(
   );
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
-  return bot;
+  const httpsFallback = parseHttpsFallback(asRecord(value)?.['httpsFallback']);
+  return httpsFallback === undefined ? bot : { ...bot, httpsFallback };
 }
 
 function botZipUrl(path: string, params: Record<string, string>): string {
