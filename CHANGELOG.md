@@ -9,7 +9,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Saved QQ group targets can use the existing authorized posting path with a current-send fence and native receipts; quota or permission refusals remain failures, and uncertain results are retained without automatic retries ([#1154](https://github.com/BotHarness/BotHarness/issues/1154)).
+- Saved QQ group targets can use the existing authorized posting path with a current-send fence and native receipts; quota or permission refusals remain failures, and uncertain results are retained without automatic retries ([#1154](https://github.com/BotHarness/BotHarness/issues/1154), [QQ guide](docs/qq-connection.md)).
 
 - Added QQ quoted-voice intake with native platform-transcript provenance, original-audio downloads and on-demand bounded SILK playback in the Channel; one maintained-runtime application passed real voice → model → original-group text reply, Human confirmation and actual Client keyboard playback ([#1159](https://github.com/BotHarness/DeepSeekBot/issues/1159), [guide](docs/qq-connection.md)).
 
