@@ -20,6 +20,8 @@ import {
   wornAvatarPart,
   hairPieceStart,
   isHairPartSlot,
+  isReplacePartSlot,
+  replacePartStart,
   type PartSlot,
   customPartId,
   type PixelCustomPart,
@@ -131,12 +133,14 @@ const PART_CATEGORY: Partial<Record<string, PartSlot>> = {
   sideHair: 'leftSideHair',
   rightSideHair: 'rightSideHair',
   backHair: 'backHair',
-};
-const PIECE_CATEGORY: Record<string, string> = {
-  bangs: 'bangs',
-  leftSideHair: 'sideHair',
-  rightSideHair: 'rightSideHair',
-  backHair: 'backHair',
+  outfit: 'outfit',
+  accessory: 'accessory',
+  beard: 'beard',
+  glasses: 'glasses',
+  nose: 'nose',
+  cheeks: 'cheeks',
+  petals: 'petals',
+  flowerBase: 'flowerBase',
 };
 const V2_ONLY = (part: string, value: string | number) =>
   (part === 'outfit' || part === 'accessory') &&
@@ -357,7 +361,7 @@ export function AvatarAppearanceEditor({
   const builtIn = (key: string, value: string): AvatarRecipe => {
     const next = withPart(draft!, key, value);
     const slot = PART_CATEGORY[key];
-    return slot && next.family === 'illustrated'
+    return slot && next.family === 'illustrated' && wornAvatarPart(next, slot)
       ? withAvatarCustomPart(next, slot, undefined)
       : next;
   };
@@ -396,7 +400,7 @@ export function AvatarAppearanceEditor({
     ) : null;
   const partActions = (slot: PartSlot, recipe: IllustratedAvatarRecipe) => {
     const worn = wornAvatarPart(recipe, slot);
-    const hair = isHairPartSlot(slot);
+    const hair = isHairPartSlot(slot) || isReplacePartSlot(slot);
     const own = (parts ?? []).filter((entry) => entry.part.slot === slot);
     const draw = () =>
       setDrawing(
@@ -405,15 +409,23 @@ export function AvatarAppearanceEditor({
               slot,
               base: withAvatarCustomPart(recipe, slot, undefined),
               restore: recipe,
-              backdrop: withPart(
-                withAvatarCustomPart(recipe, slot, undefined),
-                PIECE_CATEGORY[slot]!,
-                'none',
-              ) as IllustratedAvatarRecipe,
-              initial: hairPieceStart(recipe, slot),
+              backdrop: withAvatarCustomPart(recipe, slot, {
+                slot,
+                front: [],
+                back: [],
+              }) as IllustratedAvatarRecipe,
+              initial: isHairPartSlot(slot)
+                ? hairPieceStart(recipe, slot)
+                : replacePartStart(recipe, slot as Parameters<typeof replacePartStart>[1]),
               ...(worn
                 ? { parent: customPartId(worn) }
-                : { note: t('profile.avatar.part.flattenNote') }),
+                : {
+                    note: t(
+                      isHairPartSlot(slot)
+                        ? 'profile.avatar.part.flattenNote'
+                        : 'profile.avatar.part.flattenPartNote',
+                    ),
+                  }),
             }
           : { slot, base: recipe, restore: recipe },
       );

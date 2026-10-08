@@ -21,6 +21,7 @@ import {
   canonicalCustomPart,
   customPartId,
   hairPieceStart,
+  replacePartStart,
   type PixelCustomPart,
 } from '../../core/src/bots/avatar-appearance.js';
 import type { PartLibraryEntry } from '../../core/src/bots/part-library.js';
@@ -635,6 +636,68 @@ describe('Profile Avatar Appearance editing', () => {
       expect(save).toHaveBeenCalledWith(
         'dm-ada',
         expect.objectContaining({ assetVersion: 3, bangsPart: canonicalCustomPart(part) }),
+      );
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('draws an outfit from the built-in style and switches back', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const add = vi.fn(async (part: PixelCustomPart, name: string): Promise<PartLibraryEntry> => ({
+      id: customPartId(part),
+      part: canonicalCustomPart(part),
+      name,
+      origins: ['drawn'],
+      addedAt: '',
+    }));
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const start = replacePartStart(seededAvatarRecipe('Ada'), 'outfit');
+    const [x, y, color, tone] = start.front[0]!;
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            library: { load: vi.fn(async () => []), add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="outfit"]');
+      await click('[data-part-draw="outfit"]');
+      expect($('[data-part-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.flattenPartNote'),
+      );
+      expect($('[data-part-layer="back"]')).toBeNull();
+      expect($(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink')).toBe(
+        `${color}:${tone}`,
+      );
+      await click('[data-part-save]');
+      const [part] = add.mock.calls[0]!;
+      expect(part.slot).toBe('outfit');
+      expect(part.front).toHaveLength(start.front.length);
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith(
+        'dm-ada',
+        expect.objectContaining({ assetVersion: 3, outfitPart: canonicalCustomPart(part) }),
       );
     } finally {
       await act(() => root.unmount());
