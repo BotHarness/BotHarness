@@ -119,7 +119,8 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
   const next = { ...recipe, [key]: value } as IllustratedAvatarRecipe;
   if (key !== 'hair' || recipe.bangs === undefined) return next;
   const { bangs: _b, sideHair: _s, backHair: _h, ...plain } = next;
-  const split = detailedAvatarRecipe(plain);
+  // The bare style is re-split; a version 2 recipe keeps its species and mirrors the new side.
+  const split = detailedAvatarRecipe(plain as unknown as IllustratedAvatarRecipe);
   return {
     ...split,
     ...(split.assetVersion === 2
@@ -128,7 +129,7 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
     spacing: next.spacing ?? 0,
     height: next.height ?? 0,
     hairLength: next.hairLength ?? 0,
-  };
+  } as IllustratedAvatarRecipe;
 }
 
 function shuffled(recipe: AvatarRecipe): AvatarRecipe {
