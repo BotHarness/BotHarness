@@ -29,4 +29,4 @@ Captured on a real isolated DSH instance (1440 × 900). Ada had no banner before
 | Light | ![](popover-zh-light.webp) | ![](popover-en-light.webp) |
 | Dark  | ![](popover-zh-dark.webp)  | ![](popover-en-dark.webp)  |
 
-`guide-05-banner-zh.webp` and `guide-05-banner-en.webp` are the guide images that `docs/share-bot` references as `/guides/share-bot/05-banner-*.webp`; the site copies them into `public/guides/share-bot/` when it next syncs docs.
+`guide-05-banner-zh.webp` and `guide-05-banner-en.webp` are the guide images that `docs/share-bot` references as `/guides/share-bot/05-banner-*.webp`; copies live in `apps/docs/public/guides/share-bot/`, which the site's `docs:sync` copies into `public/guides`.

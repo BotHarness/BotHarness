@@ -35,6 +35,7 @@ interface MarketplaceEntry {
   tags: string[]; // from .botharness/bot.json `tags`, or legacy `roles`
   roles: string[]; // same as tags, kept for older readers
   bio: string | null; // .botharness/bot.json `bio`, else the GitHub description
+  banner: { recipe: { scene: string; seed: number } } | { image: string } | null; // .botharness/bot.json `banner`; an image is a raw.githubusercontent.com URL at the indexed commit
   description: string | null; // GitHub repository description
   topics: string[]; // without botharness-bot
   stars: number;
@@ -92,7 +93,7 @@ An optional descriptor in the Bot repository. Every field is optional; an invali
 }
 ```
 
-`avatar` is either `{ "image": "<path in the repository>" }` (PNG, JPEG or WebP, at most 128 KiB) or `{ "recipe": { … } }` (the generated-avatar recipe a PersonaBot stores in `appearance.recipe`). The Worker reads the descriptor together with the README after each push and shows `name`, `tags` and `bio` in the Marketplace. Older descriptors that write `roles` instead of `tags` are still read as tags. The Host reads it again from the cloned tree when installing and applies the avatar, never from the catalog; a symlink that leaves the clone is refused.
+`avatar` is either `{ "image": "<path in the repository>" }` (PNG, JPEG or WebP, at most 128 KiB) or `{ "recipe": { … } }` (the generated-avatar recipe a PersonaBot stores in `appearance.recipe`). The Worker reads the descriptor together with the README after each push and shows `name`, `tags`, `bio` and `banner` in the Marketplace. `banner` is either `{ "recipe": { "scene", "seed" } }`, which readers draw with `@botharness/pixel-banner`, or `{ "image": ".botharness/banner.png" }`, which the API turns into a `raw.githubusercontent.com` URL pinned to the indexed commit. Without it, readers show a neutral header. Older descriptors that write `roles` instead of `tags` are still read as tags. The Host reads it again from the cloned tree when installing and applies the avatar, never from the catalog; a symlink that leaves the clone is refused.
 
 ## Scheduled crawl
 

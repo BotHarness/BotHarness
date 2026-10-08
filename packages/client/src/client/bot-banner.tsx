@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import {
   BANNER_HEIGHT,
   BANNER_WIDTH,
@@ -49,8 +49,18 @@ export function BotBannerArt({
   banner: BotBannerView;
   className?: string;
 }): ReactElement {
+  const [failed, setFailed] = useState<string>();
   if ('image' in banner) {
-    return <img className={className} src={banner.image} alt="" draggable={false} />;
+    if (banner.image === failed) return <span className={className} data-banner-failed="true" />;
+    return (
+      <img
+        className={className}
+        src={banner.image}
+        alt=""
+        draggable={false}
+        onError={() => setFailed(banner.image)}
+      />
+    );
   }
   return <BannerCanvas recipe={banner.recipe} className={className} />;
 }
