@@ -34,7 +34,7 @@ import {
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
-import type { WindowCompanion } from './window-companion.js';
+import type { WindowCompanions } from './window-companions.js';
 import {
   PersonaBotAvatar,
   PersonaBotStatusBadges,
@@ -293,7 +293,7 @@ export function createBotPanelEntry(
 }
 
 interface SidebarProps {
-  companion?: WindowCompanion | undefined;
+  companion?: WindowCompanions | undefined;
   wide: boolean;
   actions: BridgeActions;
   useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
@@ -2404,11 +2404,11 @@ export function BotSidebar({
             )?.botSlug;
             if (botId === undefined || companion === undefined || !companion.getSnapshot().ready)
               return undefined;
-            const selected = companion.getSnapshot().selection?.botId === botId;
+            const selected = companion.get(botId) !== undefined;
             return {
               label: t(selected ? 'companion.remove' : 'companion.show'),
               run: () => {
-                if (selected) companion.remove();
+                if (selected) companion.remove(botId);
                 else companion.select(botId);
                 setChannelMenu(undefined);
               },

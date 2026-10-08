@@ -1307,9 +1307,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       () =>
         connection.fetch.register({
           path: COMPANION_PATH,
-          methods: ['GET'],
+          methods: ['GET', 'POST'],
           requestBody: 'buffered',
-          fetch: async (request) => core.companions.open(request),
+          fetch: async (request) =>
+            request.method === 'POST'
+              ? core.companions.update(request)
+              : core.companions.open(request),
         }),
       'botharness: authenticated Window Companion consumption',
     );

@@ -7,6 +7,8 @@ import {
 } from './avatar.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ChannelSummary } from './store.js';
+import { CompanionPin } from './window-companions-view.js';
+import type { WindowCompanions } from './window-companions.js';
 
 export function GroupChannelHeader({
   channel,
@@ -16,6 +18,7 @@ export function GroupChannelHeader({
   t,
   onOpenActivity,
   onToggleProfile,
+  companion,
 }: {
   channel: ChannelSummary;
   title: string;
@@ -24,6 +27,7 @@ export function GroupChannelHeader({
   t: BotHarnessTranslate;
   onOpenActivity(): void;
   onToggleProfile(): void;
+  companion?: WindowCompanions | undefined;
 }): ReactElement {
   return (
     <span className="bh-channel-island bh-group-channel-header">
@@ -45,18 +49,28 @@ export function GroupChannelHeader({
             ' · ' +
             personaBotPresentationSummary(item.state ?? 'idle', item.activity, item.attention, t);
           return (
-            <Tooltip key={item.personaBotId} label={label} side="bottom" portal delayMs={350}>
-              <button
-                type="button"
-                className="bh-avatar-facepile-button"
-                aria-label={label}
-                aria-haspopup="dialog"
-                aria-expanded={expanded}
-                onClick={onOpenActivity}
-              >
-                {avatar}
-              </button>
-            </Tooltip>
+            <span key={item.personaBotId} className="bh-companion-chip">
+              <Tooltip label={label} side="bottom" portal delayMs={350}>
+                <button
+                  type="button"
+                  className="bh-avatar-facepile-button"
+                  aria-label={label}
+                  aria-haspopup="dialog"
+                  aria-expanded={expanded}
+                  onClick={onOpenActivity}
+                >
+                  {avatar}
+                </button>
+              </Tooltip>
+              {companion ? (
+                <CompanionPin
+                  companion={companion}
+                  botId={item.personaBotId}
+                  name={item.name}
+                  t={t}
+                />
+              ) : null}
+            </span>
           );
         }}
       />
