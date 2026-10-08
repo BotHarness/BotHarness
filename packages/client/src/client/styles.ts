@@ -244,7 +244,8 @@ export const CSS =
 .bh-rail-preview-summary {
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+  margin-top: 4px;
 }
 
 /* 原生 工作区 sectionHeader 模式（ui-workspace WorkspaceBrowser.module.css）：
@@ -1587,7 +1588,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 
 /* Bot Marketplace is portaled with the native Modal; never depend on .bh-root. */
 .bh-market-modal {
-  width: min(640px, 100%);
+  width: min(880px, 100%);
   max-height: 100%;
 }
 .bh-market {
@@ -1662,19 +1663,95 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-label-tertiary);
 }
 .bh-market-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-content: start;
+  gap: 14px;
+  max-height: min(54vh, 560px);
+  overflow-y: auto;
+  padding: 2px;
+}
+/* A profile card: banner on top, the Bot's avatar half over its lower edge, identity below. */
+.bh-market-row {
+  position: relative;
   display: flex;
   flex-direction: column;
-  max-height: min(52vh, 440px);
-  overflow-y: auto;
-  border-top: 1px solid var(--dsw-alias-separator-primary);
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-module-platform);
+  transition: border-color 120ms ease, transform 120ms ease;
 }
-.bh-market-row {
+.bh-market-row:hover {
+  border-color: var(--dsw-alias-label-tertiary);
+  transform: translateY(-1px);
+}
+.bh-market-row > .bh-market-banner-thumb {
+  position: relative;
+  aspect-ratio: 4 / 1;
+  border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-market-avatar {
+  display: block;
+  flex-shrink: 0;
+  width: fit-content;
+  padding: 3px;
+  border-radius: 15px;
+  background: var(--dsw-alias-bg-module-platform);
+  line-height: 0;
+}
+/* The avatar rides half over the banner; name, repository and Install sit beside it. */
+.bh-market-row-head {
+  position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--dsw-alias-separator-primary);
+  min-width: 0;
+  margin-top: -32px;
+  padding: 0 4px 0 10px;
 }
+.bh-market-row-head > button:last-child { flex-shrink: 0; }
+.bh-market-row-head > .bh-market-open { gap: 0; overflow: hidden; }
+.bh-market-card-name {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-market-row .bh-market-owner {
+  overflow: hidden;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-market-card-tags {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  overflow: hidden;
+}
+.bh-market-row > .bh-market-description {
+  display: -webkit-box;
+  overflow: hidden;
+  padding: 0 4px;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.bh-market-row-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 0 4px;
+}
+.bh-market-row-foot .bh-market-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
 .bh-market-copy {
   display: flex;
   flex: 1;
@@ -1739,16 +1816,32 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.bh-market-banner {
-  width: 100%;
-  max-height: 160px;
-  border-radius: 10px;
+.bh-market-banner,
+.bh-market-banner-thumb { border: 0; }
+.bh-market-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.bh-market-banner-thumb {
-  width: 84px;
-  border-radius: 6px;
+.bh-market-hero > .bh-market-banner {
+  position: relative;
+  aspect-ratio: 5 / 1;
+  border-radius: 12px;
 }
-@media (max-width: 520px) { .bh-market-banner-thumb { display: none; } }
+.bh-market-hero[data-market-banner='none'] > .bh-market-banner { display: none; }
+.bh-market-hero[data-market-banner='none'] > .bh-market-row-head { margin-top: 0; }
+.bh-market-hero > .bh-market-row-head { margin-top: -36px; padding-left: 12px; }
+.bh-market-hero > .bh-market-row-head > .bh-market-copy { padding-bottom: 4px; }
+.bh-market-hero > .bh-market-description,
+.bh-market-hero > .bh-market-meta { padding: 0 4px; }
+.bh-market-hero .bh-market-name { font-size: 18px; font-weight: 600; line-height: 24px; }
+.bh-market-hero .bh-market-github {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-module-platform);
+}
 .bh-market-github {
   flex: none;
   color: var(--bh-accent);
