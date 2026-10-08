@@ -2,14 +2,17 @@ import { useMemo, useState, type ReactElement } from 'react';
 import {
   AVATAR_COLORS,
   AVATAR_FAMILIES,
+  AVATAR_EXTRA_PARTS,
   AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
+  AVATAR_PARTS_V2,
   AVATAR_PIECE_COLORS,
   AVATAR_PRESETS,
   AVATAR_RANGES,
   AVATAR_SPECIES,
   AVATAR_SPECIES_SWATCHES,
   detailedAvatarRecipe,
+  hiddenAvatarChoices,
   type IllustratedAvatarRecipe,
   AVATAR_SWATCHES,
   withAvatarSpecies,
@@ -50,9 +53,12 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
     parts: {
       species: AVATAR_SPECIES,
-      ...AVATAR_PARTS,
+      ...AVATAR_PARTS_V2,
       ...AVATAR_HAIR_PARTS,
       rightSideHair: AVATAR_HAIR_PARTS.sideHair,
+      beard: ['none', ...AVATAR_EXTRA_PARTS.beard],
+      petals: AVATAR_EXTRA_PARTS.petals,
+      flowerBase: AVATAR_EXTRA_PARTS.flowerBase,
     },
     colors: [...AVATAR_COLORS, ...AVATAR_PIECE_COLORS],
     swatches: {
@@ -70,7 +76,10 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
       'sideHair',
       'rightSideHair',
       'backHair',
+      'petals',
+      'flowerBase',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop' && part !== 'hair'),
+      'beard',
       'shape',
       'colors',
     ],
@@ -98,14 +107,28 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
 type Fields = Record<string, string | number>;
 
 const DETAIL = new Set<string>([...Object.keys(AVATAR_HAIR_PARTS), ...Object.keys(AVATAR_RANGES)]);
-const SPLIT = new Set<string>(['species', 'sideHair', 'rightSideHair', ...AVATAR_PIECE_COLORS]);
+const EXTRAS = new Set<string>(Object.keys(AVATAR_EXTRA_PARTS));
+const SPLIT = new Set<string>([
+  'species',
+  'sideHair',
+  'rightSideHair',
+  ...AVATAR_PIECE_COLORS,
+  ...EXTRAS,
+]);
+const V2_ONLY = (part: string, value: string | number) =>
+  (part === 'outfit' || part === 'accessory') &&
+  !(AVATAR_PARTS[part] as readonly (string | number)[]).includes(value);
 
 function withPart(recipe: AvatarRecipe, key: string, value: string | number): AvatarRecipe {
   if (recipe.family !== 'illustrated')
     return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
   if (key === 'species')
     return withAvatarSpecies(recipe, value as IllustratedAvatarRecipe['species'] & string);
-  if (SPLIT.has(key))
+  if (EXTRAS.has(key) && value === 'none') {
+    const { [key]: _removed, ...rest } = recipe as unknown as Fields;
+    return rest as unknown as AvatarRecipe;
+  }
+  if (SPLIT.has(key) || V2_ONLY(key, value))
     return {
       ...withAvatarSpecies(recipe, recipe.species ?? 'human'),
       [key]: value,
@@ -143,12 +166,36 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const species = pick(AVATAR_SPECIES);
   const random = withAvatarSpecies(next as unknown as IllustratedAvatarRecipe, species);
   for (const color of AVATAR_PIECE_COLORS) delete random[color];
+  for (const extra of EXTRAS) delete random[extra as keyof typeof random];
+  const beard = pick(['none', ...AVATAR_EXTRA_PARTS.beard] as const);
   return {
     ...random,
     sideHair: pick(AVATAR_HAIR_PARTS.sideHair),
     rightSideHair: pick(AVATAR_HAIR_PARTS.sideHair),
     skinColor: pick(AVATAR_SPECIES_SWATCHES[species]),
-  };
+    ...(species === 'flower'
+      ? {
+          petals: pick(AVATAR_EXTRA_PARTS.petals),
+          flowerBase: pick(AVATAR_EXTRA_PARTS.flowerBase),
+        }
+      : beard === 'none'
+        ? {}
+        : { beard }),
+  } as IllustratedAvatarRecipe;
+}
+
+function categoriesFor(spec: FamilySpec, recipe: AvatarRecipe | undefined): readonly string[] {
+  if (recipe?.family !== 'illustrated') return spec.categories;
+  const flower = recipe.species === 'flower';
+  return spec.categories.filter((key) =>
+    key === 'petals' || key === 'flowerBase' ? flower : key === 'beard' ? !flower : true,
+  );
+}
+
+function hiddenFor(recipe: AvatarRecipe | undefined, category: string): boolean {
+  if (recipe?.family !== 'illustrated') return false;
+  const hidden = hiddenAvatarChoices(recipe);
+  return hidden.includes(category) || (category === 'hair' && hidden.includes('bangs'));
 }
 
 function swatchesFor(spec: FamilySpec, fields: Fields, key: string): readonly string[] {
@@ -369,7 +416,7 @@ export function AvatarAppearanceEditor({
               </div>
               <div className="bh-avatar-categories">
                 <div role="tablist" aria-label={t('profile.avatar.parts')}>
-                  {spec.categories.map((key) => (
+                  {categoriesFor(spec, draft).map((key) => (
                     <button
                       key={key}
                       type="button"
@@ -385,7 +432,7 @@ export function AvatarAppearanceEditor({
                           event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
                         if (!step) return;
                         event.preventDefault();
-                        const list = spec.categories;
+                        const list = categoriesFor(spec, draft);
                         const next = list[(list.indexOf(key) + step + list.length) % list.length]!;
                         setCategory(next);
                         event.currentTarget.parentElement
@@ -500,12 +547,17 @@ export function AvatarAppearanceEditor({
                   id="bh-avatar-panel"
                   aria-labelledby={`bh-avatar-tab-${category}`}
                 >
+                  {hiddenFor(draft, category) ? (
+                    <p className="bh-avatar-hidden-note" data-avatar-hidden-note={category}>
+                      {t('profile.avatar.hiddenNote')}
+                    </p>
+                  ) : null}
                   {(spec.parts[category] ?? []).map((value) => (
                     <OptionTile
                       key={value}
                       id={`${category}:${value}`}
                       recipe={withPart(draft, category, value)}
-                      selected={fields[category] === value}
+                      selected={(fields[category] ?? 'none') === value}
                       label={t(spec.option(category, value))}
                       onSelect={() => set(category, value)}
                     />

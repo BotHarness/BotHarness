@@ -283,6 +283,85 @@ describe('Profile Avatar Appearance editing', () => {
     }
   });
 
+  it('dresses a dwarf, keeps hidden hair, and grows a talking flower', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'gimli',
+      displayName: 'Gimli',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const click = async (selector: string) =>
+      act(() => container.querySelector<HTMLButtonElement>(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-gimli',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:dwarf"]');
+      expect(container.querySelector('[data-avatar-category="petals"]')).toBeNull();
+      await click('[data-avatar-category="beard"]');
+      await click('[data-avatar-option="beard:braided"]');
+      await click('[data-avatar-category="outfit"]');
+      await click('[data-avatar-option="outfit:armor"]');
+      await click('[data-avatar-category="backHair"]');
+      await click('[data-avatar-option="backHair:long"]');
+      await click('[data-avatar-category="accessory"]');
+      await click('[data-avatar-option="accessory:helmet"]');
+      await click('[data-avatar-category="backHair"]');
+      expect(container.querySelector('[data-avatar-hidden-note="backHair"]')).not.toBeNull();
+      await click('[data-avatar-save]');
+      const dwarf = (save.mock.calls[0] as unknown[])[1] as Record<string, unknown>;
+      expect(dwarf).toMatchObject({
+        species: 'dwarf',
+        beard: 'braided',
+        outfit: 'armor',
+        accessory: 'helmet',
+        backHair: 'long',
+      });
+      expect(isIllustratedAvatarRecipe(dwarf)).toBe(true);
+
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="beard"]');
+      await click('[data-avatar-option="beard:none"]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:flower"]');
+      expect(container.querySelector('[data-avatar-category="beard"]')).toBeNull();
+      await click('[data-avatar-category="petals"]');
+      await click('[data-avatar-option="petals:sunflower"]');
+      await click('[data-avatar-category="flowerBase"]');
+      await click('[data-avatar-option="flowerBase:pot"]');
+      await click('[data-avatar-category="outfit"]');
+      expect(container.querySelector('[data-avatar-hidden-note="outfit"]')).not.toBeNull();
+      await click('[data-avatar-save]');
+      const flower = (save.mock.calls[1] as unknown[])[1] as Record<string, unknown>;
+      expect(flower).toMatchObject({
+        species: 'flower',
+        petals: 'sunflower',
+        flowerBase: 'pot',
+      });
+      expect(flower).not.toHaveProperty('beard');
+      expect(isIllustratedAvatarRecipe(flower)).toBe(true);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it('switches families without substituting parts and saves a bounded line recipe', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const save = vi.fn(async () => true);

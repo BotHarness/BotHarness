@@ -2423,6 +2423,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-avatar-option span, .bh-avatar-option svg { display: block; width: 100%; height: 100%; }
 .bh-avatar-option:hover { border-color: var(--dsw-alias-border-l2); }
 .bh-avatar-option[aria-pressed='true'] { border-color: var(--dsw-alias-label-primary); }
+.bh-avatar-hidden-note { grid-column: 1 / -1; margin: 0; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.bh-avatar-color-reset { min-height: 26px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
 .bh-avatar-colors { display: flex; flex-direction: column; gap: 10px; }
 .bh-avatar-color-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
 .bh-avatar-color-row > span { width: 72px; color: var(--dsw-alias-label-secondary); }

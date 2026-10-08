@@ -17,6 +17,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
+
 - Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
 
 - The welcome now offers a daily evening check-in at 21:00 with the browser time zone and current DM shown before selection; missing time zones are confirmed first, and existing model setup retains the complete request for explicit sending ([#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)).

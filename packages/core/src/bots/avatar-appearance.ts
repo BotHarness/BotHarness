@@ -15,8 +15,10 @@ export { LINE_TOOL_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-l
 export { pixelSymbolFor } from './avatar-pixel-symbols.js';
 export {
   AVATAR_COLORS,
+  AVATAR_EXTRA_PARTS,
   AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
+  AVATAR_PARTS_V2,
   AVATAR_PIECE_COLORS,
   AVATAR_PRESETS,
   AVATAR_RANGES,
@@ -28,6 +30,7 @@ export {
   DEFAULT_RECIPE as DEFAULT_ILLUSTRATED_RECIPE,
   detailedRecipe as detailedAvatarRecipe,
   faceCells as pixelFaceCells,
+  hiddenChoices as hiddenAvatarChoices,
   isPixelAvatarRecipe as isIllustratedAvatarRecipe,
   PIXEL_SYMBOLS,
   pixelAvatarSvg as illustratedAvatarSvg,
