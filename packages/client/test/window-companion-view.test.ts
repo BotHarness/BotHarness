@@ -39,6 +39,89 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconNewChatOutlineRegular: () => null,
 }));
 
+it('projects the owning Avatar screen point into an offset overlay and remeasures it after resize', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const frames = new Map<number, FrameRequestCallback>();
+  let frameId = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++frameId, callback);
+    return frameId;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  let stage = new DOMRect(80, 40, 800, 600);
+  const measurement = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function (this: HTMLElement) {
+      if (!this.classList.contains('bh-persona-avatar')) return stage;
+      const surface = this.closest<HTMLElement>('.bh-companion')!;
+      return new DOMRect(
+        stage.left + Number.parseFloat(surface.style.left),
+        stage.bottom - Number.parseFloat(surface.style.bottom) - 96,
+        96,
+        96,
+      );
+    });
+  const events = new EventTarget();
+  const companion = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  await companion.start();
+  companion.select('ada');
+  companion.configure({ walking: false });
+  events.dispatchEvent(
+    new MessageEvent('companion/baseline', {
+      data: JSON.stringify({
+        profileId: 'qa',
+        bot: { slug: 'ada', name: 'Ada', paused: false, avatar: '/image' },
+        activity: { generation: 'host', revision: 0, bots: [] },
+      }),
+    }),
+  );
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const frame = () => {
+    const due = [...frames.values()];
+    frames.clear();
+    for (const callback of due) callback(performance.now() + 50);
+  };
+  try {
+    await act(() =>
+      root.render(
+        createElement(WindowCompanionView, {
+          companion,
+          openDm() {},
+          openAttention() {},
+          openChannel() {},
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(frame);
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 570 504 /u,
+    );
+    expect(node.querySelector<HTMLElement>('.bh-companion-activity')?.style.bottom).toBe('134px');
+    stage = new DOMRect(100, 60, 650, 500);
+    await act(() => window.dispatchEvent(new Event('resize')));
+    await act(frame);
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 570 404 /u,
+    );
+    const visibility = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(frames.size).toBe(0);
+    visibility.mockRestore();
+  } finally {
+    await act(() => root.unmount());
+    companion.dispose();
+    node.remove();
+    measurement.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
 it('enables Group playback from the native menu and explains why a Bot-only source cannot open', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();

@@ -707,6 +707,8 @@ EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用�
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
+Avatar 为伙伴消费者提供可释放的锚点读取器：每次形象替换只采集一次受支持头部的局部顶部中心，既有可见帧循环只读取该局部组当前显示的屏幕矩阵，包含外层旋转、缩放及过渡中的变换原点。像素 Activity 覆盖使用相同头部区域点与 SVG 根矩阵；图片、未知 rig 或不可用的 SVG 几何使用可见 Avatar 盒子顶部中心。不逐帧扫描整个 SVG 边界，也不向 Host 发送姿态 RPC。`CompanionBubbles` 保留原始投射点，让直立卡片受视口、工具栏与多伙伴避让约束，偏移后用像素式连线保持来源关系。阅读延续既有位置与离开宽限；隐藏／离屏停止采样，形象替换／销毁清除读取器（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
+
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 
 应用定义的 `WindowCompanions` 集合拥有 Profile 的钉选集合和共用容量，组合每个 Bot 独立的播放 owner 与运动 View。侧栏菜单与各 Bot 的 header 按钮均操作此集合，与 Channel 置顶无关。偏好从单选 v1 迁移到 v2；只持久化形象选择、来源/范围、位置、走动与容量。多个伙伴复用一条受认证 SSE，通过原生随机的临时 consumer ID 和同路径 POST 原子替换消费集合；控制句柄随流关闭释放，既不是身份也不是耐久权威。递增选择版本阻止迟到的基线初始化被替换的消费；增加或移除其他 Bot 不重置正在阅读的卡片。
