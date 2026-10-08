@@ -7,11 +7,14 @@ export const MAX_DESCRIPTOR_BIO_LENGTH = 160;
 
 export type BotDescriptorAvatar = { recipe: Record<string, unknown> } | { image: string };
 
+export type BotDescriptorBanner = { recipe: { scene: string; seed: number } } | { image: string };
+
 export interface BotDescriptor {
   name?: string;
   tags?: string[];
   bio?: string;
   avatar?: BotDescriptorAvatar;
+  banner?: BotDescriptorBanner;
 }
 
 const IMAGE_PATH = /\.(png|jpe?g|webp)$/iu;
@@ -37,6 +40,31 @@ function parseAvatar(value: unknown): BotDescriptorAvatar | undefined | false {
   const recipe = record(source['recipe']);
   const image = source['image'];
   if (recipe !== undefined && image === undefined) return { recipe };
+  if (recipe === undefined && typeof image === 'string' && isDescriptorImagePath(image.trim())) {
+    return { image: image.trim().replace(/^\.\//u, '') };
+  }
+  return false;
+}
+
+function parseBanner(value: unknown): BotDescriptorBanner | undefined | false {
+  if (value === undefined) return undefined;
+  const source = record(value);
+  if (source === undefined) return false;
+  const recipe = record(source['recipe']);
+  const image = source['image'];
+  if (recipe !== undefined && image === undefined) {
+    const { scene, seed } = recipe;
+    if (
+      typeof scene !== 'string' ||
+      !/^[a-z][a-z-]{0,31}$/u.test(scene) ||
+      !Number.isInteger(seed) ||
+      (seed as number) < 0 ||
+      (seed as number) >= 2 ** 32
+    ) {
+      return false;
+    }
+    return { recipe: { scene, seed: seed as number } };
+  }
   if (recipe === undefined && typeof image === 'string' && isDescriptorImagePath(image.trim())) {
     return { image: image.trim().replace(/^\.\//u, '') };
   }
@@ -92,5 +120,8 @@ export function parseBotDescriptor(text: string): BotDescriptor | undefined {
   const avatar = parseAvatar(source['avatar']);
   if (avatar === false) return undefined;
   if (avatar !== undefined) descriptor.avatar = avatar;
+  const banner = parseBanner(source['banner']);
+  if (banner === false) return undefined;
+  if (banner !== undefined) descriptor.banner = banner;
   return descriptor;
 }

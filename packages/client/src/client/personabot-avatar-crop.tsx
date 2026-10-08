@@ -9,6 +9,8 @@ import { useMountedResource } from './mounted-resource.js';
 const PREVIEW_SIZE = 280;
 const OUTPUT_SIZE = 512;
 const MAX_AVATAR_BYTES = 131_072;
+const MAX_BANNER_BYTES = 2_000_000;
+const BANNER_WIDTHS = [1500, 1200, 900, 600];
 const MAX_SOURCE_BYTES = 5_000_000;
 
 function decodedBase64Bytes(dataUrl: string): number {
@@ -26,17 +28,76 @@ function encodeAvatar(canvas: HTMLCanvasElement): string {
   throw new Error('avatar too large');
 }
 
-export function PersonaBotAvatarCropModal({
+function encodeBanner(canvas: HTMLCanvasElement): string {
+  for (const width of BANNER_WIDTHS) {
+    const target = document.createElement('canvas');
+    target.width = width;
+    target.height = width / 3;
+    const context = target.getContext('2d');
+    if (!context) throw new Error('canvas unavailable');
+    context.drawImage(canvas, 0, 0, target.width, target.height);
+    const dataUrl = target.toDataURL('image/png');
+    if (!dataUrl.startsWith('data:image/png;base64,')) throw new Error('unsupported canvas');
+    if (decodedBase64Bytes(dataUrl) <= MAX_BANNER_BYTES) return dataUrl;
+  }
+  throw new Error('banner too large');
+}
+
+interface CropShape {
+  previewWidth: number;
+  previewHeight: number;
+  outputWidth: number;
+  outputHeight: number;
+  encode(canvas: HTMLCanvasElement): string;
+  titleKey: 'profile.avatar.crop.title' | 'profile.banner.crop.title';
+  descriptionKey: 'profile.avatar.crop.description' | 'profile.banner.crop.description';
+  className?: string;
+}
+
+const AVATAR_CROP: CropShape = {
+  previewWidth: PREVIEW_SIZE,
+  previewHeight: PREVIEW_SIZE,
+  outputWidth: OUTPUT_SIZE,
+  outputHeight: OUTPUT_SIZE,
+  encode: encodeAvatar,
+  titleKey: 'profile.avatar.crop.title',
+  descriptionKey: 'profile.avatar.crop.description',
+};
+
+const BANNER_CROP: CropShape = {
+  previewWidth: 360,
+  previewHeight: 120,
+  outputWidth: 1500,
+  outputHeight: 500,
+  encode: encodeBanner,
+  titleKey: 'profile.banner.crop.title',
+  descriptionKey: 'profile.banner.crop.description',
+  className: 'bh-sidebar-modal',
+};
+
+interface CropModalProps {
+  file: File;
+  t: BotHarnessTranslate;
+  onClose: () => void;
+  onSave: (image: string) => Promise<boolean>;
+}
+
+export function PersonaBotAvatarCropModal(props: CropModalProps): ReactElement {
+  return <ImageCropModal {...props} shape={AVATAR_CROP} />;
+}
+
+export function BannerCropModal(props: CropModalProps): ReactElement {
+  return <ImageCropModal {...props} shape={BANNER_CROP} />;
+}
+
+function ImageCropModal({
   file,
   t,
   onClose,
   onSave,
-}: {
-  file: File;
-  t: BotHarnessTranslate;
-  onClose: () => void;
-  onSave: (avatar: string) => Promise<boolean>;
-}): ReactElement {
+  shape,
+}: CropModalProps & { shape: CropShape }): ReactElement {
+  const { previewWidth, previewHeight, outputWidth, outputHeight } = shape;
   const [source, setSource] = useState<string>();
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>();
   const [zoom, setZoom] = useState(1);
@@ -60,12 +121,12 @@ export function PersonaBotAvatarCropModal({
     return () => URL.revokeObjectURL(url);
   }, [file]);
   const base = dimensions
-    ? Math.max(PREVIEW_SIZE / dimensions.width, PREVIEW_SIZE / dimensions.height)
+    ? Math.max(previewWidth / dimensions.width, previewHeight / dimensions.height)
     : 1;
-  const renderWidth = dimensions ? dimensions.width * base * zoom : PREVIEW_SIZE;
-  const renderHeight = dimensions ? dimensions.height * base * zoom : PREVIEW_SIZE;
-  const boundX = Math.max(0, (renderWidth - PREVIEW_SIZE) / 2);
-  const boundY = Math.max(0, (renderHeight - PREVIEW_SIZE) / 2);
+  const renderWidth = dimensions ? dimensions.width * base * zoom : previewWidth;
+  const renderHeight = dimensions ? dimensions.height * base * zoom : previewHeight;
+  const boundX = Math.max(0, (renderWidth - previewWidth) / 2);
+  const boundY = Math.max(0, (renderHeight - previewHeight) / 2);
   const clamp = (value: number, bound: number): number => Math.max(-bound, Math.min(bound, value));
   const move = (x: number, y: number): void => {
     setOffset({ x: clamp(x, boundX), y: clamp(y, boundY) });
@@ -78,19 +139,19 @@ export function PersonaBotAvatarCropModal({
       const bitmap = await createImageBitmap(file);
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = OUTPUT_SIZE;
-        canvas.height = OUTPUT_SIZE;
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('canvas unavailable');
-        const scale = OUTPUT_SIZE / PREVIEW_SIZE;
+        const scale = outputWidth / previewWidth;
         context.drawImage(
           bitmap,
-          ((PREVIEW_SIZE - renderWidth) / 2 + offset.x) * scale,
-          ((PREVIEW_SIZE - renderHeight) / 2 + offset.y) * scale,
+          ((previewWidth - renderWidth) / 2 + offset.x) * scale,
+          ((previewHeight - renderHeight) / 2 + offset.y) * scale,
           renderWidth * scale,
           renderHeight * scale,
         );
-        if (await onSave(encodeAvatar(canvas))) onClose();
+        if (await onSave(shape.encode(canvas))) onClose();
         else setError(true);
       } finally {
         bitmap.close();
@@ -106,8 +167,9 @@ export function PersonaBotAvatarCropModal({
       open
       onClose={onClose}
       closeLabel={t('common.close')}
-      title={t('profile.avatar.crop.title')}
-      description={t('profile.avatar.crop.description')}
+      {...(shape.className === undefined ? {} : { className: shape.className })}
+      title={t(shape.titleKey)}
+      description={t(shape.descriptionKey)}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -122,6 +184,7 @@ export function PersonaBotAvatarCropModal({
       <div className="bh-group-avatar-crop" ref={sourceMount}>
         <div
           className="bh-group-avatar-crop-viewport"
+          style={{ width: previewWidth, height: previewHeight }}
           role="img"
           tabIndex={0}
           aria-label={t('profile.avatar.crop.move')}
@@ -190,8 +253,8 @@ export function PersonaBotAvatarCropModal({
             const next = Number(event.target.value);
             setZoom(next);
             if (!dimensions) return;
-            const nextX = Math.max(0, (dimensions.width * base * next - PREVIEW_SIZE) / 2);
-            const nextY = Math.max(0, (dimensions.height * base * next - PREVIEW_SIZE) / 2);
+            const nextX = Math.max(0, (dimensions.width * base * next - previewWidth) / 2);
+            const nextY = Math.max(0, (dimensions.height * base * next - previewHeight) / 2);
             setOffset({ x: clamp(offset.x, nextX), y: clamp(offset.y, nextY) });
           }}
         />
