@@ -62,6 +62,14 @@ _Avoid_: Soul, Bot type, mode, skin
 A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
 _Avoid_: Soul, pose, mood, skin
 
+**Window Companion**:
+A Human-selected Binding that keeps one PersonaBot's Avatar present across pages within the Harness window and presents selected activity and messages. It retains the existing PersonaBot identity and is independent of Channel pinning and the active conversation.
+_Avoid_: desktop pet, Channel pin, separate bot
+
+**Companion Visibility**:
+The Human-selected Channel scope for a Window Companion's PersonaBot-authored messages: the Human–PersonaBot DM, Channels shared by both, or every Channel the PersonaBot has joined. It is separate from message-kind playback choices and does not change Channel membership or execution authority.
+_Avoid_: Channel pin, Channel membership, Agent Scope
+
 **Model Preset**:
 A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
 _Avoid_: DSH Agent preset, SoulSnapshot
@@ -437,6 +445,10 @@ _Avoid_: default folder, inbox, fixed bottom bucket
 **Bridge**:
 A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. For an IM conversation it is listed under External connectors (外部连接器); the PersonaBot's own external identity is a separate thing.
 _Avoid_: integration, adapter, connector (bare)
+
+**Conversation ingest**:
+A Channel-owned, one-way connection that places every message of one external conversation into that Channel as Source Events, with context-only member Admissions by default; its wake setting can switch to a batch or every message, and a member PersonaBot's own wake policy in that Channel wins. It is listed under External connectors as an external conversation (外部会话); it grants no reply or other authority to any PersonaBot. Until slice 9 converges them, a Bridge is the Bot-owned route and a Conversation ingest is the Channel-owned one.
+_Avoid_: sync, mirror, Bridge (for this record)
 
 **App**:
 The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Settings → IM apps lists every App and the Bot that uses it.

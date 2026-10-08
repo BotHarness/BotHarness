@@ -382,6 +382,18 @@ The current `stop_assignment` uses DSH `Agent.cancel({ kind: "user" })` to abort
 
 The Assignment Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Assignment Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
 
+### 5.3 · Window Companions (accepted design, not yet implemented)
+
+[ADR-0144](../adr/0144-window-companions-consume-owned-activity-and-scoped-output.md) and [specification #1135](https://github.com/BotHarness/BotHarness/issues/1135) record the confirmed Q1–Q23 design. A Human explicitly shows a selected Bot through its sidebar context menu or a Bot-specific Channel-header action. This Binding is independent of Channel pinning and keeps the existing bust Avatar across Harness pages through the official RC shell overlay Slot. An independent Client companion owner holds selection, per-Bot sources/visibility/walking preferences and shared card-capacity settings for the current Client × DSH Profile. Identity, saved appearance, Memory and Channel placement keep their existing owners; Supported pixel companions omit the tile and square Avatar-frame background for a transparent silhouette while retaining the saved recipe, ordinary roster presentation, usable hit area and independent attention. Image/missing-rig snapshots are not automatically cut out. Positions, drag, roaming and anchored bubbles remain Client presentation.
+
+The target path is owning Registry/Activity Projection/canonical Channel → authenticated Typert/API Gateway and bounded live/query adapters → companion Client owner → existing Avatar and cards. Current Activity consumption closes on Bot-mode exit and current output SSE is single-Channel; independent lifecycle and a Bot-scoped cross-Channel output contract remain implementation work. Other Host Plugins query the same Activity Service and synchronize through its application-defined Cordis notification. Companion UI never writes execution or attention facts back.
+
+Per-Bot Activity, DM and group-message switches default to on/on/off. Companion Visibility defaults to Channels shared by the Human and Bot, with own DM only and all Channels joined by the selected Bot as alternatives. The broad scope includes Bot–Bot DM under the DM switch, and shows only that Bot's committed output with source Channel/participant labels. It needs a Host-owned read-only observation contract for a trusted Human Consumer, bounded to the selected author's output. General timeline membership checks, other authors' full history, model capabilities and membership/send authority do not expand. Original-Channel navigation still checks its owning read boundary and explains unavailable context.
+
+First selection and Client/Host restart establish a Host-consistent future-message baseline without old replay; current Activity is queried directly. Brief background/disconnect recovery is bounded at both query and queue, includes only unplayed enabled-source output after the current baseline, deduplicates canonical identity and fences old generations. Disabling clears source cards/pending work; re-enabling or newly eligible Channels start from the current baseline. A process-local output-committed notification is not a durable cursor. Bubble dismissal/expiry does not mark a Channel read. Independent Human attention survives all playback switches and navigates to the owning activity/Human Inbox surface without invented controls.
+
+Each Bot has one updating Activity card and parallel typewriter message cards, with defaults of 3 collapsed layers and at most 20 unexpired retained cards, adjustable through shared settings. Hover/focus expands a stable list, pauses roaming/expiry, continues visible typing and counts new arrivals until leaving; previews, scrolling and basic bubble avoidance preserve reading. No automatic +N fold or companion selection cap is imposed; Humans drag, pause walking or remove companions. Archive retains a static marked companion; deletion removes selection. Existing motion, freshness, static-image and missing-version fallback contracts apply. First validate one real Host→Client pixel companion Activity/DM interaction/recovery slice with Human feedback, then extend multiple Bots, groups and all visibility modes. A compatible text-paced closed/half-open/open BotPixel mouth follows separately. Independent desktop windows, fork distribution and full-body animation stay outside this target.
+
 ## 6 · Persistence, export, and restore boundaries
 
 ```mermaid
@@ -423,6 +435,25 @@ flowchart TB
 The diagram includes current attachment destinations and their identity records; Messaging bindings resolve converted legacy references; old CAS remains only for unconverted dependencies. Hash equality does not recover sharing, and unqualified/ambiguous legacy calls fail explicitly. Future Backup/Export and explicit Purge must include current referenced files and mappings, preserve shared identities and protect retained references. An explicit export captures current bytes without continuous attachment history.
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
+
+### PersonaBot deletion runtime (#896)
+
+Registry stores a terminal identity fence and the reviewed Memory locator in Generation 66.
+Its active queries exclude accepted deletions; historical queries retain identity, ownership,
+Reports, messages and usage attribution. The Human Profile confirmation uses the existing
+Typert/API Gateway and native Host file-opening capability. Memory erasure is unchecked and
+requires a dedicated Git repository, recorded directory identity, and no other retained
+repository or registered Workspace overlap; shared Host storage is protected. Newly created custom repositories can carry the same
+ownership proof; pre-existing custom paths alone cannot establish exclusive ownership.
+
+The deletion owner accepts its durable fence before stopping this Bot's native AgentHandle
+execution tree, revoking its Workspace/tool rules and disabling its Messaging bindings.
+Started native/provider effects retain their actual outcome. Optional filesystem cleanup has
+an explicit accepted intent and incomplete status; retry uses the original directory identity,
+never a newly selected path. It preserves DSH Session Persistence and shared provider accounts.
+A cold Host excludes the tombstone even when cleanup needs repair. Future Profile Backup must
+enumerate historical Registry records and deletion locators and distinguish intentional erasure.
+Channel Content Purge and its restore-safe ledger remain #897.
 
 ### Bot Marketplace (accepted design, not implemented)
 

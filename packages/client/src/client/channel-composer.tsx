@@ -491,6 +491,7 @@ export function ChannelComposer({
           .filter(
             (bot) =>
               !bot.paused &&
+              !bot.deleted &&
               (bot.displayName
                 .toLocaleLowerCase()
                 .includes(mentionQuery.query.toLocaleLowerCase()) ||

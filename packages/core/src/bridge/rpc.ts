@@ -10,6 +10,10 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
   MarketplaceDetail,
@@ -35,6 +39,7 @@ import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
+import type { PersonaBotDeletionPreview, PersonaBotDeletion } from '../bots/deletion.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import type { UsageFilter, UsageQueryResult } from '../usage/query.js';
@@ -192,6 +197,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
+  }
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot> {
+    return unwrapAsync(this.methods.channelIngests({ channelId }));
+  }
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelIngest({ channelId, input }));
   }
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.channelBridge({ channelId, input }));
@@ -410,6 +421,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.update({ slug, patch }));
   }
 
+  deletionPreview(slug: string): { preview: PersonaBotDeletionPreview } {
+    return unwrap(this.methods.deletionPreview({ slug }));
+  }
+  async deletionConfirm(
+    slug: string,
+    token: string,
+    eraseMemory: boolean,
+  ): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionConfirm({ slug, token, eraseMemory }));
+  }
+  async deletionRetry(slug: string): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionRetry({ slug }));
+  }
+  deletionMemoryFolder(slug: string): {
+    target: { path: string; relativePath: string; kind: 'directory' };
+  } {
+    return unwrap(this.methods.deletionMemoryFolder({ slug }));
+  }
   pause(slug: string): { bot: PersonaBotDetail } {
     return unwrap(this.methods.pause({ slug }));
   }
@@ -1012,6 +1041,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
+  'channelIngests',
+  'channelIngest',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
@@ -1043,6 +1074,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'create',
   'createFromGit',
   'update',
+  'deletionPreview',
+  'deletionConfirm',
+  'deletionRetry',
+  'deletionMemoryFolder',
   'pause',
   'resume',
   'channels',

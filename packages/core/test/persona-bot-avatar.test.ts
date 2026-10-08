@@ -13,7 +13,7 @@ const PNG =
 
 function registryWith(avatar: string | undefined): PersonaBotRegistry {
   return {
-    get: (slug: string) =>
+    getHistorical: (slug: string) =>
       slug === 'ada' && avatar !== undefined
         ? ({ slug: 'ada', displayName: 'Ada', workspaces: [], createdAt: '', avatar } as never)
         : undefined,

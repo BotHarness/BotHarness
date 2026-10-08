@@ -1528,6 +1528,15 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 }
 
 /* 创建失败提示留在 Modal 体内；Modal 在 body 下，不能依赖 .bh-root 前缀。 */
+ .bh-bot-deletion { display: grid; gap: 12px; }
+.bh-bot-deletion p { margin: 0; }
+.bh-bot-deletion-path { overflow-wrap: anywhere; font-family: var(--dsw-font-family-mono); }
+.bh-bot-deletion-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bh-bot-deletion-choice { display: flex; align-items: center; gap: 8px; }
+.bh-bot-deletion-confirm { color: var(--dsw-alias-state-error-primary); }
+.bh-bot-deletion dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.bh-bot-deletion dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .bh-modal-error {
   margin-top: 8px;
   border: 1px solid var(--dsw-alias-state-error-secondary);

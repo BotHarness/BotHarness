@@ -1,4 +1,8 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type {
+  PersonaBotDeletionPreview,
+  PersonaBotDeletion,
+} from '../../../core/src/bots/deletion.js';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import {
   gitInstalling,
@@ -26,6 +30,10 @@ import type {
   ChannelBridgeSnapshot,
 } from '../../../core/src/messaging/channel-bridge.js';
 import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
+import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
@@ -50,6 +58,8 @@ import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadChannelBridges,
   manageChannelBridge,
+  loadChannelIngests,
+  manageChannelIngest,
   loadMessagingSnapshot,
   manageMessagingIdentity,
   manageMessagingConversation,
@@ -257,6 +267,8 @@ export interface HostDirectoryListing {
 export interface BridgeActions {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -329,6 +341,11 @@ export interface BridgeActions {
   authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
+  deletionPreview(slug: string): Promise<PersonaBotDeletionPreview>;
+  deletionConfirm(slug: string, token: string, eraseMemory: boolean): Promise<PersonaBotDeletion>;
+  deletionRetry(slug: string): Promise<PersonaBotDeletion>;
+  deletionFolderApplications(slug: string): Promise<HostFileOptions>;
+  deletionFolderOpen(slug: string, choice?: HostFileOpen): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   refreshGit(signal?: AbortSignal): Promise<void>;
   installGit(): Promise<void>;
@@ -1154,6 +1171,53 @@ export function createActions(
       }
       await refreshRoster(signal);
     },
+    async deletionPreview(slug) {
+      const result = await call('deletionPreview', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      return (result.value as { preview: PersonaBotDeletionPreview }).preview;
+    },
+    async deletionConfirm(slug, token, eraseMemory) {
+      const result = await call('deletionConfirm', { slug, token, eraseMemory });
+      if (!result.ok) throw new Error(result.error.message);
+      await refreshRoster();
+      return (result.value as { deletion: PersonaBotDeletion }).deletion;
+    },
+    async deletionRetry(slug) {
+      const result = await call('deletionRetry', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      await refreshRoster();
+      return (result.value as { deletion: PersonaBotDeletion }).deletion;
+    },
+    async deletionFolderApplications(slug) {
+      const result = await call('deletionMemoryFolder', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      const target = (result.value as { target: HostFileTarget }).target;
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async deletionFolderOpen(slug, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const result = await call('deletionMemoryFolder', { slug });
+        if (!result.ok) throw new Error(result.error.message);
+        const target = (result.value as { target: HostFileTarget }).target;
+        const native = folderAccess?.nativeFiles;
+        if (native === undefined) throw new Error('DSH Host opening is unavailable');
+        if (choice === undefined) {
+          const handlers = await native.applications(target);
+          const manager = handlers.applications.find((app) =>
+            ['finder', 'explorer', 'filemanager'].includes(app.id),
+          );
+          if (manager === undefined) throw new Error('No installed Host file manager is available');
+          choice = { application: manager.id };
+        }
+        await native.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
+    },
     refreshRoster,
     refreshGit,
     installGit,
@@ -1810,6 +1874,8 @@ export function createActions(
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     channelBridges: (channelId) => loadChannelBridges(call, channelId),
     channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
+    channelIngests: (channelId) => loadChannelIngests(call, channelId),
+    channelIngest: (channelId, input) => manageChannelIngest(call, channelId, input),
     approvalRoute: (slug, pairingId, expectedRevision) =>
       setApprovalRoute(call, slug, pairingId, expectedRevision),
     approvalTest: (slug) => testApprovalRoute(call, slug),
