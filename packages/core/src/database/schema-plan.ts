@@ -1734,8 +1734,20 @@ const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
   },
 };
 
-const CONTENT_PURGE_MIGRATION: SchemaMigration = {
+const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
   generation: 67,
+  module: 'messaging',
+  description: 'Persist identity-local native typing preference without persisting tickets',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN typing_enabled INTEGER NOT NULL DEFAULT 1
+        CHECK (typing_enabled IN (0, 1));
+    `);
+  },
+};
+
+const CONTENT_PURGE_MIGRATION: SchemaMigration = {
+  generation: 68,
   module: 'messaging-purge',
   description: 'Require an independent Purge Ledger and fence accepted local Source Events',
   migrate(database) {
@@ -1849,5 +1861,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CONVERSATION_INGEST_MIGRATION,
   NEW_CONVERSATION_DEFAULT_MIGRATION,
   PERSONA_BOT_DELETION_MIGRATION,
+  MESSAGING_TYPING_MIGRATION,
   CONTENT_PURGE_MIGRATION,
 ]);

@@ -45,6 +45,7 @@ export function ExternalIdentityList({
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
+  const [typingEnabled, setTypingEnabled] = useState(true);
   const [newConversations, setNewConversations] = useState<'auto' | 'ask' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -65,6 +66,7 @@ export function ExternalIdentityList({
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
+    setTypingEnabled(row?.typingEnabled !== false);
     setNewConversations(
       row?.newConversationsInheritance === 'custom' ? row.newConversations : 'inherit',
     );
@@ -118,6 +120,7 @@ export function ExternalIdentityList({
               enabled: selected.enabled,
               inheritEnabled,
               newConversations,
+              ...(selected.platform === 'weixin' ? { typingEnabled } : {}),
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -148,7 +151,30 @@ export function ExternalIdentityList({
               meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
                 count: conversations(row).length,
               })}`}
-              chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
+              chips={
+                <>
+                  <Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>
+                  {row.platform === 'weixin' ? (
+                    <span className="bh-bridge-secondary" role="status">
+                      {t(
+                        !row.typing?.supported
+                          ? 'identity.typing.unavailable'
+                          : !row.typingEnabled
+                            ? 'identity.typing.off'
+                            : row.typing.phase === 'cleanup-unconfirmed'
+                              ? 'identity.typing.cleanup'
+                              : row.typing.phase === 'unavailable'
+                                ? 'identity.typing.refused'
+                                : row.typing.phase === 'accepted'
+                                  ? 'identity.typing.accepted'
+                                  : row.typing.phase === 'requesting'
+                                    ? 'identity.typing.requesting'
+                                    : 'identity.typing.ready',
+                      )}
+                    </span>
+                  ) : null}
+                </>
+              }
               muted={!row.enabled}
               hint={t('identity.editFor', { name: row.name })}
               dialog
@@ -440,6 +466,21 @@ export function ExternalIdentityList({
                     </div>
                   )}
                 </>
+              ) : null}
+              {mode === 'edit' && selected.platform === 'weixin' ? (
+                <div className="bh-im-field">
+                  <span>{t('identity.typing.label')}</span>
+                  <Switch
+                    label={t('identity.typing.label')}
+                    checked={typingEnabled}
+                    disabled={busy}
+                    onChange={setTypingEnabled}
+                  />
+                  <span className="bh-bridge-secondary">{t('identity.typing.hint')}</span>
+                  {!selected.typing?.supported ? (
+                    <span className="bh-bridge-secondary">{t('identity.typing.unavailable')}</span>
+                  ) : null}
+                </div>
               ) : null}
               {mode === 'edit' ? (
                 <div className="bh-im-field">

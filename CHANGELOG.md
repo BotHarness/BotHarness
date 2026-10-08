@@ -9,7 +9,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
-- Content Purge adds Profile schema Generation 67 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
+- Content Purge adds Profile schema Generation 68 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
@@ -42,6 +42,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - A reviewed Lark operator can receive tool approvals in a named management DM and use **Allow once** or **Reject**; callbacks recheck the actual actor and exact native call, while the Profile distinguishes delivery, accepted decision and native execution result. Known-unsent retries are bounded; uncertain delivery and old cards after restart cannot authorize execution ([#1029](https://github.com/BotHarness/BotHarness/issues/1029), [ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)).
 
 - AX isolated Profiles can reuse a machine-local OpenCode Go credential and native default model after one hidden-input setup, preserving independent Profile configuration; the qualified DSH 0.2.0 RC1 adapter supplies the actual Session header required for real Go replies ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [guide](docs/agents/ax-model.md)).
+- Added a source-preview native WeChat typing candidate tied to authorized owner-DM processing, with bounded renewal, lifecycle cleanup and an identity preference; native client visibility and packaged-product qualification remain tracked on [#911](https://github.com/BotHarness/BotHarness/issues/911) ([guide](docs/wechat-connection.md), [ADR-0145](docs/adr/0145-wechat-typing-follows-owned-processing-leases.md)).
 
 - Qualified personal WeChat owner-DM text reports use the canonical external-only Outbox with current-authorization fences and actionable private-context refusal. Profile exposes explicit posting; client acknowledgement and any genuine native server message ID remain distinct, without claiming delivery/read receipts ([#910](https://github.com/BotHarness/BotHarness/issues/910), [guide](docs/wechat-connection.md)).
 

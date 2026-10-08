@@ -436,6 +436,16 @@ The diagram includes current attachment destinations and their identity records;
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 
+### First Channel text purge runtime (#897, partial delivery)
+
+The application-defined `ContentPurge` Host owner in Generation 68 exposes ended Group history, selected Source Event preview and separate confirmation through the existing Typert/API Gateway seam, without a model Tool. Ended Group identities stay reserved, so a new same-name Group cannot overwrite retained history. Eligibility requires continuous Human read access from creation in every shared placement and all placements ended; external sources, files/bindings, running Admissions, Assignment dependencies, causal descendants and linked Outbox intents refuse. This slice neither completes #897 nor unblocks #886.
+
+The Host owns independent `botharness/purge/ledger.db` outside restorable `botharness.db` snapshots. A SQLite FULL transaction accepts monotonic identity, author/time, causal links and Human actor/time/reason facts without bodies before operational removal. Application preserves minimal tombstones and shared placements, uses secure-delete and truncates the WAL. Failure closes the operational database into recovery; cold startup reapplies facts before creating Messaging Consumers. Persistent triggers fence refills, duplicate identity inserts, new Admissions and linked Outbox intents.
+
+`checkpoint()` exports actual validated facts; synchronous `withCheckpoint` serializes purge with its snapshot callback. Cold `restoring` requires a valid v1 package checkpoint, validates and unions it with destination facts without replacing existing audit, then applies before opening Messaging. Missing, corrupt or unsupported ledger/checkpoint state fails closed, as does an operational snapshot referencing facts absent from the ledger. The future asynchronous Profile Backup Barrier still must coordinate wider Profile writes, files and Sessions; this callback is not a complete backup implementation.
+
+Preview and completion information controls disclose surviving Human-managed Memory/Workspace/exports, DSH Session prompts/results, provider copies, Git remotes and offline backups. Old standalone files enforce only their contained checkpoint. Reference-aware file cleanup, external callbacks/started-effect qualification and real DSH interrupted-cleanup/shared-file restore scenarios remain #897 follow-up work; see the [first-slice QA guide](../agents/qa-channel-purge.md).
+
 ### PersonaBot deletion runtime (#896)
 
 Registry stores a terminal identity fence and the reviewed Memory locator in Generation 66.
@@ -578,6 +588,10 @@ The Host expands the selected token into ordinary per-Bot mention text and stabl
 ### Qualified external-platform defaults
 
 [#843](https://github.com/BotHarness/BotHarness/issues/843) extends [ADR-0119](../adr/0119-external-platform-defaults-retain-explicit-inheritance.md) to qualified Slack group text. Bot settings selects Lark or Slack with independent drafts and immutable preference revisions. The authenticated read RPC accepts an optional qualified platform; legacy calls still read Lark. Generation 53 preserves all prior default rows and scoped overrides while allowing Slack revisions. New Slack identities inherit; existing identities retain their explicit choices until Human restores inheritance. Only future inherited intake/harvest and enabled behavior changes; authorization, delivery verification, per-Admission snapshots and resume fencing keep their existing owners. No account, Grant, Source, queue or reply authority is added.
+
+### Native WeChat typing candidate (#911)
+
+[#911](https://github.com/BotHarness/BotHarness/issues/911) adds a process-local checked typing lease for the authorized WeChat owner DM ([ADR-0145](../adr/0145-wechat-typing-follows-owned-processing-leases.md)). Canonical Messaging checks the owning source, Binding, Grant and Provider Registration; actual Orchestrator processing, accepted steering and related Assignment work share one bounded native lifecycle. Only the Provider holds tickets and continuations. Renewal requires current authority; the final worker or invalidation cancels the original ticket. Schema generation 67 stores only the identity preference, after main's unchanged PersonaBot deletion migration. Live activity resets on restart and is neither a SessionEvent nor a delivery/read receipt. Windows qualification and its limits are recorded on #911; global defaults and inheritance remain the separate #912 slice.
 
 ### Window Companions (#1138–#1142)
 
