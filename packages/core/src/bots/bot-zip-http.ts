@@ -195,7 +195,8 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
       displayName,
       files: contents.files,
       ...(contents.history === undefined ? {} : { history: contents.history }),
-      ...(contents.descriptor?.roles === undefined ? {} : { roles: contents.descriptor.roles }),
+      ...(contents.descriptor?.tags === undefined ? {} : { roles: contents.descriptor.tags }),
+      ...(contents.descriptor?.bio === undefined ? {} : { description: contents.descriptor.bio }),
     });
     if (!result.ok) {
       deps.log?.(`bot-zip-import-failed reason=${result.reason}`);

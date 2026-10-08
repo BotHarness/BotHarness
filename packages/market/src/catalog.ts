@@ -9,7 +9,9 @@ export interface MarketplaceEntry {
   name: string;
   fullName: string;
   displayName: string | null;
+  tags: string[];
   roles: string[];
+  bio: string | null;
   description: string | null;
   topics: string[];
   stars: number;
@@ -54,13 +56,16 @@ function stringList(value: string): string[] {
 
 function entryFromRow(row: RepositoryRow): MarketplaceEntry {
   const topics = stringList(row.topics).filter((topic) => topic !== BOT_TOPIC);
+  const tags = stringList(row.roles);
   return {
     id: row.node_id,
     owner: row.owner,
     name: row.name,
     fullName: `${row.owner}/${row.name}`,
     displayName: row.display_name,
-    roles: stringList(row.roles),
+    tags,
+    roles: tags,
+    bio: row.bio ?? row.description,
     description: row.description,
     topics,
     stars: row.stars,

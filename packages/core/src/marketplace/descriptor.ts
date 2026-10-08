@@ -1,14 +1,16 @@
 export const BOT_DESCRIPTOR_PATH = '.botharness/bot.json';
 export const MAX_DESCRIPTOR_BYTES = 16_384;
 export const MAX_DESCRIPTOR_NAME_LENGTH = 60;
-export const MAX_DESCRIPTOR_ROLES = 8;
-export const MAX_DESCRIPTOR_ROLE_LENGTH = 32;
+export const MAX_DESCRIPTOR_TAGS = 8;
+export const MAX_DESCRIPTOR_TAG_LENGTH = 32;
+export const MAX_DESCRIPTOR_BIO_LENGTH = 160;
 
 export type BotDescriptorAvatar = { recipe: Record<string, unknown> } | { image: string };
 
 export interface BotDescriptor {
   name?: string;
-  roles?: string[];
+  tags?: string[];
+  bio?: string;
   avatar?: BotDescriptorAvatar;
 }
 
@@ -41,17 +43,24 @@ function parseAvatar(value: unknown): BotDescriptorAvatar | undefined | false {
   return false;
 }
 
-function parseRoles(value: unknown): string[] | undefined | false {
+function parseTags(value: unknown): string[] | undefined | false {
   if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > MAX_DESCRIPTOR_ROLES) return false;
-  const roles: string[] = [];
+  if (!Array.isArray(value) || value.length > MAX_DESCRIPTOR_TAGS) return false;
+  const tags: string[] = [];
   for (const item of value) {
     if (typeof item !== 'string') return false;
-    const role = item.trim();
-    if (role.length === 0 || [...role].length > MAX_DESCRIPTOR_ROLE_LENGTH) return false;
-    if (!roles.includes(role)) roles.push(role);
+    const tag = item.trim();
+    if (tag.length === 0 || [...tag].length > MAX_DESCRIPTOR_TAG_LENGTH) return false;
+    if (!tags.includes(tag)) tags.push(tag);
   }
-  return roles;
+  return tags;
+}
+
+function parseBio(value: unknown): string | undefined | false {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return false;
+  const bio = value.trim();
+  return [...bio].length > MAX_DESCRIPTOR_BIO_LENGTH ? false : bio;
 }
 
 export function parseBotDescriptor(text: string): BotDescriptor | undefined {
@@ -72,9 +81,14 @@ export function parseBotDescriptor(text: string): BotDescriptor | undefined {
     if (trimmed.length === 0 || [...trimmed].length > MAX_DESCRIPTOR_NAME_LENGTH) return undefined;
     descriptor.name = trimmed;
   }
-  const roles = parseRoles(source['roles']);
-  if (roles === false) return undefined;
-  if (roles !== undefined && roles.length > 0) descriptor.roles = roles;
+  const tags = parseTags(source['tags']);
+  const roles = parseTags(source['roles']);
+  if (tags === false || roles === false) return undefined;
+  const effective = tags ?? roles;
+  if (effective !== undefined && effective.length > 0) descriptor.tags = effective;
+  const bio = parseBio(source['bio']);
+  if (bio === false) return undefined;
+  if (bio !== undefined && bio.length > 0) descriptor.bio = bio;
   const avatar = parseAvatar(source['avatar']);
   if (avatar === false) return undefined;
   if (avatar !== undefined) descriptor.avatar = avatar;

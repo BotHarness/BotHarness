@@ -526,7 +526,12 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const previousName = record.displayName;
       const previousAvatar = record.avatar;
-      const previousProfile = JSON.stringify([record.roles, record.tag, record.avatar]);
+      const previousProfile = JSON.stringify([
+        record.roles,
+        record.tag,
+        record.description,
+        record.avatar,
+      ]);
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
@@ -562,7 +567,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (patch.avatar !== undefined && record.avatar !== previousAvatar) capture('avatar_edited');
       if (
         record.displayName !== previousName ||
-        JSON.stringify([record.roles, record.tag, record.avatar]) !== previousProfile
+        JSON.stringify([record.roles, record.tag, record.description, record.avatar]) !==
+          previousProfile
       )
         syncDescriptor(record);
       return { ok: true, record };

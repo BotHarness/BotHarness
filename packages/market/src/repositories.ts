@@ -27,6 +27,7 @@ export interface RepositoryRow {
   readme_pushed_at: string | null;
   display_name: string | null;
   roles: string;
+  bio: string | null;
 }
 
 export const MAX_README_LENGTH = 200_000;
@@ -71,13 +72,14 @@ export function createRepositoryStore(deps: {
       descriptorFile.value === null ? undefined : parseBotDescriptor(descriptorFile.value);
     await db
       .prepare(
-        'UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ?, display_name = ?, roles = ? WHERE node_id = ?',
+        'UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ?, display_name = ?, roles = ?, bio = ? WHERE node_id = ?',
       )
       .bind(
         readme.value?.slice(0, MAX_README_LENGTH) ?? null,
         row.pushed_at,
         descriptor?.name ?? null,
-        JSON.stringify(descriptor?.roles ?? []),
+        JSON.stringify(descriptor?.tags ?? []),
+        descriptor?.bio ?? null,
         row.node_id,
       )
       .run();

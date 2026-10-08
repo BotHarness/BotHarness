@@ -1510,6 +1510,27 @@ describe('bridge methods', () => {
       ok: true,
       value: { bot: { slug: 'ada', displayName: 'Ada' } },
     });
+    const limits = { code: 'invalid-input', message: 'tags or bio exceed the profile limits' };
+    expect(methods.update({ slug: 'ada', patch: { description: 'b'.repeat(161) } })).toEqual({
+      ok: false,
+      error: limits,
+    });
+    expect(methods.update({ slug: 'ada', patch: { roles: ['x'.repeat(33)] } })).toEqual({
+      ok: false,
+      error: limits,
+    });
+    expect(
+      methods.update({
+        slug: 'ada',
+        patch: { roles: Array.from({ length: 9 }, (_, i) => `t${i}`) },
+      }),
+    ).toEqual({ ok: false, error: limits });
+    expect(
+      methods.update({
+        slug: 'ada',
+        patch: { roles: ['Notes'], description: 'b'.repeat(160) },
+      }),
+    ).toMatchObject({ ok: true, value: { bot: { roles: ['Notes'] } } });
   });
 
   it('pauses and resumes a bot, exposing paused in the read model', () => {
