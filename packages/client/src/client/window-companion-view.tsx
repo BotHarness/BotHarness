@@ -328,6 +328,8 @@ export function WindowCompanionView({
             }}
             items={items}
             dense
+            side="top"
+            portal
             anchor={
               <button
                 type="button"
