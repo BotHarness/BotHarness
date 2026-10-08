@@ -91,51 +91,6 @@ export const zh = {
 
   'defaults.externalWake': '{platform} 普通消息',
 
-  'setup.test':
-    '[BH-LARK-SETUP] 请在本话题使用 bridge_reply 只回复 LARK-SETUP-OK。不要另发群主线消息，也不要创建 Assignment。',
-  'setup.title': '连接 Lark / 飞书',
-  'setup.open': '配置引导',
-  'setup.summary': '连接应用、绑定到 Bot，再发一条消息验证。',
-  'setup.locateHint': '「定位」只会高亮对应控件，不会发送消息，也不会直接标记完成。',
-  'setup.platform': '应用平台',
-  'setup.lark': 'Lark（国际版）',
-  'setup.feishu': '飞书',
-  'setup.console': '打开开发者后台',
-  'setup.guide': '图文与视频教程',
-  'setup.guideUrl': 'https://botharness.ai/zh/docs/lark-connection/',
-  'setup.prepare': '先准备应用机器人',
-  'setup.application': '创建企业自建应用并添加机器人能力。',
-  'setup.permissions':
-    '应用身份至少需要 im:message.group_at_msg:readonly 与 im:message:send_as_bot；按需申请历史或附件权限。',
-  'setup.events':
-    '选择长连接并订阅 im.message.receive_v1。如果需要先建立连接，先完成本机账号连接，再回来保存事件。',
-  'setup.publish': '发布应用版本并完成组织审批；将新机器人加入指定测试群。',
-  'setup.credentials':
-    'App Secret 仅输入现有本机 Provider 设置；Human 扫码登录不能代替应用机器人身份。',
-  'setup.providerMissing': '尚未确认兼容的接收 Provider。请检查产品安装和 Provider 状态，再刷新。',
-  'setup.done': '已确认',
-  'setup.pending': '待确认',
-  'setup.locate': '定位',
-  'setup.verifyHint':
-    '在机器人所在群的话题中 @ 它，发送以下测试文字。不 @ 它的消息默认不会进入收件箱。外部平台的已读圆圈不能证明已收件。',
-  'setup.received': '已记录真实话题收件',
-  'setup.echo': '已观测到关联回复；请到 Lark 原话题核对。',
-  'setup.accepted': '平台已接受回复，尚未观测到回传；请到原话题核对。',
-  'setup.awaiting': '已收件，等待该身份回复。',
-  'setup.optional':
-    '绑定后不需要授权会话。会话会自动出现在「外部身份」的会话列表里，可在那里静音、屏蔽或同步到 Channel。',
-  'setup.failed': '状态核对失败或控件不可用。保留现有配置，关闭引导后打开实际设置，再刷新重试。',
-  'setup.checking': '正在核对…',
-  'setup.refresh': '核对真实状态',
-  'setup.resume':
-    '可以关闭后继续；重新打开会核对当前配置。断开、停用、解绑或撤销群授权会重新显示待确认步骤。',
-  'setup.step.app': '在 IM 设置中连接应用',
-  'setup.hint.app': '在「设置 → IM机器人 → 飞书」选择正确平台，填入应用凭据并连接。',
-  'setup.step.bind': '把应用绑定到这个 Bot',
-  'setup.hint.bind': '在「外部身份」点击「绑定应用」，选择刚连接的应用。一个应用只属于一个 Bot。',
-  'setup.step.verify': '发消息验证收发',
-  'setup.hint.verify': '把机器人拉进一个群，在话题中 @ 它发送下方测试文字，确认 Bot 在原话题回复。',
-
   'defaults.restore': '恢复继承',
   'defaults.threshold': '汇总阈值',
   'defaults.platform': '默认设置的平台',
@@ -872,6 +827,16 @@ export const zh = {
   'identity.title': '外部身份',
   'identity.summary': '这个 Bot 在外部平台以谁的身份行动；与信息来源分开管理。',
   'identity.bind': '绑定应用',
+  'identity.tutorials': '连接教程',
+  'identity.noApps': '暂无可绑定的应用',
+  'identity.tutorial.lark': 'Lark / 飞书',
+  'identity.tutorial.larkUrl': 'https://botharness.ai/zh/docs/lark-connection/',
+  'identity.tutorial.slack': 'Slack',
+  'identity.tutorial.slackUrl': 'https://botharness.ai/zh/docs/slack-connection/',
+  'identity.tutorial.wechat': '微信',
+  'identity.tutorial.wechatUrl': 'https://botharness.ai/zh/docs/wechat-connection/',
+  'identity.tutorial.more': '更多平台',
+  'identity.tutorial.moreUrl': 'https://botharness.ai/zh/docs/channel-sidebar/external-identities/',
   'identity.empty': '尚未绑定应用。绑定后，私聊和 @ 这个应用的消息会进入这个 Bot 的收件箱。',
   'identity.emptyShort': '还没有绑定应用',
   'identity.app': '应用',
@@ -2270,58 +2235,6 @@ export const en = {
 
   'defaults.externalWake': '{platform} ordinary messages',
 
-  'setup.test':
-    '[BH-LARK-SETUP] Use bridge_reply to reply only LARK-SETUP-OK in this topic. Do not send to the group mainline or create an Assignment.',
-  'setup.title': 'Connect Lark / Feishu',
-  'setup.open': 'Setup guide',
-  'setup.summary': 'Connect the app, bind it to this Bot, then send one message to verify.',
-  'setup.locateHint':
-    'Locate only highlights the control; it never sends anything or marks the step done.',
-  'setup.platform': 'Application platform',
-  'setup.lark': 'Lark (international)',
-  'setup.feishu': 'Feishu',
-  'setup.console': 'Open developer console',
-  'setup.guide': 'Illustrated guide and video',
-  'setup.guideUrl': 'https://botharness.ai/docs/lark-connection/',
-  'setup.prepare': 'Prepare an application Bot',
-  'setup.application': 'Create an internal application and add Bot capability.',
-  'setup.permissions':
-    'Application scopes need im:message.group_at_msg:readonly and im:message:send_as_bot; request history or resource access only as needed.',
-  'setup.events':
-    'Use persistent connection and subscribe to im.message.receive_v1. If a connection is required first, connect locally before saving the event.',
-  'setup.publish':
-    'Publish the version, complete organization approval, and add the new Bot to the designated test group.',
-  'setup.credentials':
-    'Enter App Secret only in existing local Provider settings. Human QR login is distinct from an application Bot identity.',
-  'setup.providerMissing':
-    'A compatible receive Provider is not confirmed. Check the product installation and Provider, then refresh.',
-  'setup.done': 'Confirmed',
-  'setup.pending': 'Not confirmed',
-  'setup.locate': 'Locate',
-  'setup.verifyHint':
-    'In a topic of a group the Bot is in, @mention it with the test text below. Messages that don’t @mention it stay out of the Inbox by default. Read circles on the platform don’t prove receipt.',
-  'setup.received': 'Real topic receipt recorded',
-  'setup.echo': 'Correlated reply observed; check the original Lark topic.',
-  'setup.accepted': 'Platform accepted the reply; echo not observed. Check the original topic.',
-  'setup.awaiting': 'Received; waiting for this identity to reply.',
-  'setup.optional':
-    'No conversation authorization is needed after binding. Conversations show up in the External identities conversation list, where you can mute, block or sync them to a Channel.',
-  'setup.failed':
-    'Status check failed or controls are unavailable. Keep the configuration, open actual settings after closing the guide, then retry.',
-  'setup.checking': 'Checking…',
-  'setup.refresh': 'Check current state',
-  'setup.resume':
-    'Close and resume anytime. Reopening checks current configuration; disconnection, disable, unbind or grant revocation returns the relevant step to unconfirmed.',
-  'setup.step.app': 'Connect the app in IM settings',
-  'setup.hint.app':
-    'In Settings → IM Bots → Feishu, choose the correct platform, enter the app credentials and connect.',
-  'setup.step.bind': 'Bind the app to this Bot',
-  'setup.hint.bind':
-    'Under External identities, click Bind app and choose the app you just connected. An app belongs to one Bot only.',
-  'setup.step.verify': 'Send a test message',
-  'setup.hint.verify':
-    'Add the Bot to a group, @mention it in a topic with the test text below, and check that the Bot replies in the same topic.',
-
   'defaults.restore': 'Restore inheritance',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
@@ -3099,6 +3012,16 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.summary':
     'Who this Bot acts as on external platforms; managed separately from sources.',
   'identity.bind': 'Bind app',
+  'identity.tutorials': 'Connection tutorials',
+  'identity.noApps': 'No apps available to bind',
+  'identity.tutorial.lark': 'Lark / Feishu',
+  'identity.tutorial.larkUrl': 'https://botharness.ai/docs/lark-connection/',
+  'identity.tutorial.slack': 'Slack',
+  'identity.tutorial.slackUrl': 'https://botharness.ai/docs/slack-connection/',
+  'identity.tutorial.wechat': 'WeChat',
+  'identity.tutorial.wechatUrl': 'https://botharness.ai/docs/wechat-connection/',
+  'identity.tutorial.more': 'More platforms',
+  'identity.tutorial.moreUrl': 'https://botharness.ai/docs/channel-sidebar/external-identities/',
   'identity.empty':
     'No app bound yet. Once bound, DMs and @mentions to the app reach this Bot’s Inbox.',
   'identity.emptyShort': 'No app bound yet',

@@ -53,6 +53,8 @@
 
 ### Changed
 
+- **绑定应用** 弹窗可直接打开官网的 Lark／飞书、Slack、微信连接教程和更多平台总览；移除侧栏独立的 Lark 配置引导卡片，让平台配置说明集中在官网维护 ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
+
 - **新会话** 也成了平台默认设置：飞书、Slack、Discord 的全局 IM 默认设置里各有一个 **新会话** 选项（不改就是 **自动接收**），每个已绑定应用都跟随它，除非你为这个应用单独选择。已经设为 **先问我** 的应用保持不变（[#1134](https://github.com/BotHarness/BotHarness/issues/1134)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 - 「外部连接器」不再提供 **添加外部连接器** 和 **授权外部会话**（同步正在围绕“接入任意应用的会话”重新设计），只列出已有的同步，并保留 **保存发送目标（高级）** 给不能直接发往会话的应用。会话行会显示已同步到哪里，操作按钮（**静音**、**规则**、**屏蔽**）单独一行并各带说明提示。Lark 配置引导缩减为三步（连接应用、绑定、发消息验证），Lark、Slack、微信连接教程围绕 **绑定应用** 重写（[#1113](https://github.com/BotHarness/BotHarness/issues/1113)、[Lark 教程](docs/lark-connection.md)、[外部连接器说明](docs/channel-sidebar/external-connectors.md)）。
 

@@ -268,14 +268,28 @@ export function ExternalIdentityList({
           ) : null}
           {mode === 'bind' ? (
             <>
-              <p>{t('identity.providerHint')}</p>
+              <nav className="bh-im-field" aria-label={t('identity.tutorials')}>
+                <span className="bh-muted">{t('identity.tutorials')}</span>
+                <div className="bh-im-tutorials">
+                  {(['lark', 'slack', 'wechat', 'more'] as const).map((guide) => (
+                    <a
+                      key={guide}
+                      href={t(`identity.tutorial.${guide}Url`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {t(`identity.tutorial.${guide}`)}
+                    </a>
+                  ))}
+                </div>
+              </nav>
               <label className="bh-im-field">
                 <span>{t('identity.app')}</span>
                 <Combobox
                   label={t('identity.app')}
                   toggleLabel={t('identity.app')}
-                  placeholder={t('im.select')}
-                  emptyLabel={t('im.setup')}
+                  placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
+                  emptyLabel={t('identity.noApps')}
                   disabled={busy}
                   value={accountKey}
                   onSelect={setAccountKey}
@@ -314,8 +328,6 @@ export function ExternalIdentityList({
                     }))}
                 />
               </label>
-              {!accounts.length ? <p>{t('im.setup')}</p> : null}
-              <p className="bh-muted">{t('identity.bindHint')}</p>
               <div>
                 <Button
                   size="sm"

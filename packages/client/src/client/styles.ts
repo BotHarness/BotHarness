@@ -1,14 +1,17 @@
-import { LARK_SETUP_CSS } from './lark-setup-styles.js';
+import { INTERNAL_TOUR_CSS } from './internal-tour-styles.js';
 import { WINDOW_COMPANION_CSS } from './window-companion-styles.js';
 import { COMBOBOX_CSS } from './combobox.js';
 import { keyframesFor } from '@botharness/botui-core';
 import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
 
 export const CSS =
-  LARK_SETUP_CSS +
+  INTERNAL_TOUR_CSS +
   COMBOBOX_CSS +
   WINDOW_COMPANION_CSS +
   `
+.bh-im-tutorials { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.bh-im-tutorials a { color: var(--bh-accent); text-underline-offset: 3px; }
+.bh-im-tutorials a:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 3px; border-radius: 2px; }
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic
      tokens (ADR-0028): at most three entries, no second design system. */
