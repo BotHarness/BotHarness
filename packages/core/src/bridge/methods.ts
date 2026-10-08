@@ -90,9 +90,10 @@ import {
 import { botAvatarUrl } from '../bots/avatar-http.js';
 import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
 import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
-import { isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { customPartId, isPixelCustomPart } from '../bots/avatar-appearance.js';
 import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
 import {
+  MAX_PART_LIBRARY_FILES,
   MAX_PART_LIBRARY_FILE_BYTES,
   decodePartFiles,
   encodePartFile,
@@ -2236,10 +2237,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     partLibraryExport(payload) {
       if (!deps.partLibrary) return unavailable();
-      const id = asObject(payload)['id'];
+      const input = asObject(payload);
+      const id = input['id'];
+      const worn = input['part'];
       try {
+        if (worn !== undefined) {
+          if (!isPixelCustomPart(worn)) return invalidInput('part must be a valid Custom Part');
+          const saved = deps.partLibrary.get(customPartId(worn));
+          const file = {
+            part: worn,
+            name: saved?.name ?? '',
+            ...(saved?.author ? { author: saved.author } : {}),
+          };
+          return {
+            ok: true,
+            value: { fileName: partFileName(file), data: encodePartFile(file).toString('base64') },
+          };
+        }
         if (id === undefined) {
-          const files = deps.partLibrary.list().map((entry) => ({
+          const listed = deps.partLibrary.list();
+          if (listed.length > MAX_PART_LIBRARY_FILES)
+            return invalidInput(
+              `The library has more than ${MAX_PART_LIBRARY_FILES} parts; export parts one at a time`,
+            );
+          const files = listed.map((entry) => ({
             part: entry.part,
             name: entry.name,
             ...(entry.author ? { author: entry.author } : {}),

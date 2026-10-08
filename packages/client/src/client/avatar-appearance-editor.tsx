@@ -232,7 +232,10 @@ function categoriesFor(
 export interface PartLibraryActions {
   load(): Promise<PartLibraryEntry[] | undefined>;
   add(part: PixelCustomPart, name: string, parent?: string): Promise<PartLibraryEntry | undefined>;
-  exportParts?: (id?: string) => Promise<{ fileName: string; data: string } | undefined>;
+  exportParts?: (
+    id?: string,
+    part?: PixelCustomPart,
+  ) => Promise<{ fileName: string; data: string } | undefined>;
   importParts?: (
     data: string,
   ) => Promise<{ added: PartLibraryEntry[]; refused: number } | { error: string }>;
@@ -243,14 +246,18 @@ type OriginFilter = (typeof ORIGIN_FILTERS)[number];
 const originKey = (origin: Exclude<OriginFilter, 'all'>) =>
   origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn';
 
+const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
+
 function download(fileName: string, base64: string, type: string): void {
   const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   const url = URL.createObjectURL(new Blob([bytes], { type }));
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function readBase64(file: File): Promise<string> {
@@ -435,10 +442,21 @@ export function AvatarAppearanceEditor({
         entry.part.slot === slot &&
         (originFilter === 'all' || entry.origins.includes(originFilter)),
     );
-    const importFiles = async (files: FileList | null) => {
+    const importFiles = async (files: File[] | null) => {
       const file = files?.[0];
       if (!file || !library?.importParts) return;
-      const result = await library.importParts(await readBase64(file));
+      if (file.size > MAX_IMPORT_BYTES) {
+        setLibraryNote(t('profile.avatar.part.importTooLarge'));
+        return;
+      }
+      let data: string;
+      try {
+        data = await readBase64(file);
+      } catch {
+        setLibraryNote(t('profile.avatar.part.importTooLarge'));
+        return;
+      }
+      const result = await library.importParts(data);
       if ('error' in result) {
         setLibraryNote(result.error);
         return;
@@ -454,9 +472,9 @@ export function AvatarAppearanceEditor({
         }),
       );
     };
-    const exportParts = async (id?: string) => {
-      const file = await library?.exportParts?.(id);
-      if (file) download(file.fileName, file.data, id ? 'image/png' : 'application/zip');
+    const exportParts = async (part?: PixelCustomPart) => {
+      const file = await library?.exportParts?.(part ? customPartId(part) : undefined, part);
+      if (file) download(file.fileName, file.data, part ? 'image/png' : 'application/zip');
       else setLibraryNote(t('profile.avatar.part.exportFailed'));
     };
     const draw = () =>
@@ -530,7 +548,7 @@ export function AvatarAppearanceEditor({
               type="button"
               className="bh-avatar-color-reset"
               data-part-export={slot}
-              onClick={() => void exportParts(customPartId(worn))}
+              onClick={() => void exportParts(worn)}
             >
               {t('profile.avatar.part.exportPart')}
             </button>
@@ -559,7 +577,12 @@ export function AvatarAppearanceEditor({
                   type="file"
                   accept=".png,.zip,image/png,application/zip"
                   hidden
-                  onChange={(event) => void importFiles(event.currentTarget.files)}
+                  onChange={(event) => {
+                    const files = event.currentTarget.files;
+                    void importFiles(files ? [...files] : null).finally(() => {
+                      event.target.value = '';
+                    });
+                  }}
                 />
               </label>
             ) : null}

@@ -1761,6 +1761,7 @@ export const zh = {
   'profile.avatar.part.import': '导入部件文件',
   'profile.avatar.part.exportLibrary': '导出部件库',
   'profile.avatar.part.exportPart': '导出这个部件 PNG',
+  'profile.avatar.part.importTooLarge': '文件太大或无法读取（最大 8 MB）。',
   'profile.avatar.part.exportFailed': '导出失败，请重试。',
   'profile.avatar.part.imported': '已导入 {count} 个部件。',
   'profile.avatar.part.importedRefused': '已导入 {count} 个部件，{refused} 个文件无法读取。',
@@ -4335,6 +4336,8 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'profile.avatar.part.import': 'Import part files',
   'profile.avatar.part.exportLibrary': 'Export the library',
   'profile.avatar.part.exportPart': 'Export this part as PNG',
+  'profile.avatar.part.importTooLarge':
+    'The file is too large or could not be read (8 MB at most).',
   'profile.avatar.part.exportFailed': "Couldn't export. Try again.",
   'profile.avatar.part.imported': 'Parts imported: {count}.',
   'profile.avatar.part.importedRefused':

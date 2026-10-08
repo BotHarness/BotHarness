@@ -134,6 +134,14 @@ describe('Part Library sharing through the public Host bridge', () => {
         false,
       );
       expect(bridge.partLibraryExport({ id: 'missing' }).ok).toBe(false);
+      const unsaved = bridge.partLibraryExport({ part: fringe });
+      expect(unsaved).toMatchObject({
+        ok: true,
+        value: { fileName: expect.stringMatching(/^part-/u) },
+      });
+      const decoded = unsaved.ok ? decodePartFile(Buffer.from(unsaved.value.data, 'base64')) : '';
+      expect(typeof decoded !== 'string' && customPartId(decoded.part)).toBe(customPartId(fringe));
+      expect(bridge.partLibraryExport({ part: { slot: 'bangs' } }).ok).toBe(false);
     });
   });
 

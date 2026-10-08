@@ -132,12 +132,15 @@ export function decodePartFile(bytes: Buffer): PartFile | PartFileError {
 }
 
 export function partFileName(file: PartFile): string {
-  const stem = file.name
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 40);
+  const stem = Array.from(
+    file.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
+      .replace(/^-+|-+$/gu, ''),
+  )
+    .slice(0, 40)
+    .join('');
   return `${stem || 'part'}-${customPartId(file.part).slice(0, 8)}.png`;
 }
 

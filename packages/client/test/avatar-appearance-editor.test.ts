@@ -794,10 +794,10 @@ describe('Profile Avatar Appearance editing', () => {
       expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(2);
       expect($(`[data-avatar-option="headpiece:${customPartId(ears)}"]`)).not.toBeNull();
       await click('[data-part-export-library]');
-      expect(exportParts).toHaveBeenLastCalledWith(undefined);
+      expect(exportParts).toHaveBeenLastCalledWith(undefined, undefined);
       await click(`[data-avatar-option="headpiece:${customPartId(ears)}"]`);
       await click('[data-part-export="headpiece"]');
-      expect(exportParts).toHaveBeenLastCalledWith(customPartId(ears));
+      expect(exportParts).toHaveBeenLastCalledWith(customPartId(ears), canonicalCustomPart(ears));
       expect(created).toHaveLength(2);
     } finally {
       await act(() => root.unmount());

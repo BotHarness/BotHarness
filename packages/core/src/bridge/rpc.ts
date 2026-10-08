@@ -492,8 +492,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.partLibraryList());
   }
 
-  partLibraryExport(id?: string): { fileName: string; data: string } {
-    return unwrap(this.methods.partLibraryExport(id === undefined ? {} : { id }));
+  partLibraryExport(id?: string, part?: unknown): { fileName: string; data: string } {
+    return unwrap(
+      this.methods.partLibraryExport(
+        part !== undefined ? { part } : id === undefined ? {} : { id },
+      ),
+    );
   }
 
   partLibraryImport(data: string): {

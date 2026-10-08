@@ -586,7 +586,10 @@ export interface BridgeActions {
     channelId: string,
     recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
-  exportLibraryParts(id?: string): Promise<{ fileName: string; data: string } | undefined>;
+  exportLibraryParts(
+    id?: string,
+    part?: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+  ): Promise<{ fileName: string; data: string } | undefined>;
   importLibraryParts(data: string): Promise<
     | {
         added: import('../../../core/src/bots/part-library.js').PartLibraryEntry[];
@@ -2282,9 +2285,9 @@ export function createActions(
         return undefined;
       }
     },
-    async exportLibraryParts(id) {
+    async exportLibraryParts(id, part) {
       try {
-        return await exportLibraryPartsViaBridge(call, id);
+        return await exportLibraryPartsViaBridge(call, id, part);
       } catch {
         return undefined;
       }

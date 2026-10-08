@@ -1965,8 +1965,15 @@ export async function loadPartLibrary(call: BridgeCall): Promise<PartLibraryEntr
 export async function exportLibraryParts(
   call: BridgeCall,
   id?: string,
+  part?: PixelCustomPart,
 ): Promise<{ fileName: string; data: string }> {
-  const value = asRecord(await unwrap(call, 'partLibraryExport', id === undefined ? {} : { id }));
+  const value = asRecord(
+    await unwrap(
+      call,
+      'partLibraryExport',
+      part !== undefined ? { part } : id === undefined ? {} : { id },
+    ),
+  );
   const fileName = value?.['fileName'];
   const data = value?.['data'];
   if (typeof fileName !== 'string' || typeof data !== 'string')
