@@ -2350,7 +2350,7 @@ export const en = {
 
   'defaults.externalWake': '{platform} ordinary messages',
 
-  'defaults.restore': 'Restore inheritance',
+  'defaults.restore': 'Restore',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
   'defaults.save': 'Save platform defaults',
@@ -4017,7 +4017,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'members.wake.silent': 'Silent inbox',
   'members.wake.count': 'Message count',
   'members.wake.seconds': 'Maximum wait (seconds)',
-  'members.wake.save': 'Save attention setting',
+  'members.wake.save': 'Save',
   'members.delete': 'Disband Group',
   'members.deleteConfirm':
     'Disband “{name}”? End local participation and retain history, without deleting the external conversation or purging content. Open ended Channel history from the Channel list menu.',

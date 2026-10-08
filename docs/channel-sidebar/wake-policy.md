@@ -25,6 +25,6 @@ Each row is one source. The second line is the current rule; **Customized** mean
 
 ## In a local group
 
-Open the group and expand **Wake policy** in the Channel sidebar. Each member Bot has a card: the second line is its rule in this group, plus a line for each external platform whose rule differs. **Channel override** marks a rule set for this group; without it the Bot's own default applies. Click a card to choose the rule and thresholds, or **Restore inheritance** to use the Bot's default again; see [Members and group management](/docs/channel-sidebar/groups).
+Open the group and expand **Wake policy** in the Channel sidebar. Each member Bot has a card: the second line is its rule in this group, plus a line for each external platform whose rule differs. **Channel override** marks a rule set for this group; without it the Bot's own default applies. Click a card to choose the rule and thresholds, or **Restore** to use the Bot's default again; see [Members and group management](/docs/channel-sidebar/groups).
 
 The wake policy does not change the model, API provider or workspace permissions.

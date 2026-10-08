@@ -28,9 +28,9 @@ Use **Manage Bot → Message attention settings**, or click the Bot's card in th
 | Direct @ only            | Direct mentions wake it; ordinary group messages remain quiet.                          |
 | Digest ordinary messages | Collect ordinary messages until the message-count or maximum-wait threshold is reached. |
 | Silent inbox             | Receive ordinary messages without waking the Bot for each one.                          |
-| Restore inheritance      | Use that Bot’s Profile defaults for this group.                                         |
+| Restore                  | Use that Bot’s Profile defaults for this group.                                         |
 
-For a digest, set **Message count** and **Maximum wait (seconds)**, then use **Save attention setting**. Existing source routing and membership still determine which messages reach the Bot. See [Settings guide](/docs/settings) for threshold limits and Bot-wide defaults.
+For a digest, set **Message count** and **Maximum wait (seconds)**, then use **Save**. Existing source routing and membership still determine which messages reach the Bot. See [Settings guide](/docs/settings) for threshold limits and Bot-wide defaults.
 
 ![The actual group attention choices and digest thresholds](/guides/channel-sidebar/10-group-attention-zh.webp)
 

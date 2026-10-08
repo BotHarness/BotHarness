@@ -382,7 +382,7 @@ export function MemberWakePolicyModal({
       closeLabel={t('common.close')}
       title={t('members.policy.title', { bot: name })}
       footer={
-        <>
+        <div className="bh-modal-footer">
           <Button variant="outline" disabled={busy} onClick={() => void save(true)}>
             {t('defaults.restore')}
           </Button>
@@ -392,7 +392,7 @@ export function MemberWakePolicyModal({
           <Button variant="primary" disabled={busy || !valid} onClick={() => void save()}>
             {t('members.wake.save')}
           </Button>
-        </>
+        </div>
       }
     >
       <div className="bh-member-policy-modal">
