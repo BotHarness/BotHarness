@@ -126,6 +126,7 @@ function InviteMemberModal({
                   name={bot.displayName}
                   src={bot.avatar}
                   appearance={bot.appearance}
+                  avatarSeed={bot.avatarSeed}
                   size={28}
                 />
                 <span>{bot.displayName}</span>
@@ -512,6 +513,7 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
                 name={member?.displayName ?? slug}
                 src={member?.avatar}
                 appearance={member?.appearance}
+                avatarSeed={member?.avatarSeed}
                 state={member === undefined ? 'idle' : personaBotActivity(state, member)}
                 size={26}
               />

@@ -557,6 +557,7 @@ export function createCore(
             name: bot.displayName,
             paused: bot.paused === true,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {

@@ -12,7 +12,7 @@ import {
   type BotDescriptorAvatar,
 } from '../marketplace/descriptor.js';
 import { createMemoryGit } from '../memory/git.js';
-import { canonicalRecipe, isAvatarRecipe, seededAvatarRecipe } from './avatar-appearance.js';
+import { canonicalRecipe, isAvatarRecipe, seededAvatarFor } from './avatar-appearance.js';
 import { BOT_BANNER_FILE, botBannerPng, seededBotBanner } from './bot-banner.js';
 import type { PersonaBotRecord } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
@@ -112,7 +112,7 @@ export function syncBotDescriptor(
     image = imageAvatar(record.avatar);
     if (image !== undefined) avatar = { image: image.path };
   } else {
-    const seeded: unknown = seededAvatarRecipe(record.displayName || record.slug);
+    const seeded: unknown = seededAvatarFor(record.displayName || record.slug, record.avatarSeed);
     if (isAvatarRecipe(seeded)) avatar = { recipe: { ...canonicalRecipe(seeded) } };
   }
   if (avatar !== undefined) descriptor['avatar'] = avatar;

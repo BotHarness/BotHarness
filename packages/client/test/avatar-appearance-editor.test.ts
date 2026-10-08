@@ -7,6 +7,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
 }));
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
+import { PersonaBotAvatar } from '../src/client/avatar.js';
 import { parseBotSummaries } from '../src/client/bridge.js';
 import {
   AVATAR_HAIR_PARTS,
@@ -16,6 +17,7 @@ import {
   AVATAR_SPECIES_SWATCHES,
   isIllustratedAvatarRecipe,
   seededAvatarRecipe,
+  seededAvatarRecipeV2,
 } from '../../core/src/bots/avatar-appearance.js';
 import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
@@ -277,6 +279,140 @@ describe('Profile Avatar Appearance editing', () => {
       });
       expect(saved).not.toHaveProperty('rightSideHairColor');
       expect(isIllustratedAvatarRecipe(saved)).toBe(true);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('dresses a dwarf, keeps hidden hair, and grows a talking flower', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'gimli',
+      displayName: 'Gimli',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const click = async (selector: string) =>
+      act(() => container.querySelector<HTMLButtonElement>(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-gimli',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:dwarf"]');
+      expect(container.querySelector('[data-avatar-category="petals"]')).toBeNull();
+      await click('[data-avatar-category="beard"]');
+      await click('[data-avatar-option="beard:braided"]');
+      await click('[data-avatar-category="outfit"]');
+      await click('[data-avatar-option="outfit:armor"]');
+      await click('[data-avatar-category="backHair"]');
+      await click('[data-avatar-option="backHair:long"]');
+      await click('[data-avatar-category="accessory"]');
+      await click('[data-avatar-option="accessory:helmet"]');
+      await click('[data-avatar-category="backHair"]');
+      expect(container.querySelector('[data-avatar-hidden-note="backHair"]')).not.toBeNull();
+      await click('[data-avatar-save]');
+      const dwarf = (save.mock.calls[0] as unknown[])[1] as Record<string, unknown>;
+      expect(dwarf).toMatchObject({
+        species: 'dwarf',
+        beard: 'braided',
+        outfit: 'armor',
+        accessory: 'helmet',
+        backHair: 'long',
+      });
+      expect(isIllustratedAvatarRecipe(dwarf)).toBe(true);
+
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="beard"]');
+      await click('[data-avatar-option="beard:none"]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:flower"]');
+      expect(container.querySelector('[data-avatar-category="beard"]')).toBeNull();
+      await click('[data-avatar-category="petals"]');
+      await click('[data-avatar-option="petals:sunflower"]');
+      await click('[data-avatar-category="flowerBase"]');
+      await click('[data-avatar-option="flowerBase:pot"]');
+      await click('[data-avatar-category="outfit"]');
+      expect(container.querySelector('[data-avatar-hidden-note="outfit"]')).not.toBeNull();
+      await click('[data-avatar-save]');
+      const flower = (save.mock.calls[1] as unknown[])[1] as Record<string, unknown>;
+      expect(flower).toMatchObject({
+        species: 'flower',
+        petals: 'sunflower',
+        flowerBase: 'pot',
+      });
+      expect(flower).not.toHaveProperty('beard');
+      expect(isIllustratedAvatarRecipe(flower)).toBe(true);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('starts a new Bot from its full-domain seed and keeps older Bots on their original face', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'gimli',
+      displayName: 'Gimli',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+      avatarSeed: 2 as const,
+    };
+    const face = async (avatarSeed: 2 | undefined) => {
+      const frame = document.createElement('div');
+      const avatar = createRoot(frame);
+      await act(() =>
+        avatar.render(
+          createElement(PersonaBotAvatar, {
+            personaBotId: 'gimli',
+            name: 'Gimli',
+            avatarSeed,
+            size: 32,
+            still: true,
+          }),
+        ),
+      );
+      const markup = frame.innerHTML;
+      await act(() => avatar.unmount());
+      return markup;
+    };
+    try {
+      expect(seededAvatarRecipeV2('Gimli')).not.toEqual(seededAvatarRecipe('Gimli'));
+      expect(await face(2)).not.toBe(await face(undefined));
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-gimli',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-edit]')!.click());
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-save]')!.click());
+      expect(save).toHaveBeenCalledWith('dm-gimli', seededAvatarRecipeV2('Gimli'));
     } finally {
       await act(() => root.unmount());
       container.remove();

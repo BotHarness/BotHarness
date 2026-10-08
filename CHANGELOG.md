@@ -5,10 +5,12 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-A compatible Provider can create a Lark application or show a WeChat pairing QR in the binding dialog.
+Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval outfits and headwear, and new PersonaBots start from a face seeded across every species; a compatible Provider can create a Lark application or show a WeChat pairing QR in the binding dialog.
 
 ### Added
 
+- Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
+- A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 
 ## [1.2.0] - 2026-10-08

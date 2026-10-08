@@ -227,6 +227,7 @@ export function CreatePersonaBotModal({
               <PersonaBotAvatar
                 personaBotId=""
                 name={displayName.trim() || t('bot.create.name.placeholder')}
+                avatarSeed={2}
                 size={44}
                 indicator={false}
                 t={t}
