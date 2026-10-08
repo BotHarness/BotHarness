@@ -40,6 +40,18 @@ Shared Channel reading never lends the receiving app's identity or passive reply
 
 The qualified QQ Provider currently declares native reply receipts, without `own-text-echo`. An accepted receipt is not an observed Echo; it must not create another source or new attention. Cross-app native events remain independent, and text matching must never conceal them. See [#1156](https://github.com/BotHarness/BotHarness/issues/1156) for real qualification and the outstanding native Echo boundary.
 
+## Use group images (development candidate)
+
+The [#1157](https://github.com/BotHarness/BotHarness/issues/1157) candidate extends the same mention-only route with PNG, JPEG, GIF and WebP images. Send a new @mention with a caption and an image. A synced conversation displays the image in its original Channel message through the shared preview. Inbox-only reception still works without Channel placement. Opening a preview does not wake a Bot.
+
+Actual visual understanding requires an image-capable model on the calling Session. The Bot can save an authorized working copy with `bridge_attachment_save`, read it through native `read_image`, import a selected result with `channel_attachment_import`, then reply with `bridge_reply_file`. Download or preview success alone does not establish understanding; unsupported models must report that they cannot inspect the image.
+
+Images use the existing 25 MiB limit. Private QQ download URLs and upload tickets stay in the Provider; public sources retain safe metadata and attachment association. Caption-first display preserves attachment array order without claiming native text/image interleaving. Quoted and unsupported compound payloads remain excluded. Restart retains canonical source metadata and acquired previews, but cannot reconstruct an unacquired private download ticket or expired reply proof.
+
+Choose the result type before replying: text and image share one durable reply intent per Bot/source. For an image result, send the image through `bridge_reply_file` first and put any separate explanation in the local DM. Repeating the identical request returns its stored result; changing a settled reply payload is refused.
+
+Image results use the receiving app and original group. Upload is separate from the single final message send, with authorization checked again after upload. A native message receipt records provider acceptance; unknown results are not automatically resent. Real QQ/model/Client image qualification is tracked on #1157 and is not implied by this candidate contract.
+
 ## Understand the text path
 
 | Behavior        | Current contract                                                |
@@ -54,7 +66,7 @@ The qualified QQ Provider currently declares native reply receipts, without `own
 
 The [official group send contract](https://bot.q.qq.com/wiki/develop/api-v2/autogen/api/v2_groups_group_openid_messages.post.html) gives passive replies a five-minute window and a five-reply limit per source message. The Bot does not automatically switch an expired reply to a proactive send. A provider receipt does not prove that a person received or read the message.
 
-This slice excludes private QQ messages, ordinary group traffic, attachments and compound or quoted payloads. [Ordinary group events](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html) additionally require the application's receive-all setting; their explicit opt-in is tracked separately. Images, files, voice input and delayed proactive reports follow in the later slices.
+The text slice excludes private QQ messages, ordinary group traffic, attachments and compound or quoted payloads. [Ordinary group events](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html) additionally require the application's receive-all setting; their explicit opt-in is tracked separately. Images, files, voice input and delayed proactive reports follow in the later slices.
 
 QQ does not provide this consumer with a group-history API or a durable resume cursor. Disconnects can leave gaps. After a Host restart, previously retained sources remain inspectable, but their process-local reply proof is unavailable until a qualifying native event is delivered again. An old source must never become permission to send an unrelated new message.
 

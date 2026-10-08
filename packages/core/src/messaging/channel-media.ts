@@ -33,6 +33,17 @@ function authority(db: DatabaseSync, input: MediaRequest, active: (slug: string)
     JOIN messaging_grants g ON g.id = p.grant_id
     WHERE p.channel_id = ? AND p.source_event_id = ? ORDER BY g.id, p.route_id`)
     .all(input.channelId, input.sourceEventId) as { body: string; route_id: string }[];
+  if (!rows.length) {
+    const row = db.prepare('SELECT body FROM messaging_grants WHERE id = ?').get(source.grantId) as
+      | { body: string }
+      | undefined;
+    const grant = row && (JSON.parse(row.body) as MessagingGrant);
+    if (row && grant?.origin === 'implicit') {
+      for (const route of channelBridgeRoutes(grant)) {
+        if (route.channelId === input.channelId) rows.push({ body: row.body, route_id: route.id });
+      }
+    }
+  }
   const candidates = rows.flatMap((row) => {
     const grant = JSON.parse(row.body) as MessagingGrant;
     const route = channelBridgeRoutes(grant).find((item) => item.id === row.route_id);

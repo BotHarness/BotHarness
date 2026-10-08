@@ -40,6 +40,18 @@
 
 当前已取得资格的 QQ Provider 声明原生回复回执，未声明 `own-text-echo`。平台接受回执不等于观察到 Echo，也不应产生另一份来源或新 attention。跨应用原生事件保持独立，不能按文字匹配隐藏。真实资格与尚待核实的原生 Echo 边界见 [#1156](https://github.com/BotHarness/BotHarness/issues/1156)。
 
+## 群图片（开发候选）
+
+[#1157](https://github.com/BotHarness/BotHarness/issues/1157) 候选沿用仅提及接收路径，增加 PNG、JPEG、GIF 和 WebP。发送一条带说明和图片的新 @ 消息；已同步会话通过共用预览在原 Channel 消息中展示图片。仅 Inbox 接收不要求 Channel 落点，打开预览也不会唤醒 Bot。
+
+实际视觉理解要求当前调用 Session 的模型支持图片。Bot 可用 `bridge_attachment_save` 保存获授权的独立工作副本，通过原生 `read_image` 读图，再用 `channel_attachment_import` 导入选定结果，交由 `bridge_reply_file` 回复。下载或预览成功不代表模型理解；不支持图片的模型必须说明无法查看。
+
+图片沿用 25 MiB 上限。QQ 私有下载地址和上传票据留在 Provider，公开来源仅保留安全元数据和附件关联。说明在前的展示保留附件数组顺序，不声称还原 QQ 原生图文穿插位置；引用及不支持的复合载荷仍排除。重启保留 canonical 来源元数据和已获取预览，但无法重建尚未获取的私有下载票据或已失效回复证明。
+
+回复前先选择结果类型：每个 Bot／来源的文字和图片共用一个持久回复意图。需要图片结果时，先用 `bridge_reply_file` 发图，单独的解释发到本地 DM。重复相同请求返回已保存结果，更改已结算回复的载荷会被拒绝。
+
+图片结果使用接收应用在原群发送。上传与最终单次消息发送分开，上传后重新检查授权。原生消息回执记录 Provider 接受，unknown 不自动重发。真实 QQ／模型／Client 图片资格在 #1157 记录，不能由候选契约推定。
+
 ## 理解文字路径
 
 | 行为           | 当前契约                                       |
