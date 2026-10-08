@@ -19,11 +19,24 @@ The QQ and success-state cases use explicit test fixtures at the existing Host a
 
 The final build was cold-started through the pinned isolated development launcher. Authenticated API health passed, and reads of the existing acceptance PersonaBot retained first-conversation completion before and after its actual Messaging snapshot query. That Profile currently has zero external accounts and zero bindings. No external credential, binding, permission grant or message was created during this verification.
 
-## Browser blocker and remaining Human check
+## Real Client acceptance — 2026-10-09
 
-Real UI acceptance for this change remains outstanding. Chrome page control repeatedly timed out; after the Human reopened Chrome, its extension connection was unavailable. At the Human's request the agent tried the Codex in-app browser, which refused navigation to the loopback acceptance address with a client navigation block. These are browser-control/navigation failures, not evidence of a product crash or of a healthy rendered Client. The fresh Host correctly reports Client state as unobserved.
+After the Human reopened Chrome and requested another attempt, the extension connected to the same isolated Profile. The existing first-conversation completion and real Bot reply were visible. The following checks passed through the rendered Client:
 
-The prior Memory tracer's immutable light/dark completed-welcome screenshots show the baseline without a Bind app action. No after screenshot, native Escape/focus acceptance or live settings-return acceptance is claimed for this tracer. The PR remains a draft for these checks.
+- The completed welcome exposes Bind app without opening it automatically.
+- The real shared modal shows the optionality hint, website preparation links and Add app entry. The real empty catalog says no bindable apps and disables Bind app.
+- Not now, the close button and Escape dismiss the modal. Both Not now and Escape return focus to the original Bind app button with `aria-expanded=false`.
+- Add app opens native settings. This Profile has no installed IM settings Provider, so the native settings surface is General settings. After closing it, the binding modal returns with the truthful unavailable-settings alert and remains dismissible. A successful return from an installed IM Provider's settings was not exercised.
+- Reload preserves first-conversation completion and does not reopen the modal.
+- Light and dark welcome/modal rendering were inspected. The original light theme was restored.
+
+No new message, app credential or binding was submitted. This Profile still has zero external accounts, so real account binding and platform receipt/reply remain unverified; their Client cases use the fixtures described above and platform qualification stays with the existing platform issues.
+
+## Screenshot evidence and capture exception
+
+Committed screenshots are actual Chrome captures: `after-light.jpg`, `after-dark.jpg` and `modal-dark.jpg`, each 1559 × 920. They show the completed welcome entry in both themes and the real empty-app modal in dark mode. The light modal was also visually inspected; a capture containing unrelated private local paths was excluded from publication.
+
+The prior Memory tracer's immutable 1559 × 865 light/dark captures remain the baseline without Bind app. The new screenshots use the browser's default viewport: forcing the old viewport and requesting clipped captures repeatedly timed out in Chrome's screenshot command. Default capture recovered temporarily; later page control and a fresh-tab attempt also timed out. The old/new images are therefore explicitly different heights, not claimed as exact matched pairs. Reviewers can reproduce matched captures using the path below in an ordinary browser. The viewport override was reset and no substitute or fabricated image is used.
 
 ## Runnable review path
 
