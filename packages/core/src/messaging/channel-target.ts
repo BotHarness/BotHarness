@@ -82,6 +82,9 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
     bridgeOrigin: {
       sourceEventId: source.id,
       platform: source.platform,
+      ...(source.platform === 'qq'
+        ? { accountRef: source.event.botId, accountName: source.accountName }
+        : {}),
       conversationId: source.event.conversation.id,
       conversationName: source.conversationName,
       messageId: source.event.messageId,

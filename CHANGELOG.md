@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- QQ sources in a shared Group Channel now identify their receiving app in author labels and source details, with independent app attribution in Group Profile activity; the guide explains explicit two-app mapping and own-identity reply limits ([#1156](https://github.com/BotHarness/BotHarness/issues/1156), [QQ guide](docs/qq-connection.md)).
+
 - QQ conversations can sync future mentions to a chosen Group Channel or remain Inbox-only, retain accepted history when sync stops, and show bounded local reception intervals across block/allow and reconnect without claiming remote backfill ([#1153](https://github.com/BotHarness/BotHarness/issues/1153), [QQ connection guide](docs/qq-connection.md)).
 
 - An official QQ Bot app can bind to a PersonaBot, admit group text @mentions into its Inbox and answer in the original group with a native acceptance receipt; the development Provider keeps passive-reply expiry and unknown send outcomes explicit ([#1152](https://github.com/BotHarness/BotHarness/issues/1152), [QQ connection guide](docs/qq-connection.md)).

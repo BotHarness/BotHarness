@@ -731,6 +731,8 @@ export const zh = {
   'bridgeMedia.failed': '图片加载失败',
   'bridgeMedia.retry': '重试',
   'im.platformLabel': '平台',
+  'im.receivingApp': '接收应用',
+  'im.receivingAppRef': '接收应用 ID',
   'im.platform.weixin': '微信',
   'im.receiveHintDM':
     '接收扫码绑定者的微信私聊文字，以及已支持的文件、图片和语音转写，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
@@ -2902,6 +2904,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridgeMedia.failed': 'Image failed to load',
   'bridgeMedia.retry': 'Retry',
   'im.platformLabel': 'Platform',
+  'im.receivingApp': 'Receiving app',
+  'im.receivingAppRef': 'Receiving app ID',
   'im.platform.weixin': 'WeChat',
   'im.receiveHintDM':
     'Receive the QR-paired owner’s text and supported files, images and voice transcripts into this Bot’s Inbox, without adding local DM history.',

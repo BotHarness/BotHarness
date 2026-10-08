@@ -27,6 +27,19 @@ Expand **Reception intervals** to inspect pause, block, waiting and connection r
 
 See [#1153](https://github.com/BotHarness/BotHarness/issues/1153) and [ADR-0145](adr/0145-qq-reception-intervals-record-local-observations.md).
 
+## Use two Bots in the same QQ group
+
+Authorize each official QQ application independently, add both to the dedicated QQ group, and bind each application to its owning PersonaBot. **Bind app** identifies existing owners and refuses assigning their app to another Bot.
+
+1. Add both PersonaBots to the selected local Group Channel.
+2. @mention each application in QQ. Open each owner's conversation list to verify its independently received conversation.
+3. Use **Sync** on each conversation to select that same local Group Channel. App-scoped group locators can differ even for the same real QQ group; names, text and matching locators never establish an automatic mapping.
+4. Send another distinguishable mention to each application. Inspect each owner's Inbox and own-app native reply. The Channel author label includes the receiving app name; **Source details** also shows its receiving app ID. These are attribution fields, not reply authority.
+
+Shared Channel reading never lends the receiving app's identity or passive reply proof. A Bot without its own qualified conversation is refused; multiple qualified own apps produce an explicit ambiguity refusal. Blocking, unbinding or archiving one owner fences that owner's effects while preserving accepted Channel history and the other owner's identity. Similar content or message IDs across apps remain independent sources.
+
+The qualified QQ Provider currently declares native reply receipts, without `own-text-echo`. An accepted receipt is not an observed Echo; it must not create another source or new attention. Cross-app native events remain independent, and text matching must never conceal them. See [#1156](https://github.com/BotHarness/BotHarness/issues/1156) for real qualification and the outstanding native Echo boundary.
+
 ## Understand the text path
 
 | Behavior        | Current contract                                                |

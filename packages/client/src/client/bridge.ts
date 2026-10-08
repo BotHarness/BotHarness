@@ -1076,6 +1076,10 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
         'messageId',
         'senderId',
       ].every((key) => typeof origin[key] === 'string' && origin[key].length > 0) ||
+      ['accountRef', 'accountName'].some(
+        (key) =>
+          origin[key] !== undefined && (typeof origin[key] !== 'string' || !origin[key].trim()),
+      ) ||
       (origin['threadId'] !== undefined &&
         (typeof origin['threadId'] !== 'string' || origin['threadId'].length === 0))
     )
@@ -2902,7 +2906,7 @@ export interface GroupProfileAuthorActivity {
   author: ChannelAuthor;
   bridgeOrigin?: Pick<
     NonNullable<ChannelMessage['bridgeOrigin']>,
-    'platform' | 'conversationId' | 'conversationName'
+    'platform' | 'conversationId' | 'conversationName' | 'accountRef' | 'accountName'
   >;
   total: number;
   days: ProfileActivityDay[];
@@ -3264,7 +3268,11 @@ export async function loadGroupProfileActivity(
           (asRecord(entry['bridgeOrigin']) !== undefined &&
             ['platform', 'conversationId', 'conversationName'].every(
               (key) => typeof asRecord(entry['bridgeOrigin'])![key] === 'string',
-            )))
+            ) &&
+            ['accountRef', 'accountName'].every((key) => {
+              const value = asRecord(entry['bridgeOrigin'])![key];
+              return value === undefined || (typeof value === 'string' && value.trim().length > 0);
+            })))
       );
     })
   )

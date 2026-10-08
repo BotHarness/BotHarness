@@ -27,6 +27,19 @@
 
 见 [#1153](https://github.com/BotHarness/BotHarness/issues/1153) 与 [ADR-0145](adr/0145-qq-reception-intervals-record-local-observations.md)。
 
+## 两个 Bot 使用同一个 QQ 群
+
+分别授权两个官方 QQ 应用，把它们加入专用 QQ 群，再各自绑定给所属 PersonaBot。**绑定应用**会显示已有所有者，拒绝把已占用的应用分配给另一个 Bot。
+
+1. 把两个 PersonaBot 加入选定的本地群 Channel。
+2. 在 QQ 中分别 @ 两个应用；打开各自所有者的会话列表，核对独立接收的群会话。
+3. 分别点击会话的**同步**，选择同一个本地群 Channel。同一个真实 QQ 群的应用范围定位可能不同；名称、文字或相同定位都不会自动建立映射。
+4. 再分别发送可区分的提及，核对各自 Inbox 与本应用的原群答复。Channel 作者标签包含接收应用名称；**来源详情**也显示接收应用 ID。这些字段说明归属，不赋予回复权限。
+
+共享 Channel 阅读不会借出接收应用的身份或被动回复证明。Bot 没有自己已取得资格的会话时拒绝发送；存在多个符合条件的自身应用时明确拒绝歧义。屏蔽、解绑或归档一个所有者会阻止该所有者的效果，同时保留已接收的 Channel 历史和另一所有者的身份。不同应用的相似文字或相同消息 ID 仍是独立来源。
+
+当前已取得资格的 QQ Provider 声明原生回复回执，未声明 `own-text-echo`。平台接受回执不等于观察到 Echo，也不应产生另一份来源或新 attention。跨应用原生事件保持独立，不能按文字匹配隐藏。真实资格与尚待核实的原生 Echo 边界见 [#1156](https://github.com/BotHarness/BotHarness/issues/1156)。
+
 ## 理解文字路径
 
 | 行为           | 当前契约                                       |
