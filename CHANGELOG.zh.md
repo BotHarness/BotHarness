@@ -16,6 +16,8 @@
 
 ### Added
 
+- 隔离 AX 启动向 coding agent 提供有界、白名单化的真实 Client 启动／运行证据和明确 shell 就绪状态，跨文档重试保留首次失败（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)）。
+
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
 - 首次进入 Bot 模式会准备一个 DeepSeek Bot、真实私聊，以及能力介绍、新闻和定时请求的欢迎选项；模型保存与问题发送分步进行，保留未发出的请求，支持 Profile 默认模型与 Bot 继承，只有收到真实回复才算完成；欢迎消息收紧间距并复用侧栏卡片，引导与全局模型设置复用 Bot 编辑器的模型和推理强度控件。教程进度可跨重启恢复，安全的手动重试沿用原 Human 消息（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)，[ADR-0146](docs/adr/0146-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）。
 

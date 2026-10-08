@@ -33,6 +33,7 @@ import {
 import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
+import { mountClientDiagnostics } from './diagnostics/client-diagnostics.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import {
   createReleaseService,
@@ -727,6 +728,7 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  mountClientDiagnostics(ctx, dshHome);
   const release = installedRelease(import.meta.url);
   const telemetryChoice = telemetryDecision(config.telemetry);
   const telemetryDir = join(dshHome, 'botharness');

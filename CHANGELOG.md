@@ -16,6 +16,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).
+
 - Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - First Bot-mode entry prepares one DeepSeek Bot, a real DM and reusable welcome choices for capabilities, news and scheduled requests; model setup saves separately from explicit question sending and preserves unsent requests, supports a Profile default with Bot inheritance, and completes only after a real reply; the compact welcome reuses sidebar cards, and onboarding/global setup share the existing model and reasoning controls with the Bot editor. Tutorial progress survives restart, and safe manual retry keeps the original Human message ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175), [ADR-0146](docs/adr/0146-onboarding-is-profile-progress-over-canonical-dm-evidence.md)).
 

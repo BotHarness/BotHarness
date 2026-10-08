@@ -17,7 +17,7 @@ The integrated generation-69 Host was also started with a new isolated Profile. 
 
 ## Automated checks
 
-- After integration with main, final Client suite: **950 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
+- After integration with main, final Client suite: **959 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
 - Before integration with main, related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output. After integration, the combined run including Content Purge was **37 passed, 5 failed**: four onboarding timeouts and one Content Purge filesystem `fsync` EPERM. The isolated final core rerun then passed **23/23** with one worker and a 60-second per-test limit; this does not make the default-limit combined run green.
 - The final recovery regression commits a Human message before losing the transport response, refreshes canonical history and tries to continue the old draft: only the original message remains. Draft ownership transfers to the normal message chain when its message ID is allocated. A send stopped before allocation preserves the draft; a failed readiness lookup preserves text and displays an error.
 - Typecheck, lint (existing warnings), format check, build, bilingual release-ledger checks, ADR uniqueness and `git diff --check` passed.
@@ -70,7 +70,7 @@ The model card and dialog now say Choose a model, with Save model as the only fi
 
 Real Chrome verification used the existing completed QA Profile for the same-conversation welcome comparison and a separate fresh Profile for the blocked first-request path. In the fresh Profile, the native provider reference temporarily pointed to an unset QA environment variable. Selecting the introduction retained the question and opened model setup without a Human message. Restoring only the reference, refreshing models and clicking Save model opened the separate send step; canonical history still contained just one system welcome. Escape closed the send step, Review restored it, and Choose a model returned to the first step. Only the later explicit Send submitted the introduction: canonical history then contained one welcome, exactly one Human request and a genuine Bot reply, and onboarding completed. No scheduled request was executed during these checks.
 
-Final Client regression: **950 passed**, including four welcome requests through the regular send action, standalone model save without an invented draft, separate save/send, close/restore, failed-save preservation and response-loss deduplication. Focused controller/bridge/view run: **90 passed**. Typecheck, lint, formatting, build and release-ledger checks passed. Previous revision `d48793fd` full Linux CI passed ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37763411866)).
+Before main sync, Client regression: **950 passed**, including four welcome requests through the regular send action, standalone model save without an invented draft, separate save/send, close/restore, failed-save preservation and response-loss deduplication. Focused controller/bridge/view run: **90 passed**. Typecheck, lint, formatting, build and release-ledger checks passed. Previous revision `d48793fd` full Linux CI passed ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37763411866)).
 
 Current unmodified Chinese captures use **1559 × 920**:
 
@@ -81,6 +81,8 @@ Current unmodified Chinese captures use **1559 × 920**:
 | Separate send step                | [Light](send-step-after-light.jpg)  | [Dark](send-step-after-dark.jpg)  |
 
 The previous revision’s `card-after-*` and `model-after-*` images are retained as before evidence for this feedback. Model/send-step captures use the fresh first-time Profile, whereas the welcome comparison uses the earlier completed conversation; they are not presented as an identical message-history state.
+
+After merging main’s AX diagnostics change (`455e16b0`), the full Client suite passed **959/959**; typecheck, lint, formatting and build passed again. The related isolated core rerun passed **23/23** (credential readiness, model credential health, onboarding and Plugin integration; one worker, 60-second test limit). The merge retained both bilingual release entries. No onboarding UI source changed during this merge.
 
 ## Runnable review
 
