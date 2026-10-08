@@ -14,6 +14,8 @@
 
 ### Added
 
+- 钉选的窗口伙伴在审批之外显示正式待答问题，可直接选择选项或填写自定义回答，无需切换聊天；当前回答草稿不受新消息影响，只有既有提问拥有者可接受回答并恢复原本等待的 Session（[#1179](https://github.com/BotHarness/DeepSeekBot/issues/1179)）。
+
 - 已钉选的窗口伙伴常驻显示工具审批请求，Human 无需打开 Bot 私聊即可处理，沿用既有审批拥有者、规则确认与断线状态校验（[#1178](https://github.com/BotHarness/DeepSeekBot/issues/1178)）。
 
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。

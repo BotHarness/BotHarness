@@ -472,6 +472,8 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 生产 feed 通过 Fiber 拥有的可释放 attachment 观察 `ChannelToolApproval`，在已确认选择快照中投影当前已提交请求；首次钉选、重连都不需要重播历史。`CompanionRequests` 将待处理请求放入有总数提示的常驻滚动区域，独立于装饰气泡容量；普通消息暂缓逐字与到期，显示等待数量。复用 `ToolApprovalCard`、原生控件和既有审批 RPC，只有明确匹配 Bot/DM/Session/call 且 live 的 companion target 可脱离当前 Channel；普通聊天选择检查保留。提交前重新读取状态，Host 仍验证规范请求和 native caller；竞争决定只能一次生效。断线禁用、状态读取失败可重试，拥有者结算或撤销后快照移除请求并恢复键盘焦点，Host 重启不从耐久请求历史重建 live 权限。
 
+依赖切片 #1179 将既有 `ChannelUserQuestions` owner 接入同一 feed，并在 `CompanionRequests` 中增加正式提问变体。`UserQuestionCard` 与 Chat、Human Inbox 共用，保留全部问题、选项说明、单选／多选和自定义文字。当前回答草稿不受普通消息和悬浮影响，不另建持久化；明确匹配 Bot/DM/Session 且 live 的目标在提交前重新读状态，可在其他 Channel 仍被选择时直接回答。规范拥有者校验、提交且只接受一次，再恢复原 native request。普通问句不生成交互控件，新 Host 不从历史重建待答问题；审批 attention 与导航保持独立。
+
 ## 6 · 持久化、导出与恢复边界
 
 ```mermaid

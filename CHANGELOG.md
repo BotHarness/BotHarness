@@ -14,6 +14,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Pinned Window Companions show formal pending questions alongside approvals and let Humans answer choices or custom text without switching conversations; current drafts survive incoming messages, and only the existing question owner can accept an answer and resume its waiting Session ([#1179](https://github.com/BotHarness/DeepSeekBot/issues/1179)).
+
 - Pinned Window Companions show persistent Tool Approval requests and let Humans decide without opening the Bot's DM, using the existing approval owner, explicit rule confirmation and stale-state checks ([#1178](https://github.com/BotHarness/DeepSeekBot/issues/1178)).
 
 - Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).

@@ -1,18 +1,19 @@
 import { useRef, type ReactElement, type CSSProperties } from 'react';
-import type { CompanionApproval } from '../../../core/src/companions/feed.js';
+import type { CompanionRequest } from '../../../core/src/companions/feed.js';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { ToolApprovalCard } from './tool-approval-card.js';
+import { UserQuestionCard } from './user-question-card.js';
 import { useMountedResource } from './mounted-resource.js';
 
-function PendingApproval({
+function PendingRequest({
   request,
   actions,
   live,
   t,
   onReleaseFocus,
 }: {
-  request: CompanionApproval;
+  request: CompanionRequest;
   actions: BridgeActions | undefined;
   live: boolean;
   t: BotHarnessTranslate;
@@ -31,7 +32,7 @@ function PendingApproval({
       <div className="bh-companion-request-source">
         {t('companion.source', { name: request.channelName })}
       </div>
-      {actions ? (
+      {actions && request.kind === 'tool-approval' ? (
         <ToolApprovalCard
           message={{
             id: request.messageId,
@@ -50,6 +51,24 @@ function PendingApproval({
             live,
           }}
         />
+      ) : actions && request.kind === 'user-question' ? (
+        <UserQuestionCard
+          message={{
+            id: request.messageId,
+            at: '',
+            author: { kind: 'bot', slug: request.botSlug },
+            body: '',
+            userQuestionRequest: request,
+          }}
+          actions={actions}
+          t={t}
+          companionTarget={{
+            channelId: request.channelId,
+            botSlug: request.botSlug,
+            sessionId: request.sessionId,
+            live,
+          }}
+        />
       ) : null}
     </li>
   );
@@ -64,7 +83,7 @@ export function CompanionRequests({
   restoreFocus,
   messageCount,
 }: {
-  requests: readonly CompanionApproval[];
+  requests: readonly CompanionRequest[];
   actions: BridgeActions | undefined;
   live: boolean;
   t: BotHarnessTranslate;
@@ -91,7 +110,7 @@ export function CompanionRequests({
       </header>
       <ol tabIndex={0} aria-label={t('companion.requestList')}>
         {requests.map((request) => (
-          <PendingApproval
+          <PendingRequest
             key={request.messageId}
             request={request}
             actions={actions}

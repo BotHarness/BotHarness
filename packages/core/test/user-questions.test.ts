@@ -252,6 +252,7 @@ describe('live question attention authority', () => {
     });
     const rejected = expect(request).rejects.toThrow(/cancelled/);
     expect(state.states.snapshot('ada').attention).toBeUndefined();
+    expect(state.answerer.requests('ada')).toEqual([]);
     controller.abort();
     release();
     await rejected;

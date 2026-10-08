@@ -23,6 +23,11 @@ export interface ChannelQuestionResolution {
   answers?: AskUserQuestionAnswerItem[];
 }
 
+export interface ChannelQuestionNotice extends ChannelQuestionRequest {
+  botSlug: string;
+  messageId: string;
+}
+
 type Pending = {
   agent: Agent;
   botSlug: string;
@@ -71,6 +76,7 @@ export class ChannelUserQuestions {
   readonly #warn: (message: string) => void;
   readonly #changed: (slug: string, count: number) => void;
   readonly #pending = new Map<string, Pending>();
+  readonly #listeners = new Set<() => void>();
 
   constructor(
     channels: ChannelStore,
@@ -154,6 +160,37 @@ export class ChannelUserQuestions {
       .map(([messageId]) => messageId);
   }
 
+  requests(botSlug: string): ChannelQuestionNotice[] {
+    return [...this.#pending].flatMap(([messageId, pending]) =>
+      pending.botSlug === botSlug &&
+      pending.committed &&
+      this.status(botSlug, messageId) === 'pending'
+        ? [
+            {
+              botSlug,
+              messageId,
+              sessionId: pending.agent.session.id,
+              questions: pending.questions.map((question) => ({
+                ...question,
+                ...(question.options === undefined
+                  ? {}
+                  : {
+                      options: question.options.map((option) => ({ ...option })),
+                    }),
+              })),
+            },
+          ]
+        : [],
+    );
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
+  }
+
   activeSessionIds(): string[] {
     return this.activeMessageIds().flatMap((id) => {
       const pending = this.#pending.get(id);
@@ -234,6 +271,13 @@ export class ChannelUserQuestions {
       this.#changed(slug, count);
     } catch {
       this.#warn('user-question-attention-publication-failed');
+    }
+    for (const listener of this.#listeners) {
+      try {
+        listener();
+      } catch {
+        this.#warn('user-question-notice-publication-failed');
+      }
     }
   }
 

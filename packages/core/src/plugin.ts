@@ -959,6 +959,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     (slug, count) => core.states.setQuestionCount(slug, count),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
+  ctx.effect(
+    () => core.companions.attachQuestions(userQuestions),
+    'botharness: companion question observation',
+  );
   ctx.on(
     'user-questions/request',
     async (request, next) => (await userQuestions.ask(request)) ?? next(),
