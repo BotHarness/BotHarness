@@ -301,6 +301,19 @@ export class ChannelToolApproval {
     return [...this.#pending.keys()];
   }
 
+  requests(botSlug: string): ToolApprovalNotice[] {
+    this.cancelInvalid();
+    return [...this.#pending.values()]
+      .filter(
+        (pending) =>
+          pending.botSlug === botSlug &&
+          pending.committed &&
+          !pending.signal?.aborted &&
+          Date.parse(pending.notice.expiresAt) > Date.now(),
+      )
+      .map((pending) => ({ ...pending.notice }));
+  }
+
   activeSessionIds(): string[] {
     this.cancelInvalid();
     return [...this.#pending.values()].map((pending) => pending.sessionId);

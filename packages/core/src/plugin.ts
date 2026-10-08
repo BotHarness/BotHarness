@@ -937,6 +937,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
     'botharness: approved IM tool controls',
   );
+  ctx.effect(
+    () => core.companions.attachApprovals(toolApproval),
+    'botharness: companion approval observation',
+  );
   userQuestions = new ChannelUserQuestions(
     core.channels,
     core.ownership,

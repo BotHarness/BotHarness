@@ -4,6 +4,8 @@ import { messagePreview } from '../channels/message-preview.js';
 import type { PersonaBotOutputCommitted } from '../channels/output.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import { randomUUID } from 'node:crypto';
+import type { ChannelToolApproval, ToolApprovalNotice } from '../workspaces/tool-approval.js';
+import { dmChannelId } from '../channels/channel.js';
 import {
   companionSources,
   companionSourceEnabled,
@@ -12,6 +14,11 @@ import {
 } from './sources.js';
 
 export const COMPANION_PATH = '/api/botharness/companion';
+export interface CompanionApproval extends ToolApprovalNotice {
+  kind: 'tool-approval';
+  channelId: string;
+  channelName: string;
+}
 export interface CompanionBot {
   slug: string;
   name: string;
@@ -19,6 +26,7 @@ export interface CompanionBot {
   lifecycle?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  requests?: readonly CompanionApproval[];
 }
 export interface CompanionSnapshot {
   profileId: string;
@@ -37,6 +45,7 @@ export interface CompanionMessage {
   canOpen?: boolean;
 }
 export interface CompanionFeed {
+  attachApprovals(owner: Pick<ChannelToolApproval, 'requests' | 'subscribe'>): () => void;
   open(request: Request): Response;
   update(request: Request): Promise<Response>;
   publish(event: PersonaBotOutputCommitted): void;
@@ -72,6 +81,24 @@ interface RecoveryState {
 }
 
 export function createCompanionFeed(source: FeedSource): CompanionFeed {
+  let approvals: Pick<ChannelToolApproval, 'requests' | 'subscribe'> | undefined;
+  let offApprovals: (() => void) | undefined;
+  const presentedBot = (id: string): CompanionBot | undefined => {
+    const bot = source.bot(id);
+    return bot === undefined
+      ? undefined
+      : {
+          ...bot,
+          requests: bot.paused
+            ? []
+            : (approvals?.requests(id) ?? []).map((request) => ({
+                ...request,
+                kind: 'tool-approval',
+                channelId: dmChannelId(id),
+                channelName: bot.name,
+              })),
+        };
+  };
   const consumers = new Set<{
     publish(event: PersonaBotOutputCommitted): void;
     reconcile(): void;
@@ -110,6 +137,22 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     for (const consumer of consumers) consumer.reconcile();
   });
   return {
+    attachApprovals(owner) {
+      if (disposed) return () => undefined;
+      offApprovals?.();
+      approvals = owner;
+      offApprovals = owner.subscribe(() => {
+        for (const consumer of consumers) consumer.reconcile();
+      });
+      for (const consumer of consumers) consumer.reconcile();
+      return () => {
+        if (approvals !== owner) return;
+        offApprovals?.();
+        offApprovals = undefined;
+        approvals = undefined;
+        for (const consumer of consumers) consumer.reconcile();
+      };
+    },
     async update(request) {
       if (disposed) return new Response('Companion unavailable', { status: 503 });
       let value: unknown;
@@ -255,7 +298,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                   selectionRevision,
                   recovered: recovery !== undefined,
                   bots: [...selected.keys()].flatMap((id) => {
-                    const bot = source.bot(id);
+                    const bot = presentedBot(id);
                     return bot
                       ? [
                           {
@@ -271,7 +314,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                   bot:
                     botId === null
                       ? bot
-                      : { ...source.bot(botId), lifecycle: lifecycles.get(botId) },
+                      : { ...presentedBot(botId), lifecycle: lifecycles.get(botId) },
                 }),
             activity: source.activity(),
           });
@@ -583,6 +626,9 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     },
     close() {
       disposed = true;
+      offApprovals?.();
+      offApprovals = undefined;
+      approvals = undefined;
       offIdentity?.();
       identities.clear();
       for (const consumer of consumers) consumer.close();

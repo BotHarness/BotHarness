@@ -16,6 +16,8 @@ import { CompanionMotion } from './companion-motion.js';
 import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+import type { BridgeActions } from './actions.js';
+import { CompanionRequests } from './companion-requests-view.js';
 
 function avatarLimitation(
   bot: CompanionBot | undefined,
@@ -41,6 +43,7 @@ export interface WindowCompanionViewProps {
   onRemove?(botId: string): void;
   bubbles?: CompanionBubbles | undefined;
   openSettings?(): void;
+  actions?: BridgeActions | undefined;
 }
 export function WindowCompanionView({
   companion,
@@ -51,6 +54,7 @@ export function WindowCompanionView({
   onRemove,
   bubbles,
   openSettings,
+  actions,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
@@ -183,17 +187,19 @@ export function WindowCompanionView({
           const previousPoint = motion.point;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
           if (state.selection) {
-            if (statusVisible(state) || state.cards.length) {
+            if (statusVisible(state) || state.cards.length || state.requests.length) {
               const placement = bubbles?.place(
                 state.selection.botId,
                 next.x,
                 next.y,
                 next.width,
                 window.innerHeight,
-                state.reading
-                  ? state.cards.length
-                  : Math.min(state.cards.length, state.capacity.layers),
-                state.reading,
+                state.requests.length
+                  ? 4
+                  : state.reading
+                    ? state.cards.length
+                    : Math.min(state.cards.length, state.capacity.layers),
+                state.reading || state.requests.length > 0,
               );
               setBubble((previous) =>
                 previous?.offset === placement?.offset &&
@@ -338,7 +344,25 @@ export function WindowCompanionView({
             {limitation ? ` · ${limitation}` : null}
           </div>
         ) : null}
-        {view.cards.length ? (
+        {view.requests.length ? (
+          <CompanionRequests
+            requests={view.requests}
+            messageCount={view.cards.length + view.pending}
+            actions={actions}
+            live={view.sync === 'live' && !bot.paused}
+            t={t}
+            restoreFocus={() => {
+              if (character.current?.isConnected) character.current.focus();
+            }}
+            style={{
+              left: bubbleLeft,
+              bottom: 174 + bubbleOffset,
+              maxHeight:
+                bubble?.cardHeight ??
+                Math.min(448, Math.max(112, window.innerHeight - point.y - 190 - bubbleOffset)),
+            }}
+          />
+        ) : view.cards.length ? (
           <ol
             className="bh-companion-cards"
             aria-label={t('companion.messages')}
