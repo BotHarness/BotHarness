@@ -3,7 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "description": "DeepSeekBot bundle: BotHarness core + web client, installed as one profile layer",
+  "bin": {
+    "botharness-profile": "./dist/profile-cli.mjs"
+  },
   "files": [
+    "dist",
     "cordis.patch.yml"
   ],
   "type": "module",
