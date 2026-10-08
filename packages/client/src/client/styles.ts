@@ -244,7 +244,8 @@ export const CSS =
 .bh-rail-preview-summary {
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+  margin-top: 4px;
 }
 
 /* 原生 工作区 sectionHeader 模式（ui-workspace WorkspaceBrowser.module.css）：
@@ -1587,7 +1588,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 
 /* Bot Marketplace is portaled with the native Modal; never depend on .bh-root. */
 .bh-market-modal {
-  width: min(640px, 100%);
+  width: min(880px, 100%);
   max-height: 100%;
 }
 .bh-market {
@@ -1662,19 +1663,137 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-label-tertiary);
 }
 .bh-market-list {
-  display: flex;
-  flex-direction: column;
-  max-height: min(52vh, 440px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-content: start;
+  gap: 14px;
+  max-height: min(46vh, 500px);
   overflow-y: auto;
-  border-top: 1px solid var(--dsw-alias-separator-primary);
+  padding: 2px;
 }
 .bh-market-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--dsw-alias-separator-primary);
+  position: relative;
+  display: grid;
+  grid-template-columns: 40% minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  aspect-ratio: 1.586;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  transition: border-color 120ms ease, transform 120ms ease;
 }
+.bh-market-row:hover {
+  border-color: var(--dsw-alias-label-tertiary);
+  transform: translateY(-1px);
+}
+.bh-market-row-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 28%,
+    color-mix(in srgb, var(--dsw-alias-bg-module-platform) 80%, transparent) 46%,
+    color-mix(in srgb, var(--dsw-alias-bg-module-platform) 92%, transparent) 100%
+  );
+}
+.bh-market-row[data-market-banner='none'] .bh-market-row-shade { display: none; }
+.bh-market-figure {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  line-height: 0;
+  pointer-events: none;
+}
+.bh-market-figure .bh-persona-avatar,
+.bh-market-figure .bh-persona-avatar::before,
+.bh-market-figure .bh-avatar-media {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.bh-market-row > .bh-market-figure {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  height: 64%;
+}
+.bh-market-row > .bh-market-figure .bh-persona-avatar {
+  width: auto !important;
+  height: 100% !important;
+  aspect-ratio: 1;
+}
+.bh-market-row > .bh-market-open {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 16px 16px 0 0;
+}
+.bh-market-card-name {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-market-row .bh-market-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-market-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 22px;
+  overflow: hidden;
+}
+.bh-market-row .bh-market-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.bh-market-row-foot {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 14px 14px 0;
+}
+.bh-market-row-foot .bh-market-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.bh-market-row-foot > button { flex-shrink: 0; background: var(--dsw-alias-bg-module-platform); }
+.bh-market-copy {
+  flex: 1 1 0;
+  gap: 2px;
+  align-self: stretch;
+  justify-content: space-between;
+  min-width: 0;
+  overflow: hidden;
+}
+.bh-market-row .bh-market-name { font-size: 15px; font-weight: 600; flex-wrap: nowrap; overflow: hidden; }
+.bh-market-row .bh-market-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-market-row .bh-market-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-market-row .bh-market-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
 .bh-market-copy {
   display: flex;
   flex: 1;
@@ -1740,15 +1859,48 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-market-banner {
-  width: 100%;
-  max-height: 160px;
-  border-radius: 10px;
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  border: 0;
+}
+.bh-market-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 170px;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-market-hero > .bh-market-confirm-head { position: relative; flex: 1; min-width: 0; align-items: flex-end; }
+.bh-market-hero .bh-market-figure { margin-bottom: -14px; }
+.bh-market-hero[data-market-banner='none'] { min-height: 0; }
+.bh-market-hero[data-market-banner='none'] .bh-market-row-shade { display: none; }
+.bh-market-hero .bh-market-row-shade {
+  background: linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--dsw-alias-bg-module-platform) 92%, transparent) 0%,
+    color-mix(in srgb, var(--dsw-alias-bg-module-platform) 70%, transparent) 45%,
+    color-mix(in srgb, var(--dsw-alias-bg-module-platform) 10%, transparent) 100%
+  );
+}
+.bh-market-hero .bh-market-github {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-module-platform);
 }
 .bh-market-banner-thumb {
-  width: 84px;
-  border-radius: 6px;
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  border: 0;
+  background: transparent;
 }
-@media (max-width: 520px) { .bh-market-banner-thumb { display: none; } }
 .bh-market-github {
   flex: none;
   color: var(--bh-accent);
