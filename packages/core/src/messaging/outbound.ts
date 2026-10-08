@@ -2071,12 +2071,21 @@ export function createOutboundMessaging(options: {
     },
     close() {
       if (closed) return;
-      transaction((db) => stopReceptionHistory(db, now()));
-      closed = true;
-      approvals.close();
-      inbound.close();
-      providers.clear();
-      for (const attempt of inFlight.values()) attempt.controller.abort();
+      try {
+        transaction((db) => stopReceptionHistory(db, now()));
+      } catch (error) {
+        if (
+          !(error instanceof OperationalDatabaseError) ||
+          (error.code !== 'closed' && error.code !== 'recovery-mode')
+        )
+          throw error;
+      } finally {
+        closed = true;
+        approvals.close();
+        inbound.close();
+        providers.clear();
+        for (const attempt of inFlight.values()) attempt.controller.abort();
+      }
     },
   };
   return service;
