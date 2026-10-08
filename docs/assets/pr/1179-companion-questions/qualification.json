@@ -33,7 +33,7 @@
   "limits": [
     "Mouse click returned an unstructured tool failure and is not qualified by this keyboard replay.",
     "Initial toolbar pause attempted while hidden did not focus; walking was still enabled during captures, so positions/backgrounds differ. Actual postflight pause is separately checked.",
-    "Legacy QA Bots retain their existing question-mark avatar fallback; this does not qualify the pixel mouth.",
+    "Initial pending captures show question-mark presentations; later original-reply captures show pixel Avatars. The cause is not established and mouth animation is not qualified by these captures.",
     "Other cancellation/archive/restart/reconnect/reduced-motion edge scenes are not implied accepted."
   ],
   "tests": {
