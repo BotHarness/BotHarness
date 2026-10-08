@@ -38,7 +38,7 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
-import { channelHumanName } from './actor-names.js';
+import { channelHumanName, humanLabel } from './actor-names.js';
 import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
 import {
@@ -128,7 +128,7 @@ function authorLabel(
 ): string {
   switch (message.author.kind) {
     case 'human':
-      return humanName;
+      return humanLabel(humanName, t);
     case 'system':
       return t('main.author.system');
     case 'bot':

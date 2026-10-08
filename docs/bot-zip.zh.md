@@ -32,9 +32,9 @@ Git 历史里也保存着已经删掉或改掉的旧内容。所以只有在全�
 
 ## 导入
 
-1. 点侧栏消息列表上方的 **＋（新建）→ 创建 PersonaBot → 从 zip 导入**。
+1. 点侧栏消息列表上方的 **＋（新建）→ 创建 Bot → 从 zip 导入**。
 
-![「创建 PersonaBot」的二级菜单：从零创建、从 GitHub 导入、从 zip 导入](/guides/bot-zip/01-create-menu-zh.webp)
+![「创建 Bot」的二级菜单：从零创建、从 GitHub 导入、从 zip 导入](/guides/bot-zip/01-create-menu-zh.webp)
 
 2. 点 **选择 zip 文件**，选中拿到的 zip，点 **导入**。
 
