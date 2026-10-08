@@ -4,7 +4,7 @@ import { CompanionPin } from './window-companions-view.js';
 import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
-import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -29,6 +29,7 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
 import {
   ChannelComposer,
   type ChannelComposerActivity,
@@ -39,7 +40,11 @@ import type { SelectedChannelRef } from './channel-refs.js';
 import { channelHumanName } from './actor-names.js';
 import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
-import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import {
+  ChannelMessageBody,
+  MessageDeveloperMode,
+  type NativeChatFailureText,
+} from './channel-message-body.js';
 import { BridgeSourceAuthor } from './bridge-source-author.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
@@ -1617,7 +1622,7 @@ function ConversationView({
   );
 }
 
-export function BotMain({
+function BotMainContent({
   actions,
   companion,
   nativeSessions,
@@ -1656,7 +1661,28 @@ export function BotMain({
   );
 }
 
+const subscribeWithoutPrefs = (): (() => void) => () => {};
+
+export function BotMain({
+  prefs,
+  ...props
+}: Parameters<typeof BotMainContent>[0] & {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
+}): ReactElement {
+  const developerMode = useSyncExternalStore(
+    prefs?.source.subscribe ?? subscribeWithoutPrefs,
+    () => prefs?.source.getSnapshot().developerMode ?? false,
+    () => false,
+  );
+  return (
+    <MessageDeveloperMode.Provider value={developerMode}>
+      <BotMainContent {...props} />
+    </MessageDeveloperMode.Provider>
+  );
+}
+
 export function BotPanel({
+  prefs,
   actions,
   companion,
   nativeSessions,
@@ -1667,6 +1693,7 @@ export function BotPanel({
   telemetryNotice,
   t,
 }: {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
   actions: BridgeActions;
   companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
@@ -1694,6 +1721,7 @@ export function BotPanel({
         <TelemetryNotice controller={telemetryNotice} releaseNotes={releaseNotes} t={t} />
       )}
       <BotMain
+        prefs={prefs}
         actions={actions}
         companion={companion}
         nativeSessions={nativeSessions}

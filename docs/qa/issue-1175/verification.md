@@ -130,6 +130,23 @@ One deep-theme screenshot attempt timed out; a subsequent DOM/console inspection
 | Light | [Before](create-before-light.jpg) | [After](create-after-light.jpg) |
 | Dark  | [Before](create-before-dark.jpg)  | [After](create-after-dark.jpg)  |
 
+## Compact questions and Developer mode
+
+Question cards now read the existing Bot settings Developer mode preference through both registered Bot main surfaces. The default view omits Session provenance and the short grouping headers; complete questions, details and option descriptions remain visible. Optional custom answers use the native Input placeholder and an accessible name instead of a separate label. A question without options retains its visible input label and required-answer behavior. Answered/cancelled status uses plain user-facing wording. No Host contract, persistence, authority or answer dispatch changed.
+
+The same live two-question request was captured before and after in the generation-71 Profile, Chinese, **1559 × 865**, with one capability and two topics selected. The card width stayed **380px**; its measured height decreased from **734.40px** to **565.94px** (about **23%**). Both captures keep the conversation at its bottom: the taller Before card extends above the viewport, while the After card fits. The viewport was not overridden or resized.
+
+| Theme | Before                             | After                            |
+| ----- | ---------------------------------- | -------------------------------- |
+| Light | [Before](compact-before-light.jpg) | [After](compact-after-light.jpg) |
+| Dark  | [Before](compact-before-dark.jpg)  | [After](compact-after-dark.jpg)  |
+
+In real Bot settings, toggling Developer mode on revealed the collapsed provenance and short headers immediately. Toggling it off removed them without losing the selected capability, two checked topics or the custom draft “设计”. [Developer on](compact-developer-on-dark.jpg) and [Developer off](compact-developer-off-dark.jpg) preserve that state; the taller developer view extends below the composer. The draft was cleared before one explicit submission. Exactly one Human answer contained “了解 Bot 能力” and “科技, 商业”; the controls disabled and the Bot genuinely replied “选择已确认” ([reply](compact-reply-dark.jpg)). No schedule was created. Developer mode was returned to off and the original Follow system theme restored.
+
+Validation: focused questions/Bot main/Human Inbox/preferences/token checks **64/64**, full Client **971/971**, typecheck, lint, formatting, full build, final Client rebuild, bilingual release ledgers and whitespace checks pass. Regression coverage verifies the shared preference reaches the conversation, the provenance is absent from the default DOM, the full detail survives, accessible custom answers still submit, and preference toggles preserve drafts/selection without re-reading question status. The previous head `17479797` passed full Linux CI ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37772701086)); this presentation commit receives fresh PR checks.
+
+Browser control had intermittent observation timeouts; a fresh tab in the same connected Chrome loaded the same pending question. A screenshot/settings action reported a timeout after opening Settings, so its resulting state was inspected before continuing. Client rebuilds retained earlier diagnostic attempts, including `shell-lost` and a prior `conversation-session-missing`/`client-runner-failed` attempt. The final current document reports `shell-ready` with no first failure, its question DOM was inspected, and current console warning/error inspection was empty. Earlier failed attempts remain in the Host diagnostic history; this change does not claim to fix the native development reload behavior.
+
 ## Runnable review
 
 Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-home> --port <free-port> --build` and open the printed local login URL. Never reuse a production Profile for schema verification. To reproduce missing configuration, point the native provider's `apiKeyEnv` at an unset QA reference through native Settings; do not remove shared credentials.
@@ -139,6 +156,7 @@ Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-
 3. In the separate send step, explicitly click Send. Check a real reply, completion and reusable welcome. Open Bot Profile: the model should show Inherit global.
 4. Save an individual choice for a second Bot. Change the global default in Bot settings; verify the inheritor follows and the fixed Bot retains its plan. Return the fixed Bot to inheritance with the current revision.
 5. Start, close/Escape, continue and skip the guide; re-enter from another Client and verify no automatic highlight. Check keyboard focus and the OS reduced-motion preference.
-6. With a QA-only invalid credential, send once, repair it and explicitly retry the original failure card. Verify one Human message. Replay after a completed or side-effecting request must be refused.
+6. Ask the Bot to present one single-choice and one multiple-choice question. In Bot settings toggle Developer mode on/off: the Session source and short headers should follow immediately, while selected options and custom drafts remain. Submit once and check one answer plus a real reply.
+7. With a QA-only invalid credential, send once, repair it and explicitly retry the original failure card. Verify one Human message. Replay after a completed or side-effecting request must be refused.
 
 Schema generation 71 is forward-only. Keep a pre-upgrade backup; a generation-70 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery, retaining the independent Purge Ledger and enforcing its monotonic facts. Optional Memory/IM guided breadth remains deferred pending further Human feedback.

@@ -27,7 +27,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 }));
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { ChannelMessageBody } from '../src/client/channel-message-body.js';
+import { ChannelMessageBody, MessageDeveloperMode } from '../src/client/channel-message-body.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
 
@@ -80,14 +80,19 @@ function render(
   actions: BridgeActions,
   resolution?: 'answered' | 'cancelled',
   card: ChannelMessage = message,
+  developerMode = false,
 ) {
   root.render(
-    createElement(ChannelMessageBody, {
-      message: card,
-      actions,
-      t: zhTranslate,
-      userQuestionResolution: resolution,
-    }),
+    createElement(
+      MessageDeveloperMode.Provider,
+      { value: developerMode },
+      createElement(ChannelMessageBody, {
+        message: card,
+        actions,
+        t: zhTranslate,
+        userQuestionResolution: resolution,
+      }),
+    ),
   );
 }
 
@@ -132,7 +137,9 @@ describe('native question card interaction', () => {
         questions: [
           {
             id: 'topics',
+            header: 'Digest',
             question: 'Which topics?',
+            detail: 'Choose the topics you want to follow.',
             multiSelect: true,
             options: [
               { label: 'Science', description: 'Research and technology' },
@@ -163,6 +170,20 @@ describe('native question card interaction', () => {
       );
       customInput?.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    expect(container.querySelector('.bh-question-source')).toBeNull();
+    expect(container.textContent).not.toContain('Digest');
+    expect(container.textContent).toContain('Choose the topics you want to follow.');
+    expect(container.querySelector('.bh-question-custom')).toBeNull();
+    expect(customInput?.getAttribute('aria-label')).toBe('其他回答');
+    expect(customInput?.placeholder).toBe('其他回答（可选）');
+    await act(async () => render(actions, undefined, card, true));
+    expect(container.querySelector('.bh-question-source code')?.textContent).toBe('orchestrator-1');
+    expect(container.textContent).toContain('Digest');
+    await act(async () => render(actions, undefined, card, false));
+    expect(container.querySelector('.bh-question-source')).toBeNull();
+    expect(container.textContent).not.toContain('Digest');
+    expect(customInput?.value).toBe('Design');
+    expect(actions.userQuestionStatus).toHaveBeenCalledTimes(1);
     expect(choices[1]?.checked).toBe(true);
     await act(async () => button('回答并继续')?.click());
     expect(actions.answerUserQuestion).toHaveBeenCalledWith('dm-ada', 'question-1', [

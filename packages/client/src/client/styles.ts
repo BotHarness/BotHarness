@@ -5371,11 +5371,11 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 }
 .bh-session-failure-raw { white-space: pre-wrap; }
 .bh-tool-approval-card { display: grid; gap: 10px; min-width: min(340px, 100%); }
-.bh-question-card { display: grid; gap: 12px; width: 380px; max-width: 100%; }
+.bh-question-card { display: grid; gap: 10px; width: 380px; max-width: 100%; }
 .bh-question-card > button { justify-self: start; }
 .bh-question-source { color: var(--dsw-alias-label-secondary); font-size: var(--dsh-content-font-size-secondary, 13px); }
 .bh-question-source code { display: block; margin-top: 5px; overflow-wrap: anywhere; }
-.bh-question-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; min-width: 0; }
+.bh-question-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .bh-question-prompt { font-weight: 600; white-space: pre-wrap; }
 .bh-question-custom { color: var(--dsw-alias-label-secondary); font-size: var(--dsh-content-font-size-secondary, 13px); }
 .bh-tool-approval-input {
