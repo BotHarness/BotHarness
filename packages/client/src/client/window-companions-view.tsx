@@ -32,6 +32,7 @@ export function CompanionPin({
       aria-label={`${label} · ${name ?? botId}`}
       title={label}
       aria-pressed={selected}
+      data-companion-pin={botId}
       onClick={() => {
         if (selected) companion.remove(botId);
         else companion.select(botId);

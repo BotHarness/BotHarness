@@ -16,6 +16,7 @@ export interface CompanionBot {
   slug: string;
   name: string;
   paused: boolean;
+  lifecycle?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
 }
@@ -55,6 +56,7 @@ interface FeedSource {
   onActivity(changed: () => void): () => void;
   observeOutput(channelId: string, messageId: string): ChannelOutputObservation | undefined;
   checkpoint?(): number | undefined;
+  onIdentity?(changed: () => void): () => void;
 }
 
 type OutputReference = Pick<PersonaBotOutputCommitted, 'botId' | 'messageId' | 'channelId'> & {
@@ -62,6 +64,7 @@ type OutputReference = Pick<PersonaBotOutputCommitted, 'botId' | 'messageId' | '
   epoch?: number;
 };
 interface RecoveryState {
+  lifecycles: Map<string, string>;
   capacity: number;
   selections: Map<string, CompanionSubscription>;
   messages: Map<string, OutputReference[]>;
@@ -69,7 +72,11 @@ interface RecoveryState {
 }
 
 export function createCompanionFeed(source: FeedSource): CompanionFeed {
-  const consumers = new Set<{ publish(event: PersonaBotOutputCommitted): void; close(): void }>();
+  const consumers = new Set<{
+    publish(event: PersonaBotOutputCommitted): void;
+    reconcile(): void;
+    close(): void;
+  }>();
   const controls = new Map<
     string,
     {
@@ -85,7 +92,23 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     string,
     { generation: string; detached(): boolean; available(): boolean; take(): RecoveryState }
   >();
+  const identities = new Map<string, { paused: boolean; lifecycle: string }>();
+  const lifecycle = (id: string): string | undefined => {
+    const bot = source.bot(id);
+    if (!bot) {
+      identities.delete(id);
+      return;
+    }
+    const previous = identities.get(id);
+    if (!previous || previous.paused !== bot.paused)
+      identities.set(id, { paused: bot.paused, lifecycle: randomUUID() });
+    return identities.get(id)!.lifecycle;
+  };
   let disposed = false;
+  const offIdentity = source.onIdentity?.(() => {
+    for (const id of identities.keys()) lifecycle(id);
+    for (const consumer of consumers) consumer.reconcile();
+  });
   return {
     async update(request) {
       if (disposed) return new Response('Companion unavailable', { status: 503 });
@@ -206,6 +229,9 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
       if (!multiplexed && botId && initialCheckpoint !== undefined)
         for (const kind of companionSources)
           checkpoints.set(`${botId}\0${kind}`, initialCheckpoint);
+      const removed = new Set<string>();
+      const lifecycles = new Map(recovery?.lifecycles);
+      if (!multiplexed && botId) lifecycles.set(botId, lifecycle(botId)!);
       let capacity = recovery?.capacity ?? 20;
       let selectionRevision = 0;
       let finish: (() => void) | undefined;
@@ -228,9 +254,25 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                   consumerId,
                   selectionRevision,
                   recovered: recovery !== undefined,
-                  bots: [...selected].map(([id, value]) => source.bot(id) ?? value.bot),
+                  bots: [...selected.keys()].flatMap((id) => {
+                    const bot = source.bot(id);
+                    return bot
+                      ? [
+                          {
+                            ...bot,
+                            ...(lifecycles.has(id) ? { lifecycle: lifecycles.get(id)! } : {}),
+                          },
+                        ]
+                      : [];
+                  }),
+                  removedBotIds: [...removed],
                 }
-              : { bot: botId === null ? bot : (source.bot(botId) ?? bot) }),
+              : {
+                  bot:
+                    botId === null
+                      ? bot
+                      : { ...source.bot(botId), lifecycle: lifecycles.get(botId) },
+                }),
             activity: source.activity(),
           });
           const write = (value: string) => {
@@ -314,6 +356,30 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           let offActivity: (() => void) | undefined;
           let heartbeat: ReturnType<typeof setInterval> | undefined;
           const consumer = {
+            reconcile() {
+              const checkpoint = source.checkpoint?.();
+              for (const [id, selection] of selected) {
+                const current = source.bot(id);
+                if (!current || current.paused !== selection.bot.paused) {
+                  journal.delete(id);
+                  messages.delete(id);
+                  if (current) lifecycles.set(id, lifecycle(id)!);
+                  else lifecycles.delete(id);
+                  for (const kind of companionSources) {
+                    const key = `${id}\0${kind}`;
+                    if (!current) checkpoints.delete(key);
+                    else if (checkpoint !== undefined) checkpoints.set(key, checkpoint);
+                  }
+                }
+                if (current) selected.set(id, { ...selection, bot: current });
+                else {
+                  selected.delete(id);
+                  removed.add(id);
+                }
+              }
+              if (!multiplexed && botId && removed.has(botId)) consumer.close();
+              else changed();
+            },
             replace(
               selections: readonly CompanionSubscription[],
               nextCapacity: number,
@@ -341,6 +407,11 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
               for (const id of checkpoints.keys())
                 if (!selections.some((item) => item.botId === id.split('\0')[0]))
                   checkpoints.delete(id);
+              removed.clear();
+              for (const selection of selections)
+                lifecycles.set(selection.botId, lifecycle(selection.botId)!);
+              for (const id of lifecycles.keys())
+                if (!selections.some((item) => item.botId === id)) lifecycles.delete(id);
               selectionRevision = revision;
               selected = new Map(
                 selections.map((selection) => [
@@ -473,6 +544,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
               take() {
                 const state = {
                   capacity,
+                  lifecycles: new Map(lifecycles),
                   selections: new Map(selected),
                   messages: new Map([...journal].map(([id, queue]) => [id, [...queue]])),
                   checkpoints: new Map(checkpoints),
@@ -511,6 +583,8 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     },
     close() {
       disposed = true;
+      offIdentity?.();
+      identities.clear();
       for (const consumer of consumers) consumer.close();
       for (const recovery of recoveries.values()) recovery.take();
       recoveries.clear();

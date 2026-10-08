@@ -6,7 +6,7 @@ flowchart TB
     ReadRPC["botharness/channelMarkAllRead<br/>应用定义的 RPC"] --> Channels["Channel owner<br/>可见消息位置快照"]
     Channels --> ReadPositions["既有 Human 已读位置"]
     Remote <--> Gateway["API Gateway<br/>唯一 /api interceptor"]
-    Registry["Registry / Activity / Session ownership"] --> Feed["应用定义的 Companion Feed<br/>有界引用租约与恢复"]
+    Registry["Registry commit / Activity / Session ownership"] -->|"committed identity / Activity / owned output"| Feed["应用定义的 Companion Feed<br/>有界引用租约与恢复"]
     Channels --> Observation["outputCheckpoint / observeOutput<br/>规范位置 + 正文 + 成员关系 + 读取判定"]
     Observation --> Feed
   end

@@ -517,6 +517,10 @@ export function createCore(
         states,
       ),
     onActivity: (changed) => states.onActivity(() => changed()),
+    onIdentity: (changed) =>
+      operationalDatabase.subscribe(({ topics }) => {
+        if (topics.includes('bot-registry')) changed();
+      }),
     observeOutput: (id, messageId) => channels.observeOutput(id, messageId),
     checkpoint: () => channels.outputCheckpoint(),
   });

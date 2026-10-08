@@ -311,6 +311,16 @@ export class WindowCompanion {
           ? bot['appearance']
           : undefined;
       if (
+        (this.state.bot && this.state.bot.paused !== bot['paused']) ||
+        (typeof bot['lifecycle'] === 'string' &&
+          this.state.bot?.lifecycle !== undefined &&
+          this.state.bot.lifecycle !== bot['lifecycle'])
+      ) {
+        this.seen = [];
+        this.pendingCards = [];
+        this.update({ cards: [], pending: 0, reading: false });
+      }
+      if (
         (baseline &&
           this.preservedGeneration !== activity.generation &&
           !(value?.['recovered'] === true && this.generation === activity.generation)) ||
@@ -329,6 +339,7 @@ export class WindowCompanion {
           slug: selection.botId,
           name: bot['name'],
           paused: bot['paused'],
+          ...(typeof bot['lifecycle'] === 'string' ? { lifecycle: bot['lifecycle'] } : {}),
           ...(typeof bot['avatar'] === 'string' ? { avatar: bot['avatar'] } : {}),
           ...(appearance === undefined ? {} : { appearance }),
         },
@@ -342,7 +353,8 @@ export class WindowCompanion {
       const value = decode(event);
       const current = this.state.selection;
       const source = value?.['source'] ?? 'own-dm';
-      if (!current || !companionSourceEnabled(source, current)) return;
+      if (!current || this.state.bot?.paused === true || !companionSourceEnabled(source, current))
+        return;
       if (
         value?.['generation'] !== this.generation ||
         value['botId'] !== selection.botId ||
@@ -405,6 +417,15 @@ export class WindowCompanion {
     if (this.disposed) return;
     this.disposed = true;
     this.disconnect();
+    this.state = {
+      ...this.state,
+      selection: undefined,
+      bot: undefined,
+      activity: undefined,
+      cards: [],
+      pending: 0,
+      reading: false,
+    };
     this.listeners.clear();
   }
 }

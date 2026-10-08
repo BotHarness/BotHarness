@@ -329,6 +329,17 @@ export class WindowCompanions {
         this.controlFailed = false;
         this.resetRetry();
       }
+      const acknowledgedRevision = this.revision;
+      if (Array.isArray(value['removedBotIds']))
+        for (const id of value['removedBotIds']) {
+          const child = typeof id === 'string' ? this.streams.get(id) : undefined;
+          if (
+            child &&
+            typeof value['selectionRevision'] === 'number' &&
+            value['selectionRevision'] >= acknowledgedRevision
+          )
+            this.remove(id);
+        }
       this.deps.onActivity?.(activity);
       this.state = { ...this.state, sync: this.controlFailed ? 'stale' : 'live' };
       this.notify();

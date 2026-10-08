@@ -79,3 +79,17 @@ describe('PersonaBot avatar route', () => {
     expect(matchesIfNoneMatch(null, etag)).toBe(false);
   });
 });
+
+it('refuses an obsolete versioned snapshot rather than serving a different saved Avatar', async () => {
+  const { botAvatarUrl } = await import('../src/bots/avatar-http.js');
+  const url = botAvatarUrl('ada', PNG);
+  const replacement =
+    'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJQBOgCHwAP7+4AAAAA==';
+  const http = createBotAvatarHttp(registryWith(replacement));
+  const stale = await http(new Request(`http://host${url}`));
+  expect(stale.status).toBe(404);
+  expect(stale.headers.get('cache-control')).toBe('no-store');
+  const current = await http(new Request(`http://host${botAvatarUrl('ada', replacement)}`));
+  expect(current.status).toBe(200);
+  expect(current.headers.get('content-type')).toBe('image/webp');
+});
