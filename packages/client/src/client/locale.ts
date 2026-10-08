@@ -864,6 +864,8 @@ export const zh = {
   'identity.newConversations': '新会话',
   'identity.newConversations.auto': '自动接收',
   'identity.newConversations.ask': '先问我',
+  'identity.newConversations.inherit': '跟随平台默认（{value}）',
+  'identity.newConversations.inheritPlain': '跟随平台默认',
   'identity.newConversationsHint':
     '自动接收：新的私聊或 @ 直接进入收件箱。先问我：新会话先出现在「等待处理」，只记录会话名称和次数，不保存消息内容；允许后从下一条消息开始接收。',
   'conversation.syncedTo': '已同步到 {names}',
@@ -3064,6 +3066,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.newConversations': 'New conversations',
   'identity.newConversations.auto': 'Admit automatically',
   'identity.newConversations.ask': 'Ask me first',
+  'identity.newConversations.inherit': 'Follow platform default ({value})',
+  'identity.newConversations.inheritPlain': 'Follow platform default',
   'identity.newConversationsHint':
     'Admit automatically: new DMs and @mentions go straight to the Inbox. Ask me first: a new conversation waits under Waiting with only its name and message count, never the message text; once allowed, the next message is admitted.',
   'conversation.syncedTo': 'Synced to {names}',
