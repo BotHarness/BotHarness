@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "issue": "https://github.com/BotHarness/DeepSeekBot/issues/1040",
+  "agentTask": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "sources": {
+    "botharness": "a7b8524639dbec5d354aa94f504f1ed25fd6845a",
+    "provider": "26e6d66d2ac3c3658d3a0faabdc154ff75af441e",
+    "installedProviderRuntime": {
+      "files": 400,
+      "sha256": "bf8474466374e0ea2d385cccd1cf43a2452bae9253070e5adfafb7fe74b46bca",
+      "matchesCheckout": true
+    },
+    "publishedProviderPinUnchanged": "36da305c9586335a47d4bab6ee4f0025247a9d8f"
+  },
+  "window": {
+    "humanApprovedMaximumSeconds": 600,
+    "armedAt": "2026-10-08T18:50:18.602Z",
+    "localCutoffAt": "2026-10-08T18:58:18.602Z",
+    "serverFallbackAt": "2026-10-08T18:59:18.602Z",
+    "productionRunningVerifiedAt": "2026-10-08T18:58:21.920Z",
+    "qaIdentityUnbound": true,
+    "qaProviderDisabled": true,
+    "temporaryAccountAndCredentialsRemoved": true,
+    "windowHostStopped": true,
+    "independentRestoreTimerStoppedAfterRecovery": true,
+    "productionReplies": {
+      "lark": "human-confirmed",
+      "discord": "human-confirmed"
+    }
+  },
+  "cases": [
+    {
+      "name": "group-mention",
+      "marker": "BH1040-R3-GROUP",
+      "sourceEventId": "im-c9d55f461a548b4c2882d334e4a4c5b6873b70b313cfad41313cce503fe7d75a",
+      "originalMessageId": "om_x100b634a2a24e8a0ed0c5ce326c11e0",
+      "sourceAt": "2026-10-08T18:51:58.632Z",
+      "conversationKind": "group",
+      "mentionedAccount": true,
+      "admissionCount": 1,
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T18:52:03.659Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T18:52:12.873Z",
+          "outboxId": "c11193bd-06f6-4242-a05b-2da290ed40ba"
+        }
+      },
+      "outboxes": [
+        {
+          "id": "c11193bd-06f6-4242-a05b-2da290ed40ba",
+          "state": "provider-accepted",
+          "settledAt": "2026-10-08T18:52:09.075Z"
+        }
+      ],
+      "reactionRenderingObservedThisWindow": false
+    },
+    {
+      "name": "dm-reply",
+      "marker": "BH1040-R3-DM",
+      "sourceEventId": "im-440576821e7a78b217538305de89fef88af012c9b0d948b17e6569aadf09873e",
+      "originalMessageId": "om_x100b634a2564e0a0ee874b23d2d6303",
+      "sourceAt": "2026-10-08T18:53:46.649Z",
+      "conversationKind": "dm",
+      "mentionedAccount": false,
+      "admissionCount": 1,
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T18:54:12.344Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T18:54:21.241Z",
+          "outboxId": "4a2a758e-b5e0-48e4-b7c3-737eba15eed1"
+        }
+      },
+      "outboxes": [
+        {
+          "id": "4a2a758e-b5e0-48e4-b7c3-737eba15eed1",
+          "state": "provider-accepted",
+          "settledAt": "2026-10-08T18:54:18.109Z"
+        }
+      ],
+      "reactionRenderingObservedThisWindow": false
+    },
+    {
+      "name": "muted-dm",
+      "marker": "BH1040-R3-MUTED",
+      "sourceEventId": "im-3eb0a6083bf57a0b4733d0f691eb146971bccd72167529ec40c43e81a51a17fa",
+      "originalMessageId": "om_x100b634a3b3b20a0ed08e1aaa56751e",
+      "sourceAt": "2026-10-08T18:56:31.473Z",
+      "conversationKind": "dm",
+      "mentionedAccount": false,
+      "admissionCount": 1,
+      "wakeMode": "silent",
+      "sourcePolicyWakeMode": "silent",
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T18:56:35.649Z"
+        }
+      },
+      "outboxes": [],
+      "reactionRenderingObservedThisWindow": false
+    }
+  ],
+  "reconnect": {
+    "connected": true,
+    "identityRetained": true,
+    "feedbackUnchanged": true,
+    "historicalAttemptsReplayed": false
+  },
+  "restart": {
+    "noImColdRestart": true,
+    "feedbackUnchanged": true,
+    "configuredAccounts": 0,
+    "activeIdentities": 0,
+    "liveReceiverRestartQualified": false
+  },
+  "web": {
+    "captures": [
+      {
+        "theme": "light",
+        "file": "lark-feedback-web-light.jpg",
+        "width": 392,
+        "height": 103
+      },
+      {
+        "theme": "dark",
+        "file": "lark-feedback-web-dark.jpg",
+        "width": 392,
+        "height": 103
+      }
+    ],
+    "observedViewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "sameThreeSourcesAndStates": true,
+    "comparison": "Post-merge light/dark, not pre-feature before/after",
+    "hotLifecycleFailure": "SlotAssemblyError: scope 'session-maybe' rendered without an installed adapter",
+    "recoveredAfterReload": true,
+    "rootCauseVerified": false
+  },
+  "blockedDm": {
+    "marker": "BH1040-R3-BLOCKED",
+    "canonicalBlockAndGrantRevocationVerified": true,
+    "humanReportedSent": true,
+    "sendBeforeCutoffConfirmed": false,
+    "providerArrivalProven": false,
+    "noMatchingAdmissionObserved": true,
+    "qualified": false
+  },
+  "limitations": [
+    "Platform accepted feedback requests do not prove actual reaction rendering; group original-message capture is still missing.",
+    "Blocked-message absence cannot prove rejection without confirmed in-window send and provider arrival.",
+    "A no-IM cold restart proves retained state only; live receiver Host restart remains pending.",
+    "Other remaining acceptance cases in the runbook are not qualified by this window.",
+    "The browser Discord restoration marker targeted BotHarness Cloud QA; production recovery is supported by the Human confirmation in the known working conversation.",
+    "Source merge and this evidence do not publish, deploy or promote the Provider pin."
+  ]
+}

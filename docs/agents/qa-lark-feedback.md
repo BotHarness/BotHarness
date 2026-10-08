@@ -1,8 +1,8 @@
 # Lark feedback candidate QA / Lark 反馈候选 QA
 
-This is an exact-candidate review path for [#1040](https://github.com/BotHarness/BotHarness/issues/1040), not a release or production rollout. The task's draft PRs and window evidence below identify the paired sources. The published Provider pin remains unchanged.
+This is an exact-candidate review path for [#1040](https://github.com/BotHarness/BotHarness/issues/1040), not a release or production rollout. The source PRs have merged; the window evidence below identifies the exact paired sources tested. Remaining runtime qualification still gates Provider pin promotion. The published Provider pin remains unchanged.
 
-这是精确候选的审阅路径，不是发布或生产部署。任务草稿 PR 与证据文件标识两端版本；已验证 Provider pin 不变。
+这是精确候选的审阅路径，不是发布或生产部署。源码 PR 已合并，下方窗口证据标识实际测试的两端版本；剩余运行时验证仍是提升 Provider pin 的门槛，当前 pin 不变。
 
 ## Prepare before the Human window / 窗口前准备
 
@@ -57,3 +57,37 @@ Both `BH1040-R2-A` and `BH1040-R2-B` committed exactly one Admission and one cor
 QA stopped early, the independent restoration timer was stopped after production recovery, and temporary account configuration and credentials were removed through native stores. A matching `BH1040-PRODUCTION-R2 OK` reply was observed in Lark after restoration; the Human confirmed normal Discord replies. Group mention, live mute/block and reconnect/restart cases, plus matched Web identity-editor light/dark captures remain pending. The Human subsequently accepted the available screenshots and authorized merge after review. Remaining cases stay as follow-up qualification; merging does not promote the Provider pin or deploy the candidate.
 
 Human 已明确授权并添加最小 tenant-token 权限，控制台确认发布；01:42:58 开始的新窗口预设了自动恢复。代理直接在已登录的内置浏览器发送测试。两条不同私聊各只有一次 Admission 与对应已接受回复，原消息实际显示 Glance 和 Done；静默消息仅显示 Glance，没有 Outbox 或回答尝试。历史未知记录保留、不补发。QA 提前结束、临时账号及凭据清理、生产恢复；Lark 生产测试回复可见，Human 确认 Discord 正常回复。Human 随后认可现有截图并授权审阅后合并；群 @、静音／屏蔽、重连／重启及 Web 身份编辑器明暗对照保留为后续验证，合并不提升 Provider pin 或部署候选。
+
+## Post-merge qualification: 2026-10-09 / 合并后验证
+
+A fresh Human-approved window was armed at **03:50:18.602 JST**, with a local cutoff at **03:58:18.602** and an independent server restoration fallback at **03:59:18.602**, within the approved ten-minute maximum. BotHarness was `a7b8524639dbec5d354aa94f504f1ed25fd6845a`; Provider was `26e6d66d2ac3c3658d3a0faabdc154ff75af441e`. All 400 installed Provider runtime files matched its checkout digest. A real local native DM reply had verified model usability before the window. See [sanitized qualification facts](../evidence/issue-1040/lark-qualification-2026-10-09.json).
+
+The signed-in Lark web client listed DeepSeekBot in **BH Cloud QA**, but the native mention chooser failed to load. The Human therefore sent the real group mention and the private test messages from their working client. Browser submission alone was not treated as delivery proof.
+
+| Case                          | Verified canonical result                                                                                                                          | Limit                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `BH1040-R3-GROUP`             | Checked group event had `mentionedAccount: true`; one Admission, one source-bound `provider-accepted` Outbox, accepted receipt and answer attempts | No new original-message reaction rendering capture                      |
+| `BH1040-R3-DM`                | One Admission, one matching accepted Outbox, accepted receipt and answer attempts                                                                  | Does not extend the prior DM visual proof to group rendering            |
+| `BH1040-R3-MUTED`             | One Admission with both wake modes `silent`; accepted receipt, no Outbox and no answered attempt                                                   | Receipt-only state observed during this window                          |
+| Provider disconnect/reconnect | Same identity retained, connection restored, feedback records unchanged; subsequent sources processed                                              | Live receiver Host restart was not performed                            |
+| `BH1040-R3-BLOCKED`           | Canonical block and grant revocation verified; no matching Admission observed; Human reported sending                                              | In-window send time and Provider arrival unconfirmed; **not qualified** |
+
+The authenticated Web identity editor showed the same three sources and attempt states in both themes. These are cropped **post-merge light/dark** captures at the same observed 1280 × 720 viewport, not pre-feature before/after evidence. Platform acceptance does not prove external rendering.
+
+| Light                                                                                   | Dark                                                                                       |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![Web feedback states, light theme](../evidence/issue-1040/lark-feedback-web-light.jpg) | ![Same Web feedback states, dark theme](../evidence/issue-1040/lark-feedback-web-dark.jpg) |
+
+The Web page also went blank during the Provider hot lifecycle and logged `SlotAssemblyError: scope 'session-maybe' rendered without an installed adapter`. Reload later recovered the page; the cause is unverified. The captures do not establish that the hot lifecycle is reliable.
+
+QA identity/account cleanup and temporary credential removal completed, the window Host stopped, and production was verified running at **03:58:21.920 JST**. The independent restoration timer was then stopped. The Human separately confirmed that **both production Lark and Discord replied** in their known working conversations. The browser Discord marker had targeted BotHarness Cloud QA, so it was not used as production recovery evidence.
+
+A subsequent private cold restart had **no configured IM accounts and no active identities**, and retained all feedback records unchanged. This is persistence evidence only. Still pending: blocked-message arrival/rejection proof, live receiver Host restart, actual group reaction rendering, investigation of the Web hot-lifecycle failure, and the other unexercised acceptance cases above. Source merge and these results do not publish, deploy or promote the Provider pin.
+
+本轮由 Human 新授权，03:50:18.602 开始，预设 03:58:18.602 本地截止和 03:59:18.602 服务器自动恢复，均在最长十分钟内。两端精确版本和 400 个 Provider 运行文件摘要已核对，窗口前真实本地 DM 已验证模型可用。网页确认 DeepSeekBot 在 BH Cloud QA 群内，但原生 @ 列表加载失败，因此由 Human 使用可用客户端发送真实群 @、私聊和静音消息；网页提交不等于送达。
+
+群消息的受校验事件确认真实提及账号；群与私聊各只有一次 Admission、一次对应的已接受 Outbox，以及 accepted 接收／回答尝试。静音私聊只有一次 Admission，两项 wake mode 均为 `silent`，仅接收 accepted，没有 Outbox 或回答尝试。Provider 重连保留同一身份、反馈记录不变，后续来源可处理。屏蔽及 grant 撤销已核验，但屏蔽消息是否在窗口内发出、是否到达 Provider 尚无证据；没有 Admission 不能单独证明屏蔽成功。
+
+Web 明暗截图显示同样三条来源与状态，只是合并后的主题对照，不是功能实现前后对照，也不证明群原消息表情实际显示。Provider 热生命周期期间网页曾空白并记录上述 `SlotAssemblyError`；刷新后恢复，根因未确认，不能据截图宣称热生命周期可靠。
+
+QA 身份、账号及临时凭据清理，窗口 Host 停止，03:58:21.920 核验生产运行后停止独立恢复计时器；Human 已分别确认原有生产 Lark／Discord 会话正常回复。后续无 IM 账号、无活动身份的私有冷启动保留全部反馈记录，只证明持久性，不等于现场 receiver 重启验收。屏蔽消息到达／拒绝、现场重启、群原消息实际表情、Web 热生命周期故障及上表其他未执行项仍待验证；不发布、不部署、不提升 Provider pin。
