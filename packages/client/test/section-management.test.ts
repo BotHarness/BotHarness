@@ -91,6 +91,7 @@ describe('section menus', () => {
       'manual',
       'roster-separator',
       'hidden',
+      'channel-history',
     ]);
   });
 

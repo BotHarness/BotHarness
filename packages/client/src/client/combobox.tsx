@@ -2,6 +2,7 @@ import { useId, useRef, useState, type KeyboardEvent, type ReactElement } from '
 import { createPortal } from 'react-dom';
 import {
   IconChevronDownOutlineRegular,
+  IconPlusOutlineRegular,
   Input,
   MenuSurface,
   useAnchoredPosition,
@@ -49,6 +50,7 @@ export const COMBOBOX_CSS = `
 .bh-combobox-scroll { max-height: 260px; overflow-y: auto; padding: 4px; box-sizing: border-box; }
 .bh-combobox-hint { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
 .bh-combobox-empty { padding: 6px 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.bh-combobox-scroll > .bh-combobox-action { justify-content: flex-start; align-items: center; gap: 6px; border-top: 1px solid var(--dsw-alias-border-l2); border-radius: 0; margin-top: 4px; }
 `;
 
 export function Combobox({
@@ -66,6 +68,7 @@ export function Combobox({
   createLabel,
   searchable = true,
   className,
+  action,
 }: {
   readonly value: string;
   readonly options: readonly ComboboxOption[];
@@ -81,10 +84,16 @@ export function Combobox({
   readonly createLabel?: (query: string) => string;
   readonly searchable?: boolean;
   readonly className?: string;
+  readonly action?: {
+    readonly label: string;
+    readonly onSelect: () => void;
+    readonly disabled?: boolean;
+  };
 }): ReactElement {
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const actionValue = `${listId}-action`;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState<string | undefined>(undefined);
   const [active, setActive] = useState<string | undefined>(undefined);
@@ -101,9 +110,13 @@ export function Combobox({
     createLabel !== undefined &&
     trimmed !== '' &&
     !options.some((option) => option.value === trimmed);
-  const shown: ComboboxOption[] = canCreate
+  const choices: ComboboxOption[] = canCreate
     ? [...matches, { value: trimmed, label: createLabel(trimmed) }]
     : matches;
+  const shown =
+    action === undefined
+      ? choices
+      : [...choices, { value: actionValue, label: action.label, disabled: action.disabled }];
   const enabled = shown.filter((option) => option.disabled !== true);
   const highlighted = shown.findIndex(
     (option) => option.value === active && option.disabled !== true,
@@ -124,7 +137,8 @@ export function Combobox({
   };
   const select = (next: string): void => {
     dismiss();
-    onSelect(next);
+    if (action !== undefined && next === actionValue) action.onSelect();
+    else onSelect(next);
   };
   const typedChoice = (): string | undefined => {
     if (query === undefined) return current === '' ? undefined : current;
@@ -235,7 +249,7 @@ export function Combobox({
               }}
             >
               <div className="bh-combobox-scroll">
-                {shown.length === 0 && emptyLabel !== undefined ? (
+                {choices.length === 0 && emptyLabel !== undefined ? (
                   <div className="bh-combobox-empty">{emptyLabel}</div>
                 ) : null}
                 {shown.map((option, index) => (
@@ -244,7 +258,9 @@ export function Combobox({
                     id={`${listId}-${index}`}
                     type="button"
                     role="option"
-                    aria-selected={option.value === current}
+                    aria-selected={option.value !== actionValue && option.value === current}
+                    className={option.value === actionValue ? 'bh-combobox-action' : undefined}
+                    data-action={option.value === actionValue || undefined}
                     data-value={option.value}
                     data-active={index === highlighted || undefined}
                     disabled={option.disabled}
@@ -255,6 +271,7 @@ export function Combobox({
                     }}
                     onClick={() => select(option.value)}
                   >
+                    {option.value === actionValue ? <IconPlusOutlineRegular size={16} /> : null}
                     {option.label}
                     {option.hint === undefined ? null : (
                       <span className="bh-combobox-hint">{option.hint}</span>

@@ -109,6 +109,10 @@ const NO_INSTALL = { installable: false, install: { phase: 'idle' as const } };
 
 function stubActions(): BridgeActions {
   return {
+    channelHistory: vi.fn(),
+    channelHistorySources: vi.fn(),
+    channelPurgePreview: vi.fn(),
+    channelPurgeConfirm: vi.fn(),
     deletionPreview: vi.fn(),
     deletionConfirm: vi.fn(),
     deletionRetry: vi.fn(),
@@ -1072,12 +1076,13 @@ describe('bot sidebar rows', () => {
       'manual',
       'roster-separator',
       'hidden',
+      'channel-history',
     ]);
     expect(menu.items[0]?.['type']).toBe('label');
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
     expect(
       menu.items.filter((item) => item['label'] !== undefined).map((item) => item['label']),
-    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊']);
+    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊', '已结束会话的历史']);
     expect(menu.selectedId).toBe('manual');
   });
 

@@ -9,11 +9,14 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
+- Content Purge adds Profile schema Generation 68 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
 
 - Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).
+
+- Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).
 
@@ -73,6 +76,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - A Bot's IM settings moved from its Profile to two new entries in the DM's Channel sidebar. **External identities** lists each bound identity as a row with its availability and an on/off switch, plus **Bind identity**, the Lark setup guide, IM administrator pairing and Lark approval notifications. **External connectors** lists one row per connector with its state and an on/off switch, plus **Add connector** and conversation authorization. Clicking a row opens a dialog to edit it, with the same options as before. **Channel connectors** are now called **External connectors**. The SOUL.md and MEMORY.md standing limits became one row under **Memory files** that opens a dialog. The moved forms now use the shared dropdowns, inputs and checkboxes ([#1085](https://github.com/BotHarness/BotHarness/issues/1085), [External identities guide](docs/channel-sidebar/external-identities.md), [External connectors guide](docs/channel-sidebar/external-connectors.md)).
 
 ### Fixed
+
+- **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
 

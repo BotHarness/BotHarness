@@ -1,6 +1,15 @@
 import { externalPlatformLabel } from './bridge-source-label.js';
-import { useState, type ReactElement } from 'react';
-import { Button, Input, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useRef, useState, type ReactElement } from 'react';
+import {
+  Button,
+  Input,
+  Switch,
+  Tag,
+  Tooltip,
+  IconPlusOutlineRegular,
+  IconRefreshOutlineRegular,
+  IconRightUpOutlineRegular,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type {
   MessagingIdentityInput,
@@ -14,7 +23,8 @@ import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
-import { openImSettings } from './bot-settings-open.js';
+import { openExternalBindingSettings } from './bot-settings-open.js';
+import { useMountedResource } from './mounted-resource.js';
 
 const AVAILABILITY = {
   available: 'identity.state.available',
@@ -29,6 +39,7 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  refresh,
   channels,
   botName = (slug) => slug,
 }: {
@@ -37,6 +48,7 @@ export function ExternalIdentityList({
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
   botName?(slug: string): string;
 }): ReactElement {
@@ -48,7 +60,32 @@ export function ExternalIdentityList({
   const [typingEnabled, setTypingEnabled] = useState(true);
   const [newConversations, setNewConversations] = useState<'auto' | 'ask' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const active = useRef(false);
+  const refreshSequence = useRef(0);
+  const settingsCleanup = useRef<(() => void) | undefined>(undefined);
+  const mount = useMountedResource<HTMLUListElement>(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      refreshSequence.current++;
+      settingsCleanup.current?.();
+    };
+  }, []);
+  const refreshApps = async () => {
+    const sequence = ++refreshSequence.current;
+    const current = () => active.current && refreshSequence.current === sequence;
+    setRefreshing(true);
+    setError('');
+    try {
+      await refresh();
+    } catch {
+      if (current()) setError(t('identity.refreshFailed'));
+    } finally {
+      if (current()) setRefreshing(false);
+    }
+  };
   const identities = snapshot?.identities ?? [];
   const accounts = snapshot?.accounts ?? [];
   const selectedAccount = accounts.find((a) => a.providerId + ':' + a.ref === accountKey);
@@ -61,6 +98,9 @@ export function ExternalIdentityList({
       (g) => g.bindingId === row.id && !g.revokedAt && g.receiveScope !== undefined,
     );
   const open = (next: typeof mode, row?: MessagingIdentityView) => {
+    settingsCleanup.current?.();
+    refreshSequence.current++;
+    setRefreshing(false);
     setError('');
     setMode(next);
     setSelected(row);
@@ -71,9 +111,32 @@ export function ExternalIdentityList({
       row?.newConversationsInheritance === 'custom' ? row.newConversations : 'inherit',
     );
     setAccountKey('');
+    if (next === 'bind') void refreshApps();
   };
   const close = () => {
-    if (!busy) setMode(undefined);
+    if (!busy) {
+      refreshSequence.current++;
+      setRefreshing(false);
+      settingsCleanup.current?.();
+      setMode(undefined);
+    }
+  };
+  const openAppSettings = () => {
+    setMode(undefined);
+    settingsCleanup.current?.();
+    settingsCleanup.current = openExternalBindingSettings(
+      document,
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        void refreshApps();
+      },
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        setError(t('identity.settingsUnavailable'));
+      },
+    );
   };
   const operate = async (operation: () => Promise<void>, done = false) => {
     if (busy) return;
@@ -136,7 +199,7 @@ export function ExternalIdentityList({
           {error}
         </p>
       ) : null}
-      <SidebarCardList label={t('identity.title')}>
+      <SidebarCardList label={t('identity.title')} listRef={mount}>
         {[...identities]
           .sort(
             (a, b) =>
@@ -265,7 +328,12 @@ export function ExternalIdentityList({
                 className={mode === 'unbind' ? 'bh-im-danger' : undefined}
                 disabled={
                   busy ||
-                  (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
+                  (mode === 'bind' &&
+                    (refreshing ||
+                      !selectedAccount ||
+                      !selectedAccount.connected ||
+                      !!selectedAccount.boundBotSlug ||
+                      !!selectedAccount.unsupported)) ||
                   (mode === 'edit' && !name.trim())
                 }
                 onClick={() => void operate(save, mode !== 'bind')}
@@ -305,68 +373,94 @@ export function ExternalIdentityList({
                       rel="noopener noreferrer"
                     >
                       {t(`identity.tutorial.${guide}`)}
+                      <IconRightUpOutlineRegular size={14} />
                     </a>
                   ))}
                 </div>
               </nav>
-              <label className="bh-im-field">
-                <span>{t('identity.app')}</span>
-                <Combobox
-                  label={t('identity.app')}
-                  toggleLabel={t('identity.app')}
-                  placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
-                  emptyLabel={t('identity.noApps')}
-                  disabled={busy}
-                  value={accountKey}
-                  onSelect={setAccountKey}
-                  options={accounts
-                    .filter(
-                      (account) =>
-                        !identities.some(
-                          (i) =>
-                            i.providerId === account.providerId && i.accountRef === account.ref,
-                        ),
-                    )
-                    .sort(
-                      (a, b) =>
-                        Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
-                          Number(b.boundBotSlug !== undefined || !b.connected || !!b.unsupported) ||
-                        platform(a.platform).localeCompare(platform(b.platform)) ||
-                        a.name.localeCompare(b.name),
-                    )
-                    .map((account) => ({
-                      value: account.providerId + ':' + account.ref,
-                      label: account.name,
-                      hint: account.unsupported
-                        ? t('identity.appUnsupported', { platform: platform(account.platform) })
-                        : account.boundBotSlug === undefined
-                          ? account.connected
-                            ? platform(account.platform)
-                            : t('identity.appOffline', { platform: platform(account.platform) })
-                          : t('identity.appUsedBy', {
-                              platform: platform(account.platform),
-                              name: botName(account.boundBotSlug),
-                            }),
-                      disabled:
-                        !account.connected ||
-                        account.boundBotSlug !== undefined ||
-                        !!account.unsupported,
-                    }))}
-                />
-              </label>
-              <div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    setMode(undefined);
-                    openImSettings(document, () => undefined);
-                  }}
-                >
-                  {t('identity.manageApps')}
-                </Button>
+              <div className="bh-im-field">
+                <div className="bh-im-app-heading">
+                  <span>{t('identity.app')}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy || refreshing}
+                    onClick={openAppSettings}
+                  >
+                    <IconPlusOutlineRegular size={16} />
+                    {t('identity.manageApps')}
+                  </Button>
+                </div>
+                <div className="bh-im-app-picker">
+                  <Combobox
+                    label={t('identity.app')}
+                    toggleLabel={t('identity.app')}
+                    placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
+                    emptyLabel={t('identity.noApps')}
+                    disabled={busy}
+                    value={accountKey}
+                    onSelect={setAccountKey}
+                    action={{
+                      label: t('identity.manageApps'),
+                      onSelect: openAppSettings,
+                      disabled: busy || refreshing,
+                    }}
+                    options={accounts
+                      .filter(
+                        (account) =>
+                          !identities.some(
+                            (i) =>
+                              i.providerId === account.providerId && i.accountRef === account.ref,
+                          ),
+                      )
+                      .sort(
+                        (a, b) =>
+                          Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
+                            Number(
+                              b.boundBotSlug !== undefined || !b.connected || !!b.unsupported,
+                            ) ||
+                          platform(a.platform).localeCompare(platform(b.platform)) ||
+                          a.name.localeCompare(b.name),
+                      )
+                      .map((account) => ({
+                        value: account.providerId + ':' + account.ref,
+                        label: account.name,
+                        hint:
+                          account.boundBotSlug !== undefined
+                            ? t('identity.appUsedBy', {
+                                platform: platform(account.platform),
+                                name: botName(account.boundBotSlug),
+                              })
+                            : account.unsupported
+                              ? t('identity.appUnsupported', {
+                                  platform: platform(account.platform),
+                                })
+                              : account.connected
+                                ? platform(account.platform)
+                                : t('identity.appOffline', {
+                                    platform: platform(account.platform),
+                                  }),
+                        disabled:
+                          !account.connected ||
+                          account.boundBotSlug !== undefined ||
+                          !!account.unsupported,
+                      }))}
+                  />
+                  <Tooltip label={t('identity.refreshApps')} portal side="bottom" delayMs={250}>
+                    <button
+                      type="button"
+                      className="bh-icon-btn bh-im-app-refresh"
+                      aria-label={t('identity.refreshApps')}
+                      aria-busy={refreshing}
+                      disabled={busy || refreshing}
+                      onClick={() => void refreshApps()}
+                    >
+                      <IconRefreshOutlineRegular size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
+              {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
             </>
           ) : mode === 'bound' && selectedAccount ? (
             <>

@@ -1,5 +1,6 @@
 import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
+import type { ChannelHistoryItem, PurgeSource, PurgePreview } from '../purge/contracts.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type {
@@ -553,6 +554,31 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.channelGroupDelete({ channelId }));
   }
 
+  channelHistory(): { channels: ChannelHistoryItem[] } {
+    return unwrap(this.methods.channelHistory({}));
+  }
+  channelHistorySources(
+    channelId: string,
+    before?: string,
+  ): { sources: PurgeSource[]; before?: string } {
+    return unwrap(
+      this.methods.channelHistorySources({
+        channelId,
+        ...(before === undefined ? {} : { before }),
+      }),
+    );
+  }
+  channelPurgePreview(channelId: string, sourceEventIds: string[]): PurgePreview {
+    return unwrap(this.methods.channelPurgePreview({ channelId, sourceEventIds }));
+  }
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): { accepted: number } {
+    return unwrap(this.methods.channelPurgeConfirm({ channelId, sourceEventIds, token }));
+  }
+
   channelMessages(
     channelId: string,
     before?: string,
@@ -1095,6 +1121,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelGroupWakeSet',
   'channelGroupWakePolicies',
   'channelGroupDelete',
+  'channelHistory',
+  'channelHistorySources',
+  'channelPurgePreview',
+  'channelPurgeConfirm',
   'channelMessages',
   'channelTimeline',
   'channelReadPosition',
