@@ -411,6 +411,7 @@ export interface BotAgentAdapter {
   runAssignment(run: AssignmentAgentRun): Promise<void>;
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery;
   stopAssignment?(sessionId: string): Promise<void>;
+  stopBot?(botSlug: string, sessionIds: string[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -458,6 +459,7 @@ export interface BotRuntime {
   admitScheduleFiring?(botSlug: string): void;
   resumePendingDigests?(botSlug: string): void;
 
+  stopBot?(botSlug: string): Promise<void>;
   whenIdle(): Promise<void>;
   close(): Promise<void>;
 }
@@ -2489,6 +2491,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const previous = this.#tails.get(turnKey) ?? Promise.resolve();
     let run: Promise<void>;
     const invoke = (): Promise<void> => {
+      if (this.#registry.get(turnKey) === undefined) return Promise.resolve();
       this.#activeTurns.set(turnKey, run);
       return task();
     };
@@ -2547,6 +2550,47 @@ class BotRuntimeImplementation implements BotRuntime {
         .get(botSlug, sessionId),
     ) as AssignmentRow | undefined;
     return row === undefined ? undefined : assignmentFromRow(row);
+  }
+
+  async stopBot(botSlug: string): Promise<void> {
+    const owned = () =>
+      this.#ownership
+        .rootsFor(botSlug)
+        .flatMap((root) => [
+          root.sessionId,
+          ...this.#ownership.descendantsOf(root.sessionId).map((child) => child.sessionId),
+        ]);
+    const sessionIds = owned();
+    const active = [
+      this.#tails.get(botSlug),
+      ...sessionIds.map((id) => this.#assignmentRuns.get(id)),
+    ].filter((run): run is Promise<void> => run !== undefined);
+    if (this.#agents.stopBot === undefined && active.length > 0)
+      throw new Error('Agent adapter cannot stop this Bot safely');
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(
+            "UPDATE assignments SET stop_state = 'requested', updated_at = ? WHERE bot_slug = ? AND stop_state = 'running'",
+          )
+          .run(this.#now().toISOString(), botSlug);
+      },
+      ['assignments'],
+    );
+    await this.#agents.stopBot?.(botSlug, sessionIds);
+    await Promise.allSettled(active);
+    await this.#agents.stopBot?.(botSlug, owned());
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(
+            "UPDATE assignments SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL, updated_at = ? WHERE bot_slug = ? AND stop_state = 'requested'",
+          )
+          .run(this.#now().toISOString(), botSlug);
+      },
+      ['assignments'],
+    );
+    this.#pendingHarvests.delete(botSlug);
   }
 
   async whenIdle(): Promise<void> {
@@ -4488,6 +4532,7 @@ class BotRuntimeImplementation implements BotRuntime {
   ): AssignmentCreateOutcome {
     const purpose = requireNonBlank(input.purpose, 'Assignment purpose');
     const grantId = requireNonBlank(input.grantId, 'Workspace Grant id');
+    if (this.#registry.get(bot.slug) === undefined) throw new Error('PersonaBot is deleted');
     const plan = this.#registry.get(bot.slug)?.modelPlan ?? bot.modelPlan;
     if (input.model !== undefined && !isAssignmentModelChoice(input.model))
       throw new Error('Assignment model choice is invalid');
@@ -4647,6 +4692,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (input.model !== undefined) {
       if (!isAssignmentModelChoice(input.model))
         throw new Error('Assignment model choice is invalid');
+      if (this.#registry.get(bot.slug) === undefined) throw new Error('PersonaBot is deleted');
       const plan = this.#registry.get(bot.slug)?.modelPlan ?? bot.modelPlan;
       if (plan === undefined)
         throw new Error('Apply a Model Preset before choosing an Assignment model');

@@ -1,0 +1,49 @@
+{
+  "startedAt": "2026-10-08T05:53:30.029Z",
+  "checks": [
+    {
+      "name": "real-model-DM-reply",
+      "channelId": "dm-bot-5c5dee4eac284607b35751fc7f2df435"
+    },
+    {
+      "name": "native-folder-target",
+      "kind": "directory"
+    },
+    {
+      "name": "retain-Memory-native-history-and-late-input-denial",
+      "phase": "complete",
+      "memory": "retained"
+    },
+    {
+      "name": "explicit-Memory-erasure",
+      "phase": "complete",
+      "memory": "erased"
+    },
+    {
+      "name": "drain-real-Agent-awaiting-native-approval",
+      "phase": "complete",
+      "sessions": ["botharness-0d9ee0d1-2e78-481b-b873-3c57115c3e1f"]
+    },
+    {
+      "name": "cold-restart-terminal-fence-Memory-outcome-and-native-history",
+      "passed": true
+    }
+  ],
+  "bots": {
+    "retained": "bot-5c5dee4eac284607b35751fc7f2df435",
+    "erased": "bot-874350c3e61946eaaf624118f4468b89",
+    "working": "bot-d6922f8448a8427dad28a91c37d145fd"
+  },
+  "finishedAt": "2026-10-08T05:56:43.864Z",
+  "humanReviewBots": [
+    {
+      "slug": "bot-2b139b12c54a402cafdbd8157231d3dd",
+      "displayName": "Human QA896 keep Memory"
+    },
+    {
+      "slug": "bot-9306d3e2d51048ffa8233d23220b9262",
+      "displayName": "Human QA896 erase Memory"
+    }
+  ],
+  "coldCheckedAt": "2026-10-08T06:12:01.757Z"
+}

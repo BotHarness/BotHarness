@@ -61,6 +61,7 @@ function InviteMemberModal({
   const available = bots.filter(
     (bot) =>
       !bot.paused &&
+      !bot.deleted &&
       !group.members.includes(bot.slug) &&
       !group.invitations?.some(
         (invitation) => invitation.targetBotSlug === bot.slug && invitation.status === 'pending',

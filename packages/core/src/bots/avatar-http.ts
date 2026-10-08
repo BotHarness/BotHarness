@@ -30,7 +30,7 @@ export function createBotAvatarHttp(
     if (slug === null || slug.length === 0) {
       return new Response('slug is required', { status: 400 });
     }
-    const avatar = registry.get(slug)?.avatar;
+    const avatar = registry.getHistorical(slug)?.avatar;
     if (avatar === undefined || !avatar.startsWith('data:image/')) {
       return new Response('not found', { status: 404, headers: { 'cache-control': 'no-store' } });
     }
