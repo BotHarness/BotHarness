@@ -10,6 +10,7 @@ import {
   loadMemoryGitCommitDiff,
   loadSessionBotOwner,
   loadActivityOverview,
+  botExists,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
@@ -59,6 +60,19 @@ const DM = {
 };
 
 describe('bridge transport', () => {
+  it('proves Bot existence from a complete identity list and rejects malformed results', async () => {
+    expect(await botExists(bridgeCall({ list: () => ({ bots: [{ slug: 'ada' }] }) }), 'ada')).toBe(
+      true,
+    );
+    expect(await botExists(bridgeCall({ list: () => ({ bots: [] }) }), 'ada')).toBe(false);
+    for (const value of [{}, { bots: [{}] }, { bots: [{ slug: 'grace' }, null] }])
+      await expect(botExists(bridgeCall({ list: () => value }), 'ada')).rejects.toThrow();
+    await expect(
+      botExists(async () => {
+        throw new Error('Offline');
+      }, 'ada'),
+    ).rejects.toThrow('Offline');
+  });
   it('loads a bounded owner for one native root Session', async () => {
     const owner = await loadSessionBotOwner(
       bridgeCall({

@@ -33,6 +33,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import { apply, PANEL_ID } from '../src/client/index.js';
 import { store } from '../src/client/store.js';
+import { WindowCompanion } from '../src/client/window-companion.js';
 
 interface Spec {
   name: string;
@@ -143,11 +144,64 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, wit
 }
 
 describe('client apply', () => {
+  it('mirrors companion health only on transitions and clears stale health when unpinned', async () => {
+    const streams: EventTarget[] = [];
+    vi.stubGlobal('fetch', async () => Response.json({ profileId: 'qa' }));
+    vi.stubGlobal(
+      'EventSource',
+      class extends EventTarget {
+        constructor() {
+          super();
+          streams.push(this);
+        }
+        close() {}
+      },
+    );
+    store.setMode('dsh');
+    store.setActivitySync('live');
+    const calls = vi.spyOn(store, 'setActivitySync');
+    const specs: Spec[] = [];
+    let companion: WindowCompanion | undefined;
+    try {
+      apply(createScoped(specs, []) as never);
+      const value = specs.find((spec) => spec.name === 'shell.overlay')?.inject?.();
+      if (
+        typeof value !== 'object' ||
+        value === null ||
+        !('companion' in value) ||
+        !(value.companion instanceof WindowCompanion)
+      )
+        throw new Error('Companion overlay unavailable');
+      companion = value.companion;
+      await vi.waitFor(() => expect(companion!.getSnapshot().ready).toBe(true));
+      store.setRosterStatus('loading', undefined);
+      calls.mockClear();
+      companion.select('ada');
+      streams[0]!.dispatchEvent(new Event('error'));
+      companion.reading(true);
+      companion.configure({ walking: false });
+      expect(calls.mock.calls).toEqual([['stale']]);
+      companion.remove();
+      expect(store.getSnapshot().activitySync).toBe('live');
+      expect(calls.mock.calls).toEqual([['stale'], ['live']]);
+    } finally {
+      companion?.dispose();
+      calls.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
   it('registers the bot-mode entry, the main panel, and the mode shadows', () => {
     store.setMode('dsh');
-    const specs: Spec[] = [];
+    const registrations: Spec[] = [];
     const disposed: Spec[] = [];
-    apply(createScoped(specs, disposed) as never);
+    apply(createScoped(registrations, disposed) as never);
+    expect(registrations[0]).toMatchObject({
+      name: 'shell.overlay',
+      id: 'botharness-window-companion',
+      locale: 'botharness',
+      inject: expect.any(Function),
+    });
+    const specs = registrations.slice(1);
 
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
@@ -184,6 +238,7 @@ describe('client apply', () => {
     });
 
     store.setMode('bot');
+    specs.splice(0, specs.length, ...registrations.slice(1));
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
@@ -202,6 +257,7 @@ describe('client apply', () => {
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
+    expect(disposed).not.toContain(registrations[0]);
   });
 
   it('registers the BotHarness settings section only while configForms is served', () => {
