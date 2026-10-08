@@ -345,7 +345,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 ## 接收与回答反馈（候选）
 
-[#1040](https://github.com/BotHarness/BotHarness/issues/1040) 候选在**原始入站消息**上增加可选反馈：Source Event 与 Inbox Admission 持久提交后尝试原生 `GLANCE`；只有该来源的明确回复获外部 Provider 接受后才尝试 `DONE`。Human 已选择这两个官方类型，实际样式仍需新的 QA 窗口确认。表情不表示 Human 已读。
+[#1040](https://github.com/BotHarness/BotHarness/issues/1040) 候选在**原始入站消息**上增加可选反馈：Source Event 与 Inbox Admission 持久提交后尝试原生 `GLANCE`；只有该来源的明确回复获外部 Provider 接受后才尝试 `DONE`。Human 已选择这两个官方类型，授权复测已确认私聊原消息实际显示两者。表情不表示 Human 已读。
 
 未提及 Bot 的普通群消息、待允许请求及被屏蔽会话没有 Admission 反馈。静音仍会静默接收，因此可能出现 `GLANCE`；明确回复获接受后可以出现 `DONE`。静默结束、等待澄清、委派完成、失败或结果未知的发送，以及无关主动输出均不表示已回答。
 
@@ -353,7 +353,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 反馈独立运行，限时四秒并限制并发。权限失败、来源删除或传输不可用不会阻塞 Inbox 接收、模型工作或回复。attempt 持久保留且不自动重试，包括重启／重连；后来启用权限也不会补发历史表情。已认证的 `messagingSnapshot` 管理 API 暴露 `reactionSupported` 和近期 `feedback` 状态：`attempted`、`accepted`、`unavailable`、`failed`、`unknown`。Web 的现有 Lark 身份编辑窗口显示反馈能力与最近五条来源的尝试状态；刷新外部身份可更新。中断的 `attempted` 或 `unknown` 不是成功。
 
-准备、用例及恢复见[精确候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/02e1ac33473407cb33bf9894801322d0e6a220ba/docs/agents/qa-lark-feedback.md)。2026-10-09 窗口确认两条来源各有对应的已接受回复，但应用以 `99991672` 拒绝表情写入，真实样式尚未合格。维护者需先审查表情写入权限，再安排新窗口；上方旧引导截图不是反馈证据。
+准备、精确测试版本及恢复见[候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/codex/1040-lark-feedback/docs/agents/qa-lark-feedback.md)。首次窗口发现权限缺失后，Human 明确授权并添加 `im:message.reactions:write_only`。2026-10-09 有自动恢复保障的复测通过已登录的 Codex 内置浏览器完成：两条不同私聊各有对应回复，原消息显示 `GLANCE`／`DONE`；静默私聊仅有 `GLANCE`。生产已恢复，Lark／Discord 正常回复已确认。群聊、静音／屏蔽、重连／重启及 Web 明暗对照截图仍待验证，两份 PR 保持草稿；上方旧引导截图不是反馈证据。
 
 ## Channel 历史中的图片
 

@@ -17,7 +17,7 @@
 
 ### Added
 
-- Lark 反馈候选通过可选 checked Provider，在 Inbox 持久接收后显示原生 `GLANCE`、对应回复获外部接受后显示 `DONE`。新会话首条反馈异步等待受校验回复连接就绪；SDK 权限拒绝归为明确失败。首次真实窗口的普通回复正常，但发现表情权限缺失，实际样式仍待验证（[#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)）。
+- Lark 反馈候选通过可选 checked Provider，在 Inbox 持久接收后显示原生 `GLANCE`、对应回复获外部接受后显示 `DONE`；首条反馈等待受校验连接就绪，权限拒绝归为明确失败。授权补充权限后的有界浏览器复测已确认私聊表情及静默消息仅接收，群聊与恢复用例仍待验证（[#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)）。
 
 - 完成首次真实 Bot 对话后，欢迎消息提供可选的「绑定应用」入口，复用既有平台选择和官网教程；选择「暂时不绑定」保留完成状态，绑定结果与接收状态以真实记录为准（[#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)）。
 
