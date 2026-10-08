@@ -107,6 +107,12 @@ export const zh = {
   'onboarding.newsRequest': '帮我看一下今天的新闻',
   'onboarding.dailyRequest': '每天早上 9 点给我一份新闻摘要',
   'onboarding.testRequest': '10 分钟后提醒我测试定时任务',
+  'onboarding.reminderHint': '只提醒一次 · 当前私聊 · {timeZone}',
+  'onboarding.reminderUnknownHint': '无法识别时区，先确认再设置',
+  'onboarding.reminderBody':
+    '请在 10 分钟后只提醒我一次“测试定时任务”，发送到当前私聊。我的时区是 {timeZone}。请确认具体提醒时间。',
+  'onboarding.reminderUnknownBody':
+    '我想在 10 分钟后收到一次“测试定时任务”的提醒，发送到当前私聊。但浏览器无法识别我的时区，请先问我使用哪个时区，再创建真实的一次性任务。',
   'onboarding.freeform': '也可以直接在下方输入你的问题。',
   'onboarding.goal': '完成一次真实对话，就完成了开始体验。',
   'onboarding.preparing': '正在准备你的 Bot…',
@@ -2499,6 +2505,12 @@ export const en = {
   'onboarding.newsRequest': 'Help me catch up on today’s news',
   'onboarding.dailyRequest': 'Give me a news summary every morning at 9',
   'onboarding.testRequest': 'Remind me to test scheduled tasks in 10 minutes',
+  'onboarding.reminderHint': 'Once only · This DM · {timeZone}',
+  'onboarding.reminderUnknownHint': 'Time zone unavailable; confirm it before scheduling',
+  'onboarding.reminderBody':
+    'Remind me once in 10 minutes to “test scheduled tasks” in this DM. My time zone is {timeZone}. Please confirm the scheduled time.',
+  'onboarding.reminderUnknownBody':
+    'I want a one-time reminder in 10 minutes to “test scheduled tasks” in this DM. My browser could not identify my time zone. Ask which time zone to use before creating a real one-time schedule.',
   'onboarding.freeform': 'You can also type your own question below.',
   'onboarding.goal': 'One real conversation completes your first experience.',
   'onboarding.preparing': 'Preparing your Bot…',

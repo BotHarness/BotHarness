@@ -19,6 +19,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. An authorized scope update and guarded browser retest verified DM reactions and receipt-only silence; group and recovery qualification remain pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
 
+- The welcome’s ten-minute reminder now shows the browser time zone and requests a single delivery to the current DM; the Host computes relative deadlines without rounding them early, and the Bot receives concise one-time scheduling and destination guidance ([#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)).
+
 - Every Bot now has a Profile banner at the top of its Profile and its popover. New Bots get a pixel scene picked from their name, which a rename doesn't change; existing Bots get one at the next start. **Change banner** picks one of ten scenes, rerolls the picture, uploads an image cropped to 3:1, or resets to the generated scene. `.botharness/bot.json` records the banner, `.botharness/banner.png` is always written, and Bot Zip export, import and Git import keep it ([#1092](https://github.com/BotHarness/BotHarness/issues/1092)).
 
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
@@ -116,6 +118,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Documented an [AX browser qualification loop](docs/agents/ax-browser.md) that separates exact-origin permission evidence, Host transport, navigation refusals and screenshot/input timeouts, including measured retries on Human-authorized local ports ([#1225](https://github.com/BotHarness/DeepSeekBot/issues/1225)).
 
 - Documented the accepted pixel Avatar extension: Avatar Species on one rig (fantasy, animal and flower bases), separately colored hair pieces, a through-hair headpiece slot, and Human-drawn Custom Parts in a Profile Part Library that travel with exported PersonaBots and move as PNGs; runtime behavior is unchanged ([#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md), [handoff](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)).
 

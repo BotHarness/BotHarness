@@ -578,12 +578,28 @@ it('offers news, daily-summary and timed-test requests through the normal welcom
     en['onboarding.firstRequest'],
     en['onboarding.newsRequest'],
     en['onboarding.dailyRequest'],
-    en['onboarding.testRequest'],
   ];
   for (const prompt of prompts) {
     await act(async () => button(prompt).click());
     expect(send).toHaveBeenLastCalledWith(prompt);
   }
+  const reminder = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) =>
+      candidate.querySelector('.bh-card-title')?.textContent === en['onboarding.testRequest'],
+  );
+  if (reminder === undefined) throw new Error('Missing reminder card');
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  expect(reminder.textContent).toContain(
+    timeZone
+      ? translate('onboarding.reminderHint', { timeZone })
+      : en['onboarding.reminderUnknownHint'],
+  );
+  await act(async () => reminder.click());
+  expect(send).toHaveBeenLastCalledWith(
+    timeZone
+      ? translate('onboarding.reminderBody', { timeZone })
+      : en['onboarding.reminderUnknownBody'],
+  );
   expect(send).toHaveBeenCalledTimes(4);
 });
 
