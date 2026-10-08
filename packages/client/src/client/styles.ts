@@ -2315,6 +2315,69 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   background: var(--bh-hover);
   color: var(--dsw-alias-label-primary);
 }
+.bh-profile-header {
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+.bh-profile-banner {
+  aspect-ratio: 3 / 1;
+  max-height: 200px;
+  width: 100%;
+  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-profile-header-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 16px;
+}
+.bh-profile-header-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: -40px;
+}
+.bh-profile-header-top .bh-profile-avatar-button {
+  flex: none;
+  border: 4px solid var(--dsw-alias-bg-module-platform);
+  background: var(--dsw-alias-bg-module-platform);
+}
+.bh-profile-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+.bh-profile-header-actions > button { white-space: nowrap; }
+.bh-profile-header .bh-profile-view-name { margin-top: 4px; white-space: normal; overflow-wrap: anywhere; }
+.bh-profile-header .bh-profile-description { -webkit-line-clamp: unset; overflow-wrap: anywhere; }
+.bh-profile-bio-input {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+.bh-profile-bio-input:focus-visible {
+  outline: 2px solid var(--bh-accent);
+  outline-offset: 2px;
+}
+.bh-profile-bio-count { align-self: flex-end; font-variant-numeric: tabular-nums; }
+.bh-personabot-hint[data-invalid="true"] { color: var(--dsw-alias-state-error-primary); }
+.bh-profile-avatar-modal { width: min(760px, calc(100vw - 32px)); }
+.bh-profile-avatar-modal .bh-avatar-section { margin: 0; padding: 0; border: 0; }
+.bh-profile-avatar-modal .bh-avatar-section > .bh-profile-section-title { display: none; }
 .bh-profile-view-identity {
   display: flex;
   align-items: flex-start;

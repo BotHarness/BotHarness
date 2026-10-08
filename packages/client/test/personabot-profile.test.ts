@@ -9,7 +9,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   return {
     IconCodeOutlineRegular: () => null,
     IconBranchOutlineRegular: () => null,
-    Button: stub,
+    Button: ({
+      children,
+      onClick,
+      disabled,
+    }: PropsWithChildren<{ onClick?: () => void; disabled?: boolean }>) =>
+      createElement('button', { type: 'button', onClick, disabled }, children),
     HoverCard: stub,
     IconAgentPresetOutlineRegular: stub,
     IconCheckOutlineRegular: stub,
@@ -40,7 +45,15 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     MarkdownText: stub,
     Menu: stub,
     MenuItemButton: stub,
-    Modal: stub,
+    Modal: ({
+      open,
+      title,
+      children,
+      footer,
+    }: PropsWithChildren<{ open: boolean; title: string; footer?: unknown }>) =>
+      open
+        ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer as never)
+        : null,
     SegmentedControl: stub,
     StateDot: stub,
     Switch: stub,
@@ -74,8 +87,12 @@ function profileCardRegistry() {
   return registry;
 }
 
-function setNativeValue(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+function setNativeValue(input: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -87,7 +104,7 @@ function click(container: HTMLElement, selector: string): void {
 }
 
 describe('PersonaBot Profile surface', () => {
-  it('opens from the DM avatar, expands into the Channel body, and edits the name', async () => {
+  it('opens from the DM avatar, expands into the Channel body, and edits the profile', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const previous = store.getSnapshot();
     const bot = {
@@ -120,6 +137,7 @@ describe('PersonaBot Profile surface', () => {
     store.setSessions({ status: 'ready', items: [], error: undefined });
 
     const renameChannel = vi.fn(async () => true);
+    const updateBotProfile = vi.fn(async () => true);
     const setBotAvatar = vi.fn(async () => true);
     const profileActivity = vi.fn(async () => ({
       slug: 'ada',
@@ -161,6 +179,7 @@ describe('PersonaBot Profile surface', () => {
       })),
       channelBridge: vi.fn(async () => undefined),
       renameChannel,
+      updateBotProfile,
       setBotAvatar,
       profileActivity,
       profileUsage: vi.fn(async (_channelId: string, filter: UsageFilter) => ({
@@ -227,11 +246,18 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
       expect([...sections].map((section) => section.getAttribute('aria-label'))).toEqual([
-        '头像',
         '活动概览',
-        '分享与导出',
-        '删除 Bot',
       ]);
+      const header = container.querySelector('.bh-profile-header');
+      expect(header?.querySelector('.bh-profile-banner')).not.toBeNull();
+      expect(
+        [...(header?.querySelectorAll('.bh-profile-header-actions > button') ?? [])].map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(['分享', '编辑资料']);
+      expect(header?.textContent).toContain('研究员');
+      expect(header?.textContent).toContain('与你一起发布研究。');
+      expect(container.querySelector('.bh-profile-view')?.textContent).not.toContain('删除 Bot');
       expect(container.querySelector('.bh-profile-view .bh-model-entry')).toBeNull();
       expect(container.querySelector('.bh-profile-view .bh-wake-policy-entry')).toBeNull();
       expect(container.querySelector('.bh-profile-view')?.textContent).not.toContain('模型预设');
@@ -255,27 +281,34 @@ describe('PersonaBot Profile surface', () => {
       expect(sidebarLabels).toContain('外部连接器');
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
-      await act(async () => click(container, '.bh-profile-edit'));
-      const input = container.querySelector<HTMLInputElement>('.bh-name-input');
-      expect(input).not.toBeNull();
-      expect(input?.value).toBe('Ada');
-
-      await act(async () => {
-        if (input !== null) setNativeValue(input, '  ');
-      });
-      expect(
-        container.querySelector<HTMLButtonElement>('.bh-profile-action-primary')?.disabled,
-      ).toBe(true);
-
-      await act(async () => {
-        if (input !== null) setNativeValue(input, 'Bea');
-      });
-      const form = container.querySelector<HTMLFormElement>('.bh-profile-name-edit');
-      await act(async () => {
-        form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      });
+      const headerButton = (label: string) =>
+        [...container.querySelectorAll<HTMLButtonElement>('.bh-profile-header button')].find(
+          (button) => button.textContent === label,
+        )!;
+      await act(async () => headerButton('编辑资料').click());
+      const editor = container.querySelector('[role="dialog"][aria-label="编辑资料"]')!;
+      const input = editor.querySelector<HTMLInputElement>('.bh-name-input')!;
+      expect(input.value).toBe('Ada');
+      const saveButton = () =>
+        [...editor.querySelectorAll<HTMLButtonElement>('button')].find(
+          (button) => button.textContent === '保存',
+        )!;
+      await act(async () => setNativeValue(input, '  '));
+      expect(saveButton().disabled).toBe(true);
+      const bio = editor.querySelector<HTMLTextAreaElement>('.bh-profile-bio-input')!;
+      expect(bio.value).toBe('与你一起发布研究。');
+      await act(async () => setNativeValue(bio, 'x'.repeat(161)));
+      await act(async () => setNativeValue(input, 'Bea'));
+      expect(saveButton().disabled).toBe(true);
+      expect(editor.textContent).toContain('161/160');
+      await act(async () => setNativeValue(bio, '帮你找资料'));
+      await act(async () => saveButton().click());
       expect(renameChannel).toHaveBeenCalledWith('dm-ada', 'Bea');
-      expect(container.querySelector('.bh-name-input')).toBeNull();
+      expect(updateBotProfile).toHaveBeenCalledWith('ada', {
+        roles: ['研究员'],
+        description: '帮你找资料',
+      });
+      expect(container.querySelector('[role="dialog"][aria-label="编辑资料"]')).toBeNull();
 
       const heatCell = container.querySelector<HTMLElement>(
         '.bh-profile-heat-cell:not([data-level="future"])',
@@ -297,7 +330,9 @@ describe('PersonaBot Profile surface', () => {
       });
       expect(container.querySelector('.bh-profile-heat-tip')).toBeNull();
 
-      const avatarMethods = sections[0]?.querySelectorAll('.bh-avatar-methods > .bh-card-row');
+      await act(async () => click(container, '.bh-profile-avatar-button'));
+      const avatarDialog = container.querySelector('[role="dialog"][aria-label="头像"]');
+      const avatarMethods = avatarDialog?.querySelectorAll('.bh-avatar-methods > .bh-card-row');
       expect(avatarMethods?.length).toBe(2);
       expect(avatarMethods?.[0]?.textContent).toContain('设计像素头像');
       expect(avatarMethods?.[1]?.textContent).toContain('上传图片');
