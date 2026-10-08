@@ -353,7 +353,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 反馈独立运行，限时四秒并限制并发。权限失败、来源删除或传输不可用不会阻塞 Inbox 接收、模型工作或回复。attempt 持久保留且不自动重试，包括重启／重连；后来启用权限也不会补发历史表情。已认证的 `messagingSnapshot` 管理 API 暴露 `reactionSupported` 和近期 `feedback` 状态：`attempted`、`accepted`、`unavailable`、`failed`、`unknown`。Web 的现有 Lark 身份编辑窗口显示反馈能力与最近五条来源的尝试状态；刷新外部身份可更新。中断的 `attempted` 或 `unknown` 不是成功。
 
-准备、用例及恢复见[精确候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/8a060307395c00953135ba00f765d00fbe5ff96f/docs/agents/qa-lark-feedback.md)。2026-10-09 窗口确认两条来源各有对应的已接受回复，但应用以 `99991672` 拒绝表情写入，真实样式尚未合格。维护者需先审查表情写入权限，再安排新窗口；上方旧引导截图不是反馈证据。
+准备、用例及恢复见[精确候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/02e1ac33473407cb33bf9894801322d0e6a220ba/docs/agents/qa-lark-feedback.md)。2026-10-09 窗口确认两条来源各有对应的已接受回复，但应用以 `99991672` 拒绝表情写入，真实样式尚未合格。维护者需先审查表情写入权限，再安排新窗口；上方旧引导截图不是反馈证据。
 
 ## Channel 历史中的图片
 

@@ -77,6 +77,23 @@
     "SDK HTTP permission denials were retained as unknown by the tested candidate. Historical attempts are not rewritten or resent."
   ],
   "followup": {
+    "offlineCandidates": {
+      "botharnessRuntime": "02e1ac33473407cb33bf9894801322d0e6a220ba",
+      "provider": "26e6d66d2ac3c3658d3a0faabdc154ff75af441e",
+      "providerBundleSha256": "b411693e9af3f38493a1c55443fb1f783dfe13df3564cf724f2e913b308fbeb4",
+      "liveRetested": false
+    },
+    "offlineValidation": {
+      "feedbackTestsPassed": 10,
+      "existingDefaultTrafficTestsPassed": 21,
+      "providerFocusedTestsPassed": 94,
+      "providerHostSubsetTestsPassed": 23,
+      "requiredChecks": [
+        "root typecheck, lint, format and bilingual release ledgers passed",
+        "root build and 416-page documentation build passed",
+        "provider build and package verification passed"
+      ]
+    },
     "offlineRegressionCoverage": "New connection startup delay and actual installed SDK HTTP permission rejection; fixes tested locally after this window.",
     "liveRetest": "Requires reviewed reaction-write permission and a fresh authorized window; do not reuse this completed window.",
     "pending": [
