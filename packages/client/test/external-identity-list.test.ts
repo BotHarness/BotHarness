@@ -725,3 +725,74 @@ it('resumes WeChat QR pairing in the bind dialog and binds only after authentica
     vi.useRealTimers();
   }
 });
+
+it('keeps cancellation final when the resumed QR poll returns after the cancel click', async () => {
+  const { ProviderAppSetup } = await import('../src/client/provider-app-setup.js');
+  const { CreateAppForm } = await import('../src/client/create-app-form.js');
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.useFakeTimers();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let cancelSent = false;
+  const descriptor = {
+    version: 1 as const,
+    providerId: 'dsh-im/weixin',
+    platform: 'weixin' as const,
+    kind: 'qr' as const,
+    endpoint: 'dsh-im/app-setup' as const,
+  };
+  const client = new ProviderAppSetup({
+    async call(_carrier, _endpoint, input) {
+      const method = (input as { method: string }).method;
+      if (method === 'setup.poll') await gate;
+      if (method === 'setup.cancel') cancelSent = true;
+      return {
+        ok: true,
+        value: {
+          version: 1,
+          channel: 'weixin',
+          attemptId: 'resumed-qr',
+          expiresAt: Date.now() + 60000,
+          state: method === 'setup.cancel' ? 'cancelled' : 'pending',
+          qrDataUrl: 'data:image/png;base64,aGVsbG8=',
+        },
+      };
+    },
+  });
+  await client.start('ada', descriptor);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(CreateAppForm, {
+          client,
+          botSlug: 'ada',
+          descriptors: [descriptor],
+          t: zhTranslate,
+          onCreated: vi.fn(async () => undefined),
+          onBack: vi.fn(),
+        }),
+      ),
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent === '取消创建')!
+        .click(),
+    );
+    expect(cancelSent).toBe(true);
+    await act(async () => release());
+    expect(client.current('ada')).toBeUndefined();
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  } finally {
+    release();
+    await act(async () => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  }
+});

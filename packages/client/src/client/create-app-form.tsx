@@ -68,25 +68,26 @@ export function CreateAppForm({
   };
   const mount = useMountedResource<HTMLFormElement>((node) => {
     active.current = true;
+    const epoch = requestEpoch.current;
     form.current = node;
     if (client.current(botSlug)) {
       setBusy(true);
       void client
         .poll(botSlug)
         .then((value) => {
-          if (active.current) {
+          if (active.current && epoch === requestEpoch.current) {
             setAttempt(value);
             keepPolling(value);
           }
         })
         .catch(() => {
-          if (active.current) {
+          if (active.current && epoch === requestEpoch.current) {
             setError(true);
             if (!client.current(botSlug)) setAttempt(undefined);
           }
         })
         .finally(() => {
-          if (active.current) setBusy(false);
+          if (active.current && epoch === requestEpoch.current) setBusy(false);
         });
     }
     return () => {
