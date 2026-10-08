@@ -253,7 +253,7 @@ const inboundSchema = z
   .refine(
     (event) =>
       !event.voice ||
-      (event.channel === 'weixin' &&
+      ((event.channel === 'weixin' || event.channel === 'qq') &&
         (!event.attachments?.length ||
           (event.attachments.length === 1 &&
             event.attachments[0]?.mediaType?.startsWith('audio/')))),
@@ -572,11 +572,11 @@ export function createDshImProvider(
               ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
                 ? { sourceQuotes: true }
                 : {}),
-              ...(platform === 'weixin' &&
+              ...((platform === 'weixin' || platform === 'qq') &&
               info.capabilities.includes('source-voice-transcript-checked')
                 ? { sourceVoiceTranscripts: true }
                 : {}),
-              ...(platform === 'weixin' &&
+              ...((platform === 'weixin' || platform === 'qq') &&
               host.fileVersion === 1 &&
               info.capabilities.includes('source-voice-audio-checked')
                 ? { sourceVoiceAudio: true }
@@ -649,7 +649,10 @@ export function createDshImProvider(
                 const qqAttachments = parsed.attachments?.every((item) =>
                   item.mediaType?.startsWith('image/')
                     ? sourceImages
-                    : sourceFiles && item.mediaType === 'application/octet-stream',
+                    : parsed.voice && item.mediaType === 'audio/unknown'
+                      ? host.fileVersion === 1 &&
+                        info.capabilities.includes('source-voice-audio-checked')
+                      : sourceFiles && item.mediaType === 'application/octet-stream',
                 );
                 if (
                   parsed.channel !== platform ||
@@ -947,8 +950,10 @@ export function createDshImProvider(
               !info.capabilities.includes('source-file-checked') ||
               (platform === 'qq' &&
                 !input.attachment.mediaType?.startsWith('image/') &&
-                (!info.capabilities.includes('source-generic-file-checked') ||
-                  !info.capabilities.includes('reply-file-fence-checked')))
+                (input.attachment.mediaType === 'audio/unknown'
+                  ? !info.capabilities.includes('source-voice-audio-checked')
+                  : !info.capabilities.includes('source-generic-file-checked') ||
+                    !info.capabilities.includes('reply-file-fence-checked')))
             )
               throw new MessagingError('provider-incompatible');
             return host.readSourceFile!(input.accountRef, input.route, input.attachment, {

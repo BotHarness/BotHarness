@@ -1,3 +1,4 @@
+import { decodeQqVoice } from '../attachments/qq-audio.js';
 import {
   createApprovalMessaging,
   type ApprovalMessaging,
@@ -956,7 +957,7 @@ export function createOutboundMessaging(options: {
         throw new MessagingError('source-unavailable');
       const source = inbound.read(botSlug, sourceEventId);
       if (
-        source.platform !== 'weixin' ||
+        (source.platform !== 'weixin' && source.platform !== 'qq') ||
         !source.event.voice ||
         !source.event.attachments?.some(
           (file) => file.id === attachmentId && file.mediaType?.startsWith('audio/'),
@@ -1007,7 +1008,14 @@ export function createOutboundMessaging(options: {
         validate();
         const digest = createHash('sha256')
           .update(bytes)
-          .update(JSON.stringify([sourceEventId, attachmentId, source.event.voice, 'silk-wav-v1']))
+          .update(
+            JSON.stringify([
+              sourceEventId,
+              attachmentId,
+              source.event.voice,
+              source.platform === 'qq' ? 'qq-silk-wav-v1' : 'silk-wav-v1',
+            ]),
+          )
           .digest('hex')
           .slice(0, 32);
         const uploadId = [
@@ -1022,7 +1030,10 @@ export function createOutboundMessaging(options: {
           name: 'voice.wav',
           signal: combined,
           load: async () => {
-            const wav = await decodeWeChatVoice(bytes, source.event.voice!, combined);
+            const wav =
+              source.platform === 'qq'
+                ? await decodeQqVoice(bytes, combined)
+                : await decodeWeChatVoice(bytes, source.event.voice!, combined);
             validate();
             return (async function* () {
               validate();
