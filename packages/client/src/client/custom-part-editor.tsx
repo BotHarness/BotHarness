@@ -43,6 +43,13 @@ interface Gesture {
   future: Layers[];
   from: Point;
   points: Point[];
+  fixed: boolean;
+}
+interface Noise {
+  base: Layers;
+  seed: string;
+  layer: PartLayerName;
+  mirror: boolean;
 }
 
 const FIXED_COLORS: readonly PartColor[] = [
@@ -71,6 +78,8 @@ const SHADES = [
   ['darker', -1],
 ] as const;
 const LONG_PRESS_MS = 500;
+const TAP_MS = 250;
+const STROKE_TOOLS = new Set<Tool>(['pencil', 'eraser', 'line', 'rect', 'gradient']);
 const OFFSET_ROWS = 3;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 16;
@@ -121,13 +130,15 @@ export function CustomPartEditor({
   const [gradientTo, setGradientTo] = useState<PartTone>(-2);
   const [dither, setDither] = useState<2 | 4>(4);
   const [noiseAmount, setNoiseAmount] = useState(0.4);
-  const [noise, setNoise] = useState<{ base: Layers; seed: string } | undefined>();
+  const [noise, setNoise] = useState<Noise | undefined>();
   const [offset, setOffset] = useState(false);
   const [cursor, setCursor] = useState<Point | undefined>();
   const gesture = useRef<Gesture | undefined>(undefined);
   const touches = useRef(new Set<number>());
   const most = useRef(0);
   const press = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const touchStart = useRef({ at: 0, moved: false, tap: true });
+  const pendingPick = useRef<Point | undefined>(undefined);
   const grid = useRef<HTMLDivElement>(null);
   const bare = useMemo(() => withAvatarCustomPart(recipe, slot, undefined), [recipe]);
   const part = useMemo(() => createCustomPart(slot, layers), [layers]);
@@ -145,9 +156,9 @@ export function CustomPartEditor({
     setFuture([]);
     setNoise(undefined);
   };
-  const noised = (base: Layers, seed: string, amount: number): Layers => ({
-    ...base,
-    [layer]: noisePartLayer(slot, base[layer], amount, seed, mirror),
+  const noised = (state: Noise, amount: number): Layers => ({
+    ...state.base,
+    [state.layer]: noisePartLayer(slot, state.base[state.layer], amount, state.seed, state.mirror),
   });
   const draw = (current: Gesture, to: Point, snap: boolean): Layers => {
     const { base, from, points } = current;
@@ -176,26 +187,25 @@ export function CustomPartEditor({
     setInk(found);
     if (tool === 'eraser' || tool === 'eyedropper') setTool('pencil');
   };
-  const begin = (point: Point, alt: boolean) => {
+  const begin = (point: Point, alt: boolean, touch = false) => {
     if (alt || tool === 'eyedropper') {
-      pick(point);
+      if (touch) pendingPick.current = point;
+      else pick(point);
       return;
     }
-    if (tool === 'noise') {
-      const seed = Math.random().toString(36).slice(2);
-      record();
-      setNoise({ base: layers, seed });
-      commit(noised(layers, seed, noiseAmount));
-      return;
-    }
+    const fixed = tool === 'fill' || tool === 'noise';
+    const current = { base: layers, future, from: point, points: [point], fixed };
     record();
-    const current = { base: layers, future, from: point, points: [point] };
-    commit(draw(current, point, false));
-    gesture.current = tool === 'fill' ? undefined : current;
+    if (tool === 'noise') {
+      const state = { base: layers, seed: Math.random().toString(36).slice(2), layer, mirror };
+      setNoise(state);
+      commit(noised(state, noiseAmount));
+    } else commit(draw(current, point, false));
+    gesture.current = fixed && !touch ? undefined : current;
   };
   const move = (point: Point, snap: boolean) => {
     const current = gesture.current;
-    if (!current) return;
+    if (!current || current.fixed) return;
     const last = current.points.at(-1)!;
     if (last[0] === point[0] && last[1] === point[1]) return;
     current.points = [...current.points, ...partLinePoints(last, point).slice(1)];
@@ -204,7 +214,7 @@ export function CustomPartEditor({
   const end = (point: Point | undefined, snap: boolean) => {
     const current = gesture.current;
     gesture.current = undefined;
-    if (current && point && tool !== 'pencil' && tool !== 'eraser')
+    if (current && !current.fixed && point && tool !== 'pencil' && tool !== 'eraser')
       commit(draw(current, point, snap));
   };
   const cancel = () => {
@@ -213,17 +223,18 @@ export function CustomPartEditor({
     if (!current) return;
     setPast((stack) => stack.slice(0, -1));
     setFuture(current.future);
+    setNoise(undefined);
     commit(current.base);
   };
   const reroll = () => {
     if (!noise) return;
     const seed = Math.random().toString(36).slice(2);
     setNoise({ ...noise, seed });
-    commit(noised(noise.base, seed, noiseAmount));
+    commit(noised({ ...noise, seed }, noiseAmount));
   };
   const changeAmount = (amount: number) => {
     setNoiseAmount(amount);
-    if (noise) commit(noised(noise.base, noise.seed, amount));
+    if (noise) commit(noised(noise, amount));
   };
   const undo = () => {
     const previous = past.at(-1);
@@ -241,11 +252,12 @@ export function CustomPartEditor({
     setNoise(undefined);
     commit(next);
   };
-  const cellAt = (event: ReactPointerEvent): Point | undefined => {
+  const cellAt = (event: ReactPointerEvent, clamp = true): Point | undefined => {
     const box = grid.current?.getBoundingClientRect();
     if (box && box.width > 0 && typeof event.clientX === 'number') {
       const x = Math.floor((event.clientX - box.left) / zoom);
       const y = Math.floor((event.clientY - box.top) / zoom);
+      if (!clamp && (x < 0 || x >= W || y < 0 || y >= H)) return undefined;
       return [Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y))];
     }
     const cell = (event.target as Element | null)?.closest?.('[data-part-cell]');
@@ -257,25 +269,33 @@ export function CustomPartEditor({
     if (press.current) clearTimeout(press.current);
     press.current = undefined;
   };
+  const colored = ([x, y]: Point) =>
+    !!(layers[layer][y]![x] ?? layers[layer === 'front' ? 'back' : 'front'][y]![x]);
   const onDown = (event: ReactPointerEvent) => {
     event.preventDefault();
-    if (event.pointerType === 'touch') {
+    const touch = event.pointerType === 'touch';
+    if (touch) {
       touches.current.add(event.pointerId);
       most.current = Math.max(most.current, touches.current.size);
-      if (touches.current.size > 1) {
+      if (touches.current.size === 1)
+        touchStart.current = { at: Date.now(), moved: false, tap: true };
+      else {
         clearPress();
-        cancel();
+        pendingPick.current = undefined;
+        const { at, moved } = touchStart.current;
+        if (Date.now() - at > TAP_MS || moved) touchStart.current.tap = false;
+        else cancel();
         return;
       }
     }
-    const point = cellAt(event);
+    const point = cellAt(event, false);
     if (!point) return;
     if (offset) {
       setCursor(aim(point));
       return;
     }
-    begin(point, event.altKey);
-    if (event.pointerType === 'touch' && tool !== 'eyedropper')
+    begin(point, event.altKey, touch);
+    if (touch && STROKE_TOOLS.has(tool) && colored(point))
       press.current = setTimeout(() => {
         press.current = undefined;
         cancel();
@@ -288,13 +308,16 @@ export function CustomPartEditor({
     if (offset) {
       if (touches.current.size > 0 || event.pointerType !== 'touch') {
         const target = aim(point);
-        setCursor(target);
+        if (cursor?.join() !== target.join()) setCursor(target);
         move(target, event.shiftKey);
       }
       return;
     }
     const current = gesture.current;
-    if (current && current.points.at(-1)?.join() !== point.join()) clearPress();
+    if (current && current.points.at(-1)?.join() !== point.join()) {
+      clearPress();
+      touchStart.current.moved = true;
+    }
     move(point, event.shiftKey);
   };
   const onUp = (event: ReactPointerEvent) => {
@@ -304,11 +327,26 @@ export function CustomPartEditor({
       if (touches.current.size > 0) return;
       const count = most.current;
       most.current = 0;
-      if (count === 2) undo();
-      if (count === 3) redo();
-      if (count > 1) return;
+      if (count > 1) {
+        if (touchStart.current.tap) {
+          if (count === 2) undo();
+          if (count === 3) redo();
+        } else end(gesture.current?.points.at(-1), false);
+        return;
+      }
+      const picked = pendingPick.current;
+      pendingPick.current = undefined;
+      if (picked) pick(picked);
     }
-    if (!offset) end(cellAt(event) ?? gesture.current?.points.at(-1), event.shiftKey);
+    if (!offset || gesture.current)
+      end(cellAt(event) ?? gesture.current?.points.at(-1), event.shiftKey);
+  };
+  const onAbort = (event: ReactPointerEvent) => {
+    clearPress();
+    pendingPick.current = undefined;
+    touches.current.delete(event.pointerId);
+    if (touches.current.size === 0) most.current = 0;
+    cancel();
   };
   const save = async () => {
     if (empty || busy) return;
@@ -502,7 +540,7 @@ export function CustomPartEditor({
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
-          onPointerCancel={onUp}
+          onPointerCancel={onAbort}
           onPointerLeave={(event) => {
             if (event.pointerType !== 'touch' && !offset) onUp(event);
           }}
@@ -539,10 +577,17 @@ export function CustomPartEditor({
             disabled={!cursor}
             onPointerDown={(event) => {
               event.preventDefault();
+              event.currentTarget.setPointerCapture?.(event.pointerId);
               if (cursor) begin(cursor, false);
             }}
             onPointerUp={() => end(cursor, false)}
-            onPointerCancel={() => end(cursor, false)}
+            onPointerCancel={() => cancel()}
+            onLostPointerCapture={() => end(cursor, false)}
+            onClick={(event) => {
+              if (event.detail !== 0 || !cursor) return;
+              begin(cursor, false);
+              end(cursor, false);
+            }}
           >
             {t('profile.avatar.part.offsetDraw')}
           </button>

@@ -196,6 +196,59 @@ describe('Custom Part drawing tools', () => {
     }
   });
 
+  it('cancels fill, noise and shapes cleanly on multi-touch and pointercancel', async () => {
+    vi.useFakeTimers();
+    const e = await mount();
+    try {
+      await e.down(4, 4, { touch: 1 });
+      await e.up({ touch: 1 });
+      expect(e.ink(4, 4)).toBe('hairColor:0');
+      await e.click('[data-part-tool="fill"]');
+      await e.click('button.bh-part-swatch[data-part-ink="#e2565f:0"]');
+      await e.down(0, 0, { touch: 2 });
+      expect(e.ink(0, 0)).toBe('#e2565f:0');
+      await e.down(1, 0, { touch: 3 });
+      expect(e.ink(0, 0)).toBeNull();
+      await e.up({ touch: 2 });
+      await e.up({ touch: 3 });
+      expect(e.ink(4, 4)).toBeNull();
+      expect(e.ink(0, 0)).toBeNull();
+
+      await e.click('[data-part-tool="line"]');
+      await e.down(2, 2);
+      await e.over(8, 2);
+      await act(() => e.$('[data-part-canvas]').dispatchEvent(pointer('pointercancel')));
+      expect(e.ink(2, 2)).toBeNull();
+      expect(e.ink(8, 2)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      await e.close();
+    }
+  });
+
+  it('re-rolls noise on the layer and mirror it was applied with', async () => {
+    const solid = createCustomPart('headpiece', {
+      front: partLayer(
+        'headpiece',
+        Array.from({ length: 32 }, (_, x) => [x, 4, 'shirtColor', 0] as const),
+      ),
+      back: partLayer('headpiece', [[0, 0, 'shirtColor', 0]]),
+    });
+    const e = await mount(solid);
+    try {
+      await e.click('[data-part-tool="noise"]');
+      await e.down(0, 0);
+      await e.click('[data-part-layer="back"]');
+      await e.click('[data-part-reroll]');
+      await e.click('[data-part-reroll]');
+      const part = e.change.mock.calls.at(-1)![0] as PixelCustomPart;
+      expect(part.back).toEqual([[0, 0, 'shirtColor', 0]]);
+      expect(part.front.some(([, , , tone]) => tone !== 0)).toBe(true);
+    } finally {
+      await e.close();
+    }
+  });
+
   it('undoes with a two-finger tap, redoes with three, and draws through an offset cursor', async () => {
     vi.useFakeTimers();
     const e = await mount();
@@ -224,7 +277,7 @@ describe('Custom Part drawing tools', () => {
       await e.down(8, 9, { touch: 7 });
       await act(() => vi.advanceTimersByTime(600));
       await e.up({ touch: 7 });
-      expect(e.ink(8, 9)).toBeNull();
+      expect(e.ink(8, 9)).toBe('#e2565f:0');
       await e.down(6, 6, { touch: 8 });
       await act(() => vi.advanceTimersByTime(600));
       await e.up({ touch: 8 });
