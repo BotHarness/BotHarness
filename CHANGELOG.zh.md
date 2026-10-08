@@ -42,6 +42,7 @@
 - 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
 
 - AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。
+- 新增微信原生输入状态源码预览候选，随已授权扫码者私聊的实际处理启动，有界续期并在处理结束或授权失效时清理，身份设置可单独关闭；原生客户端显示和打包产品验证仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪（[指南](docs/wechat-connection.md)、[ADR-0145](docs/adr/0145-wechat-typing-follows-owned-processing-leases.md)）。
 
 - 个人微信已授权扫码者私聊支持受控主动文字报告，复用纯外部 Outbox、发送前授权检查及私有上下文缺失的恢复提示；Profile 可显式投递，客户端确认和实际返回的原生服务器消息 ID 分开记录，不宣称送达或已读回执（[#910](https://github.com/BotHarness/BotHarness/issues/910)，[指南](docs/wechat-connection.md)）。
 

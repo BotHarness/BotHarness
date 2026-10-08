@@ -222,6 +222,28 @@ The recording shows real Profile input, send, Outbox settlement and receipt insp
 
 [Download the proactive-send recording](/guides/wechat/proactive-send-demo.mp4)
 
+## 13. Request native typing while the Bot works
+
+The #911 preview candidate connects native typing to the canonical Bot processing lifecycle. In Windows packaged candidate `.911.7`, the Human confirmed native typing during private-message, related Assignment and follow-up processing, and no indicator during actual work with the preference off. Genuine native pwsh waits and final replies were verified. The Human confirmed cleanup after failure, native Session cancellation, Binding disablement, Grant revocation, Provider disposal and a Windows Host interruption/restart. Fresh-message recovery passed after revocation and restart. The subsequent main integration uses candidate `.911.8` and a fresh Profile; its native requalification remains pending. See the [Windows verification record](qa/wechat-911-windows-handoff.md) for evidence and limits; this is still a Draft candidate awaiting final Human QA and artifact promotion.
+
+Open **PersonaBot DM → Channel sidebar → External identities → Edit** for the bound WeChat identity. **Native WeChat typing status** defaults to on; turn it off to suppress requests for that identity. The preference survives restart. A Provider lacking the checked capability is shown as unavailable, even when the preference is on. Global defaults and Profile inheritance belong to #912.
+
+Only actual processing of a currently authorized paired-owner DM requests typing. Related Orchestrator and Assignment work share the lifecycle; unrelated local Channel work does not borrow the WeChat identity. Queued follow-ups wait for acceptance. Requests renew no more frequently than every five seconds and end after ten minutes at most, even if work continues.
+
+```mermaid
+flowchart LR
+    A[Authorized owner DM] --> B[Canonical Inbox processing]
+    B --> C[Own identity and current Grant]
+    C --> D[Provider-private typing ticket]
+    D --> E[Bounded native request and renewal]
+    E --> F[Completion, stop, failure or authority loss]
+    F --> G[Native cancellation]
+```
+
+**Request accepted** reports API acceptance, not visible client typing, delivery or reading. **Typing request did not succeed** means processing can continue without typing. **Typing cleanup is unconfirmed** means cancellation could not be confirmed; do not describe it as successful cleanup or promise an undocumented server expiry. Turning the identity off or revoking its authorization cancels active leases; restart begins idle and never restores a saved indicator.
+
+For real verification, send a unique controlled request in the paired WeChat DM, observe the native typing indicator during actual work, and capture its disappearance after completion and a stopped/failed run. The Human operates WeChat and records those observations; Host logs alone cannot satisfy this check. Native tickets, pairing codes and unrelated chats stay out of evidence. See [#911](https://github.com/BotHarness/BotHarness/issues/911) for the qualification record.
+
 ## Pause or reconnect
 
 Mute the DM to stop it waking the Bot, or Block it to refuse future messages, while retaining history. Unbind the app to remove its authority. Re-pairing changes the identity fingerprint and needs a new binding; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.

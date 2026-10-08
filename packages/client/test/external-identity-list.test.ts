@@ -45,6 +45,74 @@ import { ExternalIdentityList } from '../src/client/external-identity-list.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { chooseOption, openCombobox } from './primitive-mocks.js';
 
+it('edits WeChat typing in the current identity modal and keeps native request acceptance distinct from display', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const identity = {
+    id: 'wechat',
+    botSlug: 'ada',
+    providerId: 'dsh-im/weixin',
+    platform: 'weixin',
+    accountRef: 'paired',
+    fingerprint: 'a'.repeat(64),
+    name: 'QA WeChat',
+    enabled: true,
+    revision: 7,
+    createdAt: '2026-10-08T00:00:00Z',
+    availability: 'available' as const,
+    newConversations: 'auto' as const,
+    grantCount: 0,
+    scopes: [],
+    typingEnabled: true,
+    typing: { supported: true, phase: 'accepted' as const },
+  };
+  const mutate = vi.fn(async () => undefined);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ExternalIdentityList, {
+          snapshot: { accounts: [], identities: [identity], grants: [], intents: [] },
+          t: zhTranslate,
+          mutate,
+          conversation: vi.fn(),
+          rules: vi.fn(),
+        }),
+      ),
+    );
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      zhTranslate('identity.typing.accepted'),
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[title="编辑身份：QA WeChat"]')!.click(),
+    );
+    const toggle = container.querySelector<HTMLButtonElement>(
+      `[aria-label="${zhTranslate('identity.typing.label')}"]`,
+    )!;
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      zhTranslate('identity.typing.label'),
+    );
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    await act(async () => toggle.click());
+    const save = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent === '保存身份',
+    )!;
+    await act(async () => save.click());
+    expect(mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: 'wechat',
+        expectedRevision: 7,
+        typingEnabled: false,
+        newConversations: 'inherit',
+      }),
+    );
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it('failed Switch writes retain the committed preference; stale Modal edits retain input rather than overwrite', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const identity = {

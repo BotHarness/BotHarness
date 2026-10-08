@@ -4,7 +4,18 @@ export interface MessagingAccount {
   name: string;
   fingerprint: string;
   connected: boolean;
+  typingSupported?: boolean;
   unsupported?: 'checked-send';
+}
+
+export interface MessagingTypingState {
+  phase: 'idle' | 'requesting' | 'accepted' | 'cleanup-unconfirmed';
+  reason?: string;
+}
+
+export interface MessagingTypingLease {
+  accepted: true;
+  stop(): Promise<void>;
 }
 
 export interface MessagingTarget {
@@ -189,6 +200,14 @@ export interface MessagingProvider {
     route: MessagingReplyRoute;
     signal: AbortSignal;
   }): Promise<MessagingReplyRoute>;
+  beginTyping?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    signal: AbortSignal;
+    beforeSend(): boolean;
+    onState(state: MessagingTypingState): void;
+  }): Promise<MessagingTypingLease>;
   reply?(input: {
     accountRef: string;
     fingerprint: string;
