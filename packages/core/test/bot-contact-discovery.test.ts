@@ -59,7 +59,7 @@ async function exercise(
     core.registry.create({ slug: 'paused', displayName: 'Paused' });
     core.registry.setPaused('paused', true);
     core.registry.create({ slug: 'removed', displayName: 'Removed' });
-    core.registry.remove('removed');
+    await core.deletions.confirm('removed', core.deletions.preview('removed').token, false);
     const dm = core.channels.getOrCreateDm('owner', 'Owner')!;
     await core.channels.appendMessage(dm.id, {
       id: 'human-start',

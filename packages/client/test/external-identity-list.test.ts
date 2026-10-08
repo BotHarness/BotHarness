@@ -122,7 +122,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
       expectedRevision: 7,
       name: 'Retained edit',
       inheritEnabled: false,
-      newConversations: 'auto',
+      newConversations: 'inherit',
       enabled: true,
     });
   } finally {

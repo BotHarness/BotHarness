@@ -56,6 +56,8 @@ The first DM or @mention that reaches the Inbox records its conversation. Click 
 - **Admit automatically** (default): the message goes straight to the Inbox.
 - **Ask me first**: the conversation waits under **Waiting**. Only its name, first and last seen time and message count are kept, never the message text. After **Allow**, the next message is admitted.
 
+Each app starts on **Follow platform default**, which uses the **New conversations** column in the platform's global IM defaults (Lark, Slack and Discord each have one; **Admit automatically** unless you change it). Pick **Admit automatically** or **Ask me first** in the app dialog to override it for that app only.
+
 To keep a busy app from flooding the Inbox, at most 20 new conversations per app join automatically each hour, and an app holds at most 500 active conversations. Past either limit, new conversations wait under **Waiting** and the row says which limit was hit. **Waiting** keeps the 200 most recent conversations per app.
 
 ![The app’s conversation list](/guides/channel-sidebar/19c-app-conversations-en.webp)
