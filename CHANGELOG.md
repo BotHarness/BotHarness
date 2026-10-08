@@ -71,6 +71,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
+
 - Unpinning a Window Companion clears its stale Activity indicator; a successfully loaded Bot roster also clears a deleted Bot's restored selection, while network failures preserve the Human's pin preferences ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)).
 
 - Window Companions lean behind the grab point when dragged left or right and settle against the window content edge without a floor gap ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)).

@@ -31,6 +31,50 @@ export function distTagFor(version) {
   return semver.prerelease(version) ? 'next' : 'latest';
 }
 
+export function readReleaseSourceState(directory) {
+  const changes = execFileSync(
+    'git',
+    [
+      '--no-optional-locks',
+      '-c',
+      'core.quotePath=false',
+      'status',
+      '--porcelain=v1',
+      '--untracked-files=all',
+    ],
+    { cwd: directory, encoding: 'utf8' },
+  )
+    .split('\n')
+    .filter(Boolean);
+  return {
+    sourceDirty: changes.length > 0,
+    sourceChangeCount: changes.length,
+    sourceChanges: changes.slice(0, 50),
+  };
+}
+
+export function assertCleanReleaseSource(plan) {
+  if (plan.sourceDirty === false) return;
+  const changes = plan.sourceChanges?.slice(0, 50) ?? [];
+  throw new Error(
+    'Release requires a clean source checkout.\n' +
+      JSON.stringify(
+        {
+          code: 'release-source-dirty',
+          sourceChangeCount: plan.sourceChangeCount ?? null,
+          sourceChanges: changes,
+          sourceChangesOmitted: Math.max(
+            0,
+            (plan.sourceChangeCount ?? changes.length) - changes.length,
+          ),
+          hint: 'Inspect git status and review the listed paths. Preserve unknown changes; do not reset or clean them automatically. Older plans without paths must be inspected in their original checkout.',
+        },
+        null,
+        2,
+      ),
+  );
+}
+
 function tarText(directory, artifact, path) {
   return execFileSync('tar', ['-xOf', join(directory, artifact.filename), `package/${path}`], {
     encoding: 'utf8',
@@ -86,10 +130,10 @@ export function verifyRelease(directory, expected = {}) {
     plan.artifactsSha256 !== digest(readFileSync(join(directory, 'artifacts.json'))) ||
     (expected.version && plan.productVersion !== expected.version) ||
     (expected.sourceSha && plan.sourceSha !== expected.sourceSha) ||
-    (expected.planSha256 && digest(planBytes) !== expected.planSha256) ||
-    (expected.clean && plan.sourceDirty !== false)
+    (expected.planSha256 && digest(planBytes) !== expected.planSha256)
   )
     throw new Error('Reviewed release plan does not match these artifacts');
+  if (expected.clean) assertCleanReleaseSource(plan);
   const packages = publicationOrder.map((name) => {
     const artifact = inventory.artifacts.find((a) => a.name === name);
     const files = execFileSync('tar', ['-tzf', join(directory, artifact.filename)], {
@@ -249,6 +293,9 @@ async function main() {
       providerSource: resolve(args.get('--provider-source')),
       version,
     });
+    const sourceState = readReleaseSourceState(root);
+    if (sourceState.sourceDirty)
+      console.warn(JSON.stringify({ code: 'release-source-dirty', ...sourceState }));
     writeFileSync(
       join(directory, 'release-plan.json'),
       `${JSON.stringify(
@@ -259,13 +306,7 @@ async function main() {
             cwd: root,
             encoding: 'utf8',
           }).trim(),
-          sourceDirty: !!execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
-            cwd: root,
-            encoding: 'utf8',
-          })
-            .trim()
-            .split('\n')
-            .filter(Boolean).length,
+          ...sourceState,
           providerSource: productImProvider.upstream.source,
           dsh: productImProvider.upstream.dsh,
           publicationOrder,
