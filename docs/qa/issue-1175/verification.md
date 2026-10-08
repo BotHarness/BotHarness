@@ -117,6 +117,19 @@ Post-merge validation: full Client **970/970**; related core **36/36** (credenti
 
 The generation-69 QA Profiles used for the paired screenshots remain historical evidence and were not reopened with this generation-71 Host. A fresh isolated Profile passed the merged runtime check through the real Chrome Client: one initial welcome, four joined choices, one native single-choice question and one multiple-choice question. Switching the single choice was exclusive; Space toggled a checkbox and clicking its description restored it. Explicit submission produced exactly one answer (“看看今天的新闻” plus “科技, 商业”), disabled the controls, received the genuine Bot reply “选择已确认”, and displayed “已完成第一次对话”. No scheduled task was created. Startup diagnostics reported `shell-ready` with no earlier failures; current console warnings/errors were empty. The QA companion was hidden after its floating control intercepted the first send click; no duplicate request was sent. The older screenshot Profile was preserved. [Pending choices](question-options-71-pending.jpg) and [resolved reply](question-options-71-reply.jpg) are additional dark-mode captures from this new Profile, not replacements for the matched before/after pairs.
 
+## Welcome creation-action contrast
+
+The welcome's Create PersonaBot action previously used a transparent native ghost Button. It now uses the native outlined Button with a scoped theme-accented fill, label and border. The label mixes the native business accent with the native primary label for legibility; normal and hover fills derive from the accent and base surface. Native 36px geometry remains intact, with a visible keyboard focus outline. This changes presentation only; Enter still opens the original creation dialog and Escape closes it without creating a Bot or adding a message.
+
+Verified in the same generation-71 Chrome Profile and conversation, with matching Chinese light/dark viewport captures at **1559 × 865**. Tab reached the creation action, focus was visible, and Enter opened the existing dialog. The original Follow system preference was restored. Full Client regression **970/970**, focused onboarding/token guards **26/26**, typecheck, lint, formatting, build and bilingual ledgers pass.
+
+One deep-theme screenshot attempt timed out; a subsequent DOM/console inspection showed the intact page and a later capture succeeded without reload. The retained console contains one earlier asynchronous-listener/message-channel error, whose initiator is unqualified. Startup diagnostics preserve two earlier short `shell-lost`/`shell-mounted` transitions around Client rebuilds; the current document reports `shell-ready` and has no first failure. These observations are retained as evidence, not claimed as a product fix or an entirely error-free history.
+
+| Theme | Before                            | After                           |
+| ----- | --------------------------------- | ------------------------------- |
+| Light | [Before](create-before-light.jpg) | [After](create-after-light.jpg) |
+| Dark  | [Before](create-before-dark.jpg)  | [After](create-after-dark.jpg)  |
+
 ## Runnable review
 
 Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-home> --port <free-port> --build` and open the printed local login URL. Never reuse a production Profile for schema verification. To reproduce missing configuration, point the native provider's `apiKeyEnv` at an unset QA reference through native Settings; do not remove shared credentials.

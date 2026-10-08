@@ -242,7 +242,7 @@ export function OnboardingWelcome({
           }}
         />
       </SidebarCardList>
-      <Button variant="ghost" onClick={requestBotCreation}>
+      <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
         {t('roster.menu.createBot')}
       </Button>
     </div>

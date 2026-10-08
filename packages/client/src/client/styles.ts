@@ -24,6 +24,8 @@ export const CSS =
   /* @bh-brand-aliases:end */
   /* @bh-onboarding-aliases:start — native separator for the tutorial strip. */
   --bh-onboarding-border: var(--dsw-alias-border-l2);
+  --bh-onboarding-surface: var(--dsw-alias-bg-base);
+  --bh-onboarding-label: var(--dsw-alias-label-primary);
   /* @bh-onboarding-aliases:end */
   /* @bh-bridge-media-aliases:start — reuse the pinned native focus and muted labels. */
   --bh-bridge-media-focus: var(--dsw-alias-state-business-primary);
@@ -100,6 +102,9 @@ export const CSS =
 .bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
 .bh-onboarding-welcome > button { justify-self: start; }
 .bh-onboarding-welcome .bh-card-title { white-space: normal; }
+.bh-onboarding-welcome .bh-onboarding-create { color: color-mix(in srgb, var(--bh-accent) 80%, var(--bh-onboarding-label)); background: color-mix(in srgb, var(--bh-accent) 10%, var(--bh-onboarding-surface)); border-color: color-mix(in srgb, var(--bh-accent) 35%, transparent); }
+.bh-onboarding-welcome .bh-onboarding-create:hover:not(:disabled) { background: color-mix(in srgb, var(--bh-accent) 18%, var(--bh-onboarding-surface)); }
+.bh-onboarding-welcome .bh-onboarding-create:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
 .bh-onboarding-model-form > button { justify-self: start; }
 .bh-onboarding-model-form .bh-card-title { white-space: normal; }
 .bh-onboarding-model-form { display: grid; gap: 16px; min-width: 0; line-height: 20px; }
