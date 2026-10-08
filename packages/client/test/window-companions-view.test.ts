@@ -6,6 +6,7 @@ import { WindowCompanions } from '../src/client/window-companions.js';
 import { WindowCompanionsView, CompanionSettings } from '../src/client/window-companions-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { GroupChannelHeader } from '../src/client/group-channel-header.js';
+import { CompanionSound } from '../src/client/companion-sound.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -103,6 +104,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
   const node = document.createElement('div');
   document.body.append(node);
   const root = createRoot(node);
+  const listeners = vi.spyOn(document, 'addEventListener');
+  const removals = vi.spyOn(document, 'removeEventListener');
+  const unlock = vi.spyOn(CompanionSound.prototype, 'unlock');
   try {
     await act(() =>
       root.render(
@@ -141,6 +145,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
       ),
     );
     const pins = node.querySelectorAll<HTMLButtonElement>('.bh-companion-pin');
+    expect(listeners).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+    document.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(unlock).not.toHaveBeenCalled();
     expect(pins).toHaveLength(2);
     expect(pins[0]!.getAttribute('aria-label')).toContain('Ada');
     expect(pins[1]!.getAttribute('aria-label')).toContain('Grace');
@@ -348,6 +355,10 @@ it('pins independently, exposes right-click controls and applies global bounded 
     expect(node.querySelector('[data-bot="grace"]')).not.toBeNull();
   } finally {
     await act(() => root.unmount());
+    expect(removals).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+    listeners.mockRestore();
+    removals.mockRestore();
+    unlock.mockRestore();
     node.remove();
     owner.dispose();
     measurement.mockRestore();

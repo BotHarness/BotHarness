@@ -67,11 +67,13 @@ export function WindowCompanionsView({
     sync();
     const unsubscribe = companion.subscribe(sync);
     document.addEventListener('click', unlock);
+    document.addEventListener('pointerdown', unlock);
     document.addEventListener('keydown', unlock);
     document.addEventListener('visibilitychange', visibility);
     return () => {
       unsubscribe();
       document.removeEventListener('click', unlock);
+      document.removeEventListener('pointerdown', unlock);
       document.removeEventListener('keydown', unlock);
       document.removeEventListener('visibilitychange', visibility);
       sound.dispose();
