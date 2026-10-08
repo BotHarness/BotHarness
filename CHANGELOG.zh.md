@@ -17,6 +17,8 @@
 
 ### Added
 
+- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
+
 - 完成首次真实 Bot 对话后，欢迎消息提供可选的「绑定应用」入口，复用既有平台选择和官网教程；选择「暂时不绑定」保留完成状态，绑定结果与接收状态以真实记录为准（[#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)）。
 
 - Bot 模式首次真实回复后，欢迎消息提供可选的记忆体验：查看现有记忆文件与实际变更，或将自由填写的偏好作为普通私聊请求发送；跳过不打扰，也不会把初始模板或回复当作保存成功的证据（[#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)）。

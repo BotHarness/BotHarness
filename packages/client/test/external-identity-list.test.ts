@@ -419,3 +419,103 @@ it('Bind app leaves out this Bot’s own apps, disables the ones another Bot use
     container.remove();
   }
 });
+
+it('creates and binds a Lark app in the current dialog without sending credentials through the BotHarness mutation', async () => {
+  const { ProviderAppSetup } = await import('../src/client/provider-app-setup.js');
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const providerCalls: string[] = [];
+  const client = new ProviderAppSetup({
+    async call(_channel, endpoint, input) {
+      providerCalls.push(endpoint);
+      const method = (input as { method: string }).method;
+      return {
+        ok: true,
+        value: {
+          version: 1,
+          channel: 'feishu',
+          attemptId: 'setup-one',
+          expiresAt: Date.now() + 60000,
+          state: method === 'setup.start' ? 'credentials' : 'ready',
+          ...(method === 'setup.start'
+            ? {}
+            : {
+                accountRef: 'created-app',
+                description: {
+                  version: 1,
+                  channel: 'feishu',
+                  botId: 'created-app',
+                  connected: true,
+                  account: { fingerprint: 'b'.repeat(64), name: 'Created app' },
+                  capabilities: [],
+                },
+              }),
+        },
+      };
+    },
+  });
+  const mutate = vi.fn(async () => undefined);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ExternalIdentityList, {
+          snapshot: {
+            accounts: [],
+            grants: [],
+            intents: [],
+            appSetups: [
+              {
+                version: 1,
+                providerId: 'dsh-im/feishu',
+                platform: 'feishu',
+                kind: 'credentials',
+                endpoint: 'dsh-im/app-setup',
+              },
+            ],
+          },
+          t: zhTranslate,
+          refresh: vi.fn(async () => undefined),
+          mutate,
+          conversation: vi.fn(),
+          rules: vi.fn(),
+          appSetup: { client, botSlug: 'ada' },
+          bindDialog: { onClose: vi.fn(), dismissLabel: '稍后', description: '' },
+        }),
+      ),
+    );
+    const create = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === '创建应用',
+    );
+    expect(create).toBeDefined();
+    await act(async () => create!.click());
+    const fill = async (label: string, value: string) =>
+      act(async () => {
+        const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    await fill('App ID', 'cli_created');
+    await fill('App Secret', 'private-ui-sentinel');
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent === '创建并绑定')!
+        .click(),
+    );
+    expect(providerCalls).toEqual(['dsh-im/app-setup', 'dsh-im/app-setup']);
+    expect(mutate).toHaveBeenCalledWith({
+      kind: 'bind',
+      providerId: 'dsh-im/feishu',
+      accountRef: 'created-app',
+      fingerprint: 'b'.repeat(64),
+    });
+    expect(JSON.stringify(mutate.mock.calls)).not.toContain('private-ui-sentinel');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});

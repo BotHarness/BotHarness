@@ -165,7 +165,15 @@ export interface MessagingApprovalAck {
   status: 'queued' | 'refused';
 }
 
+export interface MessagingSetup {
+  version: 1;
+  platform: 'feishu' | 'weixin';
+  endpoint: 'dsh-im/app-setup';
+  kind: 'credentials' | 'qr';
+}
+
 export interface MessagingProvider {
+  setup?(): Promise<MessagingSetup | undefined>;
   id: string;
   accounts(): Promise<MessagingAccount[]>;
   targets(accountRef: string): Promise<MessagingTarget[]>;

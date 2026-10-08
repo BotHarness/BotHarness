@@ -25,6 +25,8 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  setupVersion?: 1;
+  describeSetup?(channel: string): Promise<unknown> | unknown;
   approvalCardVersion?: 1;
   approvalCardChecked?(
     botId: string,
@@ -405,6 +407,26 @@ export function createDshImProvider(
     }));
   return {
     id: `dsh-im/${platform}`,
+    ...(host.setupVersion === 1 &&
+    typeof host.describeSetup === 'function' &&
+    (platform === 'feishu' || platform === 'weixin')
+      ? {
+          async setup() {
+            const raw = await host.describeSetup!(platform);
+            if (!raw || typeof raw !== 'object') return undefined;
+            const descriptor = raw as Record<string, unknown>;
+            const kind = platform === 'feishu' ? 'credentials' : 'qr';
+            if (
+              descriptor['version'] !== 1 ||
+              descriptor['channel'] !== platform ||
+              descriptor['endpoint'] !== 'dsh-im/app-setup' ||
+              descriptor['kind'] !== kind
+            )
+              return undefined;
+            return { version: 1 as const, platform, endpoint: 'dsh-im/app-setup' as const, kind };
+          },
+        }
+      : {}),
     async accounts() {
       const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
       const result = await Promise.allSettled(bots.map((bot) => describe(bot.botId)));

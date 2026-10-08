@@ -1,4 +1,5 @@
 import { onboardingFor } from './onboarding.js';
+import type { ProviderAppSetup } from './provider-app-setup.js';
 import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {
@@ -303,6 +304,7 @@ export interface BridgeActions {
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
+  appSetup?: ProviderAppSetup;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {

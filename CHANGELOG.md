@@ -17,6 +17,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Bind app can create a Lark/Feishu app through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
+
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
 
 - After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
