@@ -144,7 +144,7 @@ workspace wrapper and async catalogs: old code failed, awaiting status passed.
   build and artifact verification passed. Both incremental review axes reported
   no new actionable finding, separately from native-platform acceptance.
 - Product focused transport/dialog/capability/artifact/style regressions: 56/56
-  passed on `476221a0`. Later pin/documentation checks are recorded in the PR.
+  passed again after the final pin (48 tests across four files plus 8 binding-dialog tests). TypeScript, lint, formatting, bilingual ledgers and packaging passed.
 - The Windows product full run started on `5f655a95` and overlapped subsequent
   review fixes. It finished with 2799 passed, 648 failed, 29 skipped tests; 316
   passed, 108 failed, 6 skipped files. Numerous original-timeout and filesystem
@@ -165,3 +165,14 @@ to resume, then cancel. A dedicated account is required before scan → owner DM
 original WeChat reply acceptance. The Human has only the currently paired account
 and explicitly asked to preserve that pairing; no scan, reset or account switch
 was performed. Native WeChat qualification remains pending.
+
+The reviewed `.5` package was installed in the same isolated `0.2.0-rc.1` Host,
+using product source `1fd67ed7f8431b6aa1ed8bd4c3b8f0dba0054d21` and the Provider
+source/digest above. Authenticated public configuration calls generated a PNG QR,
+returned pending on poll, and cancelled successfully. Public BotHarness snapshots
+contained only the setup descriptor, not the QR. Identity count remained one,
+WeChat account count remained zero, and the existing Lark connection remained
+connected. This check used the real packaged Host and Provider production wrapper,
+but did not operate the Client UI or scan the QR. No QR contents or credentials
+were saved in the public proof. The candidate tab was retained for later review;
+its browser debugger remained unavailable in the final capture attempt.
