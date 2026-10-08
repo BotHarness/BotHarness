@@ -2,6 +2,7 @@ import { useId, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 
 import { PersonaBotAvatar } from './avatar.js';
+import { humanLabel } from './actor-names.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import type { ChannelHumanMember, BotSummary, ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -191,9 +192,11 @@ export function ChannelDeliveryReceipt({
                     <ul>
                       {recipients.map((recipient) => {
                         if (recipient.kind === 'human') {
-                          const name =
+                          const name = humanLabel(
                             humanMembers.find((member) => member.humanId === recipient.humanId)
-                              ?.displayName ?? recipient.displayName;
+                              ?.displayName ?? recipient.displayName,
+                            t,
+                          );
                           return (
                             <li key={'human:' + recipient.humanId} title={name}>
                               <span className="bh-delivery-human-avatar" aria-hidden="true">

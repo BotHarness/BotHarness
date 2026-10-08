@@ -1,0 +1,876 @@
+{
+  "issue": 1036,
+  "dsh": "0.2.0-rc.1",
+  "upstream": "4878cdabd87d4041bdaff61d04c966883b9fd07a",
+  "applicationBaseline": "fe08fd925f9bf4644b4634ef464ce83e758bfdae",
+  "mode": "revoked",
+  "startedAt": "2026-10-08T15:45:44.582Z",
+  "finishedAt": "2026-10-08T15:50:21.713Z",
+  "botSlug": "bot-51b2e311b040425282203643c26314ec",
+  "channelId": "dm-bot-51b2e311b040425282203643c26314ec",
+  "request": {
+    "id": "27da82de-c51f-414e-9967-d119ad3691f4",
+    "at": "2026-10-08T15:46:08.865Z",
+    "author": {
+      "kind": "bot",
+      "slug": "bot-51b2e311b040425282203643c26314ec"
+    },
+    "toolApprovalRequest": {
+      "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+      "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+      "toolName": "pwsh",
+      "role": "assignment",
+      "cwd": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs5\\revoked\\workspace",
+      "input": "{\n  \"command\": \"echo EXACT_OPERATION_1036\",\n  \"description\": \"Echo exact operation string\"\n}",
+      "externalDecision": "operation"
+    },
+    "body": "请求批准执行 pwsh",
+    "channelRevision": 5
+  },
+  "scope": {
+    "id": "8c385d20-6932-41bb-85c1-a9707497c344",
+    "botSlug": "bot-51b2e311b040425282203643c26314ec",
+    "workspaceId": "ca7f1b7d-d620-4664-ad2f-0a290584a0fb",
+    "workspacePath": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs5\\revoked\\workspace",
+    "workspaceTitle": "workspace",
+    "createdAt": "2026-10-08T15:46:01.867Z",
+    "orchestratorWrite": false,
+    "writeRevision": 0
+  },
+  "scopeChange": {
+    "grant": {
+      "id": "8c385d20-6932-41bb-85c1-a9707497c344",
+      "botSlug": "bot-51b2e311b040425282203643c26314ec",
+      "workspaceId": "ca7f1b7d-d620-4664-ad2f-0a290584a0fb",
+      "workspacePath": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs5\\revoked\\workspace",
+      "workspaceTitle": "workspace",
+      "createdAt": "2026-10-08T15:46:01.867Z",
+      "orchestratorWrite": false,
+      "writeRevision": 0,
+      "revokedAt": "2026-10-08T15:46:13.459Z"
+    }
+  },
+  "decision": {
+    "type": "server-response",
+    "rpcId": "56ceaa9f-8d3e-431f-b283-e9e4382f68ca",
+    "result": {
+      "ok": false,
+      "error": {
+        "code": "invalid-input",
+        "message": "Tool approval request is no longer pending",
+        "details": {}
+      }
+    }
+  },
+  "unrelated": {
+    "messageId": "human-72731018-813f-4ea8-b6c5-30cf563b94ab",
+    "submittedAt": "2026-10-08T15:46:09.020Z",
+    "observedThrough": "2026-10-08T15:46:13.447Z",
+    "replyDuringWait": {
+      "id": "a2a24327-6ed2-4bf6-bd0d-725f0ec73d42",
+      "at": "2026-10-08T15:46:12.987Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "body": "UNRELATED_REPLY_1036",
+      "channelRevision": 8
+    },
+    "admission": {
+      "id": "93ddd740-51fe-4197-9fa4-e83b6e1974ea",
+      "botSlug": "bot-51b2e311b040425282203643c26314ec",
+      "reason": "human-dm",
+      "state": "processing",
+      "createdAt": "2026-10-08T15:46:09.020Z",
+      "observedAt": "2026-10-08T15:46:10.343Z",
+      "sourceKind": "human-message",
+      "sourceChannelId": "dm-bot-51b2e311b040425282203643c26314ec",
+      "sourceChannelName": "bot-51b2e311b040425282203643c26314ec",
+      "sourceMessageId": "human-72731018-813f-4ea8-b6c5-30cf563b94ab",
+      "sourceAvailable": true,
+      "authorKind": "human",
+      "summary": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+    }
+  },
+  "verdict": {
+    "owner": "assignment",
+    "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+    "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+    "tool": "pwsh",
+    "callAt": 1791474368855,
+    "approvalId": "c0e02996-2bba-4f76-8972-34762ae0cf26",
+    "decisionAt": 1791474373468,
+    "outcome": "unavailable",
+    "resultAt": 1791474373469,
+    "isError": true,
+    "nativeResult": "Error: Human approval was unavailable",
+    "unrelated": {
+      "sessionId": "botharness-5b6f841a-2cfc-4e14-91aa-644333c9ccd1",
+      "callId": "call_00_ET_laM88rABj0Viz0eOLJpW1997",
+      "callAt": 1791474372971,
+      "replyId": "a2a24327-6ed2-4bf6-bd0d-725f0ec73d42",
+      "replyAt": "2026-10-08T15:46:12.987Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "repliedWhileWaiting": true,
+    "rejected": true
+  },
+  "before": {
+    "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474365151,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474365717,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474365720,
+        "data": {
+          "text": "Call native pwsh exactly once with command \"echo EXACT_OPERATION_1036\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 19,
+        "time": 1791474368849,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 11866,
+            "outputTokens": 211,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 13229
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 20,
+        "time": 1791474368855,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "name": "pwsh",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation string\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 21,
+        "time": 1791474368863,
+        "data": {
+          "id": "c0e02996-2bba-4f76-8972-34762ae0cf26",
+          "toolName": "pwsh",
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      }
+    ]
+  },
+  "during": {
+    "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474365151,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474365717,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474365720,
+        "data": {
+          "text": "Call native pwsh exactly once with command \"echo EXACT_OPERATION_1036\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 19,
+        "time": 1791474368849,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 11866,
+            "outputTokens": 211,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 13229
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 20,
+        "time": 1791474368855,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "name": "pwsh",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation string\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 21,
+        "time": 1791474368863,
+        "data": {
+          "id": "c0e02996-2bba-4f76-8972-34762ae0cf26",
+          "toolName": "pwsh",
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      }
+    ]
+  },
+  "after": {
+    "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474365151,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474365717,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474365720,
+        "data": {
+          "text": "Call native pwsh exactly once with command \"echo EXACT_OPERATION_1036\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 19,
+        "time": 1791474368849,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 11866,
+            "outputTokens": 211,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 13229
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 20,
+        "time": 1791474368855,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "name": "pwsh",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation string\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 21,
+        "time": 1791474368863,
+        "data": {
+          "id": "c0e02996-2bba-4f76-8972-34762ae0cf26",
+          "toolName": "pwsh",
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      },
+      {
+        "type": "approval/decided",
+        "seq": 22,
+        "time": 1791474373468,
+        "data": {
+          "id": "c0e02996-2bba-4f76-8972-34762ae0cf26",
+          "outcome": "unavailable"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 23,
+        "time": 1791474373469,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+          "isError": true,
+          "text": "Error: Human approval was unavailable"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 24,
+        "time": 1791474373474,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "turn/end",
+        "seq": 25,
+        "time": 1791474373478,
+        "data": {
+          "turn": 1,
+          "reason": {
+            "kind": "blocked"
+          }
+        }
+      }
+    ]
+  },
+  "orchestrator": {
+    "sessionId": "botharness-5b6f841a-2cfc-4e14-91aa-644333c9ccd1",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474356363,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474357377,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474357380,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474358657,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19052,
+            "outputTokens": 44,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20248
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474358661,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_28b1WIxsgnfvijE7RJwp9635",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474358682,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_28b1WIxsgnfvijE7RJwp9635",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-51b2e311b040425282203643c26314ec\",\"messageId\":\"e6e39e3d-47b7-4146-8850-26c1ec055b42\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474358685,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474358706,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 24,
+        "time": 1791474360411,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 217,
+            "outputTokens": 9,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20322
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 25,
+        "time": 1791474360416,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474363142,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474363143,
+        "data": {
+          "text": "Use Grant 8c385d20-6932-41bb-85c1-a9707497c344 to create exactly one Assignment with continuity key wait-1036. Its purpose: call native pwsh once with command \"echo EXACT_OPERATION_1036\", then report_to_orchestrator state completed with actual stdout (or state failed with actual error), summary beginning ORIGINAL_RESULT_1036. Do not retry. Orchestrator: immediately channel_send DISPATCHED_1036 after create_assignment returns and end the turn. Do not wait_for_assignment or poll; handle unrelated messages normally. Relay the eventual report through channel_send including ORIGINAL_RESULT_1036 and the actual result."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474365020,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 257,
+            "outputTokens": 187,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20668
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474365029,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_nKCIfGE7U6PTrG15RSuv2717",
+          "name": "create_assignment",
+          "arguments": "{\"purpose\": \"Call native pwsh exactly once with command \\\"echo EXACT_OPERATION_1036\\\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036.\", \"grant_id\": \"8c385d20-6932-41bb-85c1-a9707497c344\", \"key\": \"wait-1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 33,
+        "time": 1791474365067,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_nKCIfGE7U6PTrG15RSuv2717",
+          "isError": false,
+          "text": "{\"outcome\":\"created\",\"sessionId\":\"botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c\",\"purpose\":\"Call native pwsh exactly once with command \\\"echo EXACT_OPERATION_1036\\\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036.\",\"activity\":\"working\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 34,
+        "time": 1791474365072,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 35,
+        "time": 1791474365096,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 37,
+        "time": 1791474368818,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 182,
+            "outputTokens": 45,
+            "cacheReadTokens": 20608,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20835
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 38,
+        "time": 1791474368826,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_vjNsz6AaB1lNDprwSf6V6081",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"DISPATCHED_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 39,
+        "time": 1791474368947,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_vjNsz6AaB1lNDprwSf6V6081",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-51b2e311b040425282203643c26314ec\",\"messageId\":\"28702de5-79cb-48a6-8db0-081aec4f9893\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 40,
+        "time": 1791474368950,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 42,
+        "time": 1791474370444,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 44,
+        "time": 1791474371711,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 162,
+            "outputTokens": 67,
+            "cacheReadTokens": 20736,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20965
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 45,
+        "time": 1791474371719,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 47,
+        "time": 1791474371749,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 48,
+        "time": 1791474371751,
+        "data": {
+          "text": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 50,
+        "time": 1791474372919,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 144,
+            "outputTokens": 47,
+            "cacheReadTokens": 20864,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21055
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 51,
+        "time": 1791474372971,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_laM88rABj0Viz0eOLJpW1997",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 52,
+        "time": 1791474372993,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_laM88rABj0Viz0eOLJpW1997",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-51b2e311b040425282203643c26314ec\",\"messageId\":\"a2a24327-6ed2-4bf6-bd0d-725f0ec73d42\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 53,
+        "time": 1791474372997,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 54,
+        "time": 1791474373036,
+        "data": {
+          "turn": 1,
+          "step": 7
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 56,
+        "time": 1791474373972,
+        "data": {
+          "turn": 1,
+          "step": 7,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 256,
+            "outputTokens": 26,
+            "cacheReadTokens": 20864,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21146
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 57,
+        "time": 1791474373980,
+        "data": {
+          "turn": 1,
+          "step": 7
+        }
+      },
+      {
+        "type": "turn/end",
+        "seq": 58,
+        "time": 1791474375136,
+        "data": {
+          "turn": 1,
+          "reason": {
+            "kind": "completed"
+          }
+        }
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "session-failure-89dada03-f73b-4198-bffe-a52ee8ae549b",
+      "at": "2026-10-08T15:46:13.490Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "format": "text",
+      "sessionFailure": {
+        "role": "assignment",
+        "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+        "detail": "Agent turn ended without completion: blocked",
+        "context": "Call native pwsh exactly once with command \"echo EXACT_OPERATION_1036\". Do not retry. Then report_to_orchestrator with state completed and the actual stdout (or state failed with the actual error), and a summary beginning with ORIGINAL_RESULT_1036."
+      },
+      "body": "Session failed: Agent turn ended without completion: blocked",
+      "channelRevision": 9
+    },
+    {
+      "id": "a2a24327-6ed2-4bf6-bd0d-725f0ec73d42",
+      "at": "2026-10-08T15:46:12.987Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "body": "UNRELATED_REPLY_1036",
+      "channelRevision": 8
+    },
+    {
+      "id": "28702de5-79cb-48a6-8db0-081aec4f9893",
+      "at": "2026-10-08T15:46:08.940Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "body": "DISPATCHED_1036",
+      "channelRevision": 6
+    },
+    {
+      "id": "27da82de-c51f-414e-9967-d119ad3691f4",
+      "at": "2026-10-08T15:46:08.865Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "toolApprovalRequest": {
+        "sessionId": "botharness-1c60d940-cc2d-46ac-9bfb-3be6d6cfac9c",
+        "callId": "call_00_nSmWkHbaa74PMqC1qQAw8412",
+        "toolName": "pwsh",
+        "role": "assignment",
+        "cwd": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs5\\revoked\\workspace",
+        "input": "{\n  \"command\": \"echo EXACT_OPERATION_1036\",\n  \"description\": \"Echo exact operation string\"\n}",
+        "externalDecision": "operation"
+      },
+      "body": "请求批准执行 pwsh",
+      "channelRevision": 5
+    },
+    {
+      "id": "e6e39e3d-47b7-4146-8850-26c1ec055b42",
+      "at": "2026-10-08T15:45:58.677Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-51b2e311b040425282203643c26314ec"
+      },
+      "body": "BASELINE_1036",
+      "channelRevision": 3
+    }
+  ],
+  "client": [
+    {
+      "at": "2026-10-08T15:45:52.802Z",
+      "consoleErrors": []
+    }
+  ]
+}

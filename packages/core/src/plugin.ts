@@ -55,13 +55,18 @@ import { readDailyUsageCounts, startDailyUsage } from './telemetry/daily-usage.j
 import { deliverPendingExceptions, installExceptionCapture } from './telemetry/exceptions.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/deletion.js';
-import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
+import {
+  backfillBotBanners,
+  backfillBotDescriptors,
+  syncBotDescriptor,
+} from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createCredentialReadiness } from './models/credential-readiness.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
+import { BOT_BANNER_PATH, createBotBannerHttp } from './bots/banner-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -371,6 +376,7 @@ export function createCore(
     throw error;
   }
   if (operationalDatabase.mode === 'ready') {
+    backfillBotBanners(registry, options.warn);
     backfillBotDescriptors(registry, options.warn);
     migrateLegacySouls(registry, options.warn);
   }
@@ -1456,6 +1462,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           fetch: attachmentHttp,
         }),
       'botharness: Channel attachment download',
+    );
+    const botBannerHttp = createBotBannerHttp(core.registry);
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_BANNER_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botBannerHttp,
+        }),
+      'botharness: Bot banner',
     );
     const botAvatarHttp = createBotAvatarHttp(core.registry);
     connectionCtx.effect(

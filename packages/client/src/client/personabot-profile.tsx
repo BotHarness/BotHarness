@@ -7,6 +7,7 @@ import {
   IconPinOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
+import { bannerOf, BotBannerArt } from './bot-banner.js';
 import type { BridgeActions } from './actions.js';
 import type { ProfileActivity } from './bridge.js';
 import { PersonaBotDeletionView } from './personabot-deletion.js';
@@ -38,6 +39,9 @@ export function ProfilePopover({
     .filter((card) => pinned.includes(card.id) && (card.visible?.(bot) ?? true));
   return (
     <div className="bh-profile-popover" role="dialog" aria-label={t('profile.label')}>
+      <div className="bh-profile-popover-banner">
+        <BotBannerArt banner={bannerOf(bot.banner, bot.displayName)} />
+      </div>
       <div className="bh-profile-popover-identity">
         <PersonaBotAvatar
           t={t}
@@ -146,6 +150,7 @@ export function ProfileView({
                     t,
                     compact: false,
                     loadUsage: (filter) => actions.profileUsage(channel.id, filter),
+                    loadActivity: (window) => actions.profileActivity(channel.id, window),
                   })}
                 </section>
               );

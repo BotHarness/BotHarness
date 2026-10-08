@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { UsageFilter, UsageQueryResult } from './bridge.js';
+import type { ProfileActivityWindow, UsageFilter, UsageQueryResult } from './bridge.js';
 
 import type { GroupProfileActivity, ProfileActivity } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -14,6 +14,7 @@ export interface ProfileCardProps {
 export interface ProfileCardViewProps extends ProfileCardProps {
   compact: boolean;
   loadUsage?: (filter: UsageFilter) => Promise<UsageQueryResult>;
+  loadActivity?: (window: ProfileActivityWindow) => Promise<ProfileActivity>;
 }
 
 export interface ProfileCardDescriptor {

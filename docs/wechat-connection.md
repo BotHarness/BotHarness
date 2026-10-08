@@ -20,7 +20,7 @@ The entry capture precedes pairing and has no independently recorded exact Clien
 
 Open the PersonaBot DM and, in the **Channel sidebar** on the right, expand **External identities**. Click **+ Bind app** and bind the connected WeChat account. Its row shows the name, its status and an enable switch. Once the row shows **Ready**, DMs from the person who scanned this WeChat Bot go straight to this Bot's Inbox, and the Bot replies in the same DM; other contacts and WeChat groups stay out. You don't authorize the conversation.
 
-![Real paired WeChat identity in the PersonaBot Profile](/guides/wechat/identity-bound.jpg)
+![Real paired WeChat identity in the Bot Profile](/guides/wechat/identity-bound.jpg)
 
 _Screenshot shows the earlier Profile layout; binding now lives in the sidebar's External identities entry._
 
@@ -80,7 +80,7 @@ If preview or reading is refused, retain the source and inspect the refusal. Ret
 
 ## 7. Read a native voice transcript and reply
 
-The #905 source-preview candidate uses local product `0.0.0-test.905.1` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Source Event IDs stay in the collapsed details.
+The #905 source-preview candidate uses local product `0.0.0-test.905.1` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Event IDs stay in the collapsed details.
 
 ![The real 5.2-second WeChat voice transcript in the source Modal, light theme](/guides/wechat/voice-source-light.jpg)
 
@@ -134,7 +134,7 @@ In WeChat, use **Quote** on a message in the paired-owner private conversation, 
 
 WeChat can provide embedded quoted text, a display summary, an item ID, a server message ID, or partial-quote metadata. A summary is not promoted to the original body; item IDs stay separate from server message IDs. When WeChat omits the body, BotHarness resolves a genuine server message ID only from readable canonical records in the same currently authorized account/private conversation. An unknown, unretained or inaccessible reference stays unavailable; this does not prove that the original was deleted. Quoted attachments are not automatically fetched. A quote never creates a Thread.
 
-Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Source Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
+Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
 
 Reads return at most 20 records per page and obey a JSON budget (1,000–24,000 characters, default 12,000). Follow `nextCursor` with the same source, scope and counts. The cursor fixes the initial record boundary, so later arrivals are excluded; it expires after 30 minutes or a Host restart. A changed Grant/identity or revoked authorization refuses continuation. If a single record exceeds the budget, `requiredCharacters` indicates the budget needed. Reading context creates no new Inbox delivery, wake, subscription, local DM or external send. The source panel shows the Bot's read audit and latest page.
 
@@ -206,7 +206,7 @@ The #910 final UI candidate is locally packed product `0.0.0-test.910.1` / manag
 
 ![Human-provided native WeChat screenshot showing both reports and the follow-up](/guides/wechat/native-proactive-reports.png)
 
-![The follow-up's canonical source, native message ID and Source Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
+![The follow-up's canonical source, native message ID and Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
 
 ![The same canonical follow-up source in dark theme](/guides/wechat/proactive-followup-source-dark.jpg)
 
@@ -271,7 +271,7 @@ A defaults change neither binds an app nor authorizes a new target. Pause stops 
 identity intake; resume accepts fresh events without backfilling the paused period.
 Changing inherited typing off cancels active requests; custom typing keeps its choice.
 Accepted sources and replies retain their original author, time, native message ID,
-Source Event ID and trusted route. A stale save asks for refresh and keeps the draft.
+Event ID and trusted route. A stale save asks for refresh and keeps the draft.
 
 The #912 candidate's automated checks cover upgrade preservation, independent overrides,
 restoration, restart, stale revisions, active typing cleanup and owner-DM fencing. Windows

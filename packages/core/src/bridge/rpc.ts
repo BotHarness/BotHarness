@@ -487,6 +487,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
+  botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botBannerSet({ channelId, banner }));
+  }
+
   botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAppearanceSet({ channelId, recipe }));
   }
@@ -931,8 +935,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.profileUsage({ channelId, filter }));
   }
 
-  profileActivity(channelId: string): ProfileActivity {
-    return unwrap(this.methods.profileActivity({ channelId }));
+  profileActivity(channelId: string, before?: string, weeks?: number): ProfileActivity {
+    return unwrap(this.methods.profileActivity({ channelId, before, weeks }));
   }
 
   groupProfileActivity(channelId: string): GroupProfileActivity {
@@ -1221,6 +1225,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',
