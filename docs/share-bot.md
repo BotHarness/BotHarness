@@ -4,7 +4,7 @@ Sharing a Bot publishes its Memory Repository as a public GitHub repository. Whe
 
 ## Not ready to go public? Send a zip
 
-To hand a Bot to someone you know, or move it to another computer, you don't need GitHub: export a zip from **Share and export** on the Bot profile, and the other person uses **Import from zip** to get a new Bot. See [Export and import a Bot](/docs/bot-zip).
+To hand a Bot to someone you know, or move it to another computer, you don't need GitHub: export a zip with **Share** at the top right of the Bot profile, and the other person uses **Import from zip** to get a new Bot. See [Export and import a Bot](/docs/bot-zip).
 
 ## Before publishing: check what becomes public
 
@@ -28,7 +28,7 @@ Please share your Memory repository to the BotHarness Bot Marketplace. Follow th
 
 1. List every file in your Memory and check the file contents and Git history for passwords, tokens, personal information or anything I may not want public. List what you find and wait for my confirmation before going on. Do not push anything before I confirm.
 2. If there is no README.md, write a short one: who you are, what you are good at, and how to use you.
-3. Check that .botharness/bot.json exists (DeepSeekBot normally creates it). If it is missing, create it with your name and 1 to 3 roles, as {"name": "Name", "roles": ["Role"]}; if it exists, leave it as is.
+3. Check that .botharness/bot.json exists (DeepSeekBot normally creates it). If it is missing, create it with your name, 1 to 3 tags and a one-sentence bio, as {"name": "Name", "tags": ["Tag"], "bio": "One sentence"}; if it exists, leave it as is.
 4. Use gh to create a public repository under my GitHub account and push the current branch. Name it after you in English, and tell me the name before creating it. If step 1 found anything in the history that should not be public, push a single new commit without history instead.
 5. Add the botharness-bot topic: gh repo edit --add-topic botharness-bot
 6. Send me the repository URL.
@@ -69,16 +69,17 @@ When listing fails, the Bot Marketplace says why:
 | This repository was just listed                    | One repository is fetched at most once per 5 minutes; retry later. |
 | This repository is blocked or hidden after reports | Open an Issue on the BotHarness repository to contact us.          |
 
-## Name, roles and avatar: `.botharness/bot.json`
+## Name, tags, bio and avatar: `.botharness/bot.json`
 
-DeepSeekBot writes `.botharness/bot.json` into every Bot's Memory and keeps it up to date: when you create a Bot, and each time you change its name, roles or avatar. Bots created before this get the file the next time DeepSeekBot starts. The Marketplace and the installed Bot read it, so they show the same name, roles and avatar as your sidebar. An uploaded avatar image is saved next to it as `.botharness/avatar.png` (or `.jpg`, `.webp`).
+DeepSeekBot writes `.botharness/bot.json` into every Bot's Memory and keeps it up to date: when you create a Bot, and each time you change its name, tags, bio or avatar in **Edit profile**. Bots created before this get the file the next time DeepSeekBot starts. The Marketplace and the installed Bot read it, so they show the same name, tags, bio and avatar as your sidebar. An uploaded avatar image is saved next to it as `.botharness/avatar.png` (or `.jpg`, `.webp`).
 
-You can also edit the file by hand. DeepSeekBot keeps any other keys you add, and keeps your edits until you next change the name, roles or avatar in DeepSeekBot:
+You can also edit the file by hand. DeepSeekBot keeps any other keys you add, and keeps your edits until you next change the name, tags, bio or avatar in DeepSeekBot:
 
 ```json
 {
   "name": "BotPixel",
-  "roles": ["Pixel art", "Avatar design"],
+  "tags": ["Pixel art", "Avatar design"],
+  "bio": "Turns a one-line description into a pixel avatar.",
   "avatar": { "image": "assets/avatar.png" }
 }
 ```
@@ -86,7 +87,8 @@ You can also edit the file by hand. DeepSeekBot keeps any other keys you add, an
 | Field    | Meaning                                                                                                            |
 | -------- | ------------------------------------------------------------------------------------------------------------------ |
 | `name`   | Name shown in the Marketplace, up to 60 characters.                                                                |
-| `roles`  | Role tags, up to 8.                                                                                                |
+| `tags`   | Tags, up to 8, each up to 32 characters. Older files that use `roles` are still read as tags.                      |
+| `bio`    | A short introduction, up to 160 characters. Without it the Marketplace shows the GitHub repository description.    |
 | `avatar` | `{ "image": "path in the repository" }` (PNG, JPEG or WebP, at most 128 KiB), or a pixel avatar `{ "recipe": … }`. |
 
 Every field is optional. An invalid file is ignored as a whole, and the Marketplace falls back to the repository name and a generated pixel avatar.
