@@ -113,10 +113,11 @@ it('edits WeChat typing in the current identity modal and keeps native request a
     );
     await chooseOption(zhTranslate('defaults.typingOrigin'), 'inherit', container);
     expect(
-      container.querySelector<HTMLButtonElement>(
-        `[aria-label="${zhTranslate('identity.typing.label')}"]`,
-      )!.disabled,
-    ).toBe(true);
+      container.querySelector(`[aria-label="${zhTranslate('identity.typing.label')}"]`),
+    ).toBeNull();
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      zhTranslate('defaults.typingInheritHint'),
+    );
     await act(async () =>
       [...container.querySelectorAll<HTMLButtonElement>('button')]
         .find((b) => b.textContent === '保存身份')!

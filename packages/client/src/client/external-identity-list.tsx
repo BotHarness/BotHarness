@@ -580,12 +580,16 @@ export function ExternalIdentityList({
                       { value: 'custom', label: t('defaults.custom') },
                     ]}
                   />
-                  <Switch
-                    label={t('identity.typing.label')}
-                    checked={typingEnabled}
-                    disabled={busy || inheritTyping}
-                    onChange={setTypingEnabled}
-                  />
+                  {inheritTyping ? (
+                    <span className="bh-bridge-secondary">{t('defaults.typingInheritHint')}</span>
+                  ) : (
+                    <Switch
+                      label={t('identity.typing.label')}
+                      checked={typingEnabled}
+                      disabled={busy}
+                      onChange={setTypingEnabled}
+                    />
+                  )}
                   <span className="bh-bridge-secondary">{t('identity.typing.hint')}</span>
                   {!selected.typing?.supported ? (
                     <span className="bh-bridge-secondary">{t('identity.typing.unavailable')}</span>

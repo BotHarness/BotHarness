@@ -61,7 +61,9 @@ directly. Group mentions, ordinary-group harvest, Threads and new-contact admiss
 are not qualified settings and are absent from its editor. Global saves reject those
 unsupported combinations. Channel connectors retain their own destinations, switches
 and member policies. Defaults neither add a Binding/Grant nor authorize another target.
-The existing receive-after fence excludes delayed pre-resume events, while explicit
-custom identities retain their behavior. Schema rollback requires a compatible Host
+Generation 69 also adds a nullable Binding `receive_after` boundary. Resuming an
+inherited identity records it even when no conversation Grant exists yet; both the
+Binding Consumer and existing implicit Grant admission exclude delayed pre-resume
+events. Explicit custom identities retain their behavior. Schema rollback requires a compatible Host
 or the existing pre-upgrade backup procedure; never downgrade a generation-69 database
 into an older binary. Native fresh-message and typing observations remain Human QA.

@@ -448,6 +448,69 @@ it('WeChat inherits future defaults, preserves overrides and authority, and rest
   });
 });
 
+it('WeChat resumes only future owner DMs before any conversation Grant exists', async () => {
+  const fx = await fixture('weixin', [
+    { targetId: 'owner', name: 'QR paired owner', kind: 'user', route: { toUserId: 'oc_owner' } },
+  ]);
+  for (const identityEnabled of [false, true]) {
+    const {
+      revision,
+      changedAt: _at,
+      ...preferences
+    } = fx.core.externalMessaging.defaults('weixin');
+    await fx.core.externalMessaging.setDefaults({
+      ...preferences,
+      expectedRevision: revision,
+      identityEnabled,
+    });
+    await fx.settle();
+  }
+  expect(fx.entries()).toEqual([]);
+  await fx.restart();
+  await fx.receive(dm('old-before-first-grant'));
+  expect(fx.entries()).toEqual([]);
+  expect(fx.admissions()).toEqual([]);
+  await fx.receive(dm('fresh-first-grant', { at: new Date(Date.now() + 1000).toISOString() }));
+  expect(fx.admissions()).toEqual([{ reason: 'human-dm', messageId: 'om-fresh-first-grant' }]);
+});
+
+it.each(['implicit', 'explicit'] as const)(
+  'WeChat explicit identity resume fences an existing %s Grant',
+  async (origin) => {
+    const fx = await fixture('weixin', [
+      { targetId: 'owner', name: 'QR paired owner', kind: 'user', route: { toUserId: 'oc_owner' } },
+    ]);
+    if (origin === 'explicit') {
+      const targets = await fx.core.externalMessaging.targets('dsh-im/weixin', 'lark-app');
+      const grant = await fx.core.externalMessaging.authorize({
+        botSlug: 'ada',
+        providerId: 'dsh-im/weixin',
+        accountRef: 'lark-app',
+        targetRef: 'owner',
+        fingerprint,
+        targetDigest: targets[0]!.digest,
+      });
+      await fx.core.externalMessaging.inbound.setEnabled('ada', grant.id, true);
+      await fx.settle();
+    }
+    await fx.receive(dm('before-explicit-pause'));
+    expect(fx.admissions()).toHaveLength(1);
+    const entries = fx.entries();
+    await fx.update({ enabled: false });
+    await fx.update({ inheritEnabled: true });
+    await fx.restart();
+    await fx.receive(dm('late-explicit-pause'));
+    await fx.receive(
+      dm('fresh-explicit-resume', { at: new Date(Date.now() + 1000).toISOString() }),
+    );
+    expect(fx.admissions()).toEqual([
+      { reason: 'human-dm', messageId: 'om-before-explicit-pause' },
+      { reason: 'human-dm', messageId: 'om-fresh-explicit-resume' },
+    ]);
+    expect(fx.entries()).toEqual(entries);
+  },
+);
+
 it('a bound WeChat app admits only its paired owner DM', async () => {
   const fx = await fixture('weixin', [
     { targetId: 'owner', name: 'QR paired owner', kind: 'user', route: { toUserId: 'oc_owner' } },

@@ -835,6 +835,19 @@ export function createOutboundMessaging(options: {
           if (enabled && JSON.stringify(currentScopes) !== JSON.stringify(scopes))
             throw new MessagingError('identity-stale');
           const at = now();
+          if (latest.platform === 'weixin' && enabled && !latest.enabled) {
+            db.prepare('UPDATE messaging_bindings SET receive_after = ? WHERE id = ?').run(
+              at,
+              value.id,
+            );
+            for (const row of currentScopes) {
+              const g = JSON.parse(row.body) as MessagingGrant;
+              db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+                JSON.stringify({ ...g, receiveAfter: at }),
+                g.id,
+              );
+            }
+          }
           db.prepare(
             'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, typing_inherited = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(

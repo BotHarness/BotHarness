@@ -1815,6 +1815,7 @@ const WECHAT_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
         BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
       ALTER TABLE messaging_bindings ADD COLUMN typing_inherited INTEGER NOT NULL DEFAULT 0
         CHECK (typing_inherited IN (0, 1));
+      ALTER TABLE messaging_bindings ADD COLUMN receive_after TEXT;
     `);
   },
 };

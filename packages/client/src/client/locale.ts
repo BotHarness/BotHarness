@@ -148,6 +148,7 @@ export const zh = {
     '微信当前仅接收扫码账号的私聊，直接唤醒 Bot。频道连接器保持独立设置；这里不提供群 @ 或 Thread 选项。',
   'defaults.enableTyping': '为继承默认设置的微信身份请求原生输入状态',
   'defaults.typingOrigin': '输入状态设置来源',
+  'defaults.typingInheritHint': '保存后使用当前全局输入状态偏好。',
   'defaults.summary':
     '新配置默认继承；Profile 可自定义，也可恢复继承。消息收件、处理和回复分别判断。',
   'defaults.intake': '消息收件与处理默认值',
@@ -2362,6 +2363,7 @@ export const en = {
     'WeChat currently receives only the QR-paired owner DM and wakes the Bot directly. Channel connectors keep separate settings; group mentions and Threads are unavailable here.',
   'defaults.enableTyping': 'Request native typing for WeChat identities that inherit defaults',
   'defaults.typingOrigin': 'Typing preference origin',
+  'defaults.typingInheritHint': 'Save to use the current global typing preference.',
   'defaults.summary':
     'New configurations inherit by default. Customize in Profile or restore inheritance. Intake, processing and replies are separate decisions.',
   'defaults.intake': 'Message intake and processing defaults',

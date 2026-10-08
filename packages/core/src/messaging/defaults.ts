@@ -84,6 +84,10 @@ export function commitMessagingDefaults(
     'INSERT INTO messaging_default_revisions (platform, revision, body) VALUES (?, ?, ?)',
   ).run(value.platform, value.revision, JSON.stringify(value));
   if (!prior.identityEnabled && value.identityEnabled) {
+    if (value.platform === 'weixin')
+      db.prepare(
+        'UPDATE messaging_bindings SET receive_after = ? WHERE platform = ? AND enabled_inherited = 1 AND revoked_at IS NULL',
+      ).run(value.changedAt, value.platform);
     const rows = db
       .prepare(
         'SELECT g.id, g.body FROM messaging_grants g JOIN messaging_bindings b ON b.id = g.binding_id WHERE b.platform = ? AND b.enabled_inherited = 1 AND b.revoked_at IS NULL AND g.revoked_at IS NULL',

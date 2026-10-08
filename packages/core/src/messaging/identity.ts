@@ -13,6 +13,7 @@ export interface MessagingIdentity {
   enabled: boolean;
   typingEnabled?: boolean;
   typingInheritance?: 'inherit' | 'custom';
+  receiveAfter?: string;
   enabledInheritance?: 'inherit' | 'custom';
   newConversations: MessagingNewConversations;
   newConversationsInheritance?: 'inherit' | 'custom';
@@ -61,6 +62,7 @@ interface BindingRow {
   enabled_inherited: number;
   typing_enabled: number;
   typing_inherited: number;
+  receive_after: string | null;
   new_conversations: MessagingNewConversations;
   new_conversations_inherited: number;
   revision: number;
@@ -85,6 +87,7 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
         ? messagingDefaults(db, r.platform).identityEnabled
         : r.enabled === 1,
     enabledInheritance: r.enabled_inherited === 1 ? 'inherit' : 'custom',
+    ...(r.receive_after ? { receiveAfter: r.receive_after } : {}),
     ...(r.platform === 'weixin'
       ? {
           typingEnabled:
