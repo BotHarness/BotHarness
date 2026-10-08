@@ -109,7 +109,7 @@
 
 ### Documentation
 
-- 记录已接受的像素 Avatar 扩展设计：同一 rig 上的 Avatar Species（奇幻、动物与花的基底）、可分别上色的头发分片、穿过头发的头饰槽，以及 Human 自绘、保存在 Profile 部件库中并随导出 Bot 携带、以 PNG 流转的 Custom Part；运行时行为不变（[#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)、[交接说明](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)）。
+- 记录已接受的像素 Avatar 扩展设计：同一 rig 上的 Avatar Species（奇幻、动物与花的基底）、可分别上色的头发分片、穿过头发的头饰槽，以及 Human 自绘、保存在 Profile 部件库中并随导出 PersonaBot 携带、以 PNG 流转的 Custom Part；运行时行为不变（[#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)、[交接说明](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)）。
 
 - 记录已确认的窗口内透明半身像素伙伴设计：本地伙伴选择、三档 Bot 输出范围、独立播放开关及不重播历史的有界消息消费；本次不改变运行行为（[#1132](https://github.com/BotHarness/BotHarness/issues/1132)、[规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135)、[ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)）。
 

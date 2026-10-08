@@ -406,7 +406,7 @@ Each Bot has one updating Activity card and parallel typewriter message cards, w
 
 Custom Parts are bounded pixel grids whose cells reference appearance colors or fixed colors with a tone step, so they recolor with the Appearance. BotPixel owns their type, validation, rendering and pure drawing algorithms; the PersonaBot owning module stores an embedded copy in the Avatar Appearance, and a Host-owned Part Library in the DSH Profile holds reusable parts by content-hash identity and origin. Exported PersonaBots carry their parts; single parts move as PNGs with embedded data. Eyes, brows and mouth are not drawable, so blink and speech frames stay rig-owned.
 
-New Bots record a full-domain name-seed version; Bots without it keep the human-only seed. Recipes using species, new slots or Custom Parts raise the asset/schema version and fall back to the saved snapshot on older Clients; existing recipes render unchanged. The first slice proves goblin, split side hair and one drawn headpiece from editor to Part Library to a Window Companion and through export/import.
+New PersonaBots record a full-domain name-seed version; PersonaBots without it keep the human-only seed. Recipes using species, new slots or Custom Parts raise the asset/schema version and fall back to the saved snapshot on older Clients; existing recipes render unchanged. The first slice proves goblin, split side hair and one drawn headpiece from editor to Part Library to a Window Companion and through export/import.
 
 ## 6 · Persistence, export, and restore boundaries
 

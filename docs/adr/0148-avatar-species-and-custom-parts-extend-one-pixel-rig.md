@@ -29,7 +29,7 @@ BotPixel owns the part data type, validation, rendering and the pure drawing alg
 
 ## Randomness and compatibility
 
-The editor's random action covers every species and part. A PersonaBot records a lightweight seed version when created: new Bots use a full-domain name seed, while Bots without that record keep today's human-only seed, so no existing unsaved Bot changes face. Until a Human edits it, an Avatar follows its name; after editing, the saved Appearance is fixed and renaming does not change it. A recipe that uses a species, the new hair or headpiece slots or Custom Parts carries a new asset/schema version. Older Clients show its saved snapshot under ADR-0118's fallback, and existing recipes keep byte-identical output and the BotPixel golden fixture.
+The editor's random action covers every species and part. A PersonaBot records a lightweight seed version when created: new PersonaBots use a full-domain name seed, while PersonaBots without that record keep today's human-only seed, so no existing unsaved PersonaBot changes face. Until a Human edits it, an Avatar follows its name; after editing, the saved Appearance is fixed and renaming does not change it. A recipe that uses a species, the new hair or headpiece slots or Custom Parts carries a new asset/schema version. Older Clients show its saved snapshot under ADR-0118's fallback, and existing recipes keep byte-identical output and the BotPixel golden fixture.
 
 ## Considered options
 
@@ -38,11 +38,11 @@ The editor's random action covers every species and part. A PersonaBot records a
 - **Many accessory slots** add combinations that become noise at 32×32; finer hair pieces and one through-hair headpiece slot give the variety Humans asked for.
 - **Custom Parts as SVG or RGBA images** lose recoloring (RGBA) or reopen the markup trust boundary that ADR-0118 rejected (SVG).
 - **Library references instead of embedded copies** make shared PersonaBots depend on another Profile's library.
-- **Changing the existing name seed** would change every unsaved Bot's face.
+- **Changing the existing name seed** would change every unsaved PersonaBot's face.
 
 ## Consequences
 
-The first tracer bullet is the goblin species, split and separately colored side hair, and a minimal editor (pencil, eraser, fill, mirror, 1× preview) that draws one headpiece, saves it to the Part Library and applies it to a Bot. That Bot animates and speaks in a Window Companion, and the part survives export and import. Gradient and noise, PNG import, the remaining species, derived editing and medieval outfits follow in later slices.
+The first tracer bullet is the goblin species, split and separately colored side hair, and a minimal editor (pencil, eraser, fill, mirror, 1× preview) that draws one headpiece, saves it to the Part Library and applies it to a PersonaBot. That PersonaBot animates and speaks in a Window Companion, and the part survives export and import. Gradient and noise, PNG import, the remaining species, derived editing and medieval outfits follow in later slices.
 
 Validation covers legal extremes per species, species switching with hidden-but-kept choices, Custom Part bounds, content-hash deduplication, turned poses of imported parts, the speech mouth under beards, older-Client snapshot fallback, and unchanged golden output for existing recipes.
 

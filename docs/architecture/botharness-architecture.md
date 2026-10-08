@@ -478,7 +478,7 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 Custom Part 是有界像素网格，每格引用外形颜色或固定色并带明度档位，因此随外形换色。BotPixel 负责其类型、校验、渲染与纯函数绘制算法；PersonaBot 所属模块把副本嵌入 Avatar Appearance，DSH Profile 中由 Host 管理的 Part Library 以内容哈希身份和来源保存可复用部件。导出的 PersonaBot 携带其部件；单个部件以内嵌数据的 PNG 流转。眼睛、眉毛和嘴不可自绘，眨眼与说话帧仍由 rig 负责。
 
-新 Bot 记录全域名字种子版本；没有该记录的 Bot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
+新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
 
 ## 6 · 持久化、导出与恢复边界
 
