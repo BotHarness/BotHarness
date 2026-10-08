@@ -239,6 +239,91 @@ describe('DSH Bot Agent adapter', () => {
     }
   });
 
+  it('rechecks source authority for native tools on the current Orchestrator turn', async () => {
+    const denials: Array<string | undefined> = [];
+    let invalid = false;
+    const refusal = {
+      outcome: 'capacity' as const,
+      code: 'assignment-capacity' as const,
+      activeCount: 3,
+      limit: 3,
+      retryable: true as const,
+      message: 'Nothing was awakened. Wait for active work to settle before retrying.',
+    };
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        onAgentCreated: () => {
+          const guards = host.scopes.get('orchestrator-ada')!.guards;
+          denials.push(guards.map((guard) => guard({ name: 'shell' })).find(Boolean));
+          invalid = true;
+          denials.push(guards.map((guard) => guard({ name: 'shell' })).find(Boolean));
+        },
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      await adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume: false,
+        requireContent: () => {
+          if (invalid) throw new Error('Source Event content was purged');
+        },
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        inbox: '',
+        message: 'Continue A',
+        channels: {
+          ...groupTools,
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
+          read: () => [],
+          requestGrant: async () => {
+            throw new Error('unexpected Grant request');
+          },
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        assignments: {
+          create: () => refusal,
+          request: () => ({
+            ...refusal,
+            assignment: { ...ASSIGNMENT, activity: 'idle' },
+            delivery: 'capacity',
+          }),
+          grants: () => [],
+          list: () => [],
+          inspect: () => undefined,
+          stop: async () => {
+            throw new Error('unexpected stop');
+          },
+        },
+      });
+      expect(denials).toEqual([
+        undefined,
+        'Source Event content was purged or its authority is unavailable',
+      ]);
+    } finally {
+      await adapter.close();
+    }
+  });
+
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];

@@ -1,4 +1,7 @@
+import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
+import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
+import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
 import { mountContentPurge } from './purge/owner.js';
 import type { ContentPurge } from './purge/contracts.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
@@ -55,6 +58,7 @@ import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/dele
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
+import { createCredentialReadiness } from './models/credential-readiness.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
@@ -215,7 +219,9 @@ export const Config = Schema.object({
 });
 
 export interface BotHarnessCore {
+  profileRecovery: ProfileRecovery;
   rootDir: string;
+  onboarding: BotOnboarding;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
@@ -369,16 +375,39 @@ export function createCore(
     migrateLegacySouls(registry, options.warn);
   }
   const states = createBotStateTracker();
+  const attachments = createAttachmentStore({
+    rootDir: join(dshHome, 'botharness', 'attachments'),
+  });
   const contentPurge = mountContentPurge({
     dshHome,
     database: operationalDatabase,
+    attachments,
+    derivatives: (ids, botSlugs) => {
+      const references = memory.sourceReferences(ids);
+      const slugs = [...new Set([...botSlugs, ...references.map((ref) => ref.botSlug)])].sort();
+      return [
+        ...references.map((ref) => ({
+          kind: 'memory' as const,
+          botSlug: ref.botSlug,
+          location: ref.memoryDir ?? '',
+          reference: ref.sha,
+          tracking: ref.available ? ('recorded' as const) : ('unavailable' as const),
+        })),
+        ...slugs.flatMap((slug) =>
+          grants.list(slug).map((grant) => ({
+            kind: 'workspace' as const,
+            botSlug: slug,
+            location: grant.workspacePath,
+            reference: grant.id,
+            tracking: 'possible' as const,
+          })),
+        ),
+      ];
+    },
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   let runtime: BotRuntime | undefined;
   let companions: CompanionFeed | undefined;
-  const attachments = createAttachmentStore({
-    rootDir: join(dshHome, 'botharness', 'attachments'),
-  });
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
@@ -474,7 +503,12 @@ export function createCore(
       );
     refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
-      if (topics.some((topic) => ['bindings', 'grants', 'bot-schedules'].includes(topic)))
+      if (topics.includes('content-purge')) live?.publishContentPurged();
+      if (
+        topics.some((topic) =>
+          ['bindings', 'grants', 'bot-schedules', 'content-purge'].includes(topic),
+        )
+      )
         live?.publishRosterCommitted();
       if (
         topics.some((topic) =>
@@ -484,14 +518,18 @@ export function createCore(
         refreshDurableAttention();
     });
   }
-  live = createChannelLiveHub(channels, {
-    snapshot: () =>
-      personaBotActivitySnapshot(
-        registry.list().map((bot) => bot.slug),
-        states,
-      ),
-    onChange: (changed) => states.onActivity(() => changed()),
-  });
+  live = createChannelLiveHub(
+    channels,
+    {
+      snapshot: () =>
+        personaBotActivitySnapshot(
+          registry.list().map((bot) => bot.slug),
+          states,
+        ),
+      onChange: (changed) => states.onActivity(() => changed()),
+    },
+    () => contentPurge.redactions(),
+  );
   if (operationalDatabase.mode === 'ready')
     for (const bot of registry.list())
       if (bot.paused === true) channels.cancelInvitationsForBot(bot.slug);
@@ -557,6 +595,7 @@ export function createCore(
   const assignmentAccess = createAssignmentAccessStore(
     attachOperationalModule(operationalDatabase, 'assignment-access'),
   );
+  const profileRecovery = createProfileRecovery(operationalDatabase, registry, ownership);
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   const hostTools = new Set<string>();
@@ -585,6 +624,7 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   runtime = createBotRuntime({
+    requireExecution: (slug) => profileRecovery.requireExecution(slug),
     schedules,
     assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
     beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
@@ -667,10 +707,17 @@ export function createCore(
     changed: () => live?.publishRosterCommitted(),
     log: (event) => options.warn?.(JSON.stringify(event)),
   });
+  const onboarding = createBotOnboarding({
+    database: attachOperationalModule(operationalDatabase, 'bot-onboarding'),
+    registry,
+    channels,
+  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
+    profileRecovery,
     contentPurge,
+    onboarding,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -774,9 +821,31 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     events.on(event, forgetCredentialFailures);
   const modelCatalog = createModelCatalog(ctx.llm, {
     credentials: providerCredentials,
+    credentialFailure: createCredentialReadiness({
+      providers: () => ctx.llm.listConfigurableProviders(),
+      settings: () =>
+        (
+          ctx.get('settings') as unknown as
+            | { describe(options: { redactSecrets: boolean }): { ns: string; value: unknown }[] }
+            | undefined
+        )?.describe({ redactSecrets: true }) ?? [],
+      describe: async (ref) => {
+        const credentials = ctx.get('credentials') as unknown as
+          | { describe(ref: string): Promise<{ configured: boolean }> }
+          | undefined;
+        if (!credentials) throw new Error('Native credentials service is unavailable');
+        return credentials.describe(ref);
+      },
+    }),
     defaultRoute: () => {
       const selection = defaultModel.currentSelection();
-      return { provider: selection.provider, model: selection.model };
+      return {
+        provider: selection.provider,
+        model: selection.model,
+        ...(selection.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: selection.reasoningEffort }),
+      };
     },
   });
   const modelReadiness = createModelRouteReadiness(
@@ -799,8 +868,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (persistence === undefined) throw new Error('DSH Session Persistence is unavailable');
       return (await persistence.stat(sessionId)) !== undefined;
     },
-    prepareModelRoute: (slug, role, retainedRoute) =>
-      modelReadiness.prepare(slug, role, retainedRoute),
+    prepareModelRoute: (slug, role, retainedRoute) => {
+      core.profileRecovery.requireExecution(slug);
+      return modelReadiness.prepare(slug, role, retainedRoute);
+    },
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
@@ -1188,6 +1259,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     modelPresets: core.modelPresets,
     modelCatalog,
     modelReadiness,
+    onboarding: core.onboarding,
+    defaultModel: defaultModel as DshDefaultModelHost & {
+      saveSelection(route: import('./models/presets.js').ModelRoute): Promise<void>;
+    },
     states: core.states,
     runningSessionIds: () =>
       new Set(
@@ -1398,6 +1473,33 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       detail: (slug) => bridgeMethods.get({ slug }),
       log: (message) => ctx.logger.info(message),
     });
+    const profileBackupHttp = createProfileBackupHttp(
+      {
+        database: core.operationalDatabase,
+        registry: core.registry,
+        deletions: core.deletions,
+        attachments: core.attachments,
+        purge: core.contentPurge,
+        version: runningRelease.version,
+        sessionCount: () => core.ownership.list().length,
+        dshVersion: installedDshVersion(),
+        log: (message) => ctx.logger.info(message),
+      },
+      join(dshHome, 'botharness', 'backup-staging'),
+      core.profileRecovery,
+      modelCatalog,
+    );
+    for (const suffix of ['', '/inspect', '/recovery', '/authorize', '/activate'])
+      connectionCtx.effect(
+        () =>
+          connection.fetch.register({
+            path: PROFILE_BACKUP_PATH + suffix,
+            methods: ['GET', 'POST'],
+            requestBody: suffix === '/inspect' ? 'streaming' : 'buffered',
+            fetch: profileBackupHttp,
+          }),
+        'botharness: complete environment backup ' + suffix,
+      );
     connectionCtx.effect(
       () =>
         connection.fetch.register({

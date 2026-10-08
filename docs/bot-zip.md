@@ -4,19 +4,19 @@ A Bot can be packed into a zip file to send to a friend or colleague, or to move
 
 ## What is in the zip
 
-| Included                                                  | Never included                                                |
-| --------------------------------------------------------- | ------------------------------------------------------------- |
-| The Bot's Memory files, uncommitted changes included      | Files ignored by `.gitignore`, symbolic links                 |
-| `.botharness/bot.json` (name, roles) and the avatar image | Sessions, chat history, the Bot Inbox                         |
-| Optional: Git history (every branch, tag and commit)      | IM connections, Workspace grants, model settings, credentials |
-|                                                           | Git remotes, Git config and recovery checkpoints              |
+| Included                                                      | Never included                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------------- |
+| The Bot's Memory files, uncommitted changes included          | Files ignored by `.gitignore`, symbolic links                 |
+| `.botharness/bot.json` (name, tags, bio) and the avatar image | Sessions, chat history, the Bot Inbox                         |
+| Optional: Git history (every branch, tag and commit)          | IM connections, Workspace grants, model settings, credentials |
+|                                                               | Git remotes, Git config and recovery checkpoints              |
 
 ## Export
 
 1. Open the DM of the Bot you want to export and click the Bot's name at the top to open its profile.
-2. Find **Share and export** and click **Export zip**.
+2. Click **Share** at the top right of the profile. You can also right-click the Bot in the sidebar's message list and choose **Share**.
 
-![Share and export on the Bot profile](/guides/bot-zip/02-export-section-en.webp)
+![Share at the top right of the Bot profile](/guides/bot-zip/02-export-section-en.webp)
 
 3. In the export window, choose the files to put in the zip. Everything is ticked by default. Click the arrow in front of a folder to expand it, and untick files or whole folders you don't want to share, or use **Select all** and **Select none**. `.botharness/bot.json` and the avatar are always included and can't be unticked.
 4. To let the other person see how the Bot's memory changed over time, tick **Include Git history**.
@@ -32,9 +32,9 @@ Git history also keeps older content that was deleted or changed. That is why **
 
 ## Import
 
-1. Above the sidebar's message list, click **+ (New) → Create PersonaBot → Import from zip**.
+1. Above the sidebar's message list, click **+ (New) → Create Bot → Import from zip**.
 
-![The Create PersonaBot submenu: Start empty, Import from GitHub, Import from zip](/guides/bot-zip/01-create-menu-en.webp)
+![The Create Bot submenu: Start empty, Import from GitHub, Import from zip](/guides/bot-zip/01-create-menu-en.webp)
 
 2. Click **Choose zip file**, pick the zip you received and click **Import**.
 
@@ -42,7 +42,7 @@ Git history also keeps older content that was deleted or changed. That is why **
 
 Importing creates a new Bot and opens its DM:
 
-- Its name, roles and avatar come from `.botharness/bot.json` in the zip. Without that file, the zip's file name becomes the Bot's name.
+- Its name, tags, bio and avatar come from `.botharness/bot.json` in the zip; `roles` in an older zip are imported as tags. Without that file, the zip's file name becomes the Bot's name.
 - A zip without Git history gives the new Bot's Memory a single initial commit.
 - A zip with Git history keeps every branch, tag and commit and checks out the branch the Bot was on when exported; changes that were uncommitted then are still uncommitted. You can see them in [Memory evolution](/docs/channel-sidebar/memory-evolution).
 

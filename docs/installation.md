@@ -42,7 +42,7 @@ Click **Bot mode (Bot 模式)**, then **Create your first PersonaBot (创建第�
 
 ![Fresh Bot mode with the Create your first PersonaBot action](/guides/install/05-bot-mode-zh.webp)
 
-![Create PersonaBot dialog with a tutorial Bot name](/guides/install/06-create-bot-zh.webp)
+![Create Bot dialog with a tutorial Bot name](/guides/install/06-create-bot-zh.webp)
 
 Open the new Bot's DM, expand **Model** in the Channel sidebar on the right and click **Main model**. Choose the main model and task model, then **Save**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
 

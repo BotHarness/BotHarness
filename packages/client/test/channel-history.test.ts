@@ -49,6 +49,9 @@ async function fixture() {
       sourceEventIds: ['source-qa'],
       placements: [{ channelId: 'group-qa', name: 'Synthetic QA', messageId: 'msg-qa' }],
       admissions: [],
+      files: [],
+      effects: [],
+      derivatives: [],
     })),
     channelPurgeConfirm: vi.fn(async () => {
       throw new Error('Scope changed; review again');

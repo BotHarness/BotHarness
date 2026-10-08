@@ -1,3 +1,4 @@
+import type { BotOnboarding, OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import {
   ContentPurgeError,
@@ -53,6 +54,11 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
+import {
+  MAX_DESCRIPTOR_BIO_LENGTH,
+  MAX_DESCRIPTOR_TAG_LENGTH,
+  MAX_DESCRIPTOR_TAGS,
+} from '../marketplace/descriptor.js';
 import type {
   ReleaseInfo,
   ReleaseInstall,
@@ -284,6 +290,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
 
   today: string;
   events: ProfileActivityReasonDay[];
@@ -326,6 +334,10 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  onboarding(payload: unknown): Promise<BridgeResult<OnboardingSnapshot>>;
+  modelPlanInherit(payload: unknown): BridgeResult<{ revision: number }>;
+  onboardingModel(payload: unknown): Promise<BridgeResult<{ revision: number }>>;
+  channelRetry(payload: unknown): Promise<BridgeResult<{ accepted: true }>>;
   approvalRoute(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   approvalTest(
     payload: unknown,
@@ -404,7 +416,9 @@ export interface BridgeMethods {
     payload: unknown,
   ): BridgeResult<{ sources: PurgeSource[]; before?: string }>;
   channelPurgePreview(payload: unknown): BridgeResult<PurgePreview>;
-  channelPurgeConfirm(payload: unknown): BridgeResult<{ accepted: number }>;
+  channelPurgeConfirm(
+    payload: unknown,
+  ): BridgeResult<{ accepted: number; cleanupPending?: number }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
@@ -519,6 +533,11 @@ export interface BridgeMethodsDeps {
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
+  onboarding?: BotOnboarding;
+  defaultModel?: {
+    currentSelection(): ModelRoute;
+    saveSelection(route: ModelRoute): Promise<void>;
+  };
   states: BotStateTracker;
   runningSessionIds?: () => ReadonlySet<string>;
   channels: ChannelStore;
@@ -1327,6 +1346,105 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       });
     },
+    async onboarding(payload) {
+      if (deps.onboarding === undefined) return unavailable();
+      const source = asObject(payload);
+      const action = source['action'];
+      if (
+        action !== undefined &&
+        !['start', 'pause', 'skip', 'continue', 'restart'].includes(String(action))
+      )
+        return invalidInput('Invalid tutorial action');
+      try {
+        return {
+          ok: true,
+          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof Error ? error.message : 'onboarding-unavailable',
+            message: error instanceof Error ? error.message : 'Onboarding unavailable',
+          },
+        };
+      }
+    },
+    modelPlanInherit(payload) {
+      const slug = asSlug(payload);
+      const revision = asObject(payload)['expectedRevision'];
+      if (slug === undefined || !Number.isSafeInteger(revision))
+        return invalidInput('Bot and expected revision required');
+      const result = deps.registry.inheritModel(slug, revision as number);
+      if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+      return { ok: true, value: { revision: result.record.modelPlanRevision ?? 0 } };
+    },
+    async onboardingModel(payload) {
+      if (deps.modelCatalog === undefined || deps.defaultModel === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const route = source['route'];
+      const revision = source['expectedRevision'];
+      if (
+        !isModelRoute(route) ||
+        typeof source['globalDefault'] !== 'boolean' ||
+        !Number.isSafeInteger(revision)
+      )
+        return invalidInput('Model, scope and expected revision required');
+      const bot = slug === undefined ? undefined : deps.registry.get(slug);
+      if (slug !== undefined && bot === undefined) return unknownBot(slug);
+      if ((bot?.modelPlan?.revision ?? bot?.modelPlanRevision ?? 0) !== revision)
+        return invalidInput('Bot model changed; reopen before saving');
+      try {
+        await deps.modelCatalog.validate(route);
+        if (source['globalDefault']) {
+          await deps.defaultModel.saveSelection(route);
+          const saved = deps.defaultModel.currentSelection();
+          if (
+            saved.provider !== route.provider ||
+            saved.model !== route.model ||
+            saved.reasoningEffort !== route.reasoningEffort
+          )
+            return invalidInput('Profile default model was not saved; open native model settings');
+          if (slug === undefined) return { ok: true, value: { revision: 0 } };
+          return this.modelPlanInherit({ slug, expectedRevision: revision });
+        }
+        if (slug === undefined) return invalidInput('Choose a Bot for an individual model');
+        const result = deps.registry.setModelPlan(
+          slug,
+          {
+            orchestrator: route,
+            assignmentDefault: route,
+            assignmentModels: [
+              {
+                provider: route.provider,
+                model: route.model,
+                allowedEfforts: [route.reasoningEffort ?? ''],
+                defaultEffort: route.reasoningEffort ?? '',
+              },
+            ],
+          },
+          revision as number,
+        );
+        if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+        return { ok: true, value: { revision: result.record.modelPlan!.revision } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Model unavailable');
+      }
+    },
+    async channelRetry(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (!channelId || !messageId || !deps.runtime?.retryDmMessage)
+        return invalidInput('Original message is required');
+      try {
+        await deps.runtime.retryDmMessage(channelId, messageId);
+        return { ok: true, value: { accepted: true } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Retry unavailable');
+      }
+    },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {
@@ -1468,12 +1586,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (bot === undefined) return unknownBot(slug);
       if (deps.modelReadiness !== undefined) {
         try {
-          return { ok: true, value: await deps.modelReadiness.inspect(slug) };
+          const state = await deps.modelReadiness.inspect(slug);
+          const current = deps.registry.get(slug);
+          return {
+            ok: true,
+            value: {
+              ...state,
+              revision: current?.modelPlan?.revision ?? current?.modelPlanRevision ?? 0,
+            },
+          };
         } catch (failure) {
           return invalidInput(failure instanceof Error ? failure.message : String(failure));
         }
       }
-      return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
+      return {
+        ok: true,
+        value: {
+          revision: bot.modelPlan?.revision ?? bot.modelPlanRevision ?? 0,
+          ...(bot.modelPlan === undefined ? {} : { plan: bot.modelPlan }),
+        },
+      };
     },
     async modelPlanCustomize(payload) {
       if (deps.modelCatalog === undefined) return unavailable();
@@ -1938,6 +2070,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         !avatar.ok
       ) {
         return invalidInput('invalid update payload');
+      }
+      if (
+        (roles.value !== undefined &&
+          (roles.value.length > MAX_DESCRIPTOR_TAGS ||
+            roles.value.some((tag) => [...tag.trim()].length > MAX_DESCRIPTOR_TAG_LENGTH))) ||
+        (description.value !== undefined &&
+          [...description.value.trim()].length > MAX_DESCRIPTOR_BIO_LENGTH)
+      ) {
+        return invalidInput('tags or bio exceed the profile limits');
       }
       const patch: PersonaBotPatch = {
         ...(displayName.value === undefined ? {} : { displayName: displayName.value }),
@@ -2453,6 +2594,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channelId === undefined) return invalidInput('channelId is required');
       try {
         deps.channels.deleteGroup(channelId);
+        deps.externalMessaging?.inbound.endChannel(channelId);
         return { ok: true, value: { deleted: true } };
       } catch (error) {
         return invalidInput(String(error));
@@ -3868,11 +4010,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const scope = dmMemory(payload);
       if (!('botSlug' in scope)) return scope;
       const slug = scope.botSlug;
-      const weeks = 26;
-      const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-      const events = deps.channels.admissionActivity?.(slug, since) ?? [];
-      const commits = deps.memory?.activity?.(slug, since) ?? [];
-      const usageRows = deps.usage?.activity(slug, since) ?? [];
+      const source = asObject(payload);
+      const before = source['before'];
+      const requestedWeeks = source['weeks'];
+      if (
+        before !== undefined &&
+        (typeof before !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(before))
+      )
+        return invalidInput('before must be a YYYY-MM-DD day');
+      if (
+        requestedWeeks !== undefined &&
+        (typeof requestedWeeks !== 'number' ||
+          !Number.isInteger(requestedWeeks) ||
+          requestedWeeks < 1 ||
+          requestedWeeks > 104)
+      )
+        return invalidInput('weeks must be an integer from 1 to 104');
+      const weeks = requestedWeeks ?? 26;
+      const end = before === undefined ? undefined : localMidnight(before);
+      const since = new Date(
+        (end?.getTime() ?? Date.now()) - weeks * 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const beforeEnd = <T extends { at: string }>(entries: readonly T[]): T[] =>
+        end === undefined ? [...entries] : entries.filter((entry) => new Date(entry.at) < end);
+      const events = beforeEnd(deps.channels.admissionActivity?.(slug, since) ?? []);
+      const commits = beforeEnd(deps.memory?.activity?.(slug, since) ?? []);
+      const usageRows = (deps.usage?.activity(slug, since) ?? []).filter(
+        (row) => before === undefined || row.day < before,
+      );
+      const createdDay = localDay(deps.registry.getHistorical(slug)?.createdAt ?? '');
       const tokensByDay = new Map<string, ProfileActivityTokensDay>();
       const tokenTotals: ProfileTokenBuckets = {
         inputTokens: 0,
@@ -3904,6 +4070,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug,
           weeks,
           since,
+          ...(before === undefined ? {} : { before }),
+          ...(createdDay === undefined ? {} : { createdDay }),
           today: localDay(new Date().toISOString()) ?? '',
           events: bucketByReason(events),
           memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
@@ -4036,6 +4204,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: { accepted: deps.developerMode !== undefined } };
     },
   };
+}
+
+function localMidnight(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year!, month! - 1, date!);
 }
 
 function localDay(at: string): string | undefined {

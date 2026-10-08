@@ -5,6 +5,7 @@ export function highlightInternalControl(
   title: string,
   description: string,
   closeLabel: string,
+  onClosed?: () => void,
 ): () => void {
   const doc = element.ownerDocument;
   const previous = doc.activeElement;
@@ -21,6 +22,10 @@ export function highlightInternalControl(
       popover.wrapper.setAttribute('aria-label', title);
       popover.closeButton.setAttribute('aria-label', closeLabel);
       popover.closeButton.focus();
+    },
+    onCloseClick: () => {
+      onClosed?.();
+      tour.destroy();
     },
     onDestroyed: () => {
       observer.disconnect();
@@ -54,6 +59,7 @@ export function highlightInternalControl(
     if (event.key !== 'Escape') return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    onClosed?.();
     tour.destroy();
   };
   doc.addEventListener('keydown', escape, true);

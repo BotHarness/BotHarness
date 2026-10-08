@@ -1,5 +1,14 @@
 # DSH debugging playbook
 
+## RC1 streaming routes with GET
+
+Register GET routes with `requestBody: 'buffered'`. The installed RC1 HTTP bridge attaches
+`Readable.toWeb(req)` as a body for streaming routes, including GET; WHATWG Request rejects
+that combination before the registered handler runs. A real Profile backup preview returned
+an empty HTTP 400 while direct handler tests passed. Keep large POST uploads streaming and
+verify GET plus POST through the actual authenticated Host after restart. This was reproduced
+and corrected on DSH 0.2.0-rc.1 in [#886](https://github.com/BotHarness/DeepSeekBot/issues/886).
+
 ## Authenticated fixture navigation
 
 In pinned RC1, native connection.admit also applies the Host/Origin fence: a request with Sec-Fetch-Site: cross-site receives 403 even with a valid cookie. A CUA direct navigation to an authenticated fixture produced Chrome ERR_BLOCKED_BY_CLIENT; the same URL reached through a visible same-origin application link passed admission and ran. Check bounded, credential-free admission metadata before blaming the browser extension or product startup. Keep the native fence intact; use normal application navigation for the verification path. Do not log cookie values, launch tokens or request contents ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
