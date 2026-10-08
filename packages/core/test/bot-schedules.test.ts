@@ -14,6 +14,7 @@ import {
   BOT_SCHEDULE_ENABLED_LIMIT,
   createBotScheduleStore,
   previewBotScheduleTrigger,
+  relativeBotScheduleTrigger,
   type BotScheduleStore,
 } from '../src/schedules/bot-schedules.js';
 import { createTempRoot, trackTestOwner } from './helpers.js';
@@ -647,4 +648,49 @@ it('upgrades existing Source Events and admissions to accept schedule firings', 
   );
   expect(indexes.map((row) => row.name)).toContain('inbox_admissions_bot_pending');
   expect(indexes.map((row) => row.name)).toContain('source_events_bot_created');
+});
+
+describe('relative one-time reminders', () => {
+  it('rounds the Host deadline up across local midnight and persists one native firing', () => {
+    const start = '2026-10-08T14:55:32.123Z';
+    const trigger = relativeBotScheduleTrigger(10, 'Asia/Tokyo', new Date(start));
+    expect(trigger).toEqual({
+      kind: 'once',
+      date: '2026-10-09',
+      time: '00:06',
+      timeZone: 'Asia/Tokyo',
+    });
+    const { store } = storeAt(start);
+    const schedule = store.create(
+      'ada',
+      { title: 'Reminder', prompt: 'Send to the current DM', trigger },
+      'personabot',
+    );
+    expect(schedule.nextRunAt).toBe('2026-10-08T15:06:00.000Z');
+  });
+  it('keeps an exact whole-minute deadline and resolves a spring DST jump', () => {
+    const now = new Date('2026-03-08T06:55:00.000Z');
+    const trigger = relativeBotScheduleTrigger(10, 'America/New_York', now);
+    expect(trigger).toEqual({
+      kind: 'once',
+      date: '2026-03-08',
+      time: '03:05',
+      timeZone: 'America/New_York',
+    });
+    expect(previewBotScheduleTrigger(trigger, now)).toEqual(['2026-03-08T07:05:00.000Z']);
+  });
+  it('refuses an ambiguous autumn deadline rather than scheduling its earlier occurrence', () => {
+    expect(() =>
+      relativeBotScheduleTrigger(70, 'America/New_York', new Date('2026-11-01T05:05:00Z')),
+    ).toThrow('ambiguous local time');
+  });
+  it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])(
+    'rejects an invalid delay %s',
+    (minutes) => {
+      expect(() => relativeBotScheduleTrigger(minutes, 'Asia/Tokyo')).toThrow('once_in_minutes');
+    },
+  );
+  it('refuses an invalid time zone without guessing the Host zone', () => {
+    expect(() => relativeBotScheduleTrigger(10, 'not-a-zone')).toThrow('valid IANA time_zone');
+  });
 });
