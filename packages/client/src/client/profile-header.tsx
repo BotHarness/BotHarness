@@ -436,6 +436,7 @@ export function ProfileHeader({
               name={bot.displayName}
               src={bot.avatar}
               appearance={bot.appearance}
+              avatarSeed={bot.avatarSeed}
               size={80}
               indicator={false}
             />

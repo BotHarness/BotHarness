@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { isValidSlug } from '../src/index.js';
+import { isPersonaBotRecord } from '../src/bots/persona-bot.js';
 import { registryDatabase } from './registry-fixture.js';
 import { createHash } from 'node:crypto';
 import { DEFAULT_ILLUSTRATED_RECIPE, avatarSvg } from '../src/bots/avatar-appearance.js';
@@ -215,10 +216,18 @@ describe('createPersonaBotRegistry', () => {
       displayName: '研究助手',
       workspaces: [],
       createdAt: '2026-09-17T00:00:00.000Z',
+      avatarSeed: 2,
     });
     expect(createTestRegistry({ rootDir: root }).get('research')).toMatchObject({
       slug: 'research',
     });
+  });
+
+  it('keeps Bots without a seed version on the original seed and rejects unknown versions', () => {
+    const record = { slug: 'ada', displayName: 'Ada', workspaces: [], createdAt: '' };
+    expect(isPersonaBotRecord(record, 'ada')).toBe(true);
+    expect(isPersonaBotRecord({ ...record, avatarSeed: 2 }, 'ada')).toBe(true);
+    expect(isPersonaBotRecord({ ...record, avatarSeed: 3 }, 'ada')).toBe(false);
   });
 
   it('persists independent Browser Access through record serialization and reload', () => {

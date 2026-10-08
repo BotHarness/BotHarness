@@ -607,6 +607,7 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
         ? { appearanceUnsupported: true as const }
         : {}),
     ...(parseBanner(record['banner']) ?? {}),
+    ...(record['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
     ...(record['deleted'] === true ? { deleted: true } : {}),
     ...(parseStandingLimits(record['standingLimits']) ?? {}),
@@ -1392,6 +1393,7 @@ export interface SessionBotOwner {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance;
+  avatarSeed?: 2;
   role: 'orchestrator' | 'assignment';
 }
 
@@ -1410,6 +1412,7 @@ export function parseSessionBotOwner(value: unknown): SessionBotOwner | undefine
     displayName,
     ...(typeof avatar === 'string' && avatar.length > 0 ? { avatar } : {}),
     ...(isAvatarAppearance(owner['appearance']) ? { appearance: owner['appearance'] } : {}),
+    ...(owner['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     role,
   };
 }
