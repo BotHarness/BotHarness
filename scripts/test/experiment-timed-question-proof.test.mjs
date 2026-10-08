@@ -40,6 +40,16 @@ test('rejects ordinary text impersonating a qualified answer', () => {
   ).data.source.kind = 'user';
   assert.throws(() => checkTimedQuestion(proof), /one admitted qualified answer/u);
 });
+test('rejects an answer queued before the unrelated reply despite a later HTTP response', () => {
+  const proof = load();
+  const queued = proof.after.events.find(
+    (event) =>
+      event.type === 'agent/inbox/spliced' &&
+      event.data.inserted.some((row) => row.source.callId === proof.verdict.callId),
+  );
+  queued.time = Date.parse(proof.verdict.baseline.replyAt);
+  assert.throws(() => checkTimedQuestion(proof), /answer submitted after/u);
+});
 test('rejects queued-only answers and prematurely settled questions', () => {
   const proof = load();
   proof.unanswered.questions.active = [];

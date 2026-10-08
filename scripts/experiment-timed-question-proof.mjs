@@ -143,6 +143,15 @@ export function checkTimedQuestion(proof) {
       false,
       'no answer admitted before unrelated reply',
     );
+    assert.equal(
+      snapshot.events.some(
+        (event) =>
+          event.type === 'agent/inbox/spliced' &&
+          event.data.inserted.some((row) => row.source.callId === callId),
+      ),
+      false,
+      'no qualified answer queued before unrelated reply',
+    );
   }
   const modelSend = (body) => {
     const send = after.events.find(
@@ -222,6 +231,10 @@ export function checkTimedQuestion(proof) {
       event.data.inserted.some((row) => row.id === reply.data.id && row.source.callId === callId),
   );
   assert.ok(queued && queued.seq < reply.seq, 'qualified reply queued then admitted');
+  assert.ok(
+    Date.parse(unrelated.replyAt) < queued.time,
+    'answer submitted after the unrelated reply',
+  );
   assert.equal(
     after.questions.active.some((row) => row.callId === callId),
     false,

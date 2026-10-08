@@ -125,7 +125,7 @@ probe does not demonstrate those properties. No upstream post or production roll
 ## Validation
 
 - Final fresh real-model/native/browser probe: passed; both browser observations had zero warnings/errors.
-- Retained RC2 and RC1 evidence verification: 20 tests passed, including forged provenance,
+- Retained RC2 and RC1 evidence verification: 21 tests passed, including forged provenance,
   rewritten results, replacement Sessions, premature settlement, failed sends and mismatched receipts.
 - Repository lint/source policy, bilingual product/Skill ledgers, formatting and type check: passed;
   the new scripts have no lint warnings.
