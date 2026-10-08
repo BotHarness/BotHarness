@@ -963,12 +963,18 @@ export function createActions(
 
   const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
-    const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
+    const requestedFrom = currentSelection();
+    let channel = snapshot.channels.find((candidate) => candidate.id === channelId);
+    if (channel === undefined && messageId !== undefined) {
+      const channels = await loadChannels(call);
+      if (currentSelection() !== requestedFrom) return;
+      clientStore.setRoster(clientStore.getSnapshot().bots, channels);
+      channel = channels.find((candidate) => candidate.id === channelId);
+    }
     if (channel === undefined) {
       if (messageId !== undefined) throw new Error('Source Channel is no longer available');
       return;
     }
-    const requestedFrom = currentSelection();
     const sourcePage =
       messageId === undefined
         ? undefined

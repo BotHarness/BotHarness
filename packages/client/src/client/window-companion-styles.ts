@@ -34,8 +34,13 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-gutter: stable; }
 .bh-companion-card { position: absolute; width: 100%; height: 104px; padding: 8px 10px; background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); transform-origin: center top; color: var(--bh-companion-text); transition: top 220ms ease, transform 220ms ease; box-shadow: 3px 3px 0 var(--bh-companion-border); }
 .bh-companion-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bh-companion-source { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
+.bh-companion-source small { font: 11px/14px var(--bh-companion-font); color: var(--bh-companion-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-companion-source button { text-align: left; line-height: 14px; }
+.bh-companion-source button:disabled { cursor: default; }
 .bh-companion-card header button { font-size: 11px; color: var(--bh-companion-muted); background: transparent; border: 0; padding: 0; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow: auto; }
+.bh-companion-card p[data-context='true'] { max-height: 36px; }
 .bh-companion-toolbar { position: absolute; bottom: 96px; left: -10px; display: flex; align-items: center; gap: 4px; padding: 5px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); opacity: 0; visibility: hidden; transition: opacity 150ms ease; }
 .bh-companion-toolbar[data-open='true'] { opacity: 1; visibility: visible; }
 .bh-companion-toolbar button { display: grid; place-items: center; min-width: 28px; height: 26px; border: 0; background: transparent; color: var(--bh-companion-text); cursor: pointer; }

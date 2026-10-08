@@ -6,6 +6,65 @@ afterEach(() => {
   for (const owner of controllers.splice(0)) owner.dispose();
 });
 
+it('preserves eligible shown and queued cards while changing sources, but resets on a new Host', async () => {
+  const streams: EventTarget[] = [];
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => {
+      const target = new EventTarget();
+      streams.push(target);
+      return { addEventListener: target.addEventListener.bind(target), close() {} };
+    },
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (type: string, data: unknown) =>
+    streams.at(-1)!.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
+  const baseline = (generation = 'host-a') =>
+    send('companion/baseline', {
+      profileId: 'qa',
+      bot: { slug: 'ada', name: 'Ada', paused: false },
+      activity: { generation, revision: 0, bots: [{ slug: 'ada', state: 'working' }] },
+    });
+  const message = (messageId: string, source: string) =>
+    send('companion/message', {
+      generation: 'host-a',
+      botId: 'ada',
+      messageId,
+      source,
+      channelId: messageId,
+      channelName: messageId,
+      body: 'still reading this message',
+    });
+  baseline();
+  owner.configure({ group: true, visibility: 'all-bot' });
+  baseline();
+  message('dm', 'own-dm');
+  message('group', 'shared-group');
+  message('bot-dm', 'bot-dm');
+  owner.advance(100);
+  const dm = owner.getSnapshot().cards[0];
+  const botDm = owner.getSnapshot().cards[2];
+  owner.reading(true);
+  message('queued-dm', 'own-dm');
+  message('queued-group', 'shared-group');
+  message('queued-bot-dm', 'bot-dm');
+  owner.configure({ group: false });
+  expect(owner.getSnapshot()).toMatchObject({ cards: [dm, botDm], pending: 2, reading: true });
+  baseline();
+  expect(owner.getSnapshot()).toMatchObject({ cards: [dm, botDm], pending: 2 });
+  owner.configure({ visibility: 'own-dm' });
+  baseline();
+  owner.reading(false);
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['dm', 'queued-dm']);
+  message('dm', 'own-dm');
+  expect(owner.getSnapshot().cards).toHaveLength(2);
+  owner.configure({ group: true, visibility: 'all-bot' });
+  baseline('host-b');
+  expect(owner.getSnapshot()).toMatchObject({ cards: [], pending: 0 });
+});
+
 it('checks a closed stream against a fresh Registry result and preserves pins on lookup failure or replacement', async () => {
   const streams: EventTarget[] = [];
   let result = async (): Promise<boolean> => {

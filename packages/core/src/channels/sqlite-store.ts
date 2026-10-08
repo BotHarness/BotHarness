@@ -1837,6 +1837,31 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const found = messages.find((item) => item.id === messageId);
       return found === undefined ? undefined : project(messages, found);
     },
+    observeOutput(id, messageId) {
+      const channel = readRecord(id);
+      if (!channel) return undefined;
+      const row = database.read((db) =>
+        db
+          .prepare(`
+        SELECT p.revision, e.payload_json, e.body
+          FROM channel_placements p
+          JOIN source_events e ON e.source_event_id = p.source_event_id
+         WHERE p.channel_id = ? AND p.message_id = ?
+      `)
+          .get(id, messageId),
+      ) as Pick<PlacementRow, 'revision' | 'payload_json' | 'body'> | undefined;
+      const message = row && parseMessage(row.payload_json, row.body);
+      if (!row || !message || message.id !== messageId) return undefined;
+      const member = humanMembers(id).find((entry) => entry.human_id === LOCAL_HUMAN_ID);
+      return {
+        channel,
+        message: { id: message.id, author: message.author, body: message.body },
+        humanParticipant: participates(id),
+        canRead:
+          channel.type === 'dm' ||
+          (member !== undefined && row.revision >= member.visible_from_revision),
+      };
+    },
     assertAttachmentRefs,
     migrateAttachments: (signal) => attachmentMigration.migrate(signal),
     attachmentReference(channelId, messageId, identity) {

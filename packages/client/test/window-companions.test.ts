@@ -401,7 +401,9 @@ it('restores only Profile preferences and rejects superseded selection baselines
   emit('companion/baseline', 'host', 0, []);
   emit('companion/selection', 'host', 1, ['ada', 'grace']);
   expect(owner.get('grace')!.getSnapshot().bot).toBeUndefined();
-  emit('companion/selection', 'host', 2, ['ada', 'grace']);
+  emit('companion/selection', 'host', 4, ['ada', 'grace']);
+  expect(owner.get('grace')!.getSnapshot().bot).toBeUndefined();
+  emit('companion/selection', 'host', 5, ['ada', 'grace']);
   expect(owner.get('grace')!.getSnapshot().bot?.slug).toBe('grace');
   events.dispatchEvent(
     new MessageEvent('companion/message', {

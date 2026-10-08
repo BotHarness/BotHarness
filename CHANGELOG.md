@@ -13,6 +13,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Window Companions can independently play Group replies and choose own-DM, shared-Channel or all-Bot-Channel scope, including Bot–Bot DMs with both participants named. Cards identify the original Channel and respect its existing read access; changing sources or scope removes only newly ineligible cards, preserves eligible reading and queued messages, and starts newly enabled sources with future committed Bot text, without marking messages read ([#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)).
+
 - Human can delete a PersonaBot from Profile while retaining Memory by default, explicitly erase a verified exclusive repository, open its Host folder, and inspect/retry incomplete cleanup; deletion retains history and terminally fences the original identity ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 - Lark, Slack and Discord groups now show their real names instead of IDs: in External identities, in connected external conversations, on messages in the Channel, and in what the Bot reads, where the ID is still given next to the name. Discord groups read as `Server #channel`. Lark sender names are looked up with a longer timeout and cached per app, and a failed lookup falls back to the ID. Existing entries pick up the name with their next message ([#1151](https://github.com/BotHarness/BotHarness/issues/1151), [External connectors guide](docs/channel-sidebar/external-connectors.md)).

@@ -699,7 +699,7 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 
 [#910](https://github.com/BotHarness/BotHarness/issues/910) extends the canonical external-only report path to qualified paired-owner WeChat DMs ([ADR-0139](../adr/0139-wechat-external-reports-use-private-owner-context.md)). The Profile form and `bridge_post` share owned Outbox authority. The Provider explicitly negotiates receipt and final-fence support, keeps current owner context private with fingerprint/order/retention checks, and invokes the application's current Binding/Grant/Registration fence immediately before one native send. Genuine server IDs stay separate from client acknowledgements. Missing context and native rejection offer explicit fresh-message recovery; unknown outcomes never trigger automatic retry. No local DM mirror, new Inbox delivery, scheduler or standalone Provider Session is introduced.
 
-### 窗口伙伴（#1138–#1139）
+### 窗口伙伴（#1138–#1140）
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
@@ -707,4 +707,4 @@ Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连
 
 应用定义的 `WindowCompanions` 集合拥有 Profile 的钉选集合和共用容量，组合每个 Bot 独立的播放 owner 与运动 View。侧栏菜单与各 Bot 的 header 按钮均操作此集合，与 Channel 置顶无关。偏好从单选 v1 迁移到 v2；只持久化形象选择、来源/范围、位置、走动与容量。多个伙伴复用一条受认证 SSE，通过原生随机的临时 consumer ID 和同路径 POST 原子替换消费集合；控制句柄随流关闭释放，既不是身份也不是耐久权威。递增选择版本阻止迟到的基线初始化被替换的消费；增加或移除其他 Bot 不重置正在阅读的卡片。
 
-选中伙伴时，共享 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者分别合并 Activity 和选择快照，按 Bot 有界保留消息并轮流排出。容量默认层叠 3／保留 20，层数 1–10、保留 1–100 且层数不超过保留；每个 Bot 的 Host 待发队列、Client 保留卡片与阅读到达队列各受保留数量约束。阅读中最多两倍保留数量的卡片，离开时合并最新消息；已有文字按完整字素继续播放。View 做基本气泡避让与视口夹取，不设钉选数量上限或自动折叠人物。移除一个 Bot 只释放自身播放，最后一个移除后关闭共享流。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。当前群聊入口显示暂不可用；范围偏好已保存，但更广消息消费由 #1140 接入，有界离线恢复与生命周期扩展仍按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 交付。
+选中伙伴时，共享 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者分别合并 Activity 和选择快照，按 Bot 有界保留消息并轮流排出。容量默认层叠 3／保留 20，层数 1–10、保留 1–100 且层数不超过保留；每个 Bot 的 Host 待发队列、Client 保留卡片与阅读到达队列各受保留数量约束。阅读中最多两倍保留数量的卡片，离开时合并最新消息；已有文字按完整字素继续播放。View 做基本气泡避让与视口夹取，不设钉选数量上限或自动折叠人物。移除一个 Bot 只释放自身播放，最后一个移除后关闭共享流。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。每个 Bot 的 DM、群聊与 Activity 标签独立开关；消息开关与 own-dm/shared/all-bot 范围相交。Channel owner 的 `observeOutput` 单条规范查询返回安全正文、作者、当前成员关系与独立的 Human 读取判定，Feed 验证所选 Bot 后推送，队列在范围变化及排出时重新资格判断。来源或范围变化只移除不再符合条件的显示及排队卡片，同一 Host 的确认基线保留仍可见内容与阅读进度，新启用来源不回放禁用期；点击来源先按需刷新 owner 会话列表，再检查锚点 timeline 读取权限，失败在卡片解释。卡片标明 Channel、Bot DM 双方和原会话可读性，不自动加入或改变已读位置。宽范围仅新增所选 Bot 的输出观察，既有通用 timeline 和模型能力不扩权。有界离线恢复与生命周期扩展仍按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 交付。

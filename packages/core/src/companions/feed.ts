@@ -1,5 +1,5 @@
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
-import type { ChannelRecord } from '../channels/channel.js';
+import type { ChannelOutputObservation } from '../channels/store.js';
 import { messagePreview } from '../channels/message-preview.js';
 import type { PersonaBotOutputCommitted } from '../channels/output.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -25,6 +25,9 @@ export interface CompanionMessage {
   channelId: string;
   channelName: string;
   body: string;
+  source?: 'own-dm' | 'bot-dm' | 'shared-group' | 'bot-group';
+  participants?: string[];
+  canOpen?: boolean;
 }
 export interface CompanionFeed {
   open(request: Request): Response;
@@ -35,15 +38,15 @@ export interface CompanionFeed {
 export interface CompanionSubscription {
   botId: string;
   dm: boolean;
+  group?: boolean;
+  visibility?: 'own-dm' | 'shared' | 'all-bot';
 }
 interface FeedSource {
   profileId: string;
   bot(slug: string): CompanionBot | undefined;
   activity(): PersonaBotActivitySnapshot;
   onActivity(changed: () => void): () => void;
-  channel(
-    id: string,
-  ): Pick<ChannelRecord, 'id' | 'type' | 'name' | 'botSlug' | 'members' | 'deletedAt'> | undefined;
+  observeOutput(channelId: string, messageId: string): ChannelOutputObservation | undefined;
 }
 
 export function createCompanionFeed(source: FeedSource): CompanionFeed {
@@ -106,7 +109,14 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           return new Response('Invalid selection', { status: 400 });
         if (!source.bot(item.botId)) return new Response('Unknown PersonaBot', { status: 404 });
         seen.add(item.botId);
-        selections.push({ botId: item.botId, dm: item.dm });
+        const group = 'group' in item ? item.group : false;
+        const visibility = 'visibility' in item ? item.visibility : 'shared';
+        if (
+          typeof group !== 'boolean' ||
+          (visibility !== 'own-dm' && visibility !== 'shared' && visibility !== 'all-bot')
+        )
+          return new Response('Invalid visibility', { status: 400 });
+        selections.push({ botId: item.botId, dm: item.dm, group, visibility });
       }
       consumer.replace(selections, capacity, revision);
       return Response.json({ updated: true });
@@ -122,8 +132,12 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
         return new Response('Unknown PersonaBot', { status: 404 });
       const consumerId = multiplexed ? randomUUID() : undefined;
       const dm = url.searchParams.get('dm') !== '0';
-      let selected = new Map<string, { dm: boolean; bot: CompanionBot }>();
-      if (!multiplexed && bot && botId) selected.set(botId, { dm, bot });
+      const group = url.searchParams.get('group') === '1';
+      const visibility = url.searchParams.get('visibility') ?? 'shared';
+      if (visibility !== 'own-dm' && visibility !== 'shared' && visibility !== 'all-bot')
+        return new Response('Invalid visibility', { status: 400 });
+      let selected = new Map<string, CompanionSubscription & { bot: CompanionBot }>();
+      if (!multiplexed && bot && botId) selected.set(botId, { botId, dm, group, visibility, bot });
       let capacity = 20;
       let selectionRevision = 0;
       let finish: (() => void) | undefined;
@@ -133,7 +147,10 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           let ended = false;
           let pendingActivity: string | undefined;
           let pendingSelection: string | undefined;
-          const messages = new Map<string, string[]>();
+          const messages = new Map<
+            string,
+            Pick<PersonaBotOutputCommitted, 'botId' | 'messageId' | 'channelId'>[]
+          >();
           const frame = (name: string, value: unknown) =>
             `event: ${name}\ndata: ${JSON.stringify(value)}\n\n`;
           const snapshot = () => ({
@@ -160,6 +177,60 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
             if ((controller.desiredSize ?? 0) > 0) write(value);
             else pendingActivity = value;
           };
+          const project = (
+            event: Pick<PersonaBotOutputCommitted, 'botId' | 'messageId' | 'channelId'>,
+          ): CompanionMessage | undefined => {
+            const selection = selected.get(event.botId);
+            if (!selection || source.bot(event.botId)?.paused !== false) return;
+            const observed = source.observeOutput(event.channelId, event.messageId);
+            if (!observed) return;
+            const channel = observed.channel;
+            if (
+              !channel ||
+              channel.deletedAt !== undefined ||
+              !channel.members.includes(event.botId) ||
+              (channel.type === 'dm' &&
+                !(channel.botSlug === event.botId && channel.members.length === 1) &&
+                !(channel.botSlug === undefined && channel.members.length === 2)) ||
+              (channel.type === 'dm' ? !selection.dm : !selection.group)
+            )
+              return;
+            const human = observed.humanParticipant;
+            const ownDm =
+              channel.type === 'dm' &&
+              channel.botSlug === event.botId &&
+              channel.members.length === 1;
+            if (
+              (selection.visibility === 'own-dm' && !ownDm) ||
+              (selection.visibility !== 'all-bot' && !human)
+            )
+              return;
+            const message = observed.message;
+            if (
+              message?.author.kind !== 'bot' ||
+              message.author.slug !== event.botId ||
+              !message.body.trim()
+            )
+              return;
+            return {
+              generation: source.activity().generation,
+              botId: event.botId,
+              messageId: event.messageId,
+              channelId: channel.id,
+              channelName: channel.name,
+              body: messagePreview(message.body),
+              source:
+                channel.type === 'dm'
+                  ? ownDm
+                    ? 'own-dm'
+                    : 'bot-dm'
+                  : human
+                    ? 'shared-group'
+                    : 'bot-group',
+              participants: channel.members.map((id) => source.bot(id)?.name ?? id),
+              canOpen: observed.canRead,
+            };
+          };
           let offActivity: (() => void) | undefined;
           let heartbeat: ReturnType<typeof setInterval> | undefined;
           const consumer = {
@@ -173,43 +244,35 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
               selected = new Map(
                 selections.map((selection) => [
                   selection.botId,
-                  { dm: selection.dm, bot: source.bot(selection.botId)! },
+                  { ...selection, bot: source.bot(selection.botId)! },
                 ]),
               );
               capacity = nextCapacity;
               for (const [id, queue] of messages) {
-                if (!selected.get(id)?.dm) messages.delete(id);
-                else messages.set(id, queue.slice(-capacity));
+                if (!selected.get(id)?.dm && !selected.get(id)?.group) messages.delete(id);
+                else
+                  messages.set(
+                    id,
+                    queue.filter((item) => project(item) !== undefined).slice(-capacity),
+                  );
               }
               const value = frame('companion/selection', snapshot());
               if ((controller.desiredSize ?? 0) > 0) write(value);
               else pendingSelection = value;
             },
             publish(event: PersonaBotOutputCommitted) {
-              const selection = selected.get(event.botId);
-              if (ended || !selection?.dm || source.bot(event.botId)?.paused === true) return;
-              const channel = source.channel(event.channelId);
-              if (
-                channel?.deletedAt !== undefined ||
-                channel?.type !== 'dm' ||
-                channel.botSlug !== event.botId ||
-                channel.members.length !== 1 ||
-                channel.members[0] !== event.botId
-              )
-                return;
-              const value: CompanionMessage = {
-                generation: source.activity().generation,
-                botId: event.botId,
-                messageId: event.messageId,
-                channelId: channel.id,
-                channelName: channel.name,
-                body: messagePreview(event.content.body),
-              };
+              if (ended) return;
+              const value = project(event);
+              if (!value) return;
               const text = frame('companion/message', value);
               if ((controller.desiredSize ?? 0) > 0) write(text);
               else {
                 const queue = messages.get(event.botId) ?? [];
-                queue.push(text);
+                queue.push({
+                  botId: event.botId,
+                  messageId: event.messageId,
+                  channelId: event.channelId,
+                });
                 if (queue.length > capacity) queue.shift();
                 messages.set(event.botId, queue);
               }
@@ -245,9 +308,10 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
               if (!next) break;
               const [id, queue] = next;
               messages.delete(id);
-              const text = queue.shift();
+              const event = queue.shift();
               if (queue.length) messages.set(id, queue);
-              if (text) write(text);
+              const value = event && project(event);
+              if (value) write(frame('companion/message', value));
             }
           };
           consumers.add(consumer);

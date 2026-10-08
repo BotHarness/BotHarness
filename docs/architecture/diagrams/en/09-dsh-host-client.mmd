@@ -7,7 +7,8 @@ flowchart TB
     Channels --> ReadPositions["Existing Human read positions"]
     Remote <--> Gateway["API Gateway<br/>sole /api interceptor"]
     Registry["Registry / Activity / Session ownership"] --> Feed["Application-defined Companion Feed"]
-    Channels --> Feed
+    Channels --> Observation["observeOutput<br/>one canonical message + membership + read eligibility"]
+    Observation --> Feed
   end
   subgraph Browser["DSH Web Client"]
     direction LR
