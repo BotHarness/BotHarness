@@ -54,6 +54,11 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
+import {
+  MAX_DESCRIPTOR_BIO_LENGTH,
+  MAX_DESCRIPTOR_TAG_LENGTH,
+  MAX_DESCRIPTOR_TAGS,
+} from '../marketplace/descriptor.js';
 import type {
   ReleaseInfo,
   ReleaseInstall,
@@ -2063,6 +2068,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         !avatar.ok
       ) {
         return invalidInput('invalid update payload');
+      }
+      if (
+        (roles.value !== undefined &&
+          (roles.value.length > MAX_DESCRIPTOR_TAGS ||
+            roles.value.some((tag) => [...tag.trim()].length > MAX_DESCRIPTOR_TAG_LENGTH))) ||
+        (description.value !== undefined &&
+          [...description.value.trim()].length > MAX_DESCRIPTOR_BIO_LENGTH)
+      ) {
+        return invalidInput('tags or bio exceed the profile limits');
       }
       const patch: PersonaBotPatch = {
         ...(displayName.value === undefined ? {} : { displayName: displayName.value }),
