@@ -212,6 +212,27 @@ describe('native DSH questions in a PersonaBot DM', () => {
 });
 
 describe('native timed question card continuation', () => {
+  it('also waits for native settlement when the answer arrives before the deadline', async () => {
+    const answer = { answers: [{ id: 'memory-branch', selected: ['main'] }] };
+    let native: ReturnType<TimedQuestionPort['read']> = { state: 'open' };
+    const port: TimedQuestionPort = { read: () => native, answer: vi.fn(() => true) };
+    const state = fixture('orchestrator', port);
+    const wait = state.answerer.ask({
+      agent: state.agent,
+      questions,
+      wait: { callId: 'in-time', timed: true },
+    } as Parameters<ChannelUserQuestions['ask']>[0]);
+    await vi.waitFor(() => expect(state.channels.readMessages(channelId)).toHaveLength(1));
+    const id = state.channels.readMessages(channelId)[0]!.id;
+    expect(await state.answerer.answer('ada', id, answer)).toBe(true);
+    expect(await wait).toEqual(answer);
+    expect(state.channels.readMessages(channelId)).toHaveLength(1);
+    expect(state.answerer.status('ada', id)).toBe('submitted');
+    expect(port.answer).not.toHaveBeenCalled();
+    native = { state: 'answered', answer };
+    await state.answerer.reconcileSession(sessionId);
+    expect(state.answerer.status('ada', id)).toBe('answered');
+  });
   async function continued() {
     const answer = { answers: [{ id: 'memory-branch', selected: ['history-qa'] }] };
     let native: ReturnType<TimedQuestionPort['read']> = { state: 'open' };

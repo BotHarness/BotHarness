@@ -288,6 +288,12 @@ export class ChannelUserQuestions {
           return false;
         }
       }
+      if (pending.callId !== undefined) {
+        pending.deferred = true;
+        pending.submitted = true;
+        pending.resolve(answer);
+        return true;
+      }
       const decision: ChannelMessage = {
         id: randomUUID(),
         at: new Date().toISOString(),
