@@ -56,12 +56,26 @@ const policies: GroupMemberWakePolicy[] = [
   {
     botSlug: 'ada',
     inherited: true,
-    policy: { mode: 'digest', count: 5, intervalSeconds: 30, revision: 0 },
+    policy: {
+      mode: 'digest',
+      count: 5,
+      intervalSeconds: 30,
+      revision: 0,
+      lastActor: null,
+      changedAt: null,
+    },
   },
   {
     botSlug: 'bob',
     inherited: false,
-    policy: { mode: 'mentions', count: 5, intervalSeconds: 30, revision: 2 },
+    policy: {
+      mode: 'mentions',
+      count: 5,
+      intervalSeconds: 30,
+      revision: 2,
+      lastActor: null,
+      changedAt: null,
+    },
     externals: [
       {
         platform: 'feishu',

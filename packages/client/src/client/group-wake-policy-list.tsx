@@ -12,33 +12,22 @@ import { LoadingSkeleton } from './loading-skeleton.js';
 import { useMountedResource } from './mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
-function memberRule(member: GroupMemberWakePolicy, t: BotHarnessTranslate): string {
-  const mode = t(`members.wake.${member.policy.mode}`);
-  return member.policy.mode === 'digest'
-    ? `${mode} · ${t('groupWake.threshold', {
-        count: member.policy.count,
-        seconds: member.policy.intervalSeconds,
-      })}`
+function ruleText(policy: GroupMemberWakePolicy['policy'], t: BotHarnessTranslate): string {
+  const mode = t(`members.wake.${policy.mode}`);
+  return policy.mode === 'digest'
+    ? `${mode} · ${t('groupWake.threshold', { count: policy.count, seconds: policy.intervalSeconds })}`
     : mode;
 }
 
 function externalRules(member: GroupMemberWakePolicy, t: BotHarnessTranslate): string[] {
-  return (member.externals ?? (member.external ? [member.external] : [])).map((external) => {
-    const mode = t(`members.wake.${external.policy.mode}`);
-    const threshold =
-      external.policy.mode === 'digest'
-        ? ` · ${t('groupWake.threshold', { count: external.policy.count, seconds: external.policy.intervalSeconds })}`
-        : '';
-    const origin = t(
-      external.origin === 'platform'
-        ? 'defaults.inherited'
-        : external.origin === 'channel'
-          ? 'groupWake.custom'
-          : 'groupWake.default',
-    );
-    const revision = external.origin === 'platform' ? ` v${external.defaultRevision}` : '';
-    return `${t('defaults.externalWake', { platform: externalPlatformLabel(external.platform, t) })}: ${mode}${threshold} (${origin}${revision})`;
-  });
+  const own = ruleText(member.policy, t);
+  return (member.externals ?? (member.external ? [member.external] : []))
+    .map((external) => ({
+      platform: externalPlatformLabel(external.platform, t),
+      rule: ruleText({ ...member.policy, ...external.policy }, t),
+    }))
+    .filter((external) => external.rule !== own)
+    .map((external) => `${external.platform}: ${external.rule}`);
 }
 
 export function GroupWakePolicyList({
@@ -109,10 +98,10 @@ export function GroupWakePolicyList({
                 }
                 meta={
                   externals.length === 0 ? (
-                    memberRule(member, t)
+                    ruleText(member.policy, t)
                   ) : (
                     <>
-                      {memberRule(member, t)}
+                      {ruleText(member.policy, t)}
                       {externals.map((line) => (
                         <span key={line} className="bh-card-meta-line">
                           {line}
