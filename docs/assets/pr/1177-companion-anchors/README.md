@@ -15,3 +15,11 @@ The settled screenshots do **not** show the transient defect. A QA-only observer
 [Before recording](resize-before.webm) · [After recording](resize-after.webm)
 
 Console inspection after the correction found no JavaScript errors; the existing form-field id/name browser issue remains. No historical companion message replayed after restart. Other fallback/tool-cover/reduced-motion and reading-stack scenarios retain their separately stated acceptance status in PR #1183; this check does not qualify them.
+
+## Focused reading and reduced-motion release
+
+At `c946a749` (evidence head `5c16fab9`), three new native Bot replies are verified against canonical Channel messages. The two Ada cards expand as an upright list beside Grace's independently sourced card. Autonomous walking was paused through existing native buttons. As the third real card appears, normal public character focus enters reading before tool latency consumes its short lifetime; a subsequent actual MCP hover retains it. This is focused-reading evidence, not acceptance of mouse hover on a moving character. `focused-arrivals-dark.png` and `expanded-reading-dark.png` show that path.
+
+The actual Bot Settings menu then selects reduced motion; native drag/release leaves both companions settled at bottom865 in every observed post-release sample (`reduced-released-dark.png`). Message cards have expired by that later screenshot; it does not show reduced-motion message reading or the first release frame. All sampled connector origins match their displayed bust anchors, maximum0px in this stationary/settled workload; sampling every80ms is not performance measurement or a guarantee about unsampled motion. Sanitized details: `reading-reduced-qualification.json`.
+
+`reading-reduced.webm` is continuous silent official MCP output, container-remuxed only. Earlier failed attempts are retained privately and excluded: native hover could not stabilize a roaming character; a paused attempt lost its messages to TTL during capture latency. No fake reply/event, replay or card/store injection was used. Console contained no JavaScript error; the existing native form-field issue remained. Held/reversal, image/tool-cover and background scenarios remain separate.
