@@ -288,6 +288,19 @@ try {
       'original operation refused after revoke',
     );
     assert.equal(existsSync(resolve(workspacePath, 'original.effect')), false);
+    await waitFor(
+      async () =>
+        (await rpc('toolApprovalStatus', { channelId: scene.channelId, messageId: original.id }))
+          .execution === 'needs-repair',
+      'interrupted original execution projection',
+    );
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.bh-tool-approval-card')].some(
+        (card) =>
+          card.textContent.includes('original.effect') &&
+          /事项已中断|Assignment was interrupted/.test(card.textContent),
+      ),
+    );
   } else {
     await waitFor(
       () => existsSync(resolve(workspacePath, 'original.effect')),
@@ -305,6 +318,10 @@ try {
   mark('orchestrator-after', compactNative(await nativeSnapshot(owner.sessionId)));
   mark('messages-after', await messages());
   mark('assignments-after', await rpc('assignments', { slug: bot.slug }));
+  mark(
+    'execution-after',
+    await rpc('toolApprovalStatus', { channelId: scene.channelId, messageId: original.id }),
+  );
   await shot('after');
   mark('client', { errors, text: await page.$eval('body', (b) => b.innerText) });
   assert.deepEqual(errors, []);

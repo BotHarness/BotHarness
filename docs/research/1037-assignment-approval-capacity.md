@@ -7,7 +7,8 @@ upgrade production DSH, or clear #1036/#1038's overall gates.
 
 ## Verified scope
 
-Both the base commit `0036c7389ed78cb69de23ebdf9b22b8ca8e1b258` and candidate use
+The original merged base `0036c7389ed78cb69de23ebdf9b22b8ca8e1b258`, the final
+current-main comparison `f1e6fc6182abe74f004dca528b68ccf5c48a6766` and candidate use
 DSH `0.2.0-rc.1`, isolated Profiles, real `deepseek-official/deepseek-flash` model
 replies, authenticated native API Gateway calls and real browser approval controls.
 No mocked model, approval result, tool execution or Channel receipt counts as E2E.
@@ -73,6 +74,11 @@ had loaded, so it failed and left two native waits. Both were explicitly cancell
 through native Session control; the runner now waits for that exact enabled button
 before listening for and submitting its decision. Those failed attempts remain
 private bounded history; recovery does not claim a product fix.
+
+An added interrupted-card assertion was initially placed before the revocation
+step. That review attempt was aborted and its own Bot's three Sessions were
+cancelled through native control. The assertion now runs after revocation and
+the actual error result; only the corrected, passing run is exported.
 
 A final-build run reached the competing command's actual result, then a loopback
 RPC failed with `ECONNRESET` before verification completed. Another run reproduced

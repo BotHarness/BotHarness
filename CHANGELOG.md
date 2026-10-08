@@ -12,6 +12,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 
+### Fixed
+
+- A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
+
 ## [1.2.0] - 2026-10-08
 
 Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.
@@ -117,8 +121,6 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 - Interface text now calls you "you" and Bots "Bot" everywhere: "Human", "PersonaBot", "Source Event" and "Attention" no longer appear in Chinese or English labels, the purge tombstone reads `Content purged · you · {time}`, and the connector section is always "External connectors". A test fails if those internal terms return ([#1090](https://github.com/BotHarness/BotHarness/issues/1090)).
 
 ### Fixed
-
-- A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
 
 - On an explicitly configured native RC2 timed-question Profile, a DM question card stays answerable after its foreground deadline while the same Bot handles other messages; a late answer shows submitted until the original native Session admits it. Production pins and blocking RC1 questions remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
 

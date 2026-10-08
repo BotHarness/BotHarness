@@ -155,7 +155,11 @@ export function checkApprovalCapacity(proof) {
     assert.equal(done?.data.isError, false, 'competitor actually executed');
     if (proof.mode !== 'revoked')
       assert.ok(done.time <= result.time, 'original executes after the competing body settles');
-    if (proof.mode === 'revoked') read('grant-revoked');
+    if (proof.mode === 'revoked') {
+      read('grant-revoked');
+      assert.equal(read('execution-after').execution, 'needs-repair');
+      summary.needsRepair = true;
+    }
     summary.competitor = {
       sessionId: competitor.sessionId,
       callId: competitor.callId,

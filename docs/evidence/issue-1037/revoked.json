@@ -2,20 +2,20 @@
   "mode": "revoked",
   "limit": 1,
   "original": {
-    "sessionId": "botharness-92ebd445-1de2-4e0f-b5e0-6000f9fd1f96",
-    "callId": "call_00_cV8RQkdCeRYQEEnp15mZ4317",
-    "approvalId": "1a2ac034-2ded-4d3d-9226-04743e1fa1ed",
+    "sessionId": "botharness-a5046db2-a54f-43d5-95f5-2df64e869a6f",
+    "callId": "call_00_FwsudPpzP9GCu0gu8PNq2222",
+    "approvalId": "a9f3eaa2-55a5-4ea0-bf5a-a897de987561",
     "turn": 1,
     "decision": "unavailable",
-    "decisionAt": 1791488536720,
-    "resultAt": 1791488536721,
+    "decisionAt": 1791489216865,
+    "resultAt": 1791489216866,
     "isError": true
   },
   "unrelated": {
-    "sessionId": "botharness-31c9ab7f-965b-46e3-9c0f-28ae75ce531b",
-    "callId": "call_00_h1iHxsELPjMtTXn14y750688",
-    "messageId": "b4534aaf-c70b-48cd-938e-696b50e8ab72",
-    "at": "2026-10-08T19:41:52.890Z",
+    "sessionId": "botharness-b0ed73ed-dad1-4305-93d4-f1593a4c8728",
+    "callId": "call_00_H1zPPoEqVeeGhdyxgjl50564",
+    "messageId": "18e24337-775b-4447-bd2a-ba1dd2d9d6c0",
+    "at": "2026-10-08T19:53:23.208Z",
     "model": {
       "kind": "model",
       "provider": "deepseek-official",
@@ -23,10 +23,11 @@
     }
   },
   "browserErrors": 0,
+  "needsRepair": true,
   "competitor": {
-    "sessionId": "botharness-ac21fbea-991b-4750-8e76-8caa91f46f61",
-    "callId": "call_00_nTLkM8KpgHjbPCRVOWYI2483",
-    "resultAt": 1791488571577
+    "sessionId": "botharness-d0f61d45-03ce-452f-ab99-9501978bdec0",
+    "callId": "call_00_DFxDLuEg8L5ZsU8bEZgz7611",
+    "resultAt": 1791489260486
   },
   "waitingCapacity": true
 }

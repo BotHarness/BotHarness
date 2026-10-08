@@ -12,6 +12,10 @@
 - 像素头像新增精灵、矮人、兽人和会说话的花。胡子始终露出说话的嘴，新增盔甲、法袍、束腰外衣和斗篷，戴上头盔或兜帽会遮住下面的头发。花有豆豆眼、五种花瓣样式，以及茎叶或花盆。当前物种或头饰不显示的选择会保留并给出提示，换回后恢复（[#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212)、[#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)）。
 - 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
 
+### Fixed
+
+- 已静止的 Assignment 等待工具审批时释放运行名额，让其他事项继续；审批决定收到后，原调用先等待名额再继续，卡片分别显示两种等待。等待会话有独立上限，有后代的 root 保守占用名额，撤权或重启均不重放原调用（[#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)）。
+
 ## [1.2.0] - 2026-10-08
 
 Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个应用即可在飞书、Slack、Discord 和微信收发消息；群 Channel 可以连接外部会话；Bot 可以导出为 zip 并在别处导入；Bot 资料页新增横幅、标签和简介，设置项移到 Channel 侧栏；Bot 市场改为资料卡；Bot 模式可以帮你安装 Git；首次进入 Bot 模式会带你完成一次真实对话。
@@ -117,8 +121,6 @@ Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个�
 - 界面文案统一称呼「你」和「Bot」：中英文标签里不再出现 Human、PersonaBot、Source Event 和 Attention，清除后的占位显示「`正文已清除 · 你 · {时间}`」，连接器入口统一叫「外部连接器」。这些内部术语再次出现时会有测试失败（[#1090](https://github.com/BotHarness/BotHarness/issues/1090)）。
 
 ### Fixed
-
-- 已静止的 Assignment 等待工具审批时释放运行名额，让其他事项继续；审批决定收到后，原调用先等待名额再继续，卡片分别显示两种等待。等待会话有独立上限，有后代的 root 保守占用名额，撤权或重启均不重放原调用（[#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)）。
 
 - 显式配置原生 RC2 timed 问题的 Profile 中，DM 问题卡片在前台超时后仍可回答，同一个 Bot 可以处理其他消息；稍后提交的答案在原生会话接收前显示为已提交。生产版本依赖与 RC1 阻塞式提问保持不变（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。
 

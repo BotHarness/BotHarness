@@ -2,21 +2,21 @@
   "mode": "candidate",
   "limit": 1,
   "original": {
-    "sessionId": "botharness-016ce88a-9502-488e-aa4c-872f93b6f975",
-    "callId": "call_00_2iUXessg5XN7pm4TimR46950",
-    "approvalId": "2427f705-8b87-4c33-8877-3d2efb1bf2d1",
+    "sessionId": "botharness-af9649f1-13c4-4622-8a7b-ffbd722cbc0d",
+    "callId": "call_00_mreG2Vw8zIYxpTeVFlxZ8555",
+    "approvalId": "8119c8d6-b9b5-447e-9a65-1ba42fa3d9cd",
     "turn": 1,
     "decision": "allowed-once",
-    "decisionAt": 1791488383579,
-    "resultAt": 1791488393516,
+    "decisionAt": 1791489069001,
+    "resultAt": 1791489074046,
     "isError": false,
-    "replyId": "89c192f2-7e86-4ef0-85d0-1984e30187dc"
+    "replyId": "16a4bb25-fcb6-4780-8a55-0d726a10b676"
   },
   "unrelated": {
-    "sessionId": "botharness-f6f9073b-f17d-44d9-b11e-86fc70d4898d",
-    "callId": "call_00_Wi6zLa5Xv0HaB1eqel281360",
-    "messageId": "4cfed779-3a92-4c85-b04f-aecfce1db6ce",
-    "at": "2026-10-08T19:38:17.701Z",
+    "sessionId": "botharness-93c43112-4834-4d02-8d7c-a63705d2a2ee",
+    "callId": "call_00_ASvor5RXPgqUQjiEyEeI9735",
+    "messageId": "1197e925-7e66-4b6a-a4f3-40a0440a4a0d",
+    "at": "2026-10-08T19:50:03.544Z",
     "model": {
       "kind": "model",
       "provider": "deepseek-official",
@@ -25,9 +25,9 @@
   },
   "browserErrors": 0,
   "competitor": {
-    "sessionId": "botharness-c9f8f5c0-8d64-47c5-8c72-a66c7b3a9195",
-    "callId": "call_00_9XKICHtbzJRELXXXidRT2936",
-    "resultAt": 1791488371761
+    "sessionId": "botharness-1af387fa-db3f-49e3-a98f-ce4be1b79f73",
+    "callId": "call_00_9hxbvwL4iPbsVP8JFKvY1676",
+    "resultAt": 1791489063265
   },
   "waitingCapacity": true
 }

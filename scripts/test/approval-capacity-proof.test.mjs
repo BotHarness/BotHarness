@@ -16,6 +16,7 @@ function fixture(mode = 'candidate') {
   const native = { sessionId: 'original', events: [call, asked] };
   const observations = Object.entries({
     'running-limit': { limit: 1 },
+    'execution-after': { execution: mode === 'revoked' ? 'needs-repair' : 'settled' },
     client: { errors: [] },
     'original-request': {
       id: 'card',
