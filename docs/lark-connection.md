@@ -353,7 +353,7 @@ This requires the optional checked `reactionVersion: 1` / `reaction-write-checke
 
 Feedback runs separately with a four-second deadline and bounded concurrency. Permission failures, missing/deleted sources and unavailable transport do not block Inbox receipt, model work or replies. Attempts are retained without automatic retry, including after restart or reconnect; enabling a permission later does not replay historical messages. The authenticated `messagingSnapshot` management API exposes `reactionSupported` and recent `feedback` attempt states: `attempted`, `accepted`, `unavailable`, `failed` or `unknown`. In Web, open the existing Lark identity editor to inspect feedback capability and the five most recent source attempts; refresh external identities to update them. An interrupted `attempted` or `unknown` record is not success.
 
-Use the [exact-candidate QA runbook](agents/qa-lark-feedback.md) for preparation, test cases and recovery. Its pending real Lark captures must be collected in a newly authorized window; older guide screenshots above are not feedback evidence.
+Use the [exact-candidate QA runbook](https://github.com/BotHarness/DeepSeekBot/blob/8a060307395c00953135ba00f765d00fbe5ff96f/docs/agents/qa-lark-feedback.md) for preparation, test cases and recovery. Its pending real Lark captures must be collected in a newly authorized window; older guide screenshots above are not feedback evidence.
 
 ## Images in Channel history
 
