@@ -290,7 +290,6 @@ export function OnboardingSurface({
     if (
       !state.guideOpen ||
       state.receipt?.tutorial !== 'active' ||
-      state.receipt.completed ||
       state.modelOpen ||
       state.sendOpen
     )
@@ -354,7 +353,7 @@ export function OnboardingSurface({
               {t('onboarding.skip')}
             </Button>
           ) : null}
-          {receipt.tutorial !== 'not-started' ? (
+          {receipt.completed || receipt.tutorial !== 'not-started' ? (
             <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'restart')}>
               {t('onboarding.restart')}
             </Button>

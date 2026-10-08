@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
+import type { OnboardingSnapshot } from '../../core/src/onboarding/types.js';
 import type { BridgeActions } from '../src/client/actions.js';
 import { OnboardingController } from '../src/client/onboarding.js';
 import { store } from '../src/client/store.js';
 import { WindowCompanions } from '../src/client/window-companions.js';
 
-const receipt = {
+const receipt: OnboardingSnapshot = {
   profileId: 'qa',
   completed: false,
   preparation: 'ready',
   tutorial: 'not-started',
   channelId: 'dm-ada',
-} as const;
+};
 function harness(configured = false) {
   const actions = {
     onboarding: vi.fn(async () => receipt),
@@ -153,7 +154,7 @@ it('shares active tutorial progress without reopening highlights in another clie
   actions.onboarding.mockResolvedValue({
     ...receipt,
     tutorial: 'active',
-  } as unknown as typeof receipt);
+  });
   await controller.enter();
   expect(controller.getSnapshot()).toMatchObject({
     guideOpen: false,
@@ -215,5 +216,76 @@ it('retains the question when the separate send step is closed after saving the 
     sendOpen: true,
     modelOpen: false,
     pending: { body: 'Review before sending' },
+  });
+});
+
+it('does not pause a shared tutorial when an observing client leaves Bot mode or configures a model', async () => {
+  const first = harness(true);
+  const observer = harness(true);
+  let shared: OnboardingSnapshot = { ...receipt };
+  const onboarding = vi.fn(async (_slug?: string, action?: string) => {
+    if (action === 'start' || action === 'continue') shared = { ...shared, tutorial: 'active' };
+    if (action === 'pause') shared = { ...shared, tutorial: 'paused' };
+    return shared;
+  });
+  first.actions.onboarding.mockImplementation(onboarding);
+  observer.actions.onboarding.mockImplementation(onboarding);
+  await first.controller.enter();
+  await first.controller.refresh(undefined, 'start');
+  await observer.controller.enter();
+  expect(observer.controller.getSnapshot().guideOpen).toBe(false);
+  onboarding.mockClear();
+  observer.controller.pauseGuide();
+  observer.controller.chooseModel('dm-ada', 'ada');
+  expect(await observer.controller.prepareSend('dm-ada', 'ada', 'Hello')).toBe(true);
+  expect(onboarding).not.toHaveBeenCalled();
+  await first.controller.refresh();
+  expect(first.controller.getSnapshot()).toMatchObject({
+    guideOpen: true,
+    receipt: { tutorial: 'active' },
+  });
+  onboarding.mockClear();
+  first.controller.pauseGuide();
+  first.controller.pauseGuide();
+  expect(onboarding).toHaveBeenCalledExactlyOnceWith(undefined, 'pause');
+});
+
+it('closes a local highlight when another client explicitly skips the shared tutorial', async () => {
+  const { actions, controller } = harness();
+  actions.onboarding.mockResolvedValue({ ...receipt, tutorial: 'active' });
+  await controller.enter();
+  await controller.refresh(undefined, 'continue');
+  actions.onboarding.mockResolvedValue({ ...receipt, tutorial: 'skipped' });
+  await controller.refresh();
+  expect(controller.getSnapshot()).toMatchObject({
+    guideOpen: false,
+    receipt: { tutorial: 'skipped' },
+  });
+});
+
+it('allows explicit tutorial replay after completion without reopening it in a new client', async () => {
+  const { actions, controller } = harness();
+  actions.onboarding.mockResolvedValue({ ...receipt, completed: true, tutorial: 'active' });
+  await controller.enter();
+  expect(controller.getSnapshot().guideOpen).toBe(false);
+  await controller.refresh(undefined, 'restart');
+  expect(controller.getSnapshot()).toMatchObject({ guideOpen: true, receipt: { completed: true } });
+  await controller.refresh();
+  expect(controller.getSnapshot().guideOpen).toBe(true);
+  controller.pauseGuide();
+  expect(controller.getSnapshot().guideOpen).toBe(false);
+  expect(actions.onboarding).toHaveBeenLastCalledWith(undefined, 'pause');
+});
+
+it('ends the active highlight when the first real reply completes onboarding', async () => {
+  const { actions, controller } = harness();
+  actions.onboarding.mockResolvedValue({ ...receipt, tutorial: 'active' });
+  await controller.enter();
+  await controller.refresh(undefined, 'continue');
+  actions.onboarding.mockResolvedValue({ ...receipt, completed: true, tutorial: 'active' });
+  await controller.refresh();
+  expect(controller.getSnapshot()).toMatchObject({
+    guideOpen: false,
+    receipt: { completed: true },
   });
 });
