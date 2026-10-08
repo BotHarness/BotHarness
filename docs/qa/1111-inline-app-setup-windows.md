@@ -24,11 +24,19 @@ and WeChat typing refusal codes are retained. The compiled Host was rebuilt.
   Slack and Discord consumer regressions: 177 passed.
 - Provider build and package artifact verification passed.
 - Product setup transport/dialog, optional capability negotiation and existing
-  messaging regressions: 22 passed; TypeScript and format checks passed.
+  messaging regressions: 22 passed; artifact regressions: 33 passed. TypeScript,
+  lint, format, bilingual Release Ledger and build checks passed.
 - Public setup RPC cancellation covers verification, credential reading and
   credential saving before the config commit. It verifies no account or credential
   remains after cancellation. Lifecycle logs contain fixed phases, duration and
   allowlisted reasons, without credentials or App ID.
+- Both review axes closed the original findings and found no actionable issue in
+  the final integration/pin increment. Independent review recomputed the runtime
+  digest and verified the preserved typing and group-name paths.
+- Windows full-suite attempts were stopped after widespread failures. The Bridge
+  RPC cleanup failures also reproduce on the unchanged `fe08fd92` baseline. This
+  does not classify every failed test as pre-existing; Linux qualification of the
+  same source is pending.
 - Delayed dialog submission retains the entered credentials while inputs are
   disabled. Expired handles permit a fresh setup. A created identity remains
   available for explicit binding after the dialog closes.
