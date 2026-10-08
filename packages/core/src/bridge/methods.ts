@@ -90,6 +90,8 @@ import {
 import { botAvatarUrl } from '../bots/avatar-http.js';
 import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
 import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
+import { isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -215,6 +217,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     appearance?: AvatarAppearance | RetainedAvatarAppearance;
+    avatarSeed?: 2;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -237,6 +240,7 @@ export interface PersonaBotSummary {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   banner?: BotBannerSummary;
+  avatarSeed?: 2;
   paused?: boolean;
   deleted?: boolean;
   standingLimits: StandingLimits;
@@ -325,6 +329,7 @@ export interface OwnedSessionBot {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  avatarSeed?: 2;
   role: SessionRootRole;
 }
 
@@ -507,6 +512,8 @@ export interface BridgeMethods {
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botBannerSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  partLibraryList(): BridgeResult<{ parts: PartLibraryEntry[] }>;
+  partLibraryAdd(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -540,6 +547,8 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   onboarding?: BotOnboarding;
+  partLibrary?: PartLibrary;
+  onboardingNews?: (slug?: string) => Promise<boolean>;
   defaultModel?: {
     currentSelection(): ModelRoute;
     saveSelection(route: ModelRoute): Promise<void>;
@@ -840,6 +849,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     ...(record.banner === undefined
       ? {}
       : { banner: botBannerSummary(record.slug, record.banner) }),
+    ...(record.avatarSeed === undefined ? {} : { avatarSeed: record.avatarSeed }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
@@ -1365,10 +1375,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       )
         return invalidInput('Invalid tutorial action');
       try {
-        return {
-          ok: true,
-          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
-        };
+        const value = await deps.onboarding.enter(
+          asSlug(payload),
+          action as TutorialAction | undefined,
+        );
+        const newsAvailable =
+          (await deps
+            .onboardingNews?.(asSlug(payload) ?? value.defaultBotSlug)
+            .catch(() => false)) ?? false;
+        return { ok: true, value: { ...value, newsAvailable } };
       } catch (error) {
         return {
           ok: false,
@@ -1837,6 +1852,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug: bot.slug,
           displayName: bot.displayName,
           ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+          ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
           ...(bot.avatar === undefined
             ? {}
             : {
@@ -2177,6 +2193,34 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? unknownBot(scope.botSlug)
           : invalidInput('invalid Avatar Appearance');
       return { ok: true, value: detailOf(result.record) };
+    },
+    partLibraryList() {
+      if (!deps.partLibrary) return unavailable();
+      try {
+        return { ok: true, value: { parts: deps.partLibrary.list() } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryAdd(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const part = input['part'];
+      const name = input['name'] ?? '';
+      const parent = input['parent'];
+      if (!isPixelCustomPart(part)) return invalidInput('part must be a valid Custom Part');
+      if (typeof name !== 'string' || name.length > MAX_PART_NAME)
+        return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
+      if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
+        return invalidInput('parent must be a Custom Part id');
+      try {
+        const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+        return { ok: true, value: { entry } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
     },
     botBannerSet(payload) {
       const scope = dmMemory(payload);
@@ -3805,6 +3849,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             botSlug: bot.slug,
             displayName: bot.displayName,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {

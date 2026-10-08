@@ -187,6 +187,10 @@ describe('bridge parsers', () => {
       parseBotSummary({ slug: 'legacy', displayName: 'Legacy', tag: '旧岗位' })?.roles,
     ).toEqual(['旧岗位']);
     expect(parseBotSummary({ slug: '', displayName: 'Broken' })).toBeUndefined();
+    expect(parseBotSummary({ slug: 'n', displayName: 'N', avatarSeed: 2 })?.avatarSeed).toBe(2);
+    expect(parseBotSummary({ slug: 'n', displayName: 'N', avatarSeed: 3 })).not.toHaveProperty(
+      'avatarSeed',
+    );
   });
 
   it('drops malformed channels and keeps botSlug only when present', () => {

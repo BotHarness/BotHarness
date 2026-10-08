@@ -650,6 +650,7 @@ export function ChannelMessageBody({
             name={bot?.displayName ?? mention.label}
             src={bot?.avatar}
             appearance={bot?.appearance}
+            avatarSeed={bot?.avatarSeed}
             size={16}
             indicator={false}
             t={t}

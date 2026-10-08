@@ -8,7 +8,7 @@ BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产
 
 Bot 模式首次体验（#1175，[ADR-0147](../adr/0147-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）由 application-defined Onboarding owner 在现有 operational database 的 Schema Generation 71 保存 Profile receipt；只有主动进入模式才准备身份。空 Profile 记录稳定 Bot ID 后通过 Registry/Memory owner 创建 DeepSeek Bot，保存官网固定 Appearance，并经 Channel owner 幂等创建真实 Human DM 与 system welcome。已有 Bot 可复用／选择；归档和删除不会自动恢复。真实 Human 请求与同一 DM 的 Bot 回复，由 Channel 提交事务保留可信 Session ownership／原请求 Source Event 关联，作为完成证据；欢迎卡、失败通知、发送接受、Memory 初始化均不算成功。教程开始／暂停／跳过与历史成功独立；刷新、重启和多 Client 重读 Host 事实，后台核对不改变当前 Channel。未发出的请求只留在当前 Client，恢复后须再次明确确认。窗口伙伴初始化一次并尊重后续本地移除等偏好。完成后的欢迎消息提供可选 Memory 入口（#1200）：Client 复用既有 Memory 查询、文件树及正常阅读／差异视图，自由偏好经原 Human DM 发送链路提交；不新增写入 authority 或完成条件，初始化模板和回复本身均不证明偏好已保存。可选绑定入口（#1203）直接复用 Sidebar 的 Bind app Modal、当前 PersonaBot 的 Messaging snapshot 与原绑定命令；平台目录、凭据设置、官网教程和实际接收状态仍由既有 owner 提供，暂时不绑定不改变完成事实，也不保存第二份绑定进度。
 
-欢迎消息提供能力介绍、今日新闻、每日摘要与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
+欢迎消息提供能力介绍、每日晚间问候与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。新闻选项由 Host 在 onboarding 查询中投影当前 native 搜索配置和所选 Bot preset 的 `web_search` 可见性，只返回就绪布尔值，不保存第二份配置或凭据。固定 RC1 的已知 DeepSeek 搜索 Provider 与其独立凭据已配置时提供带真实来源链接的今日 AI 新闻；未配置、无法确认或不支持的搜索组合显示通用工作规划示例。配置就绪不保证网络请求成功，实际搜索失败、空结果和不可用必须如实说明。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
 
 当前 Client UI 由独立 `@botharness/ui` Bundle 挂载，源码仍在 `packages/client`；RC2 的插件图把结尾 `/client` 解释为导出子路径，因此包身份依 [ADR-0066](../adr/0066-rc2-client-bundle-identity.md) 避开该后缀。Client HMR 只暂存当前 Bot/Channel 选择以恢复视图，不复制 Host 中的 PersonaBot、Channel 或消息权威。
 
@@ -510,13 +510,15 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 生产 feed 通过 Fiber 拥有的可释放 attachment 观察 `ChannelToolApproval`，在已确认选择快照中投影当前已提交请求；首次钉选、重连都不需要重播历史。`CompanionRequests` 将待处理请求放入有总数提示的常驻滚动区域，独立于装饰气泡容量；普通消息暂缓逐字与到期，显示等待数量。复用 `ToolApprovalCard`、原生控件和既有审批 RPC，只有明确匹配 Bot/DM/Session/call 且 live 的 companion target 可脱离当前 Channel；普通聊天选择检查保留。提交前重新读取状态，Host 仍验证规范请求和 native caller；竞争决定只能一次生效。断线禁用、状态读取失败可重试，拥有者结算或撤销后快照移除请求并恢复键盘焦点，Host 重启不从耐久请求历史重建 live 权限。
 
-### 5.4 · 形象物种与自绘部件（已接受设计，待实现）
+### 5.4 · 形象物种与自绘部件（部分已实现）
 
 [ADR-0148](../adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md) 在不新增 rig 的前提下扩展像素 Avatar Family。Avatar Species（人类、精灵、哥布林、矮人、兽人、猫、狗、狐狸、兔子、熊、花）是像素胸像骨架上的基底：轮廓、耳朵、鼻子或吻部、建议身体色与可接受部件；动作、锚点、说话嘴型与伙伴透明轮廓保持共享。头发拆为可分别上色的分片，新增穿过头发的头饰槽（前后两层）。当前物种无法显示的选择保存并隐藏，不被替换。
 
 Custom Part 是有界像素网格，每格引用外形颜色或固定色并带明度档位，因此随外形换色。BotPixel 负责其类型、校验、渲染与纯函数绘制算法；PersonaBot 所属模块把副本嵌入 Avatar Appearance，DSH Profile 中由 Host 管理的 Part Library 以内容哈希身份和来源保存可复用部件。导出的 PersonaBot 携带其部件；单个部件以内嵌数据的 PNG 流转。眼睛、眉毛和嘴不可自绘，眨眼与说话帧仍由 rig 负责。
 
 新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
+
+目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），以及自绘头发（#1238）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList` 和 `partLibraryAdd` 两个桥接方法使用它；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、导入部件、PNG 部件文件和更多绘制工具尚未实现。
 
 ## 6 · 持久化、导出与恢复边界
 

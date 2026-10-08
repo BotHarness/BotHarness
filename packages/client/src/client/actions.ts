@@ -94,6 +94,8 @@ import {
   setBotBanner as setBotBannerViaBridge,
   updateBotProfile as updateBotProfileViaBridge,
   setBotAppearance as setBotAppearanceViaBridge,
+  loadPartLibrary as loadPartLibraryViaBridge,
+  addLibraryPart as addLibraryPartViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -582,6 +584,14 @@ export interface BridgeActions {
     channelId: string,
     recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
+  loadPartLibrary(): Promise<
+    import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
+  >;
+  addLibraryPart(
+    part: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+    name: string,
+    parent?: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | undefined>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -2253,6 +2263,20 @@ export function createActions(
         return true;
       } catch {
         return false;
+      }
+    },
+    async loadPartLibrary() {
+      try {
+        return await loadPartLibraryViaBridge(call);
+      } catch {
+        return undefined;
+      }
+    },
+    async addLibraryPart(part, name, parent) {
+      try {
+        return await addLibraryPartViaBridge(call, part, name, parent);
+      } catch {
+        return undefined;
       }
     },
     async updateBotProfile(slug, patch) {

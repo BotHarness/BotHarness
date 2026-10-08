@@ -1,5 +1,7 @@
+import { onboardingNewsAvailable } from './onboarding/search.js';
 import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
+import { createPartLibrary, type PartLibrary } from './bots/part-library.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
 import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
@@ -228,6 +230,7 @@ export interface BotHarnessCore {
   profileRecovery: ProfileRecovery;
   rootDir: string;
   onboarding: BotOnboarding;
+  partLibrary: PartLibrary;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
@@ -556,6 +559,7 @@ export function createCore(
             name: bot.displayName,
             paused: bot.paused === true,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {
@@ -719,12 +723,16 @@ export function createCore(
     registry,
     channels,
   });
+  const partLibrary = createPartLibrary({
+    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
+  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
     profileRecovery,
     contentPurge,
     onboarding,
+    partLibrary,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -1272,6 +1280,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     modelCatalog,
     modelReadiness,
     onboarding: core.onboarding,
+    partLibrary: core.partLibrary,
+    onboardingNews: (slug) =>
+      onboardingNewsAvailable(
+        ctx,
+        (slug === undefined ? undefined : core.registry.get(slug)?.preset) ??
+          config.agentPreset ??
+          DEFAULT_AGENT_PRESET,
+      ),
     defaultModel: defaultModel as DshDefaultModelHost & {
       saveSelection(route: import('./models/presets.js').ModelRoute): Promise<void>;
     },

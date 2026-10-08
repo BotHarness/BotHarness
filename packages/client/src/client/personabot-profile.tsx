@@ -49,6 +49,7 @@ export function ProfilePopover({
           name={bot.displayName}
           src={bot.avatar}
           appearance={bot.appearance}
+          avatarSeed={bot.avatarSeed}
           size={40}
           indicator={false}
         />

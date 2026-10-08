@@ -108,6 +108,7 @@ export function HumanInboxSourceButton({
             name={name}
             src={bot?.avatar}
             appearance={bot?.appearance}
+            avatarSeed={bot?.avatarSeed}
             size={24}
             indicator={false}
             t={t}

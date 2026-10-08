@@ -560,7 +560,7 @@ it('uses the shared model picker for onboarding and waits for an explicit model 
   );
 });
 
-it('offers news, daily check-in and timed-test requests through the normal welcome send path', async () => {
+it('offers general, daily check-in and timed-test requests through the normal welcome send path', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   container = document.createElement('div');
   document.body.append(container);
@@ -574,7 +574,7 @@ it('offers news, daily check-in and timed-test requests through the normal welco
   await act(async () =>
     root!.render(createElement(OnboardingWelcome, { actions, channelId: 'dm-ada', t: translate })),
   );
-  const prompts = [en['onboarding.firstRequest'], en['onboarding.newsRequest']];
+  const prompts = [en['onboarding.firstRequest'], en['onboarding.exampleRequest']];
   for (const prompt of prompts) {
     await act(async () => button(prompt).click());
     expect(send).toHaveBeenLastCalledWith(prompt);
