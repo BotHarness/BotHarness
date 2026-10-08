@@ -19,7 +19,6 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
 
-
 - The Bot Marketplace now shows each Bot's Profile banner: a thumbnail on every row and a full banner at the top of the detail view, with a neutral placeholder when a Bot has none. The Marketplace Worker reads `banner` from `.botharness/bot.json`; a pixel scene is drawn locally, and an uploaded image loads from the repository at the indexed commit ([#1093](https://github.com/BotHarness/BotHarness/issues/1093)).
 - The welcome’s ten-minute reminder now shows the browser time zone and requests a single delivery to the current DM; the Host computes relative deadlines without rounding them early, and the Bot receives concise one-time scheduling and destination guidance ([#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)).
 
