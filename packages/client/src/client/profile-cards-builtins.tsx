@@ -1,4 +1,6 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
+
+import { useMountedResource } from './mounted-resource.js';
 
 import { barY, defineChart, stack } from '@tanstack/charts';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
@@ -13,7 +15,7 @@ import type {
   ProfileActivityTokensDay,
 } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { ProfileCardDescriptor } from './profile-cards.js';
+import type { ProfileCardDescriptor, ProfileCardViewProps } from './profile-cards.js';
 import { ModelUsageBreakdown } from './model-usage-breakdown.js';
 import { useProfileChartTokens } from './profile-chart-theme.js';
 
@@ -47,18 +49,24 @@ export function trailingProfileDays(todayKey: string | undefined, count: number)
   return days;
 }
 
-function heatWindow(todayKey: string | undefined): { days: string[]; todayKey: string } {
-  const today = anchorDate(todayKey);
-  const start = new Date(today);
-  const mondayOffset = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - mondayOffset - (PROFILE_ACTIVITY_WEEKS - 1) * 7);
-  const days: string[] = [];
-  for (let index = 0; index < PROFILE_ACTIVITY_WEEKS * 7; index += 1) {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    days.push(localDayKey(date));
-  }
-  return { days, todayKey: localDayKey(today) };
+function shiftDay(day: string, amount: number): string {
+  const date = anchorDate(day);
+  date.setDate(date.getDate() + amount);
+  return localDayKey(date);
+}
+
+function weekStart(day: string): string {
+  const date = anchorDate(day);
+  return shiftDay(day, -((date.getDay() + 6) % 7));
+}
+
+function heatDays(newestWeek: string, weeks: number): string[] {
+  const start = shiftDay(newestWeek, -(weeks - 1) * 7);
+  return Array.from({ length: weeks * 7 }, (_, index) => shiftDay(start, index));
+}
+
+function weeksBetween(fromWeek: string, toWeek: string): number {
+  return Math.round((anchorDate(toWeek).getTime() - anchorDate(fromWeek).getTime()) / 604_800_000);
 }
 
 function heatLevel(count: number): number {
@@ -81,71 +89,195 @@ function sumCounts(days: readonly ProfileActivityDay[]): number {
   return days.reduce((total, entry) => total + entry.count, 0);
 }
 
+export interface HeatmapPage {
+  counts: ReadonlyMap<string, number>;
+  details?: ReadonlyMap<string, readonly string[]>;
+}
+
+const HEAT_GAP = 2;
+
 export function ProfileHeatmap({
   counts,
+  details,
   label,
   today,
+  firstDay,
+  compact = false,
+  loadOlder,
   t,
 }: {
   counts: ReadonlyMap<string, number>;
+  details?: ReadonlyMap<string, readonly string[]> | undefined;
   label: string;
   today: string | undefined;
+  firstDay?: string | undefined;
+  compact?: boolean | undefined;
+  loadOlder?: ((before: string, weeks: number) => Promise<HeatmapPage>) | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const { days, todayKey } = heatWindow(today);
-  const [hovered, setHovered] = useState<
-    { day: string; count: number; column: number } | undefined
-  >(undefined);
+  const todayKey = localDayKey(anchorDate(today));
+  const newestWeek = weekStart(todayKey);
+  const cell = compact ? 8 : 10;
+  const [columns, setColumns] = useState(PROFILE_ACTIVITY_WEEKS);
+  const [older, setOlder] = useState<{ from: string; pages: HeatmapPage[] }>({
+    from: shiftDay(newestWeek, -(PROFILE_ACTIVITY_WEEKS - 1) * 7),
+    pages: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [hovered, setHovered] = useState<{ day: string; count: number; left: number } | undefined>(
+    undefined,
+  );
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const keepRight = useRef<number | undefined>(undefined);
+  const creationWeek = firstDay === undefined ? undefined : weekStart(firstDay);
+  const reachedStart = creationWeek !== undefined && older.from <= creationWeek;
+  const loadedWeeks = weeksBetween(older.from, newestWeek) + 1;
+  const lifetimeWeeks =
+    creationWeek === undefined
+      ? undefined
+      : Math.max(1, weeksBetween(creationWeek, newestWeek) + 1);
+  const weeks = compact
+    ? Math.max(1, Math.min(columns, loadedWeeks))
+    : loadOlder === undefined
+      ? Math.min(columns, loadedWeeks)
+      : Math.max(columns, Math.min(loadedWeeks, lifetimeWeeks ?? loadedWeeks));
+  const days = heatDays(newestWeek, weeks);
+  const allCounts = new Map(counts);
+  const allDetails = new Map(details ?? []);
+  for (const page of older.pages) {
+    for (const [day, value] of page.counts) allCounts.set(day, value);
+    for (const [day, value] of page.details ?? []) allDetails.set(day, value);
+  }
   const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
-  const tipLeft =
-    hovered === undefined
-      ? '50%'
-      : `${Math.min(92, Math.max(8, ((hovered.column + 0.5) / PROFILE_ACTIVITY_WEEKS) * 100))}%`;
+
+  const loadMore = (): void => {
+    if (loadOlder === undefined || loading || reachedStart) return;
+    const before = older.from;
+    const pageWeeks = Math.max(columns, 8);
+    setLoading(true);
+    void loadOlder(before, pageWeeks).then(
+      (page) => {
+        keepRight.current =
+          scroller.current === null
+            ? undefined
+            : scroller.current.scrollWidth - scroller.current.scrollLeft;
+        setOlder((current) =>
+          current.from === before
+            ? { from: shiftDay(before, -pageWeeks * 7), pages: [...current.pages, page] }
+            : current,
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+  };
+
+  const measure = useMountedResource<HTMLDivElement>(
+    (node) => {
+      scroller.current = node;
+      const fit = (): void => {
+        const width = node.clientWidth;
+        if (width > 0) setColumns(Math.max(1, Math.floor((width + HEAT_GAP) / (cell + HEAT_GAP))));
+      };
+      fit();
+      node.scrollLeft = node.scrollWidth;
+      if (typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(fit);
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+        scroller.current = null;
+      };
+    },
+    [cell],
+  );
+  const restoreScroll = useMountedResource<HTMLDivElement>(
+    (grid) => {
+      const node = scroller.current;
+      if (node === null) return;
+      if (keepRight.current !== undefined) node.scrollLeft = node.scrollWidth - keepRight.current;
+      else node.scrollLeft = node.scrollWidth;
+      keepRight.current = undefined;
+      if (
+        !compact &&
+        loadOlder !== undefined &&
+        !reachedStart &&
+        (weeks > loadedWeeks || grid.scrollWidth <= node.clientWidth)
+      )
+        loadMore();
+    },
+    [weeks, older.from],
+  );
+
+  const show = (target: HTMLElement, day: string, count: number): void => {
+    const box = target.closest('.bh-profile-heat')?.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+    setHovered({ day, count, left: box === undefined ? 0 : rect.left + rect.width / 2 - box.left });
+  };
+  const tipLines = hovered === undefined ? [] : (allDetails.get(hovered.day) ?? []);
   return (
-    <div className="bh-profile-heat">
+    <div className="bh-profile-heat" data-compact={compact ? 'true' : undefined}>
       <div
-        className="bh-profile-heat-grid"
-        role="group"
-        aria-label={t('profile.heat.aria', { label })}
+        ref={measure}
+        className="bh-profile-heat-scroll"
+        onScroll={(event) => {
+          if (event.currentTarget.scrollLeft < (cell + HEAT_GAP) * 2) loadMore();
+        }}
       >
-        {days.map((day, index) => {
-          const future = day > todayKey;
-          const count = counts.get(day) ?? 0;
-          const column = Math.floor(index / 7);
-          if (future) {
+        <div
+          ref={restoreScroll}
+          className="bh-profile-heat-grid"
+          role="group"
+          aria-label={t('profile.heat.aria', { label })}
+          aria-busy={loading}
+        >
+          {days.map((day) => {
+            if (day > todayKey || (firstDay !== undefined && day < firstDay)) {
+              return (
+                <span
+                  key={day}
+                  className="bh-profile-heat-cell"
+                  data-level={day > todayKey ? 'future' : 'before'}
+                  aria-hidden="true"
+                />
+              );
+            }
+            const count = allCounts.get(day) ?? 0;
             return (
-              <span
+              <button
                 key={day}
+                type="button"
                 className="bh-profile-heat-cell"
-                data-level="future"
-                aria-hidden="true"
+                data-day={day}
+                data-level={heatLevel(count)}
+                aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
+                onMouseEnter={(event) => show(event.currentTarget, day, count)}
+                onMouseLeave={() => setHovered(undefined)}
+                onFocus={(event) => show(event.currentTarget, day, count)}
+                onBlur={() => setHovered(undefined)}
               />
             );
-          }
-          return (
-            <button
-              key={day}
-              type="button"
-              className="bh-profile-heat-cell"
-              data-level={heatLevel(count)}
-              aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
-              onMouseEnter={() => setHovered({ day, count, column })}
-              onMouseLeave={() => setHovered(undefined)}
-              onFocus={() => setHovered({ day, count, column })}
-              onBlur={() => setHovered(undefined)}
-            />
-          );
-        })}
-        {hovered === undefined ? null : (
-          <div className="bh-profile-heat-tip" role="tooltip" style={{ left: tipLeft }}>
+          })}
+        </div>
+      </div>
+      {hovered === undefined ? null : (
+        <div className="bh-profile-heat-tip" role="tooltip" style={{ left: `${hovered.left}px` }}>
+          <span className="bh-profile-tip-head">
             <span className="bh-profile-tip-day">{hovered.day}</span>
             <span className="bh-profile-tip-value">
               {t('profile.heat.tip', { count: hovered.count })}
             </span>
-          </div>
-        )}
-      </div>
-      {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
+          </span>
+          {tipLines.map((line) => (
+            <span key={line} className="bh-profile-tip-line">
+              {line}
+            </span>
+          ))}
+        </div>
+      )}
+      {total === 0 && older.pages.length === 0 ? (
+        <div className="bh-profile-empty">{t('profile.empty')}</div>
+      ) : null}
     </div>
   );
 }
@@ -172,50 +304,67 @@ function reasonLabel(reason: string, t: BotHarnessTranslate): string {
   }
 }
 
-function reasonTotals(
+function reasonDetails(
   events: readonly ProfileActivityReasonDay[],
-): Array<{ reason: string; count: number }> {
-  const totals = new Map<string, number>();
+  t: BotHarnessTranslate,
+): Map<string, string[]> {
+  const byDay = new Map<string, Array<{ reason: string; count: number }>>();
   for (const entry of events) {
-    totals.set(entry.reason, (totals.get(entry.reason) ?? 0) + entry.count);
+    const list = byDay.get(entry.day) ?? [];
+    list.push({ reason: entry.reason, count: entry.count });
+    byDay.set(entry.day, list);
   }
-  return [...totals]
-    .map(([reason, count]) => ({ reason, count }))
-    .sort((left, right) => right.count - left.count);
+  return new Map(
+    [...byDay].map(([day, list]) => [
+      day,
+      list
+        .sort((left, right) => right.count - left.count)
+        .map((entry) => `${reasonLabel(entry.reason, t)} · ${entry.count}`),
+    ]),
+  );
+}
+
+function olderPage(
+  loadActivity: ProfileCardViewProps['loadActivity'],
+  pick: (activity: ProfileActivity) => HeatmapPage,
+): ((before: string, weeks: number) => Promise<HeatmapPage>) | undefined {
+  return loadActivity === undefined
+    ? undefined
+    : (before, weeks) => loadActivity({ before, weeks }).then(pick);
 }
 
 function EventActivityCard({
   activity,
+  compact,
+  loadActivity,
   t,
 }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const events = activity?.events ?? [];
   const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
-  const reasons = reasonTotals(events);
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">{totalText(sumCounts(events), weeks, t)}</div>
       <ProfileHeatmap
         counts={countByDay(events)}
+        details={reasonDetails(events, t)}
         label={t('profile.card.events')}
         today={activity?.today}
+        firstDay={activity?.createdDay}
+        compact={compact}
+        loadOlder={olderPage(loadActivity, (page) => ({
+          counts: countByDay(page.events),
+          details: reasonDetails(page.events, t),
+        }))}
         t={t}
       />
-      {reasons.length === 0 ? null : (
-        <ul className="bh-profile-reasons">
-          {reasons.map((entry) => (
-            <li key={entry.reason}>
-              <span>{reasonLabel(entry.reason, t)}</span>
-              <span className="bh-profile-reason-count">{entry.count}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
 
 function MemoryActivityCard({
   activity,
+  compact,
+  loadActivity,
   t,
 }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const commits = activity?.memoryCommits ?? [];
@@ -227,6 +376,9 @@ function MemoryActivityCard({
         counts={countByDay(commits)}
         label={t('profile.card.memory')}
         today={activity?.today}
+        firstDay={activity?.createdDay}
+        compact={compact}
+        loadOlder={olderPage(loadActivity, (page) => ({ counts: countByDay(page.memoryCommits) }))}
         t={t}
       />
     </div>

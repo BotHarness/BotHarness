@@ -60,7 +60,7 @@ function authorName(
   }
 }
 
-function GroupMessagesCard({ activity, t }: GroupProfileCardViewProps): ReactElement {
+function GroupMessagesCard({ activity, compact, t }: GroupProfileCardViewProps): ReactElement {
   const days = activity?.days ?? [];
   const total = days.reduce((sum, day) => sum + day.count, 0);
   return (
@@ -72,6 +72,7 @@ function GroupMessagesCard({ activity, t }: GroupProfileCardViewProps): ReactEle
         counts={countByDay(days)}
         label={t('groupProfile.messages')}
         today={activity?.today}
+        compact={compact}
         t={t}
       />
     </div>

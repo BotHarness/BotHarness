@@ -931,8 +931,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.profileUsage({ channelId, filter }));
   }
 
-  profileActivity(channelId: string): ProfileActivity {
-    return unwrap(this.methods.profileActivity({ channelId }));
+  profileActivity(channelId: string, before?: string, weeks?: number): ProfileActivity {
+    return unwrap(this.methods.profileActivity({ channelId, before, weeks }));
   }
 
   groupProfileActivity(channelId: string): GroupProfileActivity {

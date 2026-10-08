@@ -2773,10 +2773,22 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   color: var(--bh-accent);
 }
 .bh-profile-heat {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
+.bh-profile-heat-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.bh-profile-heat[data-compact='true'] .bh-profile-heat-scroll { overflow-x: hidden; }
+.bh-profile-heat-cell[data-level='before'] { visibility: hidden; }
+.bh-profile-tip-head { display: flex; gap: 8px; align-items: baseline; }
+.bh-profile-tip-line { color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .bh-profile-heat-grid {
   width: max-content;
   display: grid;
@@ -2976,8 +2988,9 @@ button.bh-profile-heat-cell:focus-visible {
   transform: translateX(-50%);
   z-index: 1;
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
   padding: 4px 8px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
