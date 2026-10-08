@@ -121,6 +121,8 @@ import {
   revokeWorkspaceGrant,
   setWorkspaceGrantWrite,
   loadToolApprovalStatus,
+  loadToolApprovalExecutionState,
+  type ToolApprovalExecutionState,
   decideToolApproval,
   loadUserQuestionStatus,
   answerUserQuestion,
@@ -529,6 +531,10 @@ export interface BridgeActions {
   listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
   revokeToolApprovalRule(slug: string, id: string): Promise<void>;
   toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  toolApprovalExecutionState?(
+    channelId: string,
+    messageId: string,
+  ): Promise<ToolApprovalExecutionState | undefined>;
   decideToolApproval(
     channelId: string,
     messageId: string,
@@ -1195,6 +1201,8 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
+    toolApprovalExecutionState: (channelId, messageId) =>
+      loadToolApprovalExecutionState(call, channelId, messageId),
     decideToolApproval: (channelId, messageId, outcome) =>
       settleNativeInboxAction(
         'tool-approval',

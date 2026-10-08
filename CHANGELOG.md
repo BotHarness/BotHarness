@@ -107,6 +107,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
+
 - On an explicitly configured native RC2 timed-question Profile, a DM question card stays answerable after its foreground deadline while the same Bot handles other messages; a late answer shows submitted until the original native Session admits it. Production pins and blocking RC1 questions remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
 
 - Bot onboarding no longer pauses another window's tutorial when an observing window leaves or sets a model; completed onboarding can be explicitly replayed, and saving a Bot-specific model or restoring inheritance immediately refreshes the open model card ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).

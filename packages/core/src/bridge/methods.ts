@@ -456,7 +456,10 @@ export interface BridgeMethods {
   assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
-  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   userQuestionStatus(
     payload: unknown,
@@ -3694,12 +3697,31 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel?.type !== 'dm' || channel.botSlug === undefined) {
         return invalidInput('Tool approval is available only in a PersonaBot DM');
       }
-      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+      const request = deps.channels.message(channelId, messageId)?.toolApprovalRequest;
+      if (request === undefined) {
         return invalidInput('Unknown tool approval request');
       }
+      const assignment =
+        request.role === 'assignment'
+          ? deps.runtime?.getAssignment(channel.botSlug, request.sessionId)
+          : undefined;
+      const execution =
+        assignment === undefined
+          ? undefined
+          : assignment.activity === 'error'
+            ? 'needs-repair'
+            : assignment.activity === 'working'
+              ? ((deps.runtime?.assignmentApprovalWait === undefined
+                  ? assignment.executionWait
+                  : deps.runtime.assignmentApprovalWait(request.sessionId, request.callId)) ??
+                'running')
+              : 'settled';
       return {
         ok: true,
-        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+        value: {
+          status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired',
+          ...(execution === undefined ? {} : { execution }),
+        },
       };
     },
     async toolApprovalDecide(payload) {
