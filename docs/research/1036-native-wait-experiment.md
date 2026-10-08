@@ -146,15 +146,20 @@ Independent Assignment success alone cannot clear this gate.
 
 Build, lint (including source policy and both bilingual Release Ledgers),
 formatting and type checking passed. The focused evidence, tool-approval and
-formal-question suite passed 34 tests across three files. Its evidence checks
+formal-question suite passed 35 tests across three files. Its evidence checks
 reject failed original operations, unaccepted Web decisions, replacement
 Sessions, changed arguments, unrelated receipts, cancellation and incomplete
 native snapshots.
 
-The full repository test run encountered failures in unchanged modules and
-does not establish a green baseline. A separate single-worker reproduction of
+The full repository test run finished with 98 failed, 316 passed and six skipped
+files (585 failed, 2,753 passed and 29 skipped tests); it does not establish a
+green Windows baseline. Failures were in unchanged modules. A separate single-worker reproduction of
 `registry.test.ts` / `provisions the Memory directory for a name-only bot but
 writes no Persona` failed in existing `afterEach` cleanup: Windows returned
 `EPERM` to recursive removal of its temporary directory. Other full-suite
 failures include timeouts; their causes have not been established by this
 experiment. No production module or existing test was changed to mask them.
+
+The full `pnpm docs:build` wrapper failed before building the site: its unchanged
+Slides script calls `spawnSync pnpm`, which returned `ENOENT` on Windows.
+The direct `pnpm --filter docs build` path passed and rendered 414 pages.

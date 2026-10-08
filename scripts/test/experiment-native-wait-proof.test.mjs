@@ -47,6 +47,14 @@ test('rejects a native result without accepted Web decision', () => {
   p.decision.result.value.accepted = false;
   assert.throws(() => checkNativeWait(input(p)), /Web decision must be accepted/);
 });
+
+test('rejects marker text accompanied by a shell failure', () => {
+  const p = load('assignment');
+  p.after.events.find(
+    (e) => e.type === 'tool/result' && e.data.callId === p.verdict.callId,
+  ).data.text += '[exit code: 1]';
+  assert.throws(() => checkNativeWait(input(p)), /exact native stdout/);
+});
 test('rejects replacement Session and changed exact arguments', () => {
   const p = load('assignment');
   p.after.sessionId = 'replacement-session';

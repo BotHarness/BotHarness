@@ -123,11 +123,13 @@ export function checkNativeWait({
   assert.equal(results.length, 1, 'original operation settles exactly once');
   const result = results[0];
   assert.equal(result.data.isError, rejected, 'acceptance alone cannot prove execution success');
-  if (!rejected)
-    assert.ok(
-      result.data.text.includes(request.userQuestionRequest ? 'Canary' : 'EXACT_OPERATION_1036'),
-      'actual native authorized result',
-    );
+  if (!rejected) {
+    if (request.userQuestionRequest)
+      assert.deepEqual(JSON.parse(result.data.text), {
+        answers: [{ id: 'wait-route', selected: ['Canary'] }],
+      });
+    else assert.equal(result.data.text.trim(), 'EXACT_OPERATION_1036', 'exact native stdout');
+  }
   const asked = before.events.find(
     (e) => e.type === 'approval/asked' && e.data.callId === call.data.callId,
   );
