@@ -14,7 +14,7 @@
 
 ### Added
 
-- 窗口伙伴新增随文字播放的轻柔叽咕声，按 Profile 保存开关且默认关闭；拖拽倾斜改用阻尼角度弹簧，让反向拖动与回摆连续，不增加模型工具或 TTS（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。
+- 窗口伙伴新增随文字播放的轻柔叽咕声，按 Profile 保存开关且默认关闭；拖拽倾斜改用阻尼角度弹簧，让反向拖动与回摆连续，不增加模型工具或 TTS。空闲时隐藏占位状态气泡，操作按钮仅在悬浮或键盘聚焦时淡入；拖拽留下的鼠标焦点不再锁住阅读状态（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。
 
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
 - 支持的像素窗口伙伴会随着已提交消息逐字呈现而开合嘴，在标点处闭嘴，播放结束、取消或切到后台后恢复保存的表情；名册头像与图片降级保留原有形象（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。

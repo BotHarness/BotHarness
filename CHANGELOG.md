@@ -14,7 +14,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Window Companions offer optional, quiet text-paced babble, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+- Window Companions offer optional, quiet text-paced babble, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS. Idle companions hide the empty status bubble and fade action controls in on hover or keyboard focus; pointer focus after dragging no longer keeps reading open ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).

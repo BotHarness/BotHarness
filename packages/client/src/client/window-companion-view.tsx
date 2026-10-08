@@ -27,7 +27,7 @@ function avatarLimitation(
 }
 const statusVisible = (state: CompanionViewState): boolean =>
   Boolean(
-    state.selection?.activity ||
+    (state.selection?.activity && state.activity && state.activity.state !== 'idle') ||
     state.bot?.paused ||
     avatarLimitation(state.bot) ||
     state.sync !== 'live',
@@ -114,7 +114,12 @@ export function WindowCompanionView({
     if (exit.current !== undefined) clearTimeout(exit.current);
     exit.current = setTimeout(() => {
       exit.current = undefined;
-      if (root.current?.contains(document.activeElement) || hovering.current || menuOpen.current)
+      if (
+        (root.current?.contains(document.activeElement) &&
+          document.activeElement?.matches(':focus-visible')) ||
+        hovering.current ||
+        menuOpen.current
+      )
         return;
       companion.reading(false);
     }, 800);
@@ -347,7 +352,9 @@ export function WindowCompanionView({
         }}
         onPointerEnter={enter}
         onPointerLeave={leave}
-        onFocusCapture={enter}
+        onFocusCapture={(event) => {
+          if (event.target.matches(':focus-visible')) enter();
+        }}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) leave();
         }}
@@ -470,7 +477,7 @@ export function WindowCompanionView({
             })}
           </ol>
         ) : null}
-        <div className="bh-companion-toolbar" data-open={view.reading || menu}>
+        <div className="bh-companion-toolbar" data-open={menu}>
           <button
             type="button"
             aria-label={t('companion.openDm')}

@@ -420,6 +420,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       !(stage instanceof HTMLElement)
     )
       throw new Error('Missing companion controls');
+    expect(node.querySelector('.bh-companion-activity')).toBeNull();
     await act(() => character.focus());
     expect(owner.getSnapshot().reading).toBe(true);
     await act(() =>
@@ -596,6 +597,17 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     });
     expect(surface.textContent).toContain('同步中断');
     expect(frames.size).toBeGreaterThan(0);
+    // jsdom has no pointer/keyboard focus modality; model the browser's pointer focus here.
+    const focusVisible = vi.spyOn(character, 'matches').mockReturnValue(false);
+    await act(() =>
+      character.dispatchEvent(
+        new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }),
+      ),
+    );
+    await act(() => vi.advanceTimersByTime(800));
+    expect(document.activeElement).toBe(character);
+    expect(owner.getSnapshot().reading).toBe(false);
+    focusVisible.mockRestore();
     await act(() => root.unmount());
     expect(frames.size).toBe(0);
     expect(disconnected).toHaveBeenCalled();
