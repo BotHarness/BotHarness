@@ -1897,6 +1897,25 @@ const BOT_ONBOARDING_MIGRATION: SchemaMigration = {
   },
 };
 
+const PROFILE_RECOVERY_MIGRATION: SchemaMigration = {
+  generation: 72,
+  module: 'profile-portability',
+  description: 'Persist Disaster Restore receipt and explicit target-local activation',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE profile_recovery (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), body TEXT NOT NULL
+      );
+      CREATE TABLE profile_recovery_bots (
+        bot_slug TEXT PRIMARY KEY, desired_json TEXT NOT NULL,
+        authorized_plan_revision INTEGER, activated_session_id TEXT
+      );
+      ALTER TABLE session_ownership ADD COLUMN content_available INTEGER NOT NULL DEFAULT 1
+        CHECK (content_available IN (0, 1));
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1968,4 +1987,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   WECHAT_PLATFORM_DEFAULTS_MIGRATION,
   COMPLETE_CONTENT_PURGE_MIGRATION,
   BOT_ONBOARDING_MIGRATION,
+  PROFILE_RECOVERY_MIGRATION,
 ]);

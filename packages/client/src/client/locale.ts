@@ -3,6 +3,56 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'backup.title': '完整环境备份与恢复',
+  'backup.description': '保存整个本地环境的 Bot 身份、记忆、聊天历史和设置。',
+  'backup.open': '管理备份',
+  'backup.close': '关闭',
+  'backup.identity':
+    '恢复保留 Bot ID 和历史归属。单 Bot Zip／Git 分享会创建新身份，适用于不同用途。',
+  'backup.export': '导出完整环境',
+  'backup.sensitive':
+    '文件包含敏感聊天和来源内容、保留的 Memory、账号描述、授权与触发设置、Outbox 和审计记录。请妥善保存。',
+  'backup.excluded':
+    '不包含 API key／凭证、可执行插件或 Workspace 文件。源机器的 Git 授权配置替换为安全默认值；hooks 隔离保留，不自动启用。',
+  'backup.sessions':
+    '此版本不迁移底层 DSH Session 内容；保留其历史归属为不可用引用。它不是整个 DSH_HOME 的副本。',
+  'backup.purge':
+    '包含导出时的真实清除检查点。离线旧备份无法知道之后的清除；保留旧文件可能恢复后来清除的内容。',
+  'backup.prepare': '预览导出',
+  'backup.counts':
+    '{bots} 个 Bot（含已删除身份）· {files} 个受管文件 · 估算 {bytes} 字节 · {sessions} 个底层 Session 不迁移。当前版本解包上限 512 MiB／60,000 项。',
+  'backup.download': '下载已验证备份',
+  'backup.complete': '已生成并开始下载已验证备份：最终大小 {bytes} 字节。',
+  'backup.import': '导入完整环境',
+  'backup.localRestore':
+    '选择文件检查完整性。恢复须在本机终端创建新的、停止状态的环境，运行中的 Settings 不替换自身数据。',
+  'backup.select': '选择 .botharness-backup 文件',
+  'backup.inspected': '文件验证通过：{bots} 个 Bot · {files} 个文件 · 最终大小 {bytes} 字节。',
+  'backup.restoreCommand':
+    '使用已安装可信版本的本地恢复命令，替换为所选备份文件和一个尚不存在的新目录：',
+  'backup.launch':
+    '以新目录作为 DSH_HOME 启动可信 DSH 0.2.0-rc.1 与 BotHarness，再回到此 Settings 查看历史和恢复准备度。开发 checkout 可用 scripts/profile-restore.mjs 与 scripts/dev-instance.mjs。',
+  'backup.restorePosture':
+    '默认灾难恢复：账号绑定、触发器、Service Grants、Workspace 与持久工具授权均挂起，Browser／Computer 访问关闭。旧 Session／Outbox 不重放；目录映射与外部账号须另行明确授权。',
+  'backup.integrity': '文件 SHA-256（完整性，不证明来源）',
+  'backup.recovery': '恢复后准备度与显式激活',
+  'backup.repair':
+    '先在 DSH 模型设置配置目标本地凭证，在 Bot Profile 选择明确的 Model Plan，然后授权该模型。不会自动改用其他路由。激活后会创建新的 Orchestrator Session；打开该 Bot 的 DM 发送新消息。',
+  'backup.acknowledge':
+    '我了解原设备可能仍在运行，已考虑同身份双活风险。此次激活不恢复外部账号权限。',
+  'backup.refresh': '刷新准备度',
+  'backup.noModel': '需选择 Model Plan',
+  'backup.active': '已显式激活；集成权限仍须修复',
+  'backup.cold': '冷状态，尚未激活',
+  'backup.blocked': '阻止执行：{reason}',
+  'backup.reason.plan': '请在 Bot Profile 保存明确的模型计划',
+  'backup.reason.unavailable': '目标模型或本地凭证不可用，请在 DSH 模型设置修复',
+  'backup.reason.authorization': '请明确授权此目标模型',
+  'backup.authorize': '授权此目标模型',
+  'backup.activate': '激活此 Bot',
+  'backup.working': '正在验证环境数据…',
+  'backup.cancel': '取消',
+  'backup.error': '操作未完成（{code}）。原环境与已有备份保留；修复后重新预览。',
   'purge.history': '已结束会话的历史',
   'purge.historyHint':
     '删除会话会结束本地参与并保留历史。内容清除须另行预览、确认；隐藏会话仍可恢复。',
@@ -2289,6 +2339,59 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'backup.title': 'Complete environment backup and restore',
+  'backup.description':
+    'Preserve this local environment’s Bot identities, Memory, conversation history and settings.',
+  'backup.open': 'Manage backups',
+  'backup.close': 'Close',
+  'backup.identity':
+    'Restore preserves Bot IDs and historical attribution. Single-Bot Zip/Git sharing creates new identities for a different purpose.',
+  'backup.export': 'Export complete environment',
+  'backup.sensitive':
+    'The file includes sensitive chats and source content, retained Memory, account descriptors, grants/triggers, Outbox and audit records. Store it privately.',
+  'backup.excluded':
+    'API keys/credentials, executable Plugins and Workspace files are excluded. Source-local Git authorization configuration is replaced with safe defaults; hooks are quarantined and never enabled automatically.',
+  'backup.sessions':
+    'This version cannot migrate underlying DSH Session content; historical ownership remains as unavailable references. This is not a copy of all DSH_HOME contents.',
+  'backup.purge':
+    'Includes the real purge checkpoint at export. Older offline backups cannot know later purges; retained old files may recover content purged afterward.',
+  'backup.prepare': 'Preview export',
+  'backup.counts':
+    '{bots} Bots (including deleted identities) · {files} managed files · estimated {bytes} bytes · {sessions} underlying Sessions omitted. This version supports 512 MiB / 60,000 unpacked entries.',
+  'backup.download': 'Download verified backup',
+  'backup.complete': 'Verified backup generated and download started: final size {bytes} bytes.',
+  'backup.import': 'Import complete environment',
+  'backup.localRestore':
+    'Select a file to inspect integrity. Use the local terminal to restore into a new, stopped environment; running Settings cannot replace its own data.',
+  'backup.select': 'Select .botharness-backup file',
+  'backup.inspected': 'File verified: {bots} Bots · {files} files · final size {bytes} bytes.',
+  'backup.restoreCommand':
+    'Use the trusted installed local restore command, substituting the selected backup and a new directory that does not exist:',
+  'backup.launch':
+    'Launch trusted DSH 0.2.0-rc.1 and BotHarness with the new directory as DSH_HOME, then return to these Settings for history and readiness. Development checkouts can use scripts/profile-restore.mjs and scripts/dev-instance.mjs.',
+  'backup.restorePosture':
+    'Disaster Restore suspends account bindings, triggers, Service Grants, Workspaces and saved tool approvals; Browser/Computer access is off. Old Sessions/Outbox never replay. Map directories and authorize external accounts explicitly.',
+  'backup.integrity': 'File SHA-256 (integrity, not source authenticity)',
+  'backup.recovery': 'Restored readiness and explicit activation',
+  'backup.repair':
+    'Configure target-local credentials in DSH model settings and choose an explicit Model Plan in the Bot Profile, then authorize it here. No route falls back silently. Activation creates a fresh Orchestrator Session; open the Bot DM and send a new message.',
+  'backup.acknowledge':
+    'I understand the original device may still run and have considered two holders of this identity. Activation does not restore external account authority.',
+  'backup.refresh': 'Refresh readiness',
+  'backup.noModel': 'Choose a Model Plan',
+  'backup.active': 'Explicitly activated; integration authority still needs repair',
+  'backup.cold': 'Cold, awaiting activation',
+  'backup.blocked': 'Execution blocked: {reason}',
+  'backup.reason.plan': 'Save an explicit model plan in the Bot Profile',
+  'backup.reason.unavailable':
+    'Target model or local credential unavailable; repair DSH model settings',
+  'backup.reason.authorization': 'Explicitly authorize this target model',
+  'backup.authorize': 'Authorize this target model',
+  'backup.activate': 'Activate this Bot',
+  'backup.working': 'Verifying environment data…',
+  'backup.cancel': 'Cancel',
+  'backup.error':
+    'Operation did not complete ({code}). Original data and existing backups are retained; repair and preview again.',
   'purge.history': 'Ended Channel history',
   'purge.historyHint':
     'Deleting a Channel ends local participation and retains history. Content Purge requires a separate preview and confirmation; hidden Channels remain reversible.',

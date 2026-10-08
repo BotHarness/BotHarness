@@ -9,6 +9,15 @@ export const CSS =
   COMBOBOX_CSS +
   WINDOW_COMPANION_CSS +
   `
+.bh-profile-backup-dialog.bh-profile-backup-dialog { width: min(760px, 100%); max-height: 100%; }
+.bh-profile-backup { overflow-y: auto; min-height: 0; font-size: 13px; line-height: 20px; }
+.bh-profile-backup section { border-top: 1px solid var(--dsw-alias-border-l2); padding-block: 12px; }
+.bh-profile-backup p { margin-block: 8px; }
+.bh-profile-backup h3 { margin-block: 0 8px; font-size: 14px; }
+.bh-profile-backup-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block: 8px; }
+.bh-profile-backup pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px; background: var(--dsw-alias-bg-base); }
+.bh-profile-backup code { overflow-wrap: anywhere; }
+.bh-profile-backup-bot { padding-block: 12px; }
 .bh-im-tutorials { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .bh-im-tutorials a { display: inline-flex; align-items: center; gap: 3px; color: var(--bh-accent); text-underline-offset: 3px; }
 .bh-im-tutorials a:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 3px; border-radius: 2px; }

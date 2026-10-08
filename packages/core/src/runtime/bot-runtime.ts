@@ -470,6 +470,7 @@ export interface BotRuntime {
 }
 
 export interface BotRuntimeOptions {
+  requireExecution?: (botSlug: string) => void;
   beginAssignmentWait?: (botSlug: string, orchestratorSessionId: string) => () => void;
   externalMessaging?: OutboundMessaging;
   database: OperationalDatabaseOwner;
@@ -864,6 +865,7 @@ function sessionFailureDetails(error: unknown): { code?: string; status?: number
 }
 
 class BotRuntimeImplementation implements BotRuntime {
+  readonly #requireExecution: BotRuntimeOptions['requireExecution'];
   readonly #externalMessaging: OutboundMessaging | undefined;
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
@@ -923,6 +925,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#workspaceRoot = options.workspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
+    this.#requireExecution = options.requireExecution;
     this.#channels = options.channels;
     this.#sourcePolicy =
       options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
@@ -2760,6 +2763,7 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    this.#requireExecution?.(bot.slug);
     const turnSources = new Set([sourceEventId, ...wakeEventIds, ...reportEventIds]);
     this.#turnSources.set(bot.slug, turnSources);
     const typingSources = [sourceEventId, ...inboxUnits.map((unit) => unit.sourceEventId)];
@@ -4580,7 +4584,9 @@ class BotRuntimeImplementation implements BotRuntime {
   }
 
   #ensureOrchestrator(bot: PersonaBotRecord, at: string): { sessionId: string; resume: boolean } {
-    const existing = this.#ownership.rootsFor(bot.slug, 'orchestrator')[0];
+    const existing = this.#ownership
+      .rootsFor(bot.slug, 'orchestrator')
+      .find((root) => this.#ownership.contentAvailable(root.sessionId));
     if (existing !== undefined) return { sessionId: existing.sessionId, resume: true };
     const sessionId = this.#createSessionId();
     const cwdReference = this.#orchestratorCwdReference(bot);
