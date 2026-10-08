@@ -56,7 +56,17 @@
           "settledAt": "2026-10-08T18:52:09.075Z"
         }
       ],
-      "reactionRenderingObservedThisWindow": false
+      "reactionRenderingObservedThisWindow": false,
+      "officialEventDelivery": {
+        "eventId": "8352dadae29a6b611afea4c41b0002d2",
+        "eventType": "im.message.receive_v1",
+        "displayedTimeJst": "2026-10-09 03:52:00.845",
+        "status": "SUCCESS",
+        "httpCode": 200,
+        "reportedCostMs": 1863,
+        "capture": "lark-group-event-log.jpg",
+        "inspectedAfterWindow": true
+      }
     },
     {
       "name": "dm-reply",

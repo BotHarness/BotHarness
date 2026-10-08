@@ -95,3 +95,9 @@ QA 身份、账号及临时凭据清理，窗口 Host 停止，03:58:21.920 核�
 Human follow-up: the Human reported that Bot replies show Glance and Done. No new source-specific group image was captured, so this does not replace the missing original-message screenshot.
 
 Human 补充确认 Bot 回应时显示 Glance 和 Done；尚无本轮群原消息的对应截图，此确认不能代替缺失的原消息图证。
+
+After the window, a read-only official Event Log Search for the exact retained R3 group event ID showed `im.message.receive_v1`, **SUCCESS**, HTTP 200, and a displayed push time of **03:52:00.845 JST**. This corroborates delivery of that known group event; it does not qualify the late blocked message or reaction rendering. The cropped row omits the detail panel and its tenant metadata.
+
+![Official delivery record for the exact R3 group QA event](../evidence/issue-1040/lark-group-event-log.jpg)
+
+窗口结束后，只读查询官方 Event Log Search 中与 R3 群来源一致的精确事件 ID：`im.message.receive_v1` 显示 SUCCESS、HTTP 200，界面推送时间为 03:52:00.845。此记录佐证该群事件投递，不证明迟发的屏蔽消息或表情显示；截图仅保留记录行，排除详情中的租户信息。
