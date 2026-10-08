@@ -9,12 +9,14 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
+- Content Purge adds Profile schema Generation 68 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
 
 - Window Companions offer optional, quiet text-paced babble, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
+- Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).
 
 - Window Companions follow archive and deletion independently of Bot mode, preserve image/unknown-version snapshot fallbacks, and support keyboard reading and controls. Keyboard menus receive focus after placement and return it to the invoking control when dismissed. Motion preference changes settle immediately; offscreen presentation and obsolete animations stop without restarting old messages ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).
@@ -75,6 +77,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 ### Fixed
 
 - Window Companions keep falling after a fast throw clips the character outside the visible content; visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+- **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
 

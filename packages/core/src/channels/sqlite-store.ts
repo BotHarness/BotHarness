@@ -1065,7 +1065,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     createGroup(input) {
       const base = groupChannelIdBase(input.name);
       let id = base;
-      for (let suffix = 2; readRecord(id) !== undefined; suffix++) id = `${base}-${suffix}`;
+      for (
+        let suffix = 2;
+        database.read((db) =>
+          db.prepare('SELECT 1 FROM channel_records WHERE channel_id = ?').get(id),
+        ) !== undefined;
+        suffix++
+      )
+        id = `${base}-${suffix}`;
       const timestamp = now().toISOString();
       const record: ChannelRecord = {
         id,
