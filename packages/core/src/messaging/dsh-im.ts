@@ -553,18 +553,21 @@ export function createDshImProvider(
               host.fileVersion === 1 &&
               info.capabilities.includes('source-image-checked') &&
               (platform === 'feishu' || info.capabilities.includes('reply-image-fence-checked'));
+            const sourceFiles =
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-file-checked') &&
+              info.capabilities.includes('reply-file-checked') &&
+              (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked')) &&
+              (platform !== 'qq' ||
+                (info.capabilities.includes('source-generic-file-checked') &&
+                  info.capabilities.includes('reply-file-fence-checked')));
             return host.consumeInbound!(input.accountRef, {
               expectedFingerprint: input.fingerprint,
               signal: input.signal,
               ...(info.capabilities.includes('ordinary-text-consumer')
                 ? { ordinaryText: true }
                 : {}),
-              ...(host.fileVersion === 1 &&
-              info.capabilities.includes('source-file-checked') &&
-              info.capabilities.includes('reply-file-checked') &&
-              (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked'))
-                ? { sourceFiles: true }
-                : {}),
+              ...(sourceFiles ? { sourceFiles: true } : {}),
               ...(sourceImages ? { sourceImages: true } : {}),
               ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
                 ? { sourceQuotes: true }
@@ -643,6 +646,11 @@ export function createDshImProvider(
                 : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
+                const qqAttachments = parsed.attachments?.every((item) =>
+                  item.mediaType?.startsWith('image/')
+                    ? sourceImages
+                    : sourceFiles && item.mediaType === 'application/octet-stream',
+                );
                 if (
                   parsed.channel !== platform ||
                   (platform === 'qq' &&
@@ -650,20 +658,18 @@ export function createDshImProvider(
                       parsed.reply.threadId !== undefined ||
                       parsed.reply.rootId !== undefined ||
                       parsed.reply.parentId !== undefined ||
-                      ((parsed.attachments?.length ?? 0) > 0 &&
-                        (!sourceImages ||
-                          !parsed.attachments?.every((item) =>
-                            item.mediaType?.startsWith('image/'),
-                          ))))) ||
+                      ((parsed.attachments?.length ?? 0) > 0 && !qqAttachments))) ||
                   ((parsed.contentParts ||
                     (parsed.attachments?.length ?? 0) > 1 ||
                     (platform === 'feishu' &&
                       parsed.attachments?.some((item) => item.mediaType?.startsWith('image/')))) &&
-                    ((platform !== 'feishu' && !(platform === 'qq' && sourceImages)) ||
-                      !info.capabilities.includes('source-image-checked') ||
-                      !parsed.attachments?.every((item) =>
-                        item.mediaType?.startsWith('image/'),
-                      ))) ||
+                    (platform === 'qq'
+                      ? !qqAttachments
+                      : platform !== 'feishu' ||
+                        !info.capabilities.includes('source-image-checked') ||
+                        !parsed.attachments?.every((item) =>
+                          item.mediaType?.startsWith('image/'),
+                        ))) ||
                   new Set(parsed.attachments?.map((item) => item.id)).size !==
                     (parsed.attachments?.length ?? 0) ||
                   parsed.contentParts?.some(
@@ -938,7 +944,11 @@ export function createDshImProvider(
             const info = await host.describeBot(input.accountRef);
             if (
               info.account.fingerprint !== input.fingerprint ||
-              !info.capabilities.includes('source-file-checked')
+              !info.capabilities.includes('source-file-checked') ||
+              (platform === 'qq' &&
+                !input.attachment.mediaType?.startsWith('image/') &&
+                (!info.capabilities.includes('source-generic-file-checked') ||
+                  !info.capabilities.includes('reply-file-fence-checked')))
             )
               throw new MessagingError('provider-incompatible');
             return host.readSourceFile!(input.accountRef, input.route, input.attachment, {
@@ -952,7 +962,8 @@ export function createDshImProvider(
               if (
                 info.account.fingerprint !== input.fingerprint ||
                 !info.capabilities.includes('reply-file-checked') ||
-                (platform === 'weixin' &&
+                ((platform === 'weixin' ||
+                  (platform === 'qq' && !input.file.mediaType?.startsWith('image/'))) &&
                   !info.capabilities.includes('reply-file-fence-checked')) ||
                 ((platform === 'weixin' || platform === 'qq') &&
                   input.file.mediaType?.startsWith('image/') &&

@@ -52,6 +52,18 @@ Choose the result type before replying: text and image share one durable reply i
 
 Image results use the receiving app and original group. Upload is separate from the single final message send, with authorization checked again after upload. A native message receipt records provider acceptance; unknown results are not automatically resent. Real QQ/model/Client image qualification is tracked on #1157 and is not implied by this candidate contract.
 
+## Process group files (development candidate)
+
+The [#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) candidate negotiates ordinary files separately from images. Only a native group @mention carrying its own file attachment qualifies. A separate adjacent file or a quoted attachment does not establish source association. Tencent's native `file` category becomes opaque `application/octet-stream` metadata; it is not a platform MIME claim.
+
+A synced Channel shows the existing file card with **Download to this device**. Each request checks current Channel membership, source placement, receiving identity and conversation authority. The original file is acquired lazily into the canonical AttachmentStore, bounded to 25 MiB and served as a download. Inbox-only reception uses the same source without requiring Channel placement.
+
+To process a file, the Bot saves an independent copy with `bridge_attachment_save` into a currently write-authorized Workspace Grant, edits that copy, imports the selected output with `channel_attachment_import`, then sends it using `bridge_reply_file`. The stored original remains unchanged. Choose file output before sending text because each Bot/source has one durable reply intent; put a separate explanation in the local DM.
+
+Native file output uploads with `file_type=4` without sending, then rechecks current authority before one original-group message POST. Its native receipt records provider acceptance; an unknown outcome is not retried. Audio/video-native output is outside this file slice.
+
+**Qualification remains pending:** the current Tencent SDK exposes file upload/send while older official media documentation says files are unavailable. The actual application's inbound payload, download host and file-message permission must pass a fresh real-group test. Interface availability and automated regressions do not establish that permission; unsupported results keep #1158 unfinished. Private tickets are process-local and cannot be reconstructed after restart.
+
 ## Understand the text path
 
 | Behavior        | Current contract                                                |

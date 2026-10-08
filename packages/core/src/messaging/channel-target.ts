@@ -68,12 +68,24 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
     at: source.at,
     body,
     format: 'text',
-    ...(source.event.attachments?.some((item) => item.mediaType?.startsWith('image/'))
+    ...(source.event.attachments?.some(
+      (item) =>
+        item.mediaType?.startsWith('image/') ||
+        (source.platform === 'qq' && item.mediaType === 'application/octet-stream'),
+    )
       ? {
           bridgeMedia: {
             items: source.event.attachments
-              .filter((item) => item.mediaType?.startsWith('image/'))
-              .map((item) => ({ id: item.id, kind: 'image' as const, name: item.name })),
+              .filter(
+                (item) =>
+                  item.mediaType?.startsWith('image/') ||
+                  (source.platform === 'qq' && item.mediaType === 'application/octet-stream'),
+              )
+              .map((item) => ({
+                id: item.id,
+                kind: item.mediaType?.startsWith('image/') ? ('image' as const) : ('file' as const),
+                name: item.name,
+              })),
             ...(source.event.contentParts ? { parts: source.event.contentParts } : {}),
           },
         }

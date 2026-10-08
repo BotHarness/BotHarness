@@ -87,7 +87,7 @@ export function createAttachmentHttp(
     sourceEventId: string;
     attachmentId: string;
     signal: AbortSignal;
-  }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>,
+  }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array>; inline?: boolean }>,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     const url = new URL(request.url);
@@ -138,7 +138,7 @@ export function createAttachmentHttp(
       )
         return new Response('Channel media source is required', { status: 400 });
       try {
-        const { ref, body } = await channelMedia({
+        const { ref, body, inline } = await channelMedia({
           channelId,
           sourceEventId,
           attachmentId,
@@ -148,7 +148,7 @@ export function createAttachmentHttp(
           headers: {
             'content-type': ref.mime,
             'content-length': String(ref.size),
-            'content-disposition': filenameDisposition(ref.name, true),
+            'content-disposition': filenameDisposition(ref.name, inline === true),
             'x-content-type-options': 'nosniff',
             'cache-control': 'no-store',
           },

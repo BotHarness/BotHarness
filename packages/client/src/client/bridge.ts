@@ -1102,7 +1102,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       const item = asRecord(raw);
       if (
         !item ||
-        item['kind'] !== 'image' ||
+        (item['kind'] !== 'image' && item['kind'] !== 'file') ||
         typeof item['id'] !== 'string' ||
         !/^[a-f0-9]{64}$/.test(item['id']) ||
         typeof item['name'] !== 'string' ||

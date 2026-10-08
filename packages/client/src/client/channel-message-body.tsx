@@ -1,3 +1,4 @@
+import { BridgeFile } from './bridge-file.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
 import { MessageAttachment } from './message-attachment.js';
@@ -670,7 +671,16 @@ export function ChannelMessageBody({
     const media = message.bridgeMedia;
     const renderImage = (id: string, index: number) => {
       const item = media.items.find((image) => image.id === id);
-      return item ? (
+      return item?.kind === 'file' ? (
+        <BridgeFile
+          key={index}
+          channelId={channelId}
+          sourceEventId={message.bridgeOrigin!.sourceEventId}
+          attachmentId={id}
+          name={item.name}
+          t={t}
+        />
+      ) : item ? (
         <BridgeImage
           key={index}
           channelId={channelId}
