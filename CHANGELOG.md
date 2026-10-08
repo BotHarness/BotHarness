@@ -74,6 +74,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
+
 - npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
 
 - Unpinning a Window Companion clears its stale Activity indicator; a successfully loaded Bot roster also clears a deleted Bot's restored selection, while network failures preserve the Human's pin preferences ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)).
