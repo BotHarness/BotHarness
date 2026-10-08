@@ -19,7 +19,7 @@ node scripts/dev-client-diagnostics.mjs --launch <private-launch.json>
 
 退出码 0 只证明这一项 shell 观察；数据、输入框和模型可用性仍需真实交互。后台标签可能暂停绘制，因此延后前台启动计时；计时器延迟保留真实 elapsed time。`/api` 返回 200 不能替代 UI 验收。
 
-使用 CUA 时，在启动和每个相关动作后读取 `tab.dev.logs({levels:['error','warn'],limit:50})` 与 `tab.playwright.domSnapshot()`，再保存结构化报告。对照首个**观察到的**错误、事件顺序、遗漏计数与证据时效；它是线索，不自动等于因果根源。浏览器控制超时／断连要单独记录，先观察动作是否已执行，再决定重试。`net::ERR_BLOCKED_BY_CLIENT` 是导航拒绝，不能声称测试页已执行。任务要求 CUA 时不可换浏览器驱动绕过。
+使用 CUA 时，在启动和每个相关动作后读取 `tab.dev.logs({levels:['error','warn'],limit:50})` 与 `tab.playwright.domSnapshot()`，再保存结构化报告。对照首个**观察到的**错误、事件顺序、遗漏计数与证据时效；它是线索，不自动等于因果根源。浏览器控制超时／断连要单独记录，先观察动作是否已执行，再决定重试。`net::ERR_BLOCKED_BY_CLIENT` 是导航拒绝，不能声称测试页已执行。认证测试页还须单独检查原生 admission：固定 RC1 即使收到有效 cookie，也会拒绝 cross-site 请求并返回 403；已验证从应用内可见同源链接进入可通过，保留原生安全边界。任务要求 CUA 时不可换浏览器驱动绕过。
 
 建立能触发原症状的反馈循环，每次只改变一项；仅重启精确归属本任务的 Host 并显式重载。保留首次失败和每次重试，不吞异常、不无限刷新、不改动配对 Profile 换取绿色。完成条件是原回归通过、真实 DOM 能执行目标行为、当前 console 没有无法解释的新错误；原生原因无法在本仓库安全修复时交接固定版本源码、最小复现与未确定归属。
 

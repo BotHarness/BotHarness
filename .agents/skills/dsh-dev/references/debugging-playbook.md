@@ -1,5 +1,9 @@
 # DSH debugging playbook
 
+## Authenticated fixture navigation
+
+In pinned RC1, native connection.admit also applies the Host/Origin fence: a request with Sec-Fetch-Site: cross-site receives 403 even with a valid cookie. A CUA direct navigation to an authenticated fixture produced Chrome ERR_BLOCKED_BY_CLIENT; the same URL reached through a visible same-origin application link passed admission and ran. Check bounded, credential-free admission metadata before blaming the browser extension or product startup. Keep the native fence intact; use normal application navigation for the verification path. Do not log cookie values, launch tokens or request contents ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
+
 ## Client startup errors versus browser-control failures
 
 Pinned RC1 has two distinct root guards: `SlotRegistry.renderSlot` refuses assembly with no root registration, while React `RootOutlet` emits `renderSlot('root') before any 'root' registration (boot order)` if the registration disappears after assembly. Reproduce the latter with the installed renderer and real React DOM before attributing it to boot order. Native Conversation locale refresh iterates tracked Session bindings; `uiConversation.binding: unknown session` names an absent native Session, but its appearance after a root crash does not prove causation. Keep the first error and later sequence, and hand off unresolved initiator/lifecycle evidence. See [the executable loop and pinned sources](../../../../docs/dev/guides/client-startup-diagnostics.md) ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
