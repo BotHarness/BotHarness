@@ -19,6 +19,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. An authorized scope update and guarded browser retest verified DM reactions and receipt-only silence; group and recovery qualification remain pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
 
+- Every Bot now has a Profile banner at the top of its Profile and its popover. New Bots get a pixel scene picked from their name, which a rename doesn't change; existing Bots get one at the next start. **Change banner** picks one of ten scenes, rerolls the picture, uploads an image cropped to 3:1, or resets to the generated scene. `.botharness/bot.json` records the banner, `.botharness/banner.png` is always written, and Bot Zip export, import and Git import keep it ([#1092](https://github.com/BotHarness/BotHarness/issues/1092)).
+
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
 
 - After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
@@ -114,6 +116,10 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Documented the accepted pixel Avatar extension: Avatar Species on one rig (fantasy, animal and flower bases), separately colored hair pieces, a through-hair headpiece slot, and Human-drawn Custom Parts in a Profile Part Library that travel with exported PersonaBots and move as PNGs; runtime behavior is unchanged ([#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md), [handoff](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)).
+
+- Documented the pinned native Human-wait qualification and the follow-up requirement to keep group conversation available during pending questions/permissions: independent Assignment approvals leave the Orchestrator available, while its own approval/question still blocks unrelated model processing; production continuation remains gated ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)).
 
 - Documented the accepted in-window transparent pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
 

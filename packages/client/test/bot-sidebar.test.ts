@@ -295,6 +295,7 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    setBotBanner: vi.fn(async () => true),
     updateBotProfile: vi.fn(async () => true),
     setBotAppearance: vi.fn(async () => true),
     profileUsage: vi.fn(),

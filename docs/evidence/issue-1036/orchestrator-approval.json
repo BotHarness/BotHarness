@@ -1,0 +1,1190 @@
+{
+  "issue": 1036,
+  "dsh": "0.2.0-rc.1",
+  "upstream": "4878cdabd87d4041bdaff61d04c966883b9fd07a",
+  "applicationBaseline": "fe08fd925f9bf4644b4634ef464ce83e758bfdae",
+  "mode": "approval",
+  "startedAt": "2026-10-08T15:42:00.265Z",
+  "finishedAt": "2026-10-08T15:42:43.711Z",
+  "botSlug": "bot-40ccba5d619f48ad8d60a6883ac78a8a",
+  "channelId": "dm-bot-40ccba5d619f48ad8d60a6883ac78a8a",
+  "request": {
+    "id": "b7caf4b2-e382-4f57-8e93-632ae9c3b89f",
+    "at": "2026-10-08T15:42:17.763Z",
+    "author": {
+      "kind": "bot",
+      "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+    },
+    "toolApprovalRequest": {
+      "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+      "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+      "toolName": "bash",
+      "role": "orchestrator",
+      "cwd": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\profile\\botharness\\bots\\bot-40ccba5d619f48ad8d60a6883ac78a8a\\memory",
+      "input": "{\n  \"command\": \"echo EXACT_OPERATION_1036\",\n  \"description\": \"Echo exact operation marker\"\n}",
+      "externalDecision": "operation"
+    },
+    "body": "请求批准执行 bash",
+    "channelRevision": 5
+  },
+  "scope": {
+    "id": "d4ca3c58-af89-489f-9d38-174adf26f7c3",
+    "botSlug": "bot-40ccba5d619f48ad8d60a6883ac78a8a",
+    "workspaceId": "a080af90-e16f-43a6-ac01-92c4bcf2d0cb",
+    "workspacePath": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs4\\approval\\workspace",
+    "workspaceTitle": "workspace",
+    "createdAt": "2026-10-08T15:42:14.970Z",
+    "orchestratorWrite": false,
+    "writeRevision": 0
+  },
+  "decision": {
+    "type": "server-response",
+    "rpcId": "c92e18d1-c8f4-46a9-baf3-248ac65eb2a4",
+    "result": {
+      "ok": true,
+      "value": {
+        "accepted": true
+      }
+    }
+  },
+  "unrelated": {
+    "messageId": "human-f1088cad-23f7-4ff7-b30d-56bc80752c9e",
+    "submittedAt": "2026-10-08T15:42:18.113Z",
+    "observedThrough": "2026-10-08T15:42:39.438Z",
+    "replyDuringWait": null,
+    "admission": {
+      "id": "497f1893-fa8c-406c-8895-034043752fd4",
+      "botSlug": "bot-40ccba5d619f48ad8d60a6883ac78a8a",
+      "reason": "human-dm",
+      "state": "processing",
+      "createdAt": "2026-10-08T15:42:18.113Z",
+      "observedAt": "2026-10-08T15:42:19.028Z",
+      "sourceKind": "human-message",
+      "sourceChannelId": "dm-bot-40ccba5d619f48ad8d60a6883ac78a8a",
+      "sourceChannelName": "bot-40ccba5d619f48ad8d60a6883ac78a8a",
+      "sourceMessageId": "human-f1088cad-23f7-4ff7-b30d-56bc80752c9e",
+      "sourceAvailable": true,
+      "authorKind": "human",
+      "summary": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+    }
+  },
+  "verdict": {
+    "owner": "orchestrator",
+    "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+    "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+    "tool": "bash",
+    "callAt": 1791474137760,
+    "approvalId": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+    "decisionAt": 1791474159469,
+    "outcome": "allowed-once",
+    "resultAt": 1791474160514,
+    "isError": false,
+    "nativeResult": "EXACT_OPERATION_1036\r\n",
+    "unrelated": {
+      "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+      "callId": "call_01_XKJNWfpPuuiztRd7lINo7889",
+      "callAt": 1791474163171,
+      "replyId": "1f583ceb-9377-42a5-bc1a-97b5b70569ff",
+      "replyAt": "2026-10-08T15:42:43.184Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "repliedWhileWaiting": false,
+    "rejected": false
+  },
+  "before": {
+    "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474130796,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474131908,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474131911,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474132963,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19062,
+            "outputTokens": 44,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20258
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474132969,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474134272,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"7dbc852a-b01c-4fe5-8e0f-e3941ad65fc4\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474134274,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474134297,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474135995,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 230,
+            "outputTokens": 40,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20366
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474136000,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474136036,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474136037,
+        "data": {
+          "text": "Call native bash exactly once with command \"echo EXACT_OPERATION_1036\". Await Human approval and actual native result, then channel_send ORIGINAL_RESULT_1036 plus actual stdout or error. Do not retry or create an Assignment."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474137755,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 200,
+            "outputTokens": 132,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20556
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474137760,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "name": "bash",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation marker\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 33,
+        "time": 1791474137762,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "toolName": "bash",
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      }
+    ]
+  },
+  "during": {
+    "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474130796,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474131908,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474131911,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474132963,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19062,
+            "outputTokens": 44,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20258
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474132969,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474134272,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"7dbc852a-b01c-4fe5-8e0f-e3941ad65fc4\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474134274,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474134297,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474135995,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 230,
+            "outputTokens": 40,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20366
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474136000,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474136036,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474136037,
+        "data": {
+          "text": "Call native bash exactly once with command \"echo EXACT_OPERATION_1036\". Await Human approval and actual native result, then channel_send ORIGINAL_RESULT_1036 plus actual stdout or error. Do not retry or create an Assignment."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474137755,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 200,
+            "outputTokens": 132,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20556
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474137760,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "name": "bash",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation marker\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 33,
+        "time": 1791474137762,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "toolName": "bash",
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      }
+    ]
+  },
+  "after": {
+    "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474130796,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474131908,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474131911,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474132963,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19062,
+            "outputTokens": 44,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20258
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474132969,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474134272,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"7dbc852a-b01c-4fe5-8e0f-e3941ad65fc4\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474134274,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474134297,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474135995,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 230,
+            "outputTokens": 40,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20366
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474136000,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474136036,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474136037,
+        "data": {
+          "text": "Call native bash exactly once with command \"echo EXACT_OPERATION_1036\". Await Human approval and actual native result, then channel_send ORIGINAL_RESULT_1036 plus actual stdout or error. Do not retry or create an Assignment."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474137755,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 200,
+            "outputTokens": 132,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20556
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474137760,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "name": "bash",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation marker\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 33,
+        "time": 1791474137762,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "toolName": "bash",
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      },
+      {
+        "type": "approval/decided",
+        "seq": 35,
+        "time": 1791474159469,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "outcome": "allowed-once"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 36,
+        "time": 1791474160514,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "isError": false,
+          "text": "EXACT_OPERATION_1036\r\n"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 37,
+        "time": 1791474160516,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 39,
+        "time": 1791474160538,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 40,
+        "time": 1791474160539,
+        "data": {
+          "text": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 42,
+        "time": 1791474163144,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 137,
+            "outputTokens": 449,
+            "cacheReadTokens": 20480,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21066
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 43,
+        "time": 1791474163150,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_86ZEmEtXjpKHyRl1t0or4129",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"ORIGINAL_RESULT_1036\\nEXACT_OPERATION_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 44,
+        "time": 1791474163169,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_86ZEmEtXjpKHyRl1t0or4129",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"44f23cb4-4c3d-4aef-9b54-b604a3b9cced\"}"
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 45,
+        "time": 1791474163171,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_01_XKJNWfpPuuiztRd7lINo7889",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 46,
+        "time": 1791474163189,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_01_XKJNWfpPuuiztRd7lINo7889",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"1f583ceb-9377-42a5-bc1a-97b5b70569ff\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 47,
+        "time": 1791474163193,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 48,
+        "time": 1791474163217,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      }
+    ]
+  },
+  "orchestrator": {
+    "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474130796,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474131908,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474131911,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474132963,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19062,
+            "outputTokens": 44,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20258
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474132969,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474134272,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_ET_pNwh9NJ9eQPvbAzF31O97828",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"7dbc852a-b01c-4fe5-8e0f-e3941ad65fc4\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474134274,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474134297,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474135995,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 230,
+            "outputTokens": 40,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20366
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474136000,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474136036,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474136037,
+        "data": {
+          "text": "Call native bash exactly once with command \"echo EXACT_OPERATION_1036\". Await Human approval and actual native result, then channel_send ORIGINAL_RESULT_1036 plus actual stdout or error. Do not retry or create an Assignment."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474137755,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 200,
+            "outputTokens": 132,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20556
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474137760,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "name": "bash",
+          "arguments": "{\"command\": \"echo EXACT_OPERATION_1036\", \"description\": \"Echo exact operation marker\"}"
+        }
+      },
+      {
+        "type": "approval/asked",
+        "seq": 33,
+        "time": 1791474137762,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "toolName": "bash",
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "reason": "This tool call may access files outside the authorized folder."
+        }
+      },
+      {
+        "type": "approval/decided",
+        "seq": 35,
+        "time": 1791474159469,
+        "data": {
+          "id": "75276a93-fb41-48b8-83d9-0e5b1cbf115c",
+          "outcome": "allowed-once"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 36,
+        "time": 1791474160514,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+          "isError": false,
+          "text": "EXACT_OPERATION_1036\r\n"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 37,
+        "time": 1791474160516,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 39,
+        "time": 1791474160538,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 40,
+        "time": 1791474160539,
+        "data": {
+          "text": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 42,
+        "time": 1791474163144,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 137,
+            "outputTokens": 449,
+            "cacheReadTokens": 20480,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21066
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 43,
+        "time": 1791474163150,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_86ZEmEtXjpKHyRl1t0or4129",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"ORIGINAL_RESULT_1036\\nEXACT_OPERATION_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 44,
+        "time": 1791474163169,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_86ZEmEtXjpKHyRl1t0or4129",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"44f23cb4-4c3d-4aef-9b54-b604a3b9cced\"}"
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 45,
+        "time": 1791474163171,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_01_XKJNWfpPuuiztRd7lINo7889",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 46,
+        "time": 1791474163189,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_01_XKJNWfpPuuiztRd7lINo7889",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-40ccba5d619f48ad8d60a6883ac78a8a\",\"messageId\":\"1f583ceb-9377-42a5-bc1a-97b5b70569ff\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 47,
+        "time": 1791474163193,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 48,
+        "time": 1791474163217,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "1f583ceb-9377-42a5-bc1a-97b5b70569ff",
+      "at": "2026-10-08T15:42:43.184Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+      },
+      "body": "UNRELATED_REPLY_1036",
+      "channelRevision": 9
+    },
+    {
+      "id": "44f23cb4-4c3d-4aef-9b54-b604a3b9cced",
+      "at": "2026-10-08T15:42:43.163Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+      },
+      "body": "ORIGINAL_RESULT_1036\nEXACT_OPERATION_1036",
+      "channelRevision": 8
+    },
+    {
+      "id": "d083aeb6-f3a2-406b-b389-28f8e22c7ec4",
+      "at": "2026-10-08T15:42:39.460Z",
+      "author": {
+        "kind": "human"
+      },
+      "replyTo": "b7caf4b2-e382-4f57-8e93-632ae9c3b89f",
+      "toolApprovalDecision": {
+        "requestMessageId": "b7caf4b2-e382-4f57-8e93-632ae9c3b89f",
+        "outcome": "allowed-once"
+      },
+      "body": "已批准这一次工具调用",
+      "channelRevision": 7,
+      "deliveries": [
+        {
+          "botSlug": "bot-40ccba5d619f48ad8d60a6883ac78a8a",
+          "state": "pending"
+        }
+      ],
+      "replyToPreview": {
+        "author": {
+          "kind": "bot",
+          "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+        },
+        "body": "请求批准执行 bash"
+      }
+    },
+    {
+      "id": "b7caf4b2-e382-4f57-8e93-632ae9c3b89f",
+      "at": "2026-10-08T15:42:17.763Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+      },
+      "toolApprovalRequest": {
+        "sessionId": "botharness-bfec8e4e-ff4b-40e5-946a-ea648a65e254",
+        "callId": "call_00_qemqunoXOv1vqapk57RE6659",
+        "toolName": "bash",
+        "role": "orchestrator",
+        "cwd": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\profile\\botharness\\bots\\bot-40ccba5d619f48ad8d60a6883ac78a8a\\memory",
+        "input": "{\n  \"command\": \"echo EXACT_OPERATION_1036\",\n  \"description\": \"Echo exact operation marker\"\n}",
+        "externalDecision": "operation"
+      },
+      "body": "请求批准执行 bash",
+      "channelRevision": 5
+    },
+    {
+      "id": "7dbc852a-b01c-4fe5-8e0f-e3941ad65fc4",
+      "at": "2026-10-08T15:42:14.263Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-40ccba5d619f48ad8d60a6883ac78a8a"
+      },
+      "body": "BASELINE_1036",
+      "channelRevision": 3
+    }
+  ],
+  "client": [
+    {
+      "at": "2026-10-08T15:42:07.594Z",
+      "consoleErrors": []
+    },
+    {
+      "at": "2026-10-08T15:42:43.702Z",
+      "consoleErrors": []
+    }
+  ]
+}

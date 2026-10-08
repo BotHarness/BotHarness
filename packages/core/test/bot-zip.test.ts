@@ -171,7 +171,11 @@ describe('Bot Zip file selection', () => {
       files: Array<{ path: string; size: number }>;
       always: string[];
     };
-    expect(listing.always).toEqual(['.botharness/bot.json', '.botharness/avatar.png']);
+    expect(listing.always).toEqual([
+      '.botharness/bot.json',
+      '.botharness/avatar.png',
+      '.botharness/banner.png',
+    ]);
     expect(listing.files).toContainEqual({ path: 'people/alex.md', size: 5 });
     expect(listing.files.some((file) => file.path.startsWith('.git/'))).toBe(false);
   });
@@ -201,6 +205,7 @@ describe('Bot Zip file selection', () => {
     const entries = readZip(Buffer.from(await response.arrayBuffer()), LIMITS);
     expect(entries.map((entry) => entry.path).sort()).toEqual([
       '.botharness/avatar.png',
+      '.botharness/banner.png',
       '.botharness/bot.json',
       'SOUL.md',
       'people/alex.md',
