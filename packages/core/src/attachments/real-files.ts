@@ -50,6 +50,7 @@ function destinationName(name?: string): string {
 export function createRealAttachments(root: string, maxBytes: number) {
   const pending = new Map<string, Promise<ChannelAttachmentRef>>();
   const acquisitions = new Map<string, Promise<ChannelAttachmentRef>>();
+  const purged = new Set<string>();
   const checkedDirectory = (path: string): void => {
     const info = lstatSync(path);
     const local = relative(realpathSync(root), realpathSync(path));
@@ -67,6 +68,8 @@ export function createRealAttachments(root: string, maxBytes: number) {
     return join(root, 'files', id.slice(5));
   };
   const receipt = (id: string): Receipt => {
+    if (purged.has(id))
+      throw new ChannelAttachmentError('Attachment content was purged', 'not-found');
     try {
       const dir = directory(id);
       const record = join(dir, 'record.json');
@@ -215,6 +218,8 @@ export function createRealAttachments(root: string, maxBytes: number) {
     }): Promise<ChannelAttachmentRef> {
       const id = 'file:' + (input.uploadId ?? randomUUID());
       directory(id);
+      if (purged.has(id))
+        throw new ChannelAttachmentError('Attachment content was purged', 'not-found');
       while (pending.has(id)) await pending.get(id)!.catch(() => undefined);
       const operation = (async () => {
         input.signal?.throwIfAborted();
@@ -272,6 +277,8 @@ export function createRealAttachments(root: string, maxBytes: number) {
             return existing.ref;
           }
           const dir = directory(id);
+          if (purged.has(id))
+            throw new ChannelAttachmentError('Attachment content was purged', 'not-found');
           await mkdir(join(root, 'files'), { recursive: true });
           checkedDirectory(join(root, 'files'));
           await rm(dir, { recursive: true, force: true });
@@ -287,12 +294,14 @@ export function createRealAttachments(root: string, maxBytes: number) {
             };
             const record = join(dir, 'record.json');
             await writeFile(record, JSON.stringify({ ref, checksum }), { flag: 'wx', mode: 0o600 });
-            const handle = await open(record, 'r');
+            const handle = await open(record, 'r+');
             try {
               await handle.sync();
             } finally {
               await handle.close();
             }
+            if (purged.has(id))
+              throw new ChannelAttachmentError('Attachment content was purged', 'not-found');
             return ref;
           } catch (error) {
             await rm(dir, { recursive: true, force: true });
@@ -309,6 +318,21 @@ export function createRealAttachments(root: string, maxBytes: number) {
       } finally {
         if (pending.get(id) === operation) pending.delete(id);
       }
+    },
+    purge(id: string, references: () => ReadonlySet<string>): 'removed' | 'shared' | 'pending' {
+      const path = directory(id);
+      if (references().has(id)) return 'shared';
+      purged.add(id);
+      if (pending.has(id) || acquisitions.has(id)) return 'pending';
+      if (lstatSync(path, { throwIfNoEntry: false }) === undefined) return 'removed';
+      checkedDirectory(join(root, 'files'));
+      checkedDirectory(path);
+      if (references().has(id)) {
+        purged.delete(id);
+        return 'shared';
+      }
+      rmSync(path, { recursive: true });
+      return 'removed';
     },
     sweep(olderThan: Date, references: ReadonlySet<string>): number {
       const files = join(root, 'files');

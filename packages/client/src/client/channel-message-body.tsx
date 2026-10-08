@@ -638,6 +638,7 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.contentPurged) return <div className="bh-bubble-body">{t('purge.purged')}</div>;
   if (message.sessionFailure !== undefined)
     return <SessionFailureNotice message={message} t={t} nativeChatT={nativeChatT} />;
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {

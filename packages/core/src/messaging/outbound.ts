@@ -1009,6 +1009,11 @@ export function createOutboundMessaging(options: {
           interrupted,
         ]);
         validate();
+        transaction((db) =>
+          db
+            .prepare('INSERT OR IGNORE INTO messaging_managed_files VALUES (?, ?, ?)')
+            .run(sourceEventId, ref.fileId!, 'original'),
+        );
         options.warn?.(
           JSON.stringify({
             event: 'messaging-attachment',
@@ -1117,6 +1122,11 @@ export function createOutboundMessaging(options: {
           },
         });
         validate();
+        transaction((db) =>
+          db
+            .prepare('INSERT OR IGNORE INTO messaging_managed_files VALUES (?, ?, ?)')
+            .run(sourceEventId, result.fileId!, 'voice.wav'),
+        );
         await check(grant(botSlug, source.grantId));
         validate();
         options.warn?.(

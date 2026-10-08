@@ -247,7 +247,7 @@ describe('owning Content Purge tracer', () => {
     );
     expect(() =>
       core.purge.confirm(core.channel.id, preview.sourceEventIds, preview.token),
-    ).toThrow('supports text');
+    ).toThrow('outside current Human read access');
     expect(core.purge.checkpoint().facts).toHaveLength(0);
   });
   it('validates a full union before writing and never replaces destination facts', () => {
@@ -289,7 +289,7 @@ describe('owning Content Purge tracer', () => {
     rmSync(path);
     expect(() => openPurgeLedger(path, false)).toThrow('missing');
   });
-  it('refuses actual shared managed files and retains their current bytes across restart', async () => {
+  it('purges one shared managed-file occurrence and retains current bytes across restart', async () => {
     const home = createTempRoot('purge-files-');
     const core = mount(home);
     const file = await core.attachments.upload({
@@ -309,11 +309,11 @@ describe('owning Content Purge tracer', () => {
       });
     core.channels.deleteGroup(channel.id);
     const page = core.purge.sources(channel.id);
-    expect(page.sources.every((source) => !!source.refusal)).toBe(true);
-    expect(() => core.purge.preview(channel.id, [page.sources[0]!.sourceEventId])).toThrow(
-      'supports text',
-    );
-    expect(core.purge.checkpoint().facts).toEqual([]);
+    expect(page.sources.every((source) => !source.refusal)).toBe(true);
+    const preview = core.purge.preview(channel.id, [page.sources[0]!.sourceEventId]);
+    expect(preview.files).toMatchObject([{ identity: file.fileId, disposition: 'shared' }]);
+    core.purge.confirm(channel.id, preview.sourceEventIds, preview.token);
+    expect(core.purge.checkpoint().facts).toHaveLength(1);
     core.database.close();
     const restarted = mount(home);
     expect(restarted.attachments.has(file)).toBe(true);
@@ -365,8 +365,8 @@ describe('owning Content Purge tracer', () => {
         ).run(state, '2026-10-08T00:00:00Z', state, 'provider-accepted');
       }
     });
-    expect(() => core.purge.preview(core.channel.id, [core.source.sourceEventId])).toThrow(
-      'supports text',
+    expect(core.purge.preview(core.channel.id, [core.source.sourceEventId]).effects).toHaveLength(
+      3,
     );
     core.database.close();
     const restored = mount(core.home, {

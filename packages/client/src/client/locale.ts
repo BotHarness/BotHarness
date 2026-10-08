@@ -20,16 +20,30 @@ export const zh = {
   'purge.expiry': '预览有效至 {at}；范围变动后须重新预览。',
   'purge.placements': '受影响的全部会话位置',
   'purge.admissions': '受影响的 Bot Inbox Admission',
-  'purge.noFiles': '本次选择不含托管附件或迁移文件绑定。',
+  'purge.noFiles':
+    '独占托管附件会清理；仍被其他来源或投递引用的文件保留。文件清理中断后会在重启时继续。',
+  'purge.files': '托管附件',
+  'purge.fileShared': '共享，保留',
+  'purge.fileRemove': '独占，清除',
+  'purge.cleanupPending': '正文已清除，{count} 个附件待清理；重启后继续。',
+  'purge.effects': '{count} 项投递或衍生记录',
+  'purge.derivativeReport': '衍生副本 · {count} 项已知引用',
+  'purge.derivativeDetails': 'Memory、Workspace 与导出副本',
+  'purge.derivative.recorded': '已记录的衍生提交，保留',
+  'purge.derivative.possible': '可能有副本的位置，未扫描',
+  'purge.derivative.unavailable': '历史引用，仓库不可用',
+  'purge.effectsTitle': '投递与衍生记录',
+  'purge.effectsHint':
+    '未发出的内容依赖投递会取消；已发出请求按实际结果结算，无法确定时保留结果未知。已有 Assignment、其他来源正文和 DSH Session 副本保留，旧来源不能启动新效果。',
   'purge.derivatives':
-    '不会扫描或修改用户管理的 Memory、Workspace 和导出文件；其中可能留有衍生副本。',
+    '仅报告已记录的 Memory 衍生提交和可能的 Workspace 位置；未追踪的文件与导出可能仍保留内容。不会扫描或修改这些副本。',
   'purge.disclosure':
     'DSH Session 的提示与结果、外部提供方副本、Git 远程和人工离线备份可能仍保留内容，本操作不能召回。',
   'purge.offline': '旧独立备份只能执行其自身携带的清除检查点；本入口不提供完整 Profile 备份恢复。',
   'purge.back': '返回已结束会话',
   'purge.endedAt': '已结束于 {at}',
   'purge.slice':
-    '首条路径支持已结束本地群聊的纯文本。外部来源、文件、运行中的投递和复杂内容衍生暂不可清除。',
+    '从已结束群聊选择来源；清除影响该来源的全部共享位置和收件记录。全部位置均须仍在你的可读范围。',
   'purge.tombstone': '正文已清除 · Human · {at} · human-request',
   'purge.unsupported': '此来源超出当前可清除范围，正文保留。',
   'purge.empty': '此页没有历史来源。',
@@ -2230,9 +2244,23 @@ export const en = {
   'purge.expiry': 'Preview expires at {at}; changed scope requires a new preview.',
   'purge.placements': 'All affected Channel placements',
   'purge.admissions': 'Affected Bot Inbox Admissions',
-  'purge.noFiles': 'This selection has no managed attachments or migrated file bindings.',
+  'purge.noFiles':
+    'Exclusively referenced managed files are removed; files still referenced by other sources or deliveries are retained. Interrupted cleanup resumes on restart.',
+  'purge.files': 'Managed attachments',
+  'purge.fileShared': 'Shared, retained',
+  'purge.fileRemove': 'Exclusive, removed',
+  'purge.cleanupPending': 'Bodies cleared; {count} attachments await cleanup on restart.',
+  'purge.effects': '{count} delivery or derivative records',
+  'purge.derivativeReport': 'Derived copies · {count} known references',
+  'purge.derivativeDetails': 'Memory, Workspace and export copies',
+  'purge.derivative.recorded': 'Recorded derived commit, retained',
+  'purge.derivative.possible': 'Possible copy location, not scanned',
+  'purge.derivative.unavailable': 'Historical reference, repository unavailable',
+  'purge.effectsTitle': 'Deliveries and derivatives',
+  'purge.effectsHint':
+    'Pending content-dependent deliveries are cancelled. Issued requests settle with actual evidence or remain unknown. Existing Assignments, other Source Event bodies and DSH Session copies survive; stale sources cannot start new effects.',
   'purge.derivatives':
-    'Human-managed Memory, Workspace and export files are not scanned or modified; derivative copies may survive there.',
+    'Only recorded source-derived Memory commits and possible Workspace locations are reported. Untracked files and exports may retain copies; these copies are not scanned or modified.',
   'purge.disclosure':
     'DSH Session prompts/results, external provider copies, Git remotes and Human-managed offline backups may retain content and cannot be recalled by this operation.',
   'purge.offline':
@@ -2240,7 +2268,7 @@ export const en = {
   'purge.back': 'Back to ended Channels',
   'purge.endedAt': 'Ended at {at}',
   'purge.slice':
-    'This first path supports text in ended local Groups. External sources, files, running delivery and complex content derivatives are not yet eligible.',
+    'Select sources from an ended Group. Purge affects every shared placement and Inbox Admission of that source; all placements must remain within your read access.',
   'purge.tombstone': 'Content purged · Human · {at} · human-request',
   'purge.unsupported': 'This source is outside the current purge scope; its content is retained.',
   'purge.empty': 'No historical sources on this page.',

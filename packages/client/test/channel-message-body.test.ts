@@ -8,6 +8,7 @@ import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from '../src/client/actions.js';
 import { ChannelMessageBody } from '../src/client/channel-message-body.js';
+import { parseChannelMessage } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { WORKSPACE_GRANTS_CHANGED } from '../src/client/workspace-grants-entry.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
@@ -21,6 +22,22 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
 }));
+
+it('renders the restored Host tombstone as purged content', () => {
+  const message = parseChannelMessage({
+    id: 'purged',
+    at: '2026-10-08T00:00:00.000Z',
+    author: { kind: 'human' },
+    body: '',
+    contentPurge: { actor: 'local-human', reason: 'human-request', at: '2026-10-08T00:00:00.000Z' },
+  });
+  expect(message?.contentPurged).toBe(true);
+  expect(
+    renderToStaticMarkup(
+      createElement(ChannelMessageBody, { message: message!, channelId: 'shared', t: zhTranslate }),
+    ),
+  ).toContain('正文已清除');
+});
 
 function render(
   author: ChannelMessage['author'],

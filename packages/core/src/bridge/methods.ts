@@ -404,7 +404,9 @@ export interface BridgeMethods {
     payload: unknown,
   ): BridgeResult<{ sources: PurgeSource[]; before?: string }>;
   channelPurgePreview(payload: unknown): BridgeResult<PurgePreview>;
-  channelPurgeConfirm(payload: unknown): BridgeResult<{ accepted: number }>;
+  channelPurgeConfirm(
+    payload: unknown,
+  ): BridgeResult<{ accepted: number; cleanupPending?: number }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
@@ -2453,6 +2455,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channelId === undefined) return invalidInput('channelId is required');
       try {
         deps.channels.deleteGroup(channelId);
+        deps.externalMessaging?.inbound.endChannel(channelId);
         return { ok: true, value: { deleted: true } };
       } catch (error) {
         return invalidInput(String(error));

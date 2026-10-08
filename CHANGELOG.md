@@ -9,7 +9,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
-- Content Purge adds Profile schema Generation 68 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
+- Content Purge adds Profile schema Generation 70 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Checkpoint v2 includes managed-file selectors and imports existing v1 text checkpoints; accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
@@ -18,7 +18,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).
 
-- Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
+- Ended Groups expose retained history and separate Source Event Content Purge, showing all shared placements, Admissions, managed files and dependent effects before confirmation. Exclusive current/legacy attachments are removed, shared files survive, interrupted cleanup resumes on restart, and issued replies retain honest outcomes; restore checkpoints and an asynchronous purge barrier support future Profile Backup ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897), [QA guide](docs/agents/qa-channel-purge.md)).
 
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).
 

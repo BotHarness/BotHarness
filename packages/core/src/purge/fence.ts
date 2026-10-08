@@ -1,0 +1,24 @@
+import type { DatabaseSync } from 'node:sqlite';
+
+export function sourceContentPurged(db: DatabaseSync, id: string): boolean {
+  return (
+    db
+      .prepare(`SELECT 1 FROM messaging_purge_facts f LEFT JOIN source_events e ON e.source_event_id = ?
+    WHERE f.source_event_id = ? OR f.source_event_id IN
+      (json_extract(e.payload_json, '$.botCausation.rootSourceEventId'),
+       json_extract(e.payload_json, '$.botCausation.parentSourceEventId')) LIMIT 1`)
+      .get(id, id) !== undefined
+  );
+}
+
+export function requireSourceContent(db: DatabaseSync, id: string): void {
+  if (sourceContentPurged(db, id)) throw new Error('Source Event content was purged');
+}
+
+export function requireSourceEffects(db: DatabaseSync, id: string, botSlug: string): void {
+  requireSourceContent(db, id);
+  const admission = db
+    .prepare('SELECT last_error FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ?')
+    .get(id, botSlug);
+  if (admission?.last_error === 'channel-ended') throw new Error('Source Channel has ended');
+}
