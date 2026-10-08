@@ -84,6 +84,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Changed
 
+- Bot Marketplace cards now look like a Bot's ID card: the Profile banner fills the card, the Bot stands at the bottom left as it does when pinned to the window, and the name, repository, tags, bio, stars and Install sit on the right. The detail view opens with the same banner and standing Bot, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).
 - **Bind app** links directly to the website connection tutorials for Lark / Feishu, Slack and WeChat, with a more-platforms overview; the standalone Lark setup card is removed so platform instructions stay in one place ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
 - **New conversations** is now a platform default too: Lark, Slack and Discord each have a **New conversations** choice in their global IM defaults (**Admit automatically** unless changed), and every bound app follows it until you pick a value for that app. Apps already set to **Ask me first** keep it ([#1134](https://github.com/BotHarness/BotHarness/issues/1134), [External identities guide](docs/channel-sidebar/external-identities.md)).

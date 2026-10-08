@@ -84,6 +84,7 @@
 
 ### Changed
 
+- Bot 市场的卡片改成了 Bot 的「身份卡」：资料横幅铺满整张卡，Bot 像 pin 到窗口时那样站在左下角，名称、仓库、标签、简介、星数和安装按钮放在右侧。详情页顶部也用同样的横幅和站立的 Bot，弹窗每行显示两张卡（[#1232](https://github.com/BotHarness/BotHarness/pull/1232)）。
 - **绑定应用** 弹窗可直接打开官网的 Lark／飞书、Slack、微信连接教程和更多平台总览；移除侧栏独立的 Lark 配置引导卡片，让平台配置说明集中在官网维护 ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
 - **新会话** 也成了平台默认设置：飞书、Slack、Discord 的全局 IM 默认设置里各有一个 **新会话** 选项（不改就是 **自动接收**），每个已绑定应用都跟随它，除非你为这个应用单独选择。已经设为 **先问我** 的应用保持不变（[#1134](https://github.com/BotHarness/BotHarness/issues/1134)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
