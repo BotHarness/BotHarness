@@ -242,6 +242,7 @@ export interface OutboundMessaging {
     channelId: string;
     sourceEventId: string;
     attachmentId: string;
+    representation?: 'playback';
     signal: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>;
   prepareAudio(
@@ -649,6 +650,8 @@ export function createOutboundMessaging(options: {
         database,
         attachments: options.attachments,
         active: options.isBotActive,
+        prepareAudio: (botSlug, sourceEventId, attachmentId, signal) =>
+          service.prepareAudio(botSlug, sourceEventId, attachmentId, signal),
         provider(id) {
           const entry = provider(id);
           return { provider: entry.provider, assertCurrent: () => current(id, entry.token) };

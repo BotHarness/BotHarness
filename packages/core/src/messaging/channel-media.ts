@@ -14,6 +14,7 @@ interface MediaRequest {
   channelId: string;
   sourceEventId: string;
   attachmentId: string;
+  representation?: 'playback';
   signal: AbortSignal;
 }
 
@@ -31,7 +32,9 @@ function authority(db: DatabaseSync, input: MediaRequest, active: (slug: string)
     !attachment ||
     !(
       attachment.mediaType?.startsWith('image/') ||
-      (source.platform === 'qq' && attachment.mediaType === 'application/octet-stream')
+      (source.platform === 'qq' &&
+        (attachment.mediaType === 'application/octet-stream' ||
+          (source.event.voice && attachment.mediaType === 'audio/unknown')))
     )
   )
     throw new MessagingError('source-unavailable');
@@ -94,6 +97,12 @@ export function createChannelMediaAccess(options: {
   attachments: AttachmentStore;
   active(slug: string): boolean;
   provider(id: string): { provider: MessagingProvider; assertCurrent(): void };
+  prepareAudio?(
+    botSlug: string,
+    sourceEventId: string,
+    attachmentId: string,
+    signal: AbortSignal,
+  ): Promise<import('../attachments/ref.js').ChannelAttachmentRef>;
   warn?: (message: string) => void;
 }) {
   let active = 0;
@@ -228,6 +237,18 @@ export function createChannelMediaAccess(options: {
         );
       }
       validate();
+      if (input.representation === 'playback') {
+        if (
+          !initial.source.event.voice ||
+          initial.attachment.mediaType !== 'audio/unknown' ||
+          !options.prepareAudio
+        )
+          throw new MessagingError('audio-codec-unsupported');
+        ref = await limited(signal, () =>
+          options.prepareAudio!(value.botSlug, input.sourceEventId, input.attachmentId, signal),
+        );
+        validate();
+      }
       acquiring = false;
       const downloaded = await options.attachments.download(ref.fileId!, ref.name, signal);
       if (downloaded.ref.size > options.attachments.maxBytes) {
@@ -279,7 +300,9 @@ export function createChannelMediaAccess(options: {
       return {
         ref: downloaded.ref,
         body,
-        inline: initial.attachment.mediaType?.startsWith('image/') === true,
+        inline:
+          input.representation === 'playback' ||
+          initial.attachment.mediaType?.startsWith('image/') === true,
       };
     } catch (error) {
       cleanup();

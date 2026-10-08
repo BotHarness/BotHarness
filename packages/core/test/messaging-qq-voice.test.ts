@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
 import { setImmediate as tick } from 'node:timers/promises';
+import { createAttachmentHttp } from '../src/attachments/http.js';
 import { createCore } from '../src/plugin.js';
 import { encode } from 'silk-wasm';
 import { createTempRoot } from './helpers.js';
@@ -70,6 +71,7 @@ it.each(['platform', 'unavailable', 'audio'])(
       qualifyReplyChecked: async (_account, route) => route,
     };
     let runs = 0;
+    let currentMessageId = 'voice-source';
     const handoffs: unknown[] = [];
     const core = createCore({
       dshHome: createTempRoot('bh-qq-voice-'),
@@ -78,7 +80,12 @@ it.each(['platform', 'unavailable', 'audio'])(
           runs++;
           const item = core.attention
             .list({ botSlug: 'ada' })
-            .items.find((item) => item.sourceKind === 'bridge-message')!;
+            .items.find(
+              (item) =>
+                item.sourceKind === 'bridge-message' &&
+                core.externalMessaging.inbound.read('ada', item.id).event.messageId ===
+                  currentMessageId,
+            )!;
           const source = run.externalMessaging!.read(item.id);
           handoffs.push({ voice: source.event.voice, text: source.body, inbox: run.inbox });
           await run.externalMessaging!.reply(item.id, answer);
@@ -160,6 +167,77 @@ it.each(['platform', 'unavailable', 'audio'])(
         ).toBe(wav.fileId);
         expect(runs).toBe(1);
         expect(core.attention.list({ botSlug: 'ada' }).items).toHaveLength(1);
+        const room = core.channels.createGroup({ name: 'QQ voice', members: ['ada'] });
+        const grant = (await core.externalMessaging.snapshot('ada')).grants[0]!;
+        await core.externalMessaging.inbound.channelBridge(room.id, {
+          kind: 'add',
+          grantId: grant.id,
+          expectedGrantRevision: grant.revision,
+          name: 'QQ voice',
+          enabled: true,
+          collection: 'mentions',
+          delivery: 'channel',
+        });
+        currentMessageId = 'channel-voice-source';
+        await receiver!.onEvent(
+          {
+            ...event,
+            at: new Date(Date.now() + 100).toISOString(),
+            eventId: currentMessageId,
+            messageId: currentMessageId,
+            attachments: event.attachments!.map((file) => ({
+              ...file,
+              messageId: currentMessageId,
+              id: 'c'.repeat(64),
+            })),
+            reply: { ...event.reply, messageId: currentMessageId },
+          },
+          { signal: receiver!.signal },
+        );
+        for (let i = 0; i < 4; i++) await tick();
+        await core.runtime.whenIdle();
+        const channelMessage = core.channels.readMessages(room.id)[0]!;
+        expect(channelMessage.bridgeMedia).toMatchObject({
+          voice: { transcript: 'platform' },
+          items: [{ kind: 'audio', id: 'c'.repeat(64) }],
+        });
+        const http = createAttachmentHttp(
+          core.attachments,
+          core.channels,
+          undefined,
+          core.externalMessaging.readChannelMedia,
+        );
+        const query = new URLSearchParams({
+          channelId: room.id,
+          sourceEventId: channelMessage.id,
+          attachmentId: 'c'.repeat(64),
+        });
+        const wakeCount = runs;
+        const admissionCount = core.attention.list({ botSlug: 'ada' }).items.length;
+        const originalResponse = await http(
+          new Request('http://localhost/api/botharness/attachment?' + query),
+        );
+        expect(originalResponse.status).toBe(200);
+        expect(originalResponse.headers.get('content-disposition')).toMatch(/^attachment;/);
+        expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(Buffer.from(bytes));
+        query.set('representation', 'playback');
+        const playbackResponse = await http(
+          new Request('http://localhost/api/botharness/attachment?' + query),
+        );
+        expect(playbackResponse.status).toBe(200);
+        expect(playbackResponse.headers.get('content-type')).toBe('audio/wav');
+        expect(playbackResponse.headers.get('content-disposition')).toMatch(/^inline;/);
+        expect(
+          Buffer.from(await playbackResponse.arrayBuffer())
+            .subarray(0, 4)
+            .toString(),
+        ).toBe('RIFF');
+        expect(runs).toBe(wakeCount);
+        expect(core.attention.list({ botSlug: 'ada' }).items).toHaveLength(admissionCount);
+        core.externalMessaging.revoke('ada', grant.id);
+        expect(
+          (await http(new Request('http://localhost/api/botharness/attachment?' + query))).status,
+        ).toBe(403);
       }
     } finally {
       core.externalMessaging.close();

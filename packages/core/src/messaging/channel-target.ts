@@ -68,28 +68,43 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
     at: source.at,
     body,
     format: 'text',
-    ...(source.event.attachments?.some(
+    ...((source.platform === 'qq' && source.event.voice) ||
+    source.event.attachments?.some(
       (item) =>
         item.mediaType?.startsWith('image/') ||
         (source.platform === 'qq' && item.mediaType === 'application/octet-stream'),
     )
       ? {
           bridgeMedia: {
-            items: source.event.attachments
+            items: (source.event.attachments ?? [])
               .filter(
                 (item) =>
                   item.mediaType?.startsWith('image/') ||
-                  (source.platform === 'qq' && item.mediaType === 'application/octet-stream'),
+                  (source.platform === 'qq' &&
+                    (item.mediaType === 'application/octet-stream' ||
+                      (source.event.voice && item.mediaType === 'audio/unknown'))),
               )
               .map((item) => ({
                 id: item.id,
-                kind: item.mediaType?.startsWith('image/') ? ('image' as const) : ('file' as const),
+                kind: item.mediaType?.startsWith('image/')
+                  ? ('image' as const)
+                  : item.mediaType === 'audio/unknown'
+                    ? ('audio' as const)
+                    : ('file' as const),
                 name: item.name,
-                ...(item.mediaType === 'application/octet-stream' && item.sizeBytes !== undefined
-                  ? { sizeBytes: item.sizeBytes }
-                  : {}),
+                ...(item.sizeBytes === undefined ? {} : { sizeBytes: item.sizeBytes }),
               })),
             ...(source.event.contentParts ? { parts: source.event.contentParts } : {}),
+            ...(source.platform === 'qq' && source.event.voice
+              ? {
+                  voice: {
+                    transcript: source.event.voice.transcript,
+                    ...(source.event.voice.durationMs === undefined
+                      ? {}
+                      : { durationMs: source.event.voice.durationMs }),
+                  },
+                }
+              : {}),
           },
         }
       : {}),

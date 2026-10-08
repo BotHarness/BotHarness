@@ -1092,17 +1092,32 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     if (
       !bridgeOrigin ||
       !media ||
-      Object.keys(media).some((key) => !['items', 'parts'].includes(key)) ||
+      Object.keys(media).some((key) => !['items', 'parts', 'voice'].includes(key)) ||
       !Array.isArray(media['items']) ||
       media['items'].length > 32
     )
       return;
+    if (media['voice'] !== undefined) {
+      const voice = asRecord(media['voice']);
+      if (
+        bridgeOrigin.platform !== 'qq' ||
+        !voice ||
+        Object.keys(voice).some((key) => !['transcript', 'durationMs'].includes(key)) ||
+        (voice['transcript'] !== 'platform' && voice['transcript'] !== 'unavailable') ||
+        (voice['durationMs'] !== undefined &&
+          (typeof voice['durationMs'] !== 'number' ||
+            !Number.isSafeInteger(voice['durationMs']) ||
+            voice['durationMs'] < 0))
+      )
+        return;
+    }
     const ids = new Set<string>();
     for (const raw of media['items']) {
       const item = asRecord(raw);
       if (
         !item ||
-        (item['kind'] !== 'image' && item['kind'] !== 'file') ||
+        (item['kind'] === 'audio' && !media['voice']) ||
+        (item['kind'] !== 'image' && item['kind'] !== 'file' && item['kind'] !== 'audio') ||
         typeof item['id'] !== 'string' ||
         !/^[a-f0-9]{64}$/.test(item['id']) ||
         typeof item['name'] !== 'string' ||
