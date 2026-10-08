@@ -10,6 +10,7 @@ import {
 import {
   isAvatarAppearance,
   isRetainedAvatarAppearance,
+  type PixelMouthState,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { parseActivitySnapshot } from './activity-live.js';
 import type { PersonaBotActivitySnapshot } from './store.js';
@@ -38,6 +39,7 @@ export interface CompanionViewState {
   cards: readonly CompanionCard[];
   pending: number;
   reading: boolean;
+  mouth?: PixelMouthState | undefined;
   capacity: { layers: number; retention: number };
 }
 export interface CompanionStream {
@@ -67,6 +69,17 @@ function decode(event: Event): Record<string, unknown> | undefined {
   }
 }
 
+function speechMouth(state: CompanionViewState): PixelMouthState {
+  if (state.bot?.paused || state.sync !== 'live') return 'saved';
+  const card = state.cards.find((card) => card.shown > 0 && card.shown < card.body.length);
+  if (!card) return 'saved';
+  const index = card.boundaries.indexOf(card.shown);
+  const grapheme = card.body.slice(card.boundaries[index - 1], card.shown);
+  if (/[\p{P}\p{Z}\s]/u.test(grapheme)) return 'closed';
+  const cycle: readonly PixelMouthState[] = ['closed', 'half-open', 'open', 'half-open'];
+  return cycle[Math.floor(index / 3) % cycle.length]!;
+}
+
 export class WindowCompanion {
   private state: CompanionViewState = {
     ready: false,
@@ -74,6 +87,7 @@ export class WindowCompanion {
     cards: [],
     pending: 0,
     reading: false,
+    mouth: 'saved',
     capacity: { layers: 3, retention: 20 },
   };
   private listeners = new Set<() => void>();
@@ -96,7 +110,8 @@ export class WindowCompanion {
     };
   };
   private update(value: Partial<CompanionViewState>): void {
-    this.state = { ...this.state, ...value };
+    const next = { ...this.state, ...value };
+    this.state = { ...next, mouth: speechMouth(next) };
     for (const changed of this.listeners) changed();
   }
   private get key(): string {
@@ -425,6 +440,7 @@ export class WindowCompanion {
       cards: [],
       pending: 0,
       reading: false,
+      mouth: 'saved',
     };
     this.listeners.clear();
   }

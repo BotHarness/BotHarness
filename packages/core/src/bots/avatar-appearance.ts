@@ -37,6 +37,7 @@ export {
   type PixelAvatarRecipe as IllustratedAvatarRecipe,
   type PixelCell,
   type PixelSymbol,
+  type PixelMouthState,
 } from '@botharness/pixel-avatar';
 
 export type AvatarRecipe = PixelAvatarRecipe | LineAvatarRecipe;
@@ -58,15 +59,19 @@ export function canonicalRecipe(recipe: AvatarRecipe): AvatarRecipe {
 
 export function avatarSvg(
   recipe: AvatarRecipe,
-  options: { turns?: readonly number[]; surface?: 'portrait' | 'companion' } = {},
+  options: {
+    turns?: readonly number[];
+    surface?: 'portrait' | 'companion';
+    mouthLayers?: boolean;
+  } = {},
 ): string {
   if (recipe.family === 'illustrated' && options.surface === 'companion') {
     if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
     const yaw = { front: 0, left: -25, right: 25 }[recipe.pose];
-    const base = pixelFigure(recipe, yaw);
+    const base = pixelFigure(recipe, yaw, options);
     const turns = (options.turns ?? [])
       .map((delta) => {
-        const pose = pixelFigure(recipe, yaw + delta);
+        const pose = pixelFigure(recipe, yaw + delta, options);
         const layers = `${pose.body}${pose.head}`.replaceAll(
           'class="bh-illustrated-',
           'data-turn-part="',
