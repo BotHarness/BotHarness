@@ -843,7 +843,7 @@ export const zh = {
   'conversation.sync': '同步',
   'conversation.syncTitle': '同步到 Channel',
   'conversation.syncHint':
-    '接收的消息仍进入 Bot Inbox；开启的群 Channel 还会显示后续消息。停止全部同步后仅进入 Inbox，已有历史保留。',
+    '开启的群 Channel 会显示后续消息，已有历史保留。默认 Inbox 路径保持启用时，停止全部 Channel 同步后仅进入 Inbox。',
   'conversation.syncNone': '还没有可同步的群 Channel。请先创建包含此 Bot 的群 Channel。',
   'conversation.syncStop': '停止同步',
   'conversation.syncStopFor': '停止同步 {name}',
@@ -3022,7 +3022,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'conversation.sync': 'Sync',
   'conversation.syncTitle': 'Sync to Channel',
   'conversation.syncHint':
-    'Received messages still enter the Bot Inbox. Enabled Group Channels also show future messages. Stop all Channel syncs for Inbox-only intake; accepted history is retained.',
+    'Enabled Group Channels show future messages and retain accepted history. With the default Inbox route enabled, stopping all Channel syncs leaves Inbox-only intake.',
   'conversation.syncNone':
     'No Group Channel is available. Create one that includes this Bot first.',
   'conversation.syncStop': 'Stop syncing',

@@ -525,6 +525,13 @@ export function createInboundMessaging(options: {
     receptionChanged();
     const startedAt = Date.now();
     try {
+      if (value.platform === 'qq' && !replyOnly) {
+        await startControl(value.bindingId);
+        const control = controls.get(value.bindingId);
+        if (!control?.dispose || control.token !== entry.token)
+          throw new MessagingError('consumer-unavailable');
+        lease.controller.signal.throwIfAborted();
+      }
       const inspected = await inspectGrant(entry.provider, value);
       if (
         inspected.account.fingerprint !== value.fingerprint ||
@@ -580,6 +587,9 @@ export function createInboundMessaging(options: {
             throw new MessagingError('consumer-unavailable');
           if (event.fingerprint !== value.fingerprint || event.botId !== value.accountRef)
             throw new MessagingError('untrusted-source');
+          const identity = database.read((db) => readMessagingIdentity(db, value.bindingId));
+          if (identity.receiveAfter && Date.parse(event.at) < Date.parse(identity.receiveAfter))
+            return { accepted: true };
           if (!latest.receiveScope) return { accepted: true };
           if (
             event.conversation.kind !== latest.receiveScope.kind ||
@@ -1187,6 +1197,12 @@ export function createInboundMessaging(options: {
       (db) => {
         signal.throwIfAborted();
         lease.controller.signal.throwIfAborted();
+        const currentIdentity = readMessagingIdentity(db, id);
+        if (
+          currentIdentity.receiveAfter &&
+          Date.parse(event.at) < Date.parse(currentIdentity.receiveAfter)
+        )
+          return undefined;
         const entries = conversationEntries(db, id, event.conversation);
         if (entries.some((item) => item.origin !== 'implicit')) return undefined;
         let value: MessagingGrant | undefined = entries[0];
@@ -1312,6 +1328,17 @@ export function createInboundMessaging(options: {
         if (account.fingerprint !== identity.fingerprint)
           throw new MessagingError('rebind-required');
         if (!account.connected) throw new MessagingError('provider-unavailable');
+        if (identity.platform === 'qq')
+          transaction((db) => {
+            controller.signal.throwIfAborted();
+            const latest = readMessagingIdentity(db, id);
+            if (!latest.enabled || latest.revokedAt || controls.get(id) !== lease)
+              throw new MessagingError('consumer-unavailable');
+            db.prepare('UPDATE messaging_bindings SET receive_after = ? WHERE id = ?').run(
+              new Date().toISOString(),
+              id,
+            );
+          });
         lease.dispose = await bounded(
           entry.consume!({
             accountRef: identity.accountRef,

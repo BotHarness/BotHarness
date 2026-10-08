@@ -1678,6 +1678,15 @@ const SEVERAL_APPS_MIGRATION: SchemaMigration = {
   },
 };
 
+const QQ_RECEPTION_BOUNDARY_MIGRATION: SchemaMigration = {
+  generation: 65,
+  module: 'messaging',
+  description: 'Fence QQ redelivery by the latest receiver eligibility boundary',
+  migrate(database) {
+    database.exec('ALTER TABLE messaging_bindings ADD COLUMN receive_after TEXT;');
+  },
+};
+
 const RECEPTION_HISTORY_MIGRATION: SchemaMigration = {
   generation: 64,
   module: 'messaging',
@@ -1757,4 +1766,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
   RECEPTION_HISTORY_MIGRATION,
+  QQ_RECEPTION_BOUNDARY_MIGRATION,
 ]);

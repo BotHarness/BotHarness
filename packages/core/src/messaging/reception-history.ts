@@ -173,13 +173,10 @@ export function recordLocalReception(
   }
 }
 
-export function receptionObservationDue(
-  db: DatabaseSync,
-  identity: MessagingIdentityView,
-  hostId: string,
-  at: string,
-): boolean {
-  const record = read(db, identity);
+function connectionState(identity: MessagingIdentityView): {
+  available: boolean;
+  reason: ReceptionInterval['reason'] | undefined;
+} {
   const available = identity.availability === 'available' && identity.reception === 'receiving';
   const reason =
     identity.availability === 'paused' || available
@@ -189,6 +186,17 @@ export function receptionObservationDue(
         : identity.availability === 'rebind-required'
           ? 'rebind-required'
           : 'provider-unavailable';
+  return { available, reason };
+}
+
+export function receptionObservationDue(
+  db: DatabaseSync,
+  identity: MessagingIdentityView,
+  hostId: string,
+  at: string,
+): boolean {
+  const record = read(db, identity);
+  const { available, reason } = connectionState(identity);
   return !(
     record.hostId === hostId &&
     record.available === available &&
@@ -205,15 +213,7 @@ export function observeReception(
   at: string,
 ): void {
   const record = read(db, identity);
-  const available = identity.availability === 'available' && identity.reception === 'receiving';
-  const reason =
-    identity.availability === 'paused' || available
-      ? undefined
-      : identity.availability === 'available' && identity.reception === 'off'
-        ? 'bot-inactive'
-        : identity.availability === 'rebind-required'
-          ? 'rebind-required'
-          : 'provider-unavailable';
+  const { available, reason } = connectionState(identity);
   if (record.hostId && record.hostId !== hostId && record.available && record.lastObservedAt) {
     record.recent.push({
       id: randomUUID(),

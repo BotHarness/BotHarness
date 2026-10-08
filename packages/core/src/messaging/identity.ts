@@ -16,6 +16,7 @@ export interface MessagingIdentity {
   defaultRevision?: number;
   revision: number;
   createdAt: string;
+  receiveAfter?: string;
   revokedAt?: string;
 }
 export type MessagingNewConversations = 'auto' | 'ask';
@@ -52,6 +53,7 @@ interface BindingRow {
   new_conversations: MessagingNewConversations;
   revision: number;
   created_at: string;
+  receive_after: string | null;
   revoked_at: string | null;
 }
 export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingIdentity {
@@ -76,6 +78,7 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
     defaultRevision: messagingDefaults(db, r.platform).revision,
     revision: r.revision,
     createdAt: r.created_at,
+    ...(r.platform === 'qq' ? { receiveAfter: r.receive_after ?? r.created_at } : {}),
     ...(r.revoked_at ? { revokedAt: r.revoked_at } : {}),
   };
 }
