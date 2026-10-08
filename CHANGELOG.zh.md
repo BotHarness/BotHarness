@@ -26,7 +26,7 @@
 - Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
 - 飞书、Slack 和 Discord 的群现在显示真实群名，不再显示 ID：外部身份、接入的外部会话、频道里的消息和 Bot 读到的内容都改为群名，Bot 仍会同时看到 ID。Discord 群显示为「服务器 #频道」。飞书发送者名字查询放宽了超时，并按应用缓存；查询失败时退回显示 ID。已有条目会在下一条消息到达时更新名字（[#1151](https://github.com/BotHarness/BotHarness/issues/1151)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
-- 群频道可以接入外部会话：在频道 Profile 的「外部连接器」中点 **接入外部会话**，选一个已绑定的应用和它已知的一个群，之后这个群里的每条消息都会出现在频道里。成员 Bot 默认只把这些消息当作上下文，只有被 @ 时才会被唤醒；接入的唤醒设置可以改成攒够条数后唤醒或每条立即唤醒，成员在频道里单独设置的唤醒策略仍然优先。每一行显示状态和最后一条消息的时间，可以用开关暂停，**删除** 后不再接收新消息，已接入的消息保留（[#1145](https://github.com/BotHarness/BotHarness/issues/1145)，[ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 群频道可以接入外部会话：在群频道侧栏的「外部连接器」中点 **接入外部会话**，选一个已绑定的应用和它已知的一个群，之后这个群里的每条消息都会出现在频道里。成员 Bot 默认只把这些消息当作上下文，只有被 @ 时才会被唤醒；接入的唤醒设置可以改成攒够条数后唤醒或每条立即唤醒，成员在频道里单独设置的唤醒策略仍然优先。每一行显示状态和最后一条消息的时间，可以用开关暂停，**删除** 后不再接收新消息，已接入的消息保留（[#1145](https://github.com/BotHarness/BotHarness/issues/1145)，[ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
 - 私聊已绑定的 Slack 应用，消息现在会进入 Bot 收件箱，Bot 直接在私聊里回复，不开 thread；Discord 应用也重新出现在 **绑定应用** 里。开发用的 IM Provider 换到新的 dsh-im 版本，包含 Slack 私聊接收、Discord checked 发送，以及 Slack/Discord 回复里的 checked @（[#1125](https://github.com/BotHarness/BotHarness/issues/1125)、[外部身份指南](docs/channel-sidebar/external-identities.md)）。
 
 - 从侧栏菜单或 Channel 顶部各 Bot 的独立按钮可钉选多个透明像素窗口伙伴，各自保留真实 Activity、新 Human–Bot 私聊气泡、拖拽物理效果、阅读列表和走动偏好；Profile 共用设置控制层叠层数与有界卡片容量，重启恢复偏好且不重播旧消息。减少动效时关闭下落和姿态效果，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)、[#1139](https://github.com/BotHarness/DeepSeekBot/issues/1139)）。
@@ -71,6 +71,7 @@
 
 - Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
 - Bot 的 IM 设置从 Profile 移到私聊 Channel sidebar 的两个新分区。**外部身份** 每个已绑定身份一行，显示可用状态和启用开关，下面是 **绑定身份**、Lark 配置引导、IM 管理员配对和 Lark 审批通知。**外部连接器** 每个连接器一行，显示状态和启用开关，下面是 **添加外部连接器** 和外部会话授权。点击一行打开弹窗修改，选项与原来一致。**频道连接器** 改名为 **外部连接器**。SOUL.md 和 MEMORY.md 的常驻记忆上限变成 **记忆文件** 下的一行，点击打开弹窗。迁移后的表单统一使用共享的下拉框、输入框和复选框（[#1085](https://github.com/BotHarness/BotHarness/issues/1085)，[外部身份教程](docs/channel-sidebar/external-identities.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 本地群的成员唤醒设置和外部连接器从群 Profile 移到群 Channel sidebar 的两个新分区 **唤醒策略** 与 **外部连接器**，位于成员和群管理之间。唤醒策略每个成员 Bot 一张卡片，显示它在这个群里的规则、各外部平台的规则，为这个群单独设置时带 **频道自定义** 标记；点击卡片打开与原来相同的弹窗。外部连接器把这个群的连接器和已接入的外部会话列成卡片行，点击打开编辑弹窗。两个分区都可排序或隐藏，群 Profile 现在只显示群名、头像和消息活跃度（[#1086](https://github.com/BotHarness/BotHarness/issues/1086)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
 
 ### Fixed
 

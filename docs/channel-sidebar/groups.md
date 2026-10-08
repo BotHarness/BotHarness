@@ -20,7 +20,7 @@ The **Invitations and join requests** control lists pending and historical recor
 
 ## Choose a member’s attention policy
 
-Use **Manage Bot → Message attention settings**. This policy belongs to one Bot in this local group.
+Use **Manage Bot → Message attention settings**, or click the Bot's card in the group's **Wake policy** entry. This policy belongs to one Bot in this local group.
 
 | Choice                   | Effect                                                                                  |
 | ------------------------ | --------------------------------------------------------------------------------------- |
