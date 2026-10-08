@@ -6564,6 +6564,22 @@ button.bh-card-main:disabled {cursor:default;}
 .bh-schedule-preview {display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover);font-size:12px;}
 .bh-schedule-preview-label {color:var(--dsw-alias-label-secondary);}
 .bh-schedule-preview ol {display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);}
+.bh-channel-history-dialog.bh-channel-history-dialog { width: min(760px, 100%); max-height: 100%; }
+.bh-channel-history { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 20px; }
+.bh-channel-history-toolbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bh-channel-history-toolbar > :first-child { flex: 1; min-width: 0; }
+.bh-channel-history-toolbar h3, .bh-channel-history-toolbar p { margin-block: 8px; }
+.bh-channel-history-hint { color: var(--dsw-alias-label-secondary); }
+.bh-channel-history-status { padding-block: 8px; }
+.bh-channel-history-placements { display: flex; flex-direction: column; gap: 4px; }
+.bh-channel-history-selected { padding-inline-start: 20px; }
+.bh-channel-history-sources { display: flex; flex-direction: column; gap: 12px; }
+.bh-channel-history-source { display: flex; align-items: start; gap: 8px; padding-block: 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.bh-channel-history-source > label { display: flex; align-items: start; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+.bh-channel-history-source > label > span { min-width: 0; overflow-wrap: anywhere; }
+.bh-channel-history-body { display: block; white-space: pre-wrap; }
+.bh-channel-history small { color: var(--dsw-alias-label-secondary); }
+.bh-channel-history li { overflow-wrap: anywhere; }
 .bh-schedule-lock-toggle[data-locked] {color:var(--dsw-alias-label-primary);}
 .bh-schedule-lock {display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;}
 .bh-schedule-lock .bh-card-title {white-space:normal;}

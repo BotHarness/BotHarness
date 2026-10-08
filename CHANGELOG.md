@@ -9,12 +9,14 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
+- Content Purge adds Profile schema Generation 68 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
 
 - Pinned Window Companions show persistent Tool Approval requests and let Humans decide without opening the Bot's DM, using the existing approval owner, explicit rule confirmation and stale-state checks ([#1178](https://github.com/BotHarness/DeepSeekBot/issues/1178)).
 
+- Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).
 
 - Window Companions follow archive and deletion independently of Bot mode, preserve image/unknown-version snapshot fallbacks, and support keyboard reading and controls. Keyboard menus receive focus after placement and return it to the invoking control when dismissed. Motion preference changes settle immediately; offscreen presentation and obsolete animations stop without restarting old messages ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).
