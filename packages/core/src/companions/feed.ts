@@ -202,7 +202,9 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
       if (visibility !== 'own-dm' && visibility !== 'shared' && visibility !== 'all-bot')
         return new Response('Invalid visibility', { status: 400 });
       const consumerId = multiplexed ? randomUUID() : undefined;
-      const resume = multiplexed ? request.headers.get('Last-Event-ID') : null;
+      const resume = multiplexed
+        ? request.headers.get('Last-Event-ID') || url.searchParams.get('resume')
+        : null;
       const retained = resume ? recoveries.get(resume) : undefined;
       const previous =
         retained?.available() && retained.generation === source.activity().generation

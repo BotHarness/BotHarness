@@ -4,118 +4,124 @@ import { createTempRoot, FIXED_NOW } from './helpers.js';
 import { WindowCompanions } from '../../client/src/client/window-companions.js';
 import { createCompanionFeed } from '../src/companions/feed.js';
 
-it('bounds canonical recovery reads after a burst and releases detached leases after sixty Host seconds', async () => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
-  let position = 0;
-  let reads = 0;
-  let generation = 'host';
-  const activity = new Set<() => void>();
-  const feed = createCompanionFeed({
-    profileId: 'qa',
-    bot: (slug) => ({ slug, name: slug, paused: false }),
-    activity: () => ({ generation, revision: 0, bots: [] }),
-    onActivity: (changed) => {
-      activity.add(changed);
-      return () => {
-        activity.delete(changed);
-      };
-    },
-    checkpoint: () => position,
-    observeOutput: (channelId, id) => {
-      reads++;
-      return {
-        position: Number(id),
-        channel: { id: channelId, type: 'dm', botSlug: 'ada', name: 'Ada', members: ['ada'] },
-        message: { id, author: { kind: 'bot', slug: 'ada' }, body: id },
-        humanParticipant: true,
-        canRead: true,
-      };
-    },
-  });
-  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
-  const open = (resume?: string) => {
-    const reader = feed
-      .open(
-        new Request('http://localhost/api/botharness/companion?subscribe=1', {
-          headers: resume ? { 'Last-Event-ID': resume } : {},
-        }),
-      )
-      .body!.getReader();
-    readers.push(reader);
-    return reader;
-  };
-  const read = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
-    const text = new TextDecoder().decode((await reader.read()).value);
-    const data = /data: ([^\n]+)/u.exec(text);
-    if (!data) throw new Error('Missing data');
-    return JSON.parse(data[1]!);
-  };
-  const select = (consumerId: string) =>
-    feed.update(
-      new Request('http://localhost/api/botharness/companion', {
-        method: 'POST',
-        body: JSON.stringify({
-          consumerId,
-          capacity: 3,
-          revision: 1,
-          selections: [
+it.each(['header', 'query', 'header-priority'])(
+  'bounds canonical recovery reads and sixty-second leases with %s resumption',
+  async (resumption) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    let position = 0;
+    let reads = 0;
+    let generation = 'host';
+    const activity = new Set<() => void>();
+    const feed = createCompanionFeed({
+      profileId: 'qa',
+      bot: (slug) => ({ slug, name: slug, paused: false }),
+      activity: () => ({ generation, revision: 0, bots: [] }),
+      onActivity: (changed) => {
+        activity.add(changed);
+        return () => {
+          activity.delete(changed);
+        };
+      },
+      checkpoint: () => position,
+      observeOutput: (channelId, id) => {
+        reads++;
+        return {
+          position: Number(id),
+          channel: { id: channelId, type: 'dm', botSlug: 'ada', name: 'Ada', members: ['ada'] },
+          message: { id, author: { kind: 'bot', slug: 'ada' }, body: id },
+          humanParticipant: true,
+          canRead: true,
+        };
+      },
+    });
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+    const open = (resume?: string) => {
+      const reader = feed
+        .open(
+          new Request(
+            `http://localhost/api/botharness/companion?subscribe=1${resume && resumption === 'query' ? `&resume=${encodeURIComponent(resume)}` : resumption === 'header-priority' ? '&resume=not-a-lease' : ''}`,
             {
-              botId: 'ada',
-              dm: true,
-              epochs: { 'own-dm': 0, 'bot-dm': 0, 'shared-group': 0, 'bot-group': 0 },
+              headers: resume && resumption !== 'query' ? { 'Last-Event-ID': resume } : {},
             },
-          ],
+          ),
+        )
+        .body!.getReader();
+      readers.push(reader);
+      return reader;
+    };
+    const read = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+      const text = new TextDecoder().decode((await reader.read()).value);
+      const data = /data: ([^\n]+)/u.exec(text);
+      if (!data) throw new Error('Missing data');
+      return JSON.parse(data[1]!);
+    };
+    const select = (consumerId: string) =>
+      feed.update(
+        new Request('http://localhost/api/botharness/companion', {
+          method: 'POST',
+          body: JSON.stringify({
+            consumerId,
+            capacity: 3,
+            revision: 1,
+            selections: [
+              {
+                botId: 'ada',
+                dm: true,
+                epochs: { 'own-dm': 0, 'bot-dm': 0, 'shared-group': 0, 'bot-group': 0 },
+              },
+            ],
+          }),
         }),
-      }),
-    );
-  try {
-    const first = open();
-    const baseline = await read(first);
-    await select(baseline.consumerId);
-    await read(first);
-    await first.cancel();
-    expect(activity.size).toBe(0);
-    for (position = 1; position <= 1000; position++)
-      feed.publish({
-        version: 1,
-        botId: 'ada',
-        sessionId: 'ada',
-        channelId: 'dm',
-        messageId: String(position),
-        channelRevision: position,
-        at: '2026-10-08T00:00:00Z',
-        content: { body: 'notification is not text authority', format: 'text' },
-        correlation: {},
-      });
-    const priorReads = reads;
-    const resumed = open(baseline.consumerId);
-    const reconnect = await read(resumed);
-    expect(reconnect.recovered).toBe(true);
-    await select(reconnect.consumerId);
-    await read(resumed);
-    const messages = [await read(resumed), await read(resumed), await read(resumed)];
-    expect(messages.map((message) => message.body)).toEqual(['998', '999', '1000']);
-    expect(reads - priorReads).toBeLessThanOrEqual(9);
-    await resumed.cancel();
-    await vi.advanceTimersByTimeAsync(60_000);
-    const expired = open(reconnect.consumerId);
-    const fresh = await read(expired);
-    expect(fresh.recovered).toBe(false);
-    expect(activity.size).toBe(1);
-    await select(fresh.consumerId);
-    await read(expired);
-    await expired.cancel();
-    generation = 'new-host';
-    const restarted = open(fresh.consumerId);
-    expect((await read(restarted)).recovered).toBe(false);
-  } finally {
-    for (const reader of readers) await reader.cancel();
-    feed.close();
-    expect(activity.size).toBe(0);
-    expect(vi.getTimerCount()).toBe(0);
-    vi.useRealTimers();
-  }
-});
+      );
+    try {
+      const first = open();
+      const baseline = await read(first);
+      await select(baseline.consumerId);
+      await read(first);
+      await first.cancel();
+      expect(activity.size).toBe(0);
+      for (position = 1; position <= 1000; position++)
+        feed.publish({
+          version: 1,
+          botId: 'ada',
+          sessionId: 'ada',
+          channelId: 'dm',
+          messageId: String(position),
+          channelRevision: position,
+          at: '2026-10-08T00:00:00Z',
+          content: { body: 'notification is not text authority', format: 'text' },
+          correlation: {},
+        });
+      const priorReads = reads;
+      const resumed = open(baseline.consumerId);
+      const reconnect = await read(resumed);
+      expect(reconnect.recovered).toBe(true);
+      await select(reconnect.consumerId);
+      await read(resumed);
+      const messages = [await read(resumed), await read(resumed), await read(resumed)];
+      expect(messages.map((message) => message.body)).toEqual(['998', '999', '1000']);
+      expect(reads - priorReads).toBeLessThanOrEqual(9);
+      await resumed.cancel();
+      await vi.advanceTimersByTimeAsync(60_000);
+      const expired = open(reconnect.consumerId);
+      const fresh = await read(expired);
+      expect(fresh.recovered).toBe(false);
+      expect(activity.size).toBe(1);
+      await select(fresh.consumerId);
+      await read(expired);
+      await expired.cancel();
+      generation = 'new-host';
+      const restarted = open(fresh.consumerId);
+      expect((await read(restarted)).recovered).toBe(false);
+    } finally {
+      for (const reader of readers) await reader.cancel();
+      feed.close();
+      expect(activity.size).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+      vi.useRealTimers();
+    }
+  },
+);
 
 it('keeps reading progress and deduplicates recovery through the real feed into public Client owners', async () => {
   const core = createCore({ dshHome: createTempRoot('companion-recovery-client-') });

@@ -683,6 +683,8 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 
 ### 窗口伙伴（#1138–#1142）
 
+EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用单一重试计时器重新建立连接，间隔从 1 秒退避到最多 8 秒。最后确认的过程消费 ID 通过 `?resume=` 携带；新连接随后原生自动重连时，`Last-Event-ID` 优先于查询参数。两条路径共享同一认证、有界 Host 租约与规范资格重查。成功基线重置退避；移除最后一个选择或卸载 Plugin 清理计时器和恢复标识。Client 重启不保留恢复标识。
+
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。

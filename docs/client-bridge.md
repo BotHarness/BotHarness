@@ -184,6 +184,8 @@ Bot 使用 `bridge_context` 的 `nearby` 时，默认读取来源前后各五分
 
 ### Window Companion 的未来消息消费（#1138–#1140）
 
+终态流恢复（#1141）：暂时 HTTP 拒绝可能令浏览器 EventSource 进入 CLOSED，而不是继续原生自动重连。集合 owner 用一个 1–8 秒退避计时器替换关闭的流，并在 `GET ?subscribe=1&resume=<consumerId>` 携带最后确认的过程租约；Host 仍按同一认证路径、60 秒租约和最新选择重查。原生 `Last-Event-ID` 优先于 `resume`，避免新流后续自动重连误用旧查询参数。租约不持久化；取消最后一个选择和 Plugin dispose 清理计时器、恢复标识及连接。
+
 共享 Activity 健康状态仅在连接状态变化时更新；取消钉选会释放旧的 stale 提示。只有成功加载的 Registry 名单确认 Bot 已不存在时，Client 才自动移除其钉选并恢复普通 Activity 消费；网络或认证失败保留本地选择，不作为 Bot 删除的证据。
 
 `GET /api/botharness/companion` 通过 Connection Fetch 的原生认证返回 `{ profileId }`；标识为原生 Profile 目录的不透明 SHA-256，既不返回路径，也不包含凭据。`?botId=<slug>&dm=1|0&group=1|0&visibility=own-dm|shared|all-bot` 返回 SSE：`companion/baseline` 和 `companion/activity` 含 Registry 形象与现有全 Bot Activity snapshot，`companion/message` 仅含所选 Bot 已提交的消息 ID、Channel ID/名称、来源种类、Bot 参与者名称、现有读取可用性及最多 2000 字符的正文预览。DM 默认开启、群聊默认关闭；来源开关与范围相交。`own-dm` 仅自己的 Human–Bot DM，默认 `shared` 还允许 Human 与 Bot 都参与的群聊，`all-bot` 还允许该 Bot 的 Bot–Bot DM 及 Human 未参与的群聊。未认证真实 Host 请求返回 401。
