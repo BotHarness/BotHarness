@@ -36,9 +36,9 @@ Use the signed-in Lark web client in the Codex in-app browser for authorized mes
 
 ## Restore and stop / 恢复并停止
 
-Before the approved deadline, disable the QA account, unbind its identity, remove temporary account configuration/credentials through native controls and stop only the task's recorded isolated Host PID. Restore the designated original receiver only as authorized. Have the Human verify normal production Lark and Discord replies independently. Record restoration results, candidate commits and pending cases in the issue and both drafts. Leave them draft; do not merge, publish, deploy or promote the Provider pin.
+Before the approved deadline, disable the QA account, unbind its identity, remove temporary account configuration/credentials through native controls and stop only the task's recorded isolated Host PID. Restore the designated original receiver only as authorized. Have the Human verify normal production Lark and Discord replies independently. Record restoration results, candidate commits and pending cases in the issue and both PRs. Merge only after explicit Human approval; merging does not authorize publication, deployment or Provider pin promotion.
 
-到期前关闭 QA 账号、解绑、通过原生控制删除临时配置与凭据，仅停止任务记录的隔离 PID；按授权恢复原 receiver，由 Human 分别验证生产 Lark／Discord 回复。记录恢复与未完成项，保持草稿，不合并、不发布、不部署、不提升 pin。
+到期前关闭 QA 账号、解绑、通过原生控制删除临时配置与凭据，仅停止任务记录的隔离 PID；按授权恢复原 receiver，由 Human 分别验证生产 Lark／Discord 回复。记录恢复与未完成项，仅在 Human 明确批准后合并；合并不授权发布、部署或提升 pin。
 
 ## First window: 2026-10-09 / 首次窗口
 
@@ -54,6 +54,6 @@ The Human authorized and added tenant-token scope `im:message.reactions:write_on
 
 Both `BH1040-R2-A` and `BH1040-R2-B` committed exactly one Admission and one corresponding `provider-accepted` reply, with accepted receipt and answer attempts. Their original messages visibly rendered native **Glance** and **Done** images. `BH1040-SILENT-R2` committed one Admission, rendered **Glance** only, and had no Outbox or answered attempt. Historical unknown attempts were retained without replay. See [sanitized retest facts](../evidence/issue-1040/lark-retest-2026-10-09.json) and [three original-message browser crops](../evidence/issue-1040/lark-qa-reactions-accepted.png); the crops are a window comparison, not matched baseline/after screenshots.
 
-QA stopped early, the independent restoration timer was stopped after production recovery, and temporary account configuration and credentials were removed through native stores. A matching `BH1040-PRODUCTION-R2 OK` reply was observed in Lark after restoration; the Human confirmed normal Discord replies. Group mention, live mute/block and reconnect/restart cases, plus matched Web identity-editor light/dark captures remain pending. Both PRs stay draft; this qualification does not promote the Provider pin or deploy the candidate.
+QA stopped early, the independent restoration timer was stopped after production recovery, and temporary account configuration and credentials were removed through native stores. A matching `BH1040-PRODUCTION-R2 OK` reply was observed in Lark after restoration; the Human confirmed normal Discord replies. Group mention, live mute/block and reconnect/restart cases, plus matched Web identity-editor light/dark captures remain pending. The Human subsequently accepted the available screenshots and authorized merge after review. Remaining cases stay as follow-up qualification; merging does not promote the Provider pin or deploy the candidate.
 
-Human 已明确授权并添加最小 tenant-token 权限，控制台确认发布；01:42:58 开始的新窗口预设了自动恢复。代理直接在已登录的内置浏览器发送测试。两条不同私聊各只有一次 Admission 与对应已接受回复，原消息实际显示 Glance 和 Done；静默消息仅显示 Glance，没有 Outbox 或回答尝试。历史未知记录保留、不补发。QA 提前结束、临时账号及凭据清理、生产恢复；Lark 生产测试回复可见，Human 确认 Discord 正常回复。群 @、静音／屏蔽、重连／重启及 Web 身份编辑器明暗对照仍待验证，两份 PR 保持草稿。
+Human 已明确授权并添加最小 tenant-token 权限，控制台确认发布；01:42:58 开始的新窗口预设了自动恢复。代理直接在已登录的内置浏览器发送测试。两条不同私聊各只有一次 Admission 与对应已接受回复，原消息实际显示 Glance 和 Done；静默消息仅显示 Glance，没有 Outbox 或回答尝试。历史未知记录保留、不补发。QA 提前结束、临时账号及凭据清理、生产恢复；Lark 生产测试回复可见，Human 确认 Discord 正常回复。Human 随后认可现有截图并授权审阅后合并；群 @、静音／屏蔽、重连／重启及 Web 身份编辑器明暗对照保留为后续验证，合并不提升 Provider pin 或部署候选。

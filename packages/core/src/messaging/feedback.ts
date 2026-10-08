@@ -87,18 +87,25 @@ export function createMessagingFeedback(options: {
         const timeout = new AbortController();
         const signal = AbortSignal.any([controller.signal, current.signal, timeout.signal]);
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let callStarted = false;
         try {
           if (!current.provider.react) {
             state = 'unavailable';
             return;
           }
-          const result = await Promise.race([
-            current.provider.react({
+          const operation = current.provider
+            .react({
               ...current.input,
               reaction: kind,
               signal,
               beforeSend: () => !signal.aborted && current.input.beforeSend(),
-            }),
+            })
+            .finally(() => {
+              pending--;
+            });
+          callStarted = true;
+          const result = await Promise.race([
+            operation,
             new Promise<never>((_, reject) => {
               timer = setTimeout(() => {
                 timeout.abort();
@@ -112,7 +119,7 @@ export function createMessagingFeedback(options: {
             state = error.code === 'capability-unavailable' ? 'unavailable' : 'failed';
         } finally {
           if (timer) clearTimeout(timer);
-          pending--;
+          if (!callStarted) pending--;
           try {
             stamp(botSlug, sourceEventId, kind, state, outboxId);
             options.warn?.(

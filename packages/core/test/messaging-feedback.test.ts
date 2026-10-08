@@ -336,6 +336,57 @@ it('an unmentioned ordinary group event has no admission and no receipt', async 
   expect(fx.reactions).toHaveLength(0);
 });
 
+it('timed-out reactions retain concurrency slots until their underlying calls settle', async () => {
+  const fx = await fixture();
+  const pending: { resolve(): void; reject(): void }[] = [];
+  fx.transport.reactionChecked = vi.fn(
+    () =>
+      new Promise<{ accepted: true }>((resolve, reject) => {
+        pending.push({
+          resolve: () => resolve({ accepted: true }),
+          reject: () => reject(new Error('late provider failure')),
+        });
+      }),
+  );
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    await fx.receive(dm('slow-0'));
+    await fx.idle();
+    const sourceEventId = fx.sourceId('om-slow-0');
+    await Promise.all(Array.from({ length: 31 }, (_, i) => fx.receive(dm(`slow-${i + 1}`))));
+    await fx.idle();
+    expect(fx.transport.reactionChecked).toHaveBeenCalledTimes(32);
+    await vi.advanceTimersByTimeAsync(4_000);
+    await fx.idle();
+    expect(
+      (await fx.core.externalMessaging.snapshot('ada')).feedback?.[0]?.attempts.received,
+    ).toMatchObject({ state: 'unknown' });
+    await fx.receive(dm('overflow'));
+    await fx.idle();
+    expect(fx.transport.reactionChecked).toHaveBeenCalledTimes(32);
+    pending[0]!.resolve();
+    await fx.idle();
+    await fx.receive(dm('after-late-success'));
+    await fx.idle();
+    expect(fx.transport.reactionChecked).toHaveBeenCalledTimes(33);
+    pending[1]!.reject();
+    await fx.idle();
+    await fx.receive(dm('after-late-failure'));
+    await fx.idle();
+    expect(fx.transport.reactionChecked).toHaveBeenCalledTimes(34);
+    const source = attachOperationalModule(fx.core.operationalDatabase, 'test').read((db) =>
+      db
+        .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+        .get(sourceEventId),
+    ) as { payload_json: string };
+    expect(JSON.parse(source.payload_json).feedback.received.state).toBe('unknown');
+  } finally {
+    for (const call of pending) call.resolve();
+    await fx.idle();
+    vi.useRealTimers();
+  }
+});
+
 it('a separately accepted send referencing the source does not claim its answer completed', async () => {
   const fx = await fixture();
   await fx.receive(dm('one'));
