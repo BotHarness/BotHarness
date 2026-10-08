@@ -5,7 +5,12 @@
 
 ## [Unreleased]
 
-1.2.0 之后暂无变化。
+像素头像新增精灵、矮人、兽人和会说话的花，以及胡子、中世纪服装和头饰；新建的 PersonaBot 会从全部物种中随机生成初始形象。
+
+### Added
+
+- 像素头像新增精灵、矮人、兽人和会说话的花。胡子始终露出说话的嘴，新增盔甲、法袍、束腰外衣和斗篷，戴上头盔或兜帽会遮住下面的头发。花有豆豆眼、五种花瓣样式，以及茎叶或花盆。当前物种或头饰不显示的选择会保留并给出提示，换回后恢复（[#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212)、[#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)）。
+- 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
 
 ## [1.2.0] - 2026-10-08
 
