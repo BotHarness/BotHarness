@@ -1,0 +1,92 @@
+{
+  "issue": 1040,
+  "task": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "date": "2026-10-09",
+  "timezone": "Asia/Tokyo",
+  "status": "live-reactions-not-qualified",
+  "tested": {
+    "botharness": "bbf416a5e6ad6184c63e71f461cfd8d3942e653b",
+    "botharnessRuntime": "8a060307395c00953135ba00f765d00fbe5ff96f",
+    "provider": "05c283f2e8260075e635442da8c25dac6f293d91",
+    "providerRuntimeSha256": "cb4c6683b0581c03408bbfc645e8cbfadf954289e3d2aac75245f85afd4ea06e"
+  },
+  "window": {
+    "freshHumanAuthorization": true,
+    "maximumSeconds": 600,
+    "armedAt": "2026-10-08T15:47:34.684Z",
+    "localCutoffAt": "2026-10-08T15:55:34.684Z",
+    "serverFallbackAt": "2026-10-08T15:56:34.684Z",
+    "qaHostStoppedAt": "2026-10-08T15:53:44.1056466+00:00",
+    "productionRestored": true,
+    "restoreTimerStopped": true,
+    "temporaryAccountAndCredentialsRemoved": true,
+    "originalCredentialRetained": true,
+    "scopeChanged": false,
+    "productionVerification": {
+      "lark": "observed normal reply after restoration",
+      "discord": "Human confirmed online and replied"
+    }
+  },
+  "sources": [
+    {
+      "marker": "BH1040-A",
+      "sourceEventId": "im-f752b93069e48aee983bbb6c5fb2fc9357eb69d165dd4c02c3d82caa3f5a482e",
+      "admissionCount": 1,
+      "reply": {
+        "outboxId": "2bcfef53-ea01-4d46-97b1-46bdfaf591fa",
+        "state": "provider-accepted"
+      },
+      "feedback": {
+        "answered": {
+          "state": "unknown",
+          "at": "2026-10-08T15:51:27.794Z",
+          "outboxId": "2bcfef53-ea01-4d46-97b1-46bdfaf591fa"
+        }
+      }
+    },
+    {
+      "marker": "BH1040-B",
+      "sourceEventId": "im-be2f1c41db8039799256fccdde1a3c280d58aa3b473cdc2a04ccafc2a34357bd",
+      "admissionCount": 1,
+      "reply": {
+        "outboxId": "2a11e101-f5a3-4ee1-bc1a-b05b2f5d7549",
+        "state": "provider-accepted"
+      },
+      "feedback": {
+        "received": {
+          "state": "unknown",
+          "at": "2026-10-08T15:51:30.812Z"
+        },
+        "answered": {
+          "state": "unknown",
+          "at": "2026-10-08T15:51:37.671Z",
+          "outboxId": "2a11e101-f5a3-4ee1-bc1a-b05b2f5d7549"
+        }
+      }
+    }
+  ],
+  "platform": {
+    "reactionWriteAttempts": 3,
+    "errorCode": 99991672,
+    "requiredPermissionReview": "im:message.reactions:write_only or existing broader im:message",
+    "reactionShapesObserved": false,
+    "normalRepliesNonblocking": true
+  },
+  "findings": [
+    "First source receipt attempt omitted while its new checked reply connection was starting.",
+    "SDK HTTP permission denials were retained as unknown by the tested candidate. Historical attempts are not rewritten or resent."
+  ],
+  "followup": {
+    "offlineRegressionCoverage": "New connection startup delay and actual installed SDK HTTP permission rejection; fixes tested locally after this window.",
+    "liveRetest": "Requires reviewed reaction-write permission and a fresh authorized window; do not reuse this completed window.",
+    "pending": [
+      "actual GLANCE/DONE rendering",
+      "group mention",
+      "silence and mute/block live cases",
+      "reconnect/restart live cases",
+      "matched Web light/dark screenshots"
+    ]
+  },
+  "capture": "lark-qa-reactions-unknown.png",
+  "mergeDeployPublishPinPromotion": false
+}

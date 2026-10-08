@@ -1413,10 +1413,13 @@ export function createInboundMessaging(options: {
       return { accepted: true };
     }
     const { value, created, sourceEventId } = admitted;
-    if (created || !leases.has(value.id)) void start(value);
+    const reception = created || !leases.has(value.id) ? start(value) : undefined;
     if (created) receptionChanged();
-    if (sourceEventId !== undefined)
-      setImmediate(() => options.onAdmissionCommitted?.(value.botSlug, sourceEventId));
+    if (sourceEventId !== undefined) {
+      const committed = () => options.onAdmissionCommitted?.(value.botSlug, sourceEventId);
+      if (reception) void reception.then(committed);
+      else setImmediate(committed);
+    }
     if (sourceEventId !== undefined && !value.muted)
       setImmediate(() => {
         if (closed) return;

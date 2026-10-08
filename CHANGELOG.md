@@ -17,7 +17,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; live style and permission qualification remain pending Human QA ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
+- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider. First-conversation feedback waits asynchronously for the checked reply connection; SDK permission denials are definite failures. The first live window preserved normal replies but found missing reaction permission, so rendering qualification remains pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
 
 - After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
 

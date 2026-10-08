@@ -200,6 +200,28 @@ it('checked DM admission and accepted source reply produce two source-specific r
   });
 });
 
+it('retains the first admission notification while its new reply connection is still starting', async () => {
+  const fx = await fixture();
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const describe = fx.transport.describeBot;
+  fx.transport.describeBot = async (id) => {
+    await ready;
+    return describe(id);
+  };
+  try {
+    await fx.receive(dm('slow-first'));
+    await tick();
+    expect(fx.reactions).toEqual([]);
+  } finally {
+    release();
+  }
+  await fx.idle();
+  expect(fx.reactions).toEqual([{ messageId: 'om-slow-first', reaction: 'received' }]);
+});
+
 it('parallel sources cannot exchange accepted, silent, failed or unknown answers', async () => {
   const fx = await fixture();
   await Promise.all(['ok', 'silent', 'failed', 'unknown'].map((id) => fx.receive(dm(id))));

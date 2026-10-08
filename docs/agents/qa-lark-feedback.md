@@ -39,3 +39,11 @@ For each source retain only sanitized IDs, Admission/Outbox/feedback states and 
 Before the approved deadline, disable the QA account, unbind its identity, remove temporary account configuration/credentials through native controls and stop only the task's recorded isolated Host PID. Restore the designated original receiver only as authorized. Have the Human verify normal production Lark and Discord replies independently. Record restoration results, candidate commits and pending cases in the issue and both drafts. Leave them draft; do not merge, publish, deploy or promote the Provider pin.
 
 到期前关闭 QA 账号、解绑、通过原生控制删除临时配置与凭据，仅停止任务记录的隔离 PID；按授权恢复原 receiver，由 Human 分别验证生产 Lark／Discord 回复。记录恢复与未完成项，保持草稿，不合并、不发布、不部署、不提升 pin。
+
+## Observed window: 2026-10-09 / 已执行窗口
+
+The first authorized production-app window ran from 00:47:34 to approximately 00:54 JST, within the ten-minute limit. Both distinct DM sources committed one Admission and one corresponding `provider-accepted` reply. The app rejected all three attempted reaction writes with Lark code `99991672`; no target reactions were observed. The first source also missed its receipt attempt while the new reply connection was starting. The original runtime retained unknown results; later fixes do not rewrite or resend those attempts.
+
+The isolated receiver stopped at 00:53:44 JST and production was restored before the deadline. Temporary QA account configuration and credentials were removed through their owning stores. Lark replies were observed after restoration, and the Human confirmed Discord was online and replied. See [sanitized window evidence](../evidence/issue-1040/lark-window-2026-10-09.json) and the [cropped failure capture](../evidence/issue-1040/lark-qa-reactions-unknown.png). SDK permission-error classification and first-connection timing have offline regression coverage; actual `GLANCE` / `DONE` appearance, group behavior and remaining cases still require permission review and a fresh authorized window.
+
+首次窗口内两条私聊各完成一次 Admission 与对应的已接受回复，但三次表情写入均遭平台 `99991672` 权限拒绝，未观察到目标表情；首条消息还暴露连接建立期间遗漏接收尝试的问题。历史未知状态保留、不补发。QA 已提前停止，生产恢复，Lark 回复可见，Human 确认 Discord 在线且能回复；临时账号和凭据已清理。两处代码问题已有离线回归覆盖，真实表情样式、群聊及剩余用例仍待权限审查和新授权窗口。

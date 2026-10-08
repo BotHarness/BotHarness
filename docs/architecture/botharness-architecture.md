@@ -237,6 +237,8 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 ### Lark 接收与回答反馈（ADR-0148）
 
+新会话首条消息的 Admission 通知异步等待受校验的回复连接就绪，避免连接建立期间丢失接收反馈；不阻塞收件确认或模型唤醒。SDK HTTP 异常中的明确权限拒绝归为失败；修复不重写或补发既有未知尝试。
+
 Messaging 在 Source Event 与 Inbox Admission 提交后异步尝试原消息的 `GLANCE`，只在该来源的 canonical Reply Outbox 成为 `provider-accepted` 后尝试 `DONE`。两个状态由应用定义；原内容、Admission、Outbox 继续是各自唯一权威。可选的 checked Provider Service Capability 重查账户指纹、Registration、独占 Consumer、来源会话／Thread／发送者及当前授权。旧 Provider 缺少能力时保持正常收发。
 
 反馈 attempt 元数据保存在既有 Source Event payload，完成记录引用原 Outbox；管理 snapshot 暴露最近状态，不复制消息内容。写入前持久化 attempt，超时／未知／重连／重启均不自动重试；有界异步调用不阻塞接收、模型或回复。静音仍可产生 silent Admission，屏蔽阻止新 Admission；静默结束、委派完成、待确认问题及无关输出不表示已回答。平台接受不表示 Human 已读或样式已经验证。详见 [ADR-0148](../adr/0148-lark-feedback-follows-admission-and-accepted-reply.md)。

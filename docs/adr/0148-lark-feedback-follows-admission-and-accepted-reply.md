@@ -18,6 +18,8 @@ Bounded feedback attempt metadata lives in the existing Source Event payload, ou
 
 Reaction calls run separately from intake, model execution and reply delivery, with a four-second deadline and at most 32 concurrent calls. Saturation or an invalidated source may skip feedback. Failures produce bounded structured developer diagnostics and cannot change Admission or the reply result.
 
+For the first source in a new conversation, its committed notification waits asynchronously for the new checked reply connection to finish starting; the intake acknowledgement and model wake remain independent. Explicit permission denials carried by SDK HTTP exceptions are definite failures. Existing uncertain attempts retain their original state and are never replayed after a fix.
+
 ## Consequences
 
 This deliberately favors omission over duplicate or misleading feedback. Enabling permission later does not replay historical reactions. A code rollback needs no schema migration, but cannot undo reactions already accepted by Lark. Actual emoji rendering, live permissions and source-specific external evidence require Human QA on the exact paired BotHarness/Provider candidates before qualification or pin promotion.
