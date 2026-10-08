@@ -36,7 +36,12 @@ import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createProfileCardBuiltins } from './profile-cards-builtins.js';
 import { createGroupProfileCards } from './group-profile.js';
 import { createProfileCardRegistry } from './profile-cards.js';
-import { createBridgeCall, loadActivitySnapshot, loadSessionBotOwner } from './bridge.js';
+import {
+  createBridgeCall,
+  loadActivitySnapshot,
+  loadSessionBotOwner,
+  botExists,
+} from './bridge.js';
 import {
   SessionOwnerLeading,
   SessionReturnAction,
@@ -55,6 +60,8 @@ import { consumeLastView, writeLastView } from './last-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
+import { WindowCompanion } from './window-companion.js';
+import { WindowCompanionView } from './window-companion-view.js';
 
 export const name = 'botharness-client';
 
@@ -124,6 +131,70 @@ export function apply(ctx: ClientContext): void {
       ctx.uiWorkspace.openSession(sessionId as SessionId);
     },
   });
+  const companion = new WindowCompanion({
+    storage,
+    exists: (botId) => botExists(call, botId),
+    onActivity: (snapshot) => store.applyActivity(snapshot),
+    context: async () => {
+      const response = await fetch('/api/botharness/companion', { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('Companion context unavailable');
+      const value: unknown = await response.json();
+      if (
+        typeof value !== 'object' ||
+        value === null ||
+        !('profileId' in value) ||
+        typeof value.profileId !== 'string'
+      )
+        throw new Error('Invalid Companion context');
+      return { profileId: value.profileId };
+    },
+    source: (url) => new EventSource(url),
+  });
+  ctx.effect(() => {
+    void companion.start();
+    let mirrored: 'live' | 'stale' | undefined;
+    const off = companion.subscribe(() => {
+      const value = companion.getSnapshot();
+      if (value.selection === undefined && mirrored === undefined) return;
+      const sync = value.selection === undefined || value.sync === 'live' ? 'live' : 'stale';
+      if (sync === mirrored) return;
+      mirrored = value.selection === undefined ? undefined : sync;
+      store.setActivitySync(sync);
+      if (typeof document !== 'undefined') {
+        if (sync === 'stale') document.documentElement.dataset['botharnessActivity'] = 'stale';
+        else delete document.documentElement.dataset['botharnessActivity'];
+      }
+    });
+    return () => {
+      off();
+      companion.dispose();
+    };
+  }, 'botharness: independent Window Companion owner');
+  ctx.slots.inject('shell.overlay', () =>
+    ctx.slots.register(
+      {
+        name: 'shell.overlay',
+        id: 'botharness-window-companion',
+        locale: LOCALE_NS,
+        inject: () => ({
+          companion,
+          openDm: (botId: string) => {
+            ctx.layout.selectPanel(PANEL_ID);
+            void actions.openBot(botId);
+          },
+          openChannel: (channelId: string) => {
+            ctx.layout.selectPanel(PANEL_ID);
+            void actions.openChannel(channelId);
+          },
+          openAttention: () => {
+            ctx.layout.selectPanel(PANEL_ID);
+            void actions.openActivityCenter();
+          },
+        }),
+      },
+      WindowCompanionView,
+    ),
+  );
   const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
@@ -220,7 +291,11 @@ export function apply(ctx: ClientContext): void {
     'botharness: Roster live subscription',
   );
   ctx.effect(
-    () => mountActivityLive(store, undefined, (signal) => loadActivitySnapshot(call, signal)),
+    () =>
+      mountActivityLive(store, undefined, (signal) => loadActivitySnapshot(call, signal), {
+        enabled: () => companion.getSnapshot().selection === undefined,
+        subscribe: companion.subscribe,
+      }),
     'botharness: PersonaBot activity subscription',
   );
   ctx.effect(() => {
@@ -472,7 +547,7 @@ export function apply(ctx: ClientContext): void {
           name: 'sidebar.workspaces',
           priority: -100,
           locale: LOCALE_NS,
-          inject: () => ({ actions, ...botModePrefsFace(prefs) }),
+          inject: () => ({ actions, companion, ...botModePrefsFace(prefs) }),
         },
         BotSidebar,
       ),

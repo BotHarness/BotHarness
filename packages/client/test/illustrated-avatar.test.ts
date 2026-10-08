@@ -19,6 +19,31 @@ const pixelMarkup = (...args: Parameters<typeof rawPixelMarkup>) => {
 };
 import { DEFAULT_LINE_RECIPE } from '../../core/src/bots/avatar-line.js';
 
+it('renders the same pixel recipe as a transparent companion while retaining the portrait tile', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  const root = createRoot(node);
+  const props = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    size: 96,
+    appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+  };
+  try {
+    await act(() => root.render(createElement(PersonaBotAvatar, props)));
+    expect(node.querySelector('svg > rect[width="32"]')).not.toBeNull();
+    const head = node.querySelector('.bh-illustrated-head')!.innerHTML;
+    await act(() =>
+      root.render(createElement(PersonaBotAvatar, { ...props, surface: 'companion' })),
+    );
+    expect(node.querySelector('svg > rect[width="32"]')).toBeNull();
+    expect(node.querySelector('.bh-illustrated-head')!.innerHTML).toBe(head);
+    expect(node.querySelector('[data-surface="companion"]')).not.toBeNull();
+  } finally {
+    await act(() => root.unmount());
+  }
+});
+
 it('keeps same-Bot SVG instances independent and releases mounted animation resources', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const containers = [document.createElement('div'), document.createElement('div')];

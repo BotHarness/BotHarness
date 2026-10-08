@@ -8,6 +8,7 @@ import {
   canonicalRecipe as canonicalAvatarRecipe,
   isPixelAvatarRecipe as isIllustratedAvatarRecipe,
   pixelAvatarSvg,
+  pixelFigure,
   type PixelAvatarRecipe,
 } from '@botharness/pixel-avatar';
 export { LINE_TOOL_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
@@ -57,8 +58,24 @@ export function canonicalRecipe(recipe: AvatarRecipe): AvatarRecipe {
 
 export function avatarSvg(
   recipe: AvatarRecipe,
-  options: { turns?: readonly number[] } = {},
+  options: { turns?: readonly number[]; surface?: 'portrait' | 'companion' } = {},
 ): string {
+  if (recipe.family === 'illustrated' && options.surface === 'companion') {
+    if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
+    const yaw = { front: 0, left: -25, right: 25 }[recipe.pose];
+    const base = pixelFigure(recipe, yaw);
+    const turns = (options.turns ?? [])
+      .map((delta) => {
+        const pose = pixelFigure(recipe, yaw + delta);
+        const layers = `${pose.body}${pose.head}`.replaceAll(
+          'class="bh-illustrated-',
+          'data-turn-part="',
+        );
+        return `<g data-avatar-turn="${delta}" opacity="0">${layers}</g>`;
+      })
+      .join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">${base.body}${base.head}${turns}<g data-avatar-pixel-morph=""></g></svg>`;
+  }
   return recipe.family === 'line'
     ? lineAvatarSvg(recipe, options)
     : pixelAvatarSvg(recipe, options);

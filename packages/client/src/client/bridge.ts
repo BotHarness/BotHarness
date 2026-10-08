@@ -1435,6 +1435,16 @@ export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
 }
 
+export async function botExists(call: BridgeCall, slug: string): Promise<boolean> {
+  const bots = asRecord(await unwrap(call, 'list', {}))?.['bots'];
+  if (!Array.isArray(bots))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  const identities = bots.map((entry) => asRecord(entry)?.['slug']);
+  if (!identities.every((identity) => typeof identity === 'string' && identity.length > 0))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  return identities.includes(slug);
+}
+
 export type SshFailureReason =
   | 'auth'
   | 'host-key'

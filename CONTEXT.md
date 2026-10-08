@@ -439,7 +439,7 @@ A configured connection from an external source, such as an IM conversation or l
 _Avoid_: integration, adapter, connector (bare)
 
 **Conversation ingest**:
-A Channel-owned, one-way connection that places every message of one external conversation into that Channel as Source Events, with context-only member Admissions unless its wake policy says otherwise. It is listed under External connectors as an external conversation (外部会话); it grants no reply or other authority to any Bot. Until slice 9 converges them, a Bridge is the Bot-owned route and a Conversation ingest is the Channel-owned one.
+A Channel-owned, one-way connection that places every message of one external conversation into that Channel as Source Events, with context-only member Admissions by default; its wake setting can switch to a batch or every message, and a member PersonaBot's own wake policy in that Channel wins. It is listed under External connectors as an external conversation (外部会话); it grants no reply or other authority to any PersonaBot. Until slice 9 converges them, a Bridge is the Bot-owned route and a Conversation ingest is the Channel-owned one.
 _Avoid_: sync, mirror, Bridge (for this record)
 
 **App**:

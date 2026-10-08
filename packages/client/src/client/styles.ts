@@ -1,4 +1,5 @@
 import { LARK_SETUP_CSS } from './lark-setup-styles.js';
+import { WINDOW_COMPANION_CSS } from './window-companion-styles.js';
 import { COMBOBOX_CSS } from './combobox.js';
 import { keyframesFor } from '@botharness/botui-core';
 import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
@@ -6,6 +7,7 @@ import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
 export const CSS =
   LARK_SETUP_CSS +
   COMBOBOX_CSS +
+  WINDOW_COMPANION_CSS +
   `
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic

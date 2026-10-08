@@ -113,6 +113,7 @@ export function mountActivityLive(
   makeSource: (url: string) => EventSource | undefined = (url) =>
     typeof EventSource === 'undefined' ? undefined : new EventSource(url),
   readSnapshot: (signal: AbortSignal) => Promise<unknown> = async () => undefined,
+  demand?: { enabled(): boolean; subscribe(changed: () => void): () => void },
 ): () => void {
   let source: EventSource | undefined;
   let disposed = false;
@@ -214,7 +215,8 @@ export function mountActivityLive(
   };
   const sync = (): void => {
     const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
-    const enabled = !disposed && store.getSnapshot().mode === 'bot' && visible;
+    const enabled =
+      !disposed && store.getSnapshot().mode === 'bot' && visible && (demand?.enabled() ?? true);
     if (enabled === active) return;
     active = enabled;
     if (!active) {
@@ -232,11 +234,13 @@ export function mountActivityLive(
     refresh();
   };
   const unsubscribe = store.subscribe(sync);
+  const offDemand = demand?.subscribe(sync);
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', sync);
   sync();
   return () => {
     disposed = true;
     unsubscribe();
+    offDemand?.();
     if (typeof document !== 'undefined' && document.documentElement !== undefined)
       delete document.documentElement.dataset['botharnessActivity'];
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', sync);
