@@ -14,7 +14,25 @@ import type { SessionOwnership } from '../sessions/ownership.js';
 
 export interface ChannelQuestionRequest {
   sessionId: string;
+  callId?: string;
   questions: AskUserQuestionItem[];
+}
+
+export type ChannelQuestionStatus = 'pending' | 'submitted' | 'answered' | 'expired';
+
+export interface TimedQuestionPort {
+  bind?(
+    agent: Agent,
+    channelId: string,
+  ): ((deliver: () => boolean) => Promise<boolean>) | undefined;
+  read(
+    agent: Agent,
+    callId: string,
+  ):
+    | { state: 'open' | 'continued' }
+    | { state: 'answered'; answer: AskUserQuestionAnswer }
+    | undefined;
+  answer(agent: Agent, callId: string, answer: AskUserQuestionAnswer): boolean;
 }
 
 export interface ChannelQuestionResolution {
@@ -34,6 +52,10 @@ type Pending = {
   abort(): void;
   deciding: boolean;
   committed: boolean;
+  callId?: string;
+  deferred: boolean;
+  submitted: boolean;
+  deliverNative?: ((deliver: () => boolean) => Promise<boolean>) | undefined;
 };
 
 function validAnswer(questions: AskUserQuestionItem[], answer: AskUserQuestionAnswer): boolean {
@@ -71,6 +93,7 @@ export class ChannelUserQuestions {
   readonly #warn: (message: string) => void;
   readonly #changed: (slug: string, count: number) => void;
   readonly #pending = new Map<string, Pending>();
+  readonly #timed: TimedQuestionPort | undefined;
 
   constructor(
     channels: ChannelStore,
@@ -78,12 +101,14 @@ export class ChannelUserQuestions {
     isLive: (agent: Agent) => boolean = () => true,
     warn: (message: string) => void = () => undefined,
     changed: (slug: string, count: number) => void = () => undefined,
+    timed?: TimedQuestionPort,
   ) {
     this.#channels = channels;
     this.#ownership = ownership;
     this.#isLive = isLive;
     this.#warn = warn;
     this.#changed = changed;
+    this.#timed = timed;
   }
 
   async ask(request: AskUserQuestionRequestEvent): Promise<AskUserQuestionAnswer | undefined> {
@@ -102,12 +127,28 @@ export class ChannelUserQuestions {
     }));
     if (questions.length === 0 || questions.length > 3 || JSON.stringify(questions).length > 16_000)
       return undefined;
+    const wait = 'wait' in request ? request.wait : undefined;
+    const callId =
+      this.#timed !== undefined &&
+      typeof wait === 'object' &&
+      wait !== null &&
+      'timed' in wait &&
+      wait.timed === true &&
+      'callId' in wait &&
+      typeof wait.callId === 'string' &&
+      wait.callId.length > 0
+        ? wait.callId
+        : undefined;
     const message: ChannelMessage = {
       id: randomUUID(),
       at: new Date().toISOString(),
       author: { kind: 'bot', slug: owner.botSlug },
       body: questions.map((question) => question.question).join('\n'),
-      userQuestionRequest: { sessionId: agent.session.id, questions },
+      userQuestionRequest: {
+        sessionId: agent.session.id,
+        questions,
+        ...(callId === undefined ? {} : { callId }),
+      },
     };
     let resolve!: (answer: AskUserQuestionAnswer) => void;
     let reject!: (reason: Error) => void;
@@ -125,9 +166,29 @@ export class ChannelUserQuestions {
       ...(request.signal === undefined ? {} : { signal: request.signal }),
       resolve,
       reject,
-      abort: () => this.#cancel(message.id),
+      abort: () => {
+        const reason: unknown = request.signal?.reason;
+        if (
+          callId !== undefined &&
+          typeof reason === 'object' &&
+          reason !== null &&
+          'name' in reason &&
+          reason.name === 'UserQuestionError' &&
+          'code' in reason &&
+          reason.code === 'ASK_TIMED_OUT'
+        ) {
+          pending.deferred = true;
+          pending.reject(reason instanceof Error ? reason : new Error('Native question deadline'));
+        } else this.#cancel(message.id);
+      },
       deciding: false,
       committed: false,
+      ...(callId === undefined ? {} : { callId }),
+      deferred: false,
+      submitted: false,
+      ...(callId === undefined || this.#timed?.bind === undefined
+        ? {}
+        : { deliverNative: this.#timed.bind(agent, channelId) }),
     };
     this.#pending.set(message.id, pending);
     request.signal?.addEventListener('abort', pending.abort, { once: true });
@@ -141,7 +202,7 @@ export class ChannelUserQuestions {
       return await answer;
     } finally {
       request.signal?.removeEventListener('abort', pending.abort);
-      if (this.#pending.get(message.id) === pending) {
+      if (this.#pending.get(message.id) === pending && (!pending.deferred || !pending.committed)) {
         this.#pending.delete(message.id);
         if (pending.committed) this.#publishAttention(pending.botSlug);
       }
@@ -150,7 +211,9 @@ export class ChannelUserQuestions {
 
   activeMessageIds(): string[] {
     return [...this.#pending]
-      .filter(([messageId, pending]) => this.status(pending.botSlug, messageId) === 'pending')
+      .filter(([messageId, pending]) =>
+        ['pending', 'submitted'].includes(this.status(pending.botSlug, messageId)),
+      )
       .map(([messageId]) => messageId);
   }
 
@@ -161,18 +224,39 @@ export class ChannelUserQuestions {
     });
   }
 
-  status(botSlug: string, messageId: string): 'pending' | 'expired' {
+  status(botSlug: string, messageId: string): ChannelQuestionStatus {
     const pending = this.#pending.get(messageId);
-    if (pending === undefined || pending.botSlug !== botSlug) return 'expired';
+    if (pending === undefined) {
+      const messages = this.#channels.readMessages(dmChannelId(botSlug));
+      const message = messages.find((entry) => entry.id === messageId);
+      return message?.userQuestionRequest?.callId !== undefined &&
+        messages.some(
+          (entry) =>
+            entry.userQuestionResolution?.requestMessageId === messageId &&
+            entry.userQuestionResolution.state === 'answered',
+        )
+        ? 'answered'
+        : 'expired';
+    }
+    if (pending.botSlug !== botSlug) return 'expired';
     const owner = this.#ownership.resolve(pending.agent.session.id);
     if (
-      pending.signal?.aborted ||
+      (!pending.deferred && pending.signal?.aborted) ||
       !this.#isLive(pending.agent) ||
       owner?.rootRole !== 'orchestrator' ||
       owner.botSlug !== botSlug
     ) {
       this.#cancel(messageId);
       return 'expired';
+    }
+    if (pending.deferred && pending.callId !== undefined) {
+      const native = this.#timed?.read(pending.agent, pending.callId);
+      if (native === undefined) {
+        this.#cancel(messageId);
+        return 'expired';
+      }
+      if (native.state === 'answered') return 'answered';
+      if (pending.submitted) return 'submitted';
     }
     return 'pending';
   }
@@ -183,8 +267,14 @@ export class ChannelUserQuestions {
     answer: AskUserQuestionAnswer,
   ): Promise<boolean> {
     const pending = this.#pending.get(messageId);
-    if (pending === undefined || pending.botSlug !== botSlug || pending.deciding) return false;
-    if (pending.signal?.aborted || !this.#isLive(pending.agent)) {
+    if (
+      pending === undefined ||
+      pending.botSlug !== botSlug ||
+      pending.deciding ||
+      pending.submitted
+    )
+      return false;
+    if ((!pending.deferred && pending.signal?.aborted) || !this.#isLive(pending.agent)) {
       this.#cancel(messageId);
       return false;
     }
@@ -196,6 +286,39 @@ export class ChannelUserQuestions {
     if (!validAnswer(pending.questions, answer)) return false;
     pending.deciding = true;
     try {
+      if (pending.deferred && pending.callId !== undefined) {
+        if (this.#timed?.read(pending.agent, pending.callId)?.state !== 'continued') return false;
+        try {
+          const submit = (): boolean => {
+            const owner = this.#ownership.resolve(pending.agent.session.id);
+            if (
+              this.#pending.get(messageId) !== pending ||
+              !this.#isLive(pending.agent) ||
+              owner?.rootRole !== 'orchestrator' ||
+              owner.botSlug !== botSlug ||
+              this.#timed?.read(pending.agent, pending.callId!)?.state !== 'continued'
+            )
+              return false;
+            return this.#timed.answer(pending.agent, pending.callId!, answer);
+          };
+          pending.submitted =
+            pending.deliverNative === undefined
+              ? this.#timed.bind === undefined
+                ? submit()
+                : false
+              : await pending.deliverNative(submit);
+          return pending.submitted;
+        } catch {
+          this.#warn(`botharness.channel_question.late_answer_refused request=${messageId}`);
+          return false;
+        }
+      }
+      if (pending.callId !== undefined) {
+        pending.deferred = true;
+        pending.submitted = true;
+        pending.resolve(answer);
+        return true;
+      }
       const decision: ChannelMessage = {
         id: randomUUID(),
         at: new Date().toISOString(),
@@ -218,12 +341,70 @@ export class ChannelUserQuestions {
       return true;
     } finally {
       pending.deciding = false;
+      if (pending.deferred && pending.submitted)
+        void this.reconcileSession(pending.agent.session.id).catch(() =>
+          this.#warn('user-question-reconciliation-failed'),
+        );
     }
   }
 
   cancelSession(sessionId: string): void {
     for (const [id, pending] of this.#pending)
       if (pending.agent.session.id === sessionId) this.#cancel(id);
+  }
+
+  async reconcileSession(sessionId: string): Promise<void> {
+    for (const [id, pending] of this.#pending) {
+      if (
+        pending.agent.session.id !== sessionId ||
+        !pending.deferred ||
+        pending.callId === undefined ||
+        pending.deciding
+      )
+        continue;
+      const owner = this.#ownership.resolve(sessionId);
+      if (
+        !this.#isLive(pending.agent) ||
+        owner?.botSlug !== pending.botSlug ||
+        owner.rootRole !== 'orchestrator'
+      ) {
+        this.#cancel(id);
+        continue;
+      }
+      const native = this.#timed?.read(pending.agent, pending.callId);
+      if (native === undefined) this.#cancel(id);
+      else if (native.state === 'answered' && validAnswer(pending.questions, native.answer)) {
+        pending.deciding = true;
+        try {
+          const saved = await this.#channels.appendMessage(pending.channelId, {
+            id: randomUUID(),
+            at: new Date().toISOString(),
+            author: { kind: 'human' },
+            body: native.answer.answers
+              .map((item) => item.custom ?? item.selected.join(', '))
+              .join('\n'),
+            replyTo: id,
+            userQuestionResolution: {
+              requestMessageId: id,
+              state: 'answered',
+              answers: native.answer.answers,
+            },
+          });
+          if (saved !== undefined && this.#pending.get(id) === pending) {
+            this.#pending.delete(id);
+            this.#publishAttention(pending.botSlug);
+          }
+        } finally {
+          pending.deciding = false;
+        }
+      }
+    }
+  }
+
+  discardReply(sessionId: string, callId: string): void {
+    for (const pending of this.#pending.values())
+      if (pending.agent.session.id === sessionId && pending.callId === callId)
+        pending.submitted = false;
   }
 
   #publishAttention(slug: string): void {

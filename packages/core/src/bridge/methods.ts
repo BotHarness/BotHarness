@@ -458,7 +458,9 @@ export interface BridgeMethods {
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
   toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
-  userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  userQuestionStatus(
+    payload: unknown,
+  ): BridgeResult<{ status: 'pending' | 'submitted' | 'answered' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
