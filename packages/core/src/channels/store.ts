@@ -265,6 +265,7 @@ export interface ChannelStore {
   hasMessage(id: string, messageId: string): boolean;
   message(id: string, messageId: string): ChannelMessage | undefined;
   observeOutput(id: string, messageId: string): ChannelOutputObservation | undefined;
+  outputCheckpoint(): number | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
 
   referencedAttachmentHashes(): ReadonlySet<string>;
@@ -377,6 +378,7 @@ export interface ChannelStore {
 }
 
 export interface ChannelOutputObservation {
+  position?: number;
   channel: Pick<ChannelRecord, 'id' | 'type' | 'name' | 'botSlug' | 'members' | 'deletedAt'>;
   message: Pick<ChannelMessage, 'id' | 'author' | 'body'>;
   humanParticipant: boolean;
@@ -666,6 +668,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
           }) !== undefined,
       };
     },
+    outputCheckpoint: () => undefined,
     list() {
       let entries: Dirent[];
       try {

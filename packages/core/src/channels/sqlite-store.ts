@@ -1843,17 +1843,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const row = database.read((db) =>
         db
           .prepare(`
-        SELECT p.revision, e.payload_json, e.body
+        SELECT p.rowid AS position, p.revision, e.payload_json, e.body
           FROM channel_placements p
           JOIN source_events e ON e.source_event_id = p.source_event_id
          WHERE p.channel_id = ? AND p.message_id = ?
       `)
           .get(id, messageId),
-      ) as Pick<PlacementRow, 'revision' | 'payload_json' | 'body'> | undefined;
+      ) as
+        | (Pick<PlacementRow, 'revision' | 'payload_json' | 'body'> & { position: number })
+        | undefined;
       const message = row && parseMessage(row.payload_json, row.body);
       if (!row || !message || message.id !== messageId) return undefined;
       const member = humanMembers(id).find((entry) => entry.human_id === LOCAL_HUMAN_ID);
       return {
+        position: row.position,
         channel,
         message: { id: message.id, author: message.author, body: message.body },
         humanParticipant: participates(id),
@@ -1861,6 +1864,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           channel.type === 'dm' ||
           (member !== undefined && row.revision >= member.visible_from_revision),
       };
+    },
+    outputCheckpoint() {
+      const row = database.read((db) =>
+        db
+          .prepare('SELECT rowid AS position FROM channel_placements ORDER BY rowid DESC LIMIT 1')
+          .get(),
+      ) as { position: number } | undefined;
+      return row?.position ?? 0;
     },
     assertAttachmentRefs,
     migrateAttachments: (signal) => attachmentMigration.migrate(signal),

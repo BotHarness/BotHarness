@@ -13,6 +13,8 @@
 
 ### Added
 
+- 窗口伙伴在同一 Host 的短暂断线后，有界恢复尚未播放且仍符合范围的回复，暂时关闭的消息流会重试，保留阅读进度；页面隐藏时暂停呈现。重新开启来源只播放后续消息，首次钉选及 Client／Host 重启不重播历史（[#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)）。
+
 - 窗口伙伴可以独立开启群聊消息，按每个 Bot 选择仅自己的私聊、共同会话或该 Bot 的全部会话；Bot–Bot 私聊标明双方参与者，所有气泡标明原 Channel 并遵守其现有读取权限。切换来源或范围只移除不再符合条件的卡片，保留仍可见的阅读和排队消息，新开启来源只播放后续已提交的 Bot 正文，不改变已读位置（[#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)）。
 
 - Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。

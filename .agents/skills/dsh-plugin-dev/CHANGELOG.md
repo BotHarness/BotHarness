@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded terminal EventSource closure after temporary HTTP refusal and application-owned bounded retry/resume cleanup in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), observed with the installed DSH 0.2.0 RC1 Profile; platform vocabulary and authentication ownership remain unchanged ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
+
 - Recorded Windows physical AppData paths, isolated Profile package-manager qualification, native Shell result checks and process timestamp guards in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Recorded the native Go Session header requirement and the qualified DSH 0.2.0 RC1 adapter patch in the [local development guide](../dsh-dev/SKILL.md), verified with an actual model call and committed DM reply; DSH/Cordis vocabulary and Skill behavior remain unchanged ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [AX guide](../../../docs/agents/ax-model.md)).

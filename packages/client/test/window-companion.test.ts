@@ -6,6 +6,41 @@ afterEach(() => {
   for (const owner of controllers.splice(0)) owner.dispose();
 });
 
+it('deduplicates by canonical Channel and message identity and dismisses only the selected source', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  owner.configure({ group: true });
+  const send = (name: string, data: unknown) =>
+    events.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) }));
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host', revision: 0, bots: [] },
+  });
+  const message = (channelId: string) =>
+    send('companion/message', {
+      botId: 'ada',
+      generation: 'host',
+      channelId,
+      channelName: channelId,
+      messageId: 'same-id',
+      body: channelId,
+      source: 'shared-group',
+    });
+  message('one');
+  message('two');
+  message('one');
+  expect(owner.getSnapshot().cards.map((card) => card.channelId)).toEqual(['one', 'two']);
+  owner.dismiss('same-id', 'one');
+  expect(owner.getSnapshot().cards.map((card) => card.channelId)).toEqual(['two']);
+});
+
 it('preserves eligible shown and queued cards while changing sources, but resets on a new Host', async () => {
   const streams: EventTarget[] = [];
   const owner = new WindowCompanion({

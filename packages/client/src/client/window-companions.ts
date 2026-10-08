@@ -2,6 +2,11 @@ import { parseActivitySnapshot } from './activity-live.js';
 import type { PersonaBotActivitySnapshot } from './store.js';
 import type { ConfigStorage } from './roster-config.js';
 import {
+  companionSources,
+  companionSourceEnabled,
+  type CompanionEpochs,
+} from '../../../core/src/companions/sources.js';
+import {
   WindowCompanion,
   type CompanionSelection,
   type CompanionStream,
@@ -18,6 +23,7 @@ interface SubscriptionUpdate {
     dm: boolean;
     group: boolean;
     visibility: CompanionSelection['visibility'];
+    epochs: CompanionEpochs;
   }[];
   capacity: number;
   revision: number;
@@ -38,6 +44,7 @@ interface VirtualStream {
   ready: boolean;
   revision: number;
   failed: boolean;
+  epochs: CompanionEpochs;
 }
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -92,8 +99,14 @@ export class WindowCompanions {
   private children = new Map<string, WindowCompanion>();
   private preferences = new Map<string, CompanionSelection>();
   private streams = new Map<string, VirtualStream>();
+  private admissions = new Map<
+    string,
+    Pick<VirtualStream, 'dm' | 'group' | 'visibility' | 'epochs'>
+  >();
   private stream: CompanionStream | undefined;
   private consumerId: string | undefined;
+  private generation: string | undefined;
+  private recovering = false;
   private profileId: string | undefined;
   private revision = 0;
   private scheduled = false;
@@ -102,6 +115,9 @@ export class WindowCompanions {
   private controlFailed = false;
   private retryAttempt = 0;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  private reconnectAttempt = 0;
+  private resumeConsumerId: string | undefined;
   private disposed = false;
   constructor(private readonly deps: Dependencies) {}
   getSnapshot = () => this.state;
@@ -188,8 +204,11 @@ export class WindowCompanions {
     this.children.get(botId)?.dispose();
     this.children.delete(botId);
     this.preferences.delete(botId);
+    this.admissions.delete(botId);
     if (!this.children.size) {
       this.resetRetry();
+      this.resetReconnect();
+      this.resumeConsumerId = undefined;
       this.stream?.close();
       this.stream = undefined;
       this.consumerId = undefined;
@@ -236,7 +255,21 @@ export class WindowCompanions {
       ready: false,
       revision: ++this.revision,
       failed: false,
+      epochs: {
+        'own-dm': this.revision,
+        'bot-dm': this.revision,
+        'shared-group': this.revision,
+        'bot-group': this.revision,
+      },
     };
+    const previous = this.admissions.get(botId);
+    if (previous) {
+      virtual.epochs = { ...previous.epochs };
+      for (const source of companionSources)
+        if (companionSourceEnabled(source, previous) !== companionSourceEnabled(source, virtual))
+          virtual.epochs[source] = this.revision;
+    }
+    this.admissions.set(botId, virtual);
     this.streams.set(botId, virtual);
     if (!this.stream) {
       try {
@@ -264,7 +297,9 @@ export class WindowCompanions {
     };
   }
   private connect(): void {
-    const stream = this.deps.source('/api/botharness/companion?subscribe=1');
+    const stream = this.deps.source(
+      `/api/botharness/companion?subscribe=1${this.resumeConsumerId ? `&resume=${encodeURIComponent(this.resumeConsumerId)}` : ''}`,
+    );
     this.stream = stream;
     const snapshot = (event: Event, baseline: boolean) => {
       if (this.disposed || this.stream !== stream) return;
@@ -279,7 +314,11 @@ export class WindowCompanions {
       )
         return;
       if (baseline) {
+        this.recovering = value['recovered'] === true && this.generation === activity.generation;
+        this.generation = activity.generation;
         this.consumerId = value['consumerId'];
+        this.resumeConsumerId = this.consumerId;
+        this.resetReconnect();
         for (const child of this.streams.values()) child.ready = false;
         this.schedule();
       } else if (value['consumerId'] !== this.consumerId) return;
@@ -311,6 +350,7 @@ export class WindowCompanions {
           new MessageEvent(name, {
             data: JSON.stringify({
               profileId: this.profileId,
+              recovered: this.recovering,
               bot,
               activity: {
                 ...activity,
@@ -341,6 +381,7 @@ export class WindowCompanions {
       this.state = { ...this.state, sync: 'stale' };
       for (const child of this.streams.values()) child.events.dispatchEvent(new Event('error'));
       this.notify();
+      if (stream.readyState === 2) this.scheduleReconnect();
     });
   }
   private schedule(): void {
@@ -351,6 +392,8 @@ export class WindowCompanions {
     queueMicrotask(() => {
       this.scheduled = false;
       if (!this.streams.size) {
+        this.resetReconnect();
+        this.resumeConsumerId = undefined;
         this.stream?.close();
         this.stream = undefined;
         this.consumerId = undefined;
@@ -375,6 +418,7 @@ export class WindowCompanions {
             dm: item.dm,
             group: item.group,
             visibility: item.visibility,
+            epochs: item.epochs,
           })),
           capacity: this.state.capacity.retention,
           revision: this.revision,
@@ -410,15 +454,39 @@ export class WindowCompanions {
     this.retryTimer = undefined;
     this.retryAttempt = 0;
   }
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer !== undefined || this.disposed || !this.streams.size) return;
+    const stream = this.stream;
+    const delay = Math.min(8000, 1000 * 2 ** this.reconnectAttempt);
+    this.reconnectAttempt = Math.min(3, this.reconnectAttempt + 1);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      if (this.disposed || !this.streams.size || this.stream !== stream) return;
+      stream?.close();
+      try {
+        this.connect();
+      } catch {
+        this.scheduleReconnect();
+      }
+    }, delay);
+  }
+  private resetReconnect(): void {
+    if (this.reconnectTimer !== undefined) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
+    this.reconnectAttempt = 0;
+  }
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.resetRetry();
+    this.resetReconnect();
+    this.resumeConsumerId = undefined;
     for (const child of this.children.values()) child.dispose();
     this.stream?.close();
     this.stream = undefined;
     this.children.clear();
     this.streams.clear();
+    this.admissions.clear();
     this.listeners.clear();
   }
 }

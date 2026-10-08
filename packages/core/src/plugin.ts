@@ -518,6 +518,7 @@ export function createCore(
       ),
     onActivity: (changed) => states.onActivity(() => changed()),
     observeOutput: (id, messageId) => channels.observeOutput(id, messageId),
+    checkpoint: () => channels.outputCheckpoint(),
   });
   const memory = createMemoryService({
     registry,

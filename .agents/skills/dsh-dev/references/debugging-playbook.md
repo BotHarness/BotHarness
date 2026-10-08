@@ -1,5 +1,9 @@
 # DSH debugging playbook
 
+## Temporary SSE refusal versus network reconnect
+
+In the pinned DSH 0.2.0 RC1 installed Profile, a loopback transport fixture severed one application SSE while leaving canonical model commits and the Host alive. Returning temporary HTTP 503 on reconnection made Chrome's EventSource terminally CLOSED; restoring the endpoint alone did not create another request. Distinguish this from a network interruption, where the browser keeps its EventSource reconnect machinery. Check terminal readyState explicitly and replace the application-owned closed transport with one bounded-backoff timer; preserve only its process-local resume identity and cancel the timer on removal/disposal. A replacement EventSource cannot set Last-Event-ID itself: an authenticated application-defined resume parameter may carry the lease, while native Last-Event-ID must take precedence on subsequent automatic reconnects. Keep normal authentication, canonical qualification and lease expiry unchanged. Preserve failed real-Profile evidence and re-run that exact refusal/restore path after the fix ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
+
 ## Packaged-artifact qualification
 
 Pinned DSH `0.2.0-rc.1` resolves Bundle packages from the running CLI installation
