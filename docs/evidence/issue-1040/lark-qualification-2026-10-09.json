@@ -198,5 +198,13 @@
     "Other remaining acceptance cases in the runbook are not qualified by this window.",
     "The browser Discord restoration marker targeted BotHarness Cloud QA; production recovery is supported by the Human confirmation in the known working conversation.",
     "Source merge and this evidence do not publish, deploy or promote the Provider pin."
-  ]
+  ],
+  "laterGroupRenderingFollowup": {
+    "file": "lark-group-rendering-followup-2026-10-09.json",
+    "humanSuppliedAfterWindow": true,
+    "originalMarker": "BH1040-R3-GROUP",
+    "originalReactionsAndMatchingReplyVisible": true,
+    "groupRenderingQualified": true,
+    "windowObservationsPreserved": true
+  }
 }

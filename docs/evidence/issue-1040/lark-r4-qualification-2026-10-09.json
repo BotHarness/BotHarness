@@ -128,5 +128,13 @@
     "A successful post-restart page reload does not establish the cause or fix of the earlier Web scope failure.",
     "Other unexercised acceptance cases remain pending.",
     "No publication, production deployment or Provider pin promotion."
-  ]
+  ],
+  "laterGroupRenderingFollowup": {
+    "file": "lark-group-rendering-followup-2026-10-09.json",
+    "humanSuppliedAfterWindow": true,
+    "originalMarker": "BH1040-R3-GROUP",
+    "originalReactionsAndMatchingReplyVisible": true,
+    "groupRenderingQualified": true,
+    "windowObservationsPreserved": true
+  }
 }

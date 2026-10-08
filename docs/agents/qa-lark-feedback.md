@@ -117,3 +117,15 @@ QA was disabled/unbound, temporary account and credentials removed, and the rest
 本轮由 Human 新授权，04:52:50.784 开始，原定 05:00:50.784 本地截止和 05:01:50.784 服务器恢复不变，复用上方精确版本及已核对运行文件。通过所属命令仅解除隔离 QA 私聊的旧屏蔽。重启前后两条新消息各只有一次 Admission、一次准确的已接受回复，以及 accepted 接收／回答尝试。实际停止原 Host、重启同一 Profile 后，先把新 PID 纳入原截止保护再启用 IM；同一身份和全部历史反馈保持不变，完成了现场重启后的真实新回复验证。网页刷新后实际编辑框就绪且无新增控制台错误，但不解释或修复此前 scope 故障。
 
 QA 私聊重新屏蔽后，Human 确认 04:56 在窗口内发送屏蔽 marker，未出现回复或表情；权威记录没有对应 Source Event，也无新 Outbox 或反馈。官方事件日志在该分钟内仅有一条 04:56:44.857 的成功投递，但不显示消息 ID 或正文，无法独立精确关联该 marker，因此屏蔽现场用例仍保留这一验收缺口。QA 身份、账号和临时凭据均清理，重启后的 Host 已停止，04:57:55.239 核验生产运行后停止恢复计时器和本地保护；Human 确认生产 Lark／Discord 两边正常回复。群原消息图证、此前 Web 故障触发条件及其他未执行项仍待验证，Provider pin 不变。
+
+## Human-supplied group rendering follow-up / Human 补充群表情图证
+
+After R4 closed, the Human supplied a screenshot of the unique `BH1040-R3-GROUP` original message at displayed time **03:51**, with a real `@DeepSeekBot`, two reaction chips attributed to **DeepSeekBot**, and the matching reply `BH1040-R3-GROUP OK`. Together with that exact retained source's accepted `GLANCE` / `DONE` attempts, this completes the missing group original-message rendering evidence. The screenshot does not display a message ID; correlation uses the unique marker, reply and minute. See [capture provenance and lossless crop checks](../evidence/issue-1040/lark-group-rendering-followup-2026-10-09.json).
+
+![Human-supplied R3 group original with two DeepSeekBot reaction chips](../evidence/issue-1040/lark-r3-group-original-reactions.png)
+
+![Matching reply from the same Human-supplied capture](../evidence/issue-1040/lark-r3-group-matching-reply.png)
+
+Both crops preserve the original screenshot pixels; unrelated invitation notices, personal names and the quoted sender line are excluded. This is later-supplied evidence of R3, not a new live test or a before/after comparison. Earlier window-close statements about the missing group image are retained as history and superseded by this follow-up. Exact blocked-marker arrival, the earlier Web failure's trigger and unexercised acceptance cases remain pending. No new receiver window, permission or Provider pin change occurred.
+
+R4 结束后，Human 提供了显示时间 03:51 的 `BH1040-R3-GROUP` 原消息截图：真实 `@DeepSeekBot`、归属于 DeepSeekBot 的两个表情，以及准确的 `BH1040-R3-GROUP OK` 回复。结合该唯一来源已接受的 `GLANCE`／`DONE` 尝试，补齐群原消息表情显示图证。截图不显示消息 ID，关联依据是唯一 marker、对应回复及显示分钟。两张裁图逐像素保留原图，排除无关入群提示、个人姓名及引用中的发送者；这是后补的 R3 图证，不是新现场测试或前后对照。此前窗口结束时“缺少群图证”的记录保留为历史，由本节补齐；屏蔽 marker 精确到达、此前 Web 故障触发条件及未执行项仍待验证，未开启新窗口、增加权限或提升 Provider pin。
