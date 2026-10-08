@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Added QQ quoted-voice intake with native platform-transcript provenance, original-audio downloads and on-demand bounded SILK playback in the Channel; one maintained-runtime application passed real voice → model → original-group text reply, Human confirmation and actual Client keyboard playback ([#1159](https://github.com/BotHarness/DeepSeekBot/issues/1159), [guide](docs/qq-connection.md)).
+
 - Added a candidate QQ group file path with direct or explicit native quoted-file association, authorized Channel downloads, independent working-copy processing and checked original-group result files; one authorized application passed real quoted-CSV processing and Human result-download verification ([#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158), [guide](docs/qq-connection.md)).
 
 - The QQ image candidate reuses authorized Channel previews and native model image tools, and returns selected image results through the receiving app with a durable native receipt; actual QQ/model qualification remains tracked separately ([#1157](https://github.com/BotHarness/BotHarness/issues/1157), [QQ guide](docs/qq-connection.md)).

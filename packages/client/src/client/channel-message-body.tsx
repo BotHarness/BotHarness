@@ -1,3 +1,4 @@
+import { BridgeAudio } from './bridge-audio.js';
 import { BridgeFile } from './bridge-file.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
@@ -9,6 +10,7 @@ import {
   Input,
   MarkdownText,
   StateDot,
+  Tag,
   type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -671,7 +673,17 @@ export function ChannelMessageBody({
     const media = message.bridgeMedia;
     const renderMedia = (id: string, index: number) => {
       const item = media.items.find((item) => item.id === id);
-      return item?.kind === 'file' ? (
+      return item?.kind === 'audio' ? (
+        <BridgeAudio
+          key={index}
+          channelId={channelId}
+          sourceEventId={message.bridgeOrigin!.sourceEventId}
+          attachmentId={id}
+          name={item.name}
+          sizeBytes={item.sizeBytes}
+          t={t}
+        />
+      ) : item?.kind === 'file' ? (
         <BridgeFile
           key={index}
           channelId={channelId}
@@ -694,6 +706,17 @@ export function ChannelMessageBody({
     };
     return (
       <div className="bh-bubble-content bh-bridge-media-content">
+        {media.voice ? (
+          <div className="bh-external-message-head">
+            <Tag tone={media.voice.transcript === 'platform' ? 'info' : 'warning'}>
+              {t(
+                media.voice.transcript === 'platform'
+                  ? 'im.voiceTranscriptPlatform'
+                  : 'im.voiceTranscriptUnavailable',
+              )}
+            </Tag>
+          </div>
+        ) : null}
         {media.parts ? (
           media.parts.map((part, index) =>
             part.kind === 'text' ? (

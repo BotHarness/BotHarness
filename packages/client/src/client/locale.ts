@@ -981,10 +981,10 @@ export const zh = {
   'im.fileDownloading': '正在下载…',
   'im.fileError': '文件无法下载，请检查消息来源和连接权限后重试。',
   'im.sourceTitle': '外部消息',
-  'im.voiceTranscriptPlatform': '微信语音 · 平台转写',
-  'im.voiceTranscriptUnavailable': '微信语音 · 未提供转写',
+  'im.voiceTranscriptPlatform': '语音 · 平台转写',
+  'im.voiceTranscriptUnavailable': '语音 · 未提供转写',
   'im.voiceTranscriptUnavailableHint':
-    '微信未提供这条语音的转写文本。有原始音频时可尝试播放或下载；播放不会识别内容，需要内容时请补发文字。',
+    '平台未提供这条语音的转写文本。有原始音频时可尝试播放或下载；播放不会识别内容，需要内容时请补发文字。',
   'im.voiceDuration': '{seconds} 秒',
   'im.quoteNative': '微信提供的引用内容',
   'im.quoteRetained': '从本地保留记录找到的引用',
@@ -1012,7 +1012,10 @@ export const zh = {
   'im.videoRetry': '重试播放',
   'im.videoHint': '按需读取原视频；能否播放取决于浏览器的编码支持，不代表模型能理解视频。',
   'im.videoUnavailable': '视频暂不能播放，可下载原件；请检查权限、文件格式或浏览器编码支持。',
-  'im.voiceAudioPlayer': '微信语音播放器',
+  'im.voiceAudioFormat': '不支持播放这种语音编码，仍可下载原音。',
+  'im.voiceAudioTooLarge': '语音超过播放大小限制，仍可尝试下载原音。',
+  'im.voiceAudioInterrupted': '播放准备已中断，请重试。',
+  'im.voiceAudioPlayer': '语音播放器',
   'im.voiceAudioHint': '支持的 SILK 语音转换为 24 kHz WAV，仅用于播放或处理，不进行语音识别。',
   'im.voiceAudioUnavailable':
     '此音频暂不能播放：可能编码不支持、解码失败或超过处理限制。仍可下载原始语音；需要内容时请发送文字。',
@@ -3178,10 +3181,10 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.fileError':
     'Unable to download the file. Check source availability and connection permissions before retrying.',
   'im.sourceTitle': 'External message',
-  'im.voiceTranscriptPlatform': 'WeChat voice · platform transcript',
-  'im.voiceTranscriptUnavailable': 'WeChat voice · no transcript',
+  'im.voiceTranscriptPlatform': 'Voice · platform transcript',
+  'im.voiceTranscriptUnavailable': 'Voice · no transcript',
   'im.voiceTranscriptUnavailableHint':
-    'WeChat did not provide a transcript. You can try playback or download the original audio; speech recognition is not configured here. Please send text.',
+    'The platform did not provide a transcript. You can try playback or download the original audio; speech recognition is not configured here. Please send text.',
   'im.voiceDuration': '{seconds} s',
   'im.quoteNative': 'Quote supplied by WeChat',
   'im.quoteRetained': 'Quote found in retained local records',
@@ -3212,7 +3215,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'Loads the original on demand. Playback depends on browser codecs and does not imply model video understanding.',
   'im.videoUnavailable':
     'Video playback is unavailable. Download the original and check authorization, format or browser codecs.',
-  'im.voiceAudioPlayer': 'WeChat voice player',
+  'im.voiceAudioFormat': 'This voice codec cannot be played; the original can still be downloaded.',
+  'im.voiceAudioTooLarge':
+    'Audio exceeds the playback size limit. You can still try the original download.',
+  'im.voiceAudioInterrupted': 'Playback preparation was interrupted. Please retry.',
+  'im.voiceAudioPlayer': 'Voice player',
   'im.voiceAudioHint':
     'Supported SILK is converted to 24 kHz WAV for playback or processing, without speech recognition.',
   'im.voiceAudioUnavailable':

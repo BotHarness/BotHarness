@@ -86,6 +86,7 @@ export function createAttachmentHttp(
     channelId: string;
     sourceEventId: string;
     attachmentId: string;
+    representation?: 'playback';
     signal: AbortSignal;
   }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array>; inline?: boolean }>,
 ): (request: Request) => Promise<Response> {
@@ -132,8 +133,10 @@ export function createAttachmentHttp(
         !sourceEventId ||
         !attachmentId ||
         !channelMedia ||
+        (url.searchParams.has('representation') &&
+          url.searchParams.get('representation') !== 'playback') ||
         [...url.searchParams.keys()].some(
-          (key) => !['channelId', 'sourceEventId', 'attachmentId'].includes(key),
+          (key) => !['channelId', 'sourceEventId', 'attachmentId', 'representation'].includes(key),
         )
       )
         return new Response('Channel media source is required', { status: 400 });
@@ -142,6 +145,9 @@ export function createAttachmentHttp(
           channelId,
           sourceEventId,
           attachmentId,
+          ...(url.searchParams.has('representation')
+            ? { representation: 'playback' as const }
+            : {}),
           signal: request.signal,
         });
         return new Response(body, {

@@ -215,7 +215,8 @@ export interface ChannelMessage {
   userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
   bridgeMedia?: {
-    items: { id: string; kind: 'image' | 'file'; name: string; sizeBytes?: number }[];
+    voice?: Pick<import('../messaging/provider.js').MessagingVoice, 'transcript' | 'durationMs'>;
+    items: { id: string; kind: 'image' | 'file' | 'audio'; name: string; sizeBytes?: number }[];
     parts?: import('../messaging/provider.js').MessagingContentPart[];
   };
   bridgeOrigin?: {
