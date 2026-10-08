@@ -167,7 +167,7 @@ describe('localization coverage', () => {
         t: tEn,
       }),
     );
-    expect(markup).toContain('Talk to a PersonaBot');
+    expect(markup).toContain('Talk to a Bot');
     expect(markup).toContain('Pick a Bot or channel on the left to start');
   });
 });

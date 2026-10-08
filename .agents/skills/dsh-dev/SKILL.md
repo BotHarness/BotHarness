@@ -7,6 +7,10 @@ description: Use when developing, running, or debugging BotHarness against a loc
 
 BotHarness is a plugin layer inside DSH: unit tests do not cover the real boot. Every trap in this skill was invisible to `pnpm test` and only appeared in a running `dsh --profile web-dev`. **Validate against the running shell, not the test suite.**
 
+## Proactive Client verification
+
+After every isolated launch, Client reload and relevant UI action, read the real browser console and DOM yourself before accepting the result; do not wait for Human-copied errors. Read [the Client diagnostic loop](../../../docs/dev/guides/client-startup-diagnostics.md) for the agent-runnable reader, bounded attempt history, background-tab/freshness limits and native RC1 reproductions. Treat API health, Client shell evidence and browser-control failures as separate signals. Preserve first failure and each retry; recovery by reload does not establish a fix.
+
 ## Prime directive: `/api` belongs to the API gateway
 
 The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). The route and its **single interceptor** are owned by `@deepseek-ai/dsh-api-gateway`, which claims endpoints from the **typert registry** (all native controllers register there).
@@ -115,6 +119,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 | 48 | Native Go adapter forwards Session identity without its required request header | A correctly configured DSH 0.2.0 RC1 Go request fails with HTTP 400 `MissingSessionID` | Native `llm-pi-ai` passes `GenerateOptions.sessionId` to the SDK but omits `x-opencode-session`. The reviewed pnpm patch supplies the actual Session ID only for Go, strips case-insensitive static collisions, and preserves native attribution and other Provider headers. The AX helper carries this pinned patch into an independent CLI per opted-in home. Never use a fixed/random substitute header; retain the failed Turn and verify a fresh real model → `channel_send` → committed DM reply. Requalify before changing DSH version or removing the patch (#1079; [guide](../../../docs/agents/ax-model.md)). |
 
 | 49 | Windows Modify permission is insufficient for native workspace-write provisioning | Approved native Shell calls fail before launch with `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)` | The RC1 Windows ACL backend needs effective `WRITE_DAC` and `WRITE_OWNER`; being the directory owner with Modify can still lack the latter. Use the installed `diagnose-windows-sandbox-acl` skill to inspect effective access. With explicit Human approval for exact QA directories, use its backed-up scoped repair, then verify the original confined Shell operation. Preserve owner, deny rules and sandbox policy; follow its restore-and-stop path if verification fails. In #911, real native Orchestrator and Assignment pwsh 30-second waits both succeeded after the approved repairs of their respective QA directories. |
+
+| 50 | Local browser permission display is mistaken for successful tool access | A listed allowed origin still returns ERR_BLOCKED_BY_CLIENT, or DOM reads work while screenshots/input time out | Qualify exact-origin authorization, listener ownership, Host transport, navigation and actual capture separately. Preserve each result and stop bounded retries without new evidence; see the [AX browser runbook](../../../docs/agents/ax-browser.md) (#1225). |
 
 ## Reference
 

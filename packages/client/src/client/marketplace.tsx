@@ -19,6 +19,7 @@ import type {
 } from '../../../core/src/marketplace/client.js';
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
+import { BotBannerArt } from './bot-banner.js';
 import { BridgeCallError, errorMessage } from './bridge.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
@@ -179,10 +180,25 @@ function MarketplaceRow({
         )}
         <MarketplaceMeta bot={bot} t={t} />
       </button>
+      <MarketplaceBanner bot={bot} className="bh-market-banner-thumb" />
       <Button variant="outline" onClick={onInstall}>
         {t('market.install')}
       </Button>
     </div>
+  );
+}
+
+function MarketplaceBanner({
+  bot,
+  className,
+}: {
+  bot: MarketplaceEntry;
+  className: string;
+}): ReactElement {
+  return (
+    <span className={className} data-market-banner={bot.banner === null ? 'none' : 'shown'}>
+      {bot.banner === null ? null : <BotBannerArt banner={bot.banner} />}
+    </span>
   );
 }
 
@@ -261,6 +277,7 @@ function MarketplaceDetailView({
   const shown = state.status === 'ready' ? state.detail.bot : bot;
   return (
     <div className="bh-market-detail" data-market-detail={shown.fullName}>
+      <MarketplaceBanner bot={shown} className="bh-market-banner" />
       <div className="bh-market-confirm-head">
         <PersonaBotAvatar
           personaBotId=""

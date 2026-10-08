@@ -29,6 +29,7 @@ export function ChannelHistory({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [complete, setComplete] = useState(false);
+  const [cleanupPending, setCleanupPending] = useState(0);
   const date = (at: string): string => new Date(at).toLocaleString();
   const boundaries = [
     t('purge.noFiles'),
@@ -94,12 +95,13 @@ export function ChannelHistory({
                 disabled={busy}
                 onClick={() =>
                   void perform(async () => {
-                    await actions.channelPurgeConfirm(
+                    const result = await actions.channelPurgeConfirm(
                       preview.channelId,
                       preview.sourceEventIds,
                       preview.token,
                     );
                     await open(channel!);
+                    setCleanupPending(result?.cleanupPending ?? 0);
                     setComplete(true);
                   })
                 }
@@ -147,7 +149,9 @@ export function ChannelHistory({
         </div>
         {complete ? (
           <p className="bh-channel-history-status" role="status">
-            {t('purge.complete')}
+            {cleanupPending
+              ? t('purge.cleanupPending', { count: cleanupPending })
+              : t('purge.complete')}
           </p>
         ) : null}
         {preview ? (
@@ -190,6 +194,66 @@ export function ChannelHistory({
             ) : (
               <p className="bh-channel-history-hint">{t('purge.noAdmissions')}</p>
             )}
+            {preview.files.length ? (
+              <>
+                <h3>{t('purge.files')}</h3>
+                {preview.files.map((file) => (
+                  <div key={file.identity} className="bh-channel-history-toolbar">
+                    <span>
+                      {file.name} ·{' '}
+                      {t(file.disposition === 'shared' ? 'purge.fileShared' : 'purge.fileRemove')}
+                    </span>
+                    <MessagingHelp title={file.name} text={file.identity} t={t} />
+                  </div>
+                ))}
+              </>
+            ) : null}
+            {preview.effects.length ? (
+              <div className="bh-channel-history-toolbar">
+                <span>{t('purge.effects', { count: preview.effects.length })}</span>
+                <MessagingHelp
+                  title={t('purge.effectsTitle')}
+                  text={
+                    preview.effects
+                      .map((effect) => `${effect.kind} · ${effect.state} · ${effect.id}`)
+                      .join('\n') +
+                    '\n\n' +
+                    t('purge.effectsHint')
+                  }
+                  t={t}
+                />
+              </div>
+            ) : null}
+            <div className="bh-channel-history-toolbar">
+              <span>{t('purge.derivativeReport', { count: preview.derivatives.length })}</span>
+              <MessagingHelp
+                title={t('purge.derivativeDetails')}
+                text={
+                  preview.derivatives
+                    .map((item) =>
+                      [
+                        item.kind,
+                        item.botSlug,
+                        t(
+                          item.tracking === 'recorded'
+                            ? 'purge.derivative.recorded'
+                            : item.tracking === 'possible'
+                              ? 'purge.derivative.possible'
+                              : 'purge.derivative.unavailable',
+                        ),
+                        item.location,
+                        item.reference,
+                      ]
+                        .filter(Boolean)
+                        .join(' · '),
+                    )
+                    .join('\n') +
+                  '\n\n' +
+                  t('purge.derivatives')
+                }
+                t={t}
+              />
+            </div>
             <div className="bh-channel-history-toolbar">
               <p>{t('purge.irreversible')}</p>
               <MessagingHelp title={t('purge.boundaries')} text={boundaries} t={t} />
@@ -235,6 +299,9 @@ export function ChannelHistory({
                         {source.purgedAt ? t('purge.purged') : source.body}
                       </span>
                       {source.refusal ? <small>{t('purge.unsupported')}</small> : null}
+                      {source.cleanupPending ? (
+                        <small>{t('purge.cleanupPending', { count: source.cleanupPending })}</small>
+                      ) : null}
                     </span>
                   </label>
                   <MessagingHelp

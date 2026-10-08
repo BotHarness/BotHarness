@@ -27,6 +27,8 @@ export interface RepositoryRow {
   readme_pushed_at: string | null;
   display_name: string | null;
   roles: string;
+  bio: string | null;
+  banner: string | null;
 }
 
 export const MAX_README_LENGTH = 200_000;
@@ -69,15 +71,30 @@ export function createRepositoryStore(deps: {
     if (!readme.ok || !descriptorFile.ok) return;
     const descriptor =
       descriptorFile.value === null ? undefined : parseBotDescriptor(descriptorFile.value);
+    const banner = descriptor?.banner;
+    const ref = row.head_sha ?? row.default_branch;
+    const stored =
+      banner === undefined
+        ? null
+        : 'recipe' in banner
+          ? { recipe: banner.recipe }
+          : {
+              image: `https://raw.githubusercontent.com/${row.owner}/${row.name}/${ref}/${banner.image
+                .split('/')
+                .map(encodeURIComponent)
+                .join('/')}`,
+            };
     await db
       .prepare(
-        'UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ?, display_name = ?, roles = ? WHERE node_id = ?',
+        'UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ?, display_name = ?, roles = ?, bio = ?, banner = ? WHERE node_id = ?',
       )
       .bind(
         readme.value?.slice(0, MAX_README_LENGTH) ?? null,
         row.pushed_at,
         descriptor?.name ?? null,
-        JSON.stringify(descriptor?.roles ?? []),
+        JSON.stringify(descriptor?.tags ?? []),
+        descriptor?.bio ?? null,
+        stored === null ? null : JSON.stringify(stored),
         row.node_id,
       )
       .run();

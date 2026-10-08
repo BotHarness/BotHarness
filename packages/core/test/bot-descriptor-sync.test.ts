@@ -1,3 +1,4 @@
+import { seededBannerRecipe } from '@botharness/pixel-banner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,12 +58,13 @@ function registryAt(root: string) {
 }
 
 describe('Bot descriptor sync', () => {
-  it('commits a descriptor with the name, roles and seeded avatar when a Bot is created', () => {
+  it('commits a descriptor with the name, tags, bio and seeded avatar when a Bot is created', () => {
     const registry = registryAt(tempRoot());
     const created = registry.create({
       slug: 'travel',
       displayName: '旅行规划师',
       roles: ['行程规划', '酒店比价'],
+      description: '帮你排行程、比酒店',
       workspaces: [],
     });
     expect(created.ok).toBe(true);
@@ -71,9 +73,12 @@ describe('Bot descriptor sync', () => {
     const descriptor = descriptorOf(memoryDir);
     expect(descriptor).toEqual({
       name: '旅行规划师',
-      roles: ['行程规划', '酒店比价'],
+      tags: ['行程规划', '酒店比价'],
+      bio: '帮你排行程、比酒店',
       avatar: { recipe: canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')) },
+      banner: { recipe: seededBannerRecipe('旅行规划师') },
     });
+    expect(existsSync(join(memoryDir, '.botharness/banner.png'))).toBe(true);
     expect(parseBotDescriptor(JSON.stringify(descriptor))).toBeDefined();
     expect(readSharedPresentation(memoryDir)?.appearance?.recipe).toEqual(
       canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')),
@@ -82,7 +87,7 @@ describe('Bot descriptor sync', () => {
     expect(git(memoryDir, 'log', '-1', '--format=%B')).toBe(`${BOT_DESCRIPTOR_COMMIT_MESSAGE}\n`);
   });
 
-  it('rewrites the descriptor in one commit on rename, roles and avatar changes', () => {
+  it('rewrites the descriptor in one commit on rename, tags, bio and avatar changes', () => {
     const registry = registryAt(tempRoot());
     registry.create({ slug: 'scribe', displayName: 'Scribe', workspaces: [] });
     const memoryDir = registry.memoryDirFor('scribe')!;
@@ -90,7 +95,8 @@ describe('Bot descriptor sync', () => {
     const before = commits();
 
     registry.update('scribe', { displayName: 'Meeting Scribe', roles: ['Notes'] });
-    expect(descriptorOf(memoryDir)).toMatchObject({ name: 'Meeting Scribe', roles: ['Notes'] });
+    expect(descriptorOf(memoryDir)).toMatchObject({ name: 'Meeting Scribe', tags: ['Notes'] });
+    expect(descriptorOf(memoryDir)).not.toHaveProperty('roles');
     expect(commits()).toBe(before + 1);
 
     registry.setAppearance('scribe', DEFAULT_ILLUSTRATED_RECIPE);
@@ -112,8 +118,14 @@ describe('Bot descriptor sync', () => {
     });
     expect(git(memoryDir, 'status', '--porcelain')).toBe('');
 
+    const beforeBio = commits();
     registry.update('scribe', { description: 'Takes notes' });
-    expect(commits()).toBe(before + 4);
+    expect(descriptorOf(memoryDir)['bio']).toBe('Takes notes');
+    expect(commits()).toBe(beforeBio + 1);
+
+    registry.update('scribe', { description: '' });
+    expect(descriptorOf(memoryDir)).not.toHaveProperty('bio');
+    expect(commits()).toBe(beforeBio + 2);
   });
 
   it('commits only the descriptor and keeps other keys and pending Memory edits', () => {
@@ -155,6 +167,7 @@ describe('Bot descriptor sync', () => {
     expect(descriptorOf(memoryDir)).toEqual({
       name: 'Shared',
       avatar: { image: 'assets/avatar.png' },
+      banner: { recipe: seededBannerRecipe('Shared') },
     });
     expect(existsSync(join(memoryDir, '.botharness/avatar.png'))).toBe(false);
   });
@@ -186,7 +199,7 @@ describe('Bot descriptor sync', () => {
     ]);
   });
 
-  it('clips a long name and too many roles to the descriptor limits', () => {
+  it('clips a long name, too many tags and a long bio to the descriptor limits', () => {
     const memoryDir = join(tempRoot(), 'memory');
     mkdirSync(memoryDir);
 
@@ -196,6 +209,7 @@ describe('Bot descriptor sync', () => {
         slug: 'long',
         displayName: 'N'.repeat(80),
         roles: Array.from({ length: 10 }, (_, index) => `Role ${index} ${'x'.repeat(40)}`),
+        description: 'b'.repeat(200),
         workspaces: [],
         createdAt: '',
       },
@@ -206,6 +220,7 @@ describe('Bot descriptor sync', () => {
       readFileSync(join(memoryDir, '.botharness/bot.json'), 'utf8'),
     );
     expect(descriptor?.name).toHaveLength(60);
-    expect(descriptor?.roles).toHaveLength(8);
+    expect(descriptor?.tags).toHaveLength(8);
+    expect(descriptor?.bio).toHaveLength(160);
   });
 });

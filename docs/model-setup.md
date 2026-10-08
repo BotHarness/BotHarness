@@ -68,7 +68,7 @@ Task model selection is fixed when the task is created. Changing a default does 
 
 ## 5. Verify the actual model
 
-Return to chat and send a short message. After a reply, check **Token usage** in the Bot's Profile (chat header name/avatar → View details), grouped by model or provider. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
+Return to chat and send a short message. After a reply, check **Token usage** in the Bot's Profile (chat header name/avatar → View details) and switch it to **By model**. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
 
 ![Actual Session model selector and reply after applying the preset](/guides/settings/model-session-verification-zh.webp)
 

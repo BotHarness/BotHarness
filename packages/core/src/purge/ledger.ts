@@ -51,7 +51,16 @@ export function openPurgeLedger(path: string, required: boolean) {
       });
   }
   function checkpoint(): PurgeCheckpoint {
-    return { format: 'botharness-purge', version: 1, facts: read() };
+    const facts = read();
+    return {
+      format: 'botharness-purge',
+      version: facts.some(
+        (fact) => fact.managedFiles !== undefined || !['human', 'bot'].includes(fact.author.kind),
+      )
+        ? 2
+        : 1,
+      facts,
+    };
   }
   return {
     checkpoint,
@@ -67,7 +76,11 @@ export function openPurgeLedger(path: string, required: boolean) {
             previous.eventAt !== fact.eventAt ||
             JSON.stringify(previous.author) !== JSON.stringify(fact.author) ||
             previous.replyTo !== fact.replyTo ||
-            JSON.stringify(previous.causation) !== JSON.stringify(fact.causation))
+            JSON.stringify(previous.causation) !== JSON.stringify(fact.causation) ||
+            (previous.managedFiles !== undefined &&
+              fact.managedFiles !== undefined &&
+              JSON.stringify([...previous.managedFiles].sort()) !==
+                JSON.stringify([...fact.managedFiles].sort())))
         )
           throw new Error('Conflicting purge selector');
         if (previous === undefined) unique.set(fact.sourceEventId, fact);

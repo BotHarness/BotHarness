@@ -113,6 +113,10 @@ function stubActions(): BridgeActions {
     channelHistorySources: vi.fn(),
     channelPurgePreview: vi.fn(),
     channelPurgeConfirm: vi.fn(),
+    onboarding: vi.fn(),
+    onboardingModel: vi.fn(),
+    inheritModel: vi.fn(),
+    retryMessage: vi.fn(),
     deletionPreview: vi.fn(),
     deletionConfirm: vi.fn(),
     deletionRetry: vi.fn(),
@@ -291,6 +295,8 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    setBotBanner: vi.fn(async () => true),
+    updateBotProfile: vi.fn(async () => true),
     setBotAppearance: vi.fn(async () => true),
     profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({
@@ -619,7 +625,7 @@ describe('bot sidebar rows', () => {
         menu.items.some((item) => item['id'] === 'channel') &&
         !menu.items.some((item) => item['id'] === 'section'),
     );
-    expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 PersonaBot', '创建频道']);
+    expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 Bot', '创建频道']);
   });
 
   it('renders Group conversations with the same two-line anatomy as DMs', () => {
@@ -919,7 +925,7 @@ describe('bot sidebar rows', () => {
     const menu = menuWithItem('bot');
 
     expect(menu.items.map((item) => item['label'])).toEqual([
-      '创建 PersonaBot',
+      '创建 Bot',
       '创建频道',
       '创建频道分组',
       'Bot 市场',
@@ -935,13 +941,13 @@ describe('bot sidebar rows', () => {
       ['bot:git', '从 GitHub 导入'],
       ['bot:zip', '从 zip 导入'],
     ]);
-    expect(markup).toContain('还没有 PersonaBot');
-    expect(markup).toContain('创建第一个 PersonaBot');
+    expect(markup).toContain('还没有 Bot');
+    expect(markup).toContain('创建第一个 Bot');
     expect(markup).toContain('散装渠道');
     expect(markup).toContain('placeholder="搜索 Bot 或频道"');
   });
 
-  it('blocks PersonaBot creation and explains why while Host Git is unusable', () => {
+  it('blocks Bot creation and explains why while Host Git is unusable', () => {
     store.setGit({ available: false, reason: 'too-old', version: '2.20.1', ...NO_INSTALL });
     const markup = renderSidebar();
     const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
@@ -950,7 +956,7 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('需要 Git 才能创建 Bot');
     expect(markup).toContain('Git 2.20.1 版本太旧，需要 2.28 或更新版本。');
     expect(markup).toContain('href="https://botharness.ai/zh/docs/installation/#git"');
-    expect(markup).toMatch(/<button disabled="">创建第一个 PersonaBot<\/button>/);
+    expect(markup).toMatch(/<button disabled="">创建第一个 Bot<\/button>/);
     expect(submenu.map((item) => [item['id'], item['disabled']])).toEqual([
       ['bot:empty', true],
       ['bot:git', true],

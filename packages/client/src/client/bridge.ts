@@ -1,3 +1,4 @@
+import { isPixelBannerRecipe, type PixelBannerRecipe } from '@botharness/pixel-banner';
 import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
@@ -78,6 +79,7 @@ import type {
   HumanAttentionPage,
   HumanInboxCategory,
   HumanInboxFilters,
+  BotBannerView,
   BotSummary,
   ChannelAuthor,
   ChannelAttachmentRef,
@@ -204,6 +206,7 @@ export async function loadModelPlan(
 }
 
 export interface ModelPlanStateView {
+  revision?: number;
   plan?: ModelPlanView;
   repair?: {
     code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
@@ -603,10 +606,19 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
       : isRetainedAvatarAppearance(record['appearance'])
         ? { appearanceUnsupported: true as const }
         : {}),
+    ...(parseBanner(record['banner']) ?? {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
     ...(record['deleted'] === true ? { deleted: true } : {}),
     ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseBanner(value: unknown): { banner: BotBannerView } | undefined {
+  const banner = asRecord(value);
+  if (banner === undefined) return undefined;
+  if (isPixelBannerRecipe(banner['recipe'])) return { banner: { recipe: banner['recipe'] } };
+  const image = banner['image'];
+  return typeof image === 'string' && image.length > 0 ? { banner: { image } } : undefined;
 }
 
 function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
@@ -1009,6 +1021,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       role: failure['role'],
       sessionId: failure['sessionId'],
       detail: failure['detail'],
+      ...(typeof failure['requestMessageId'] === 'string'
+        ? { requestMessageId: failure['requestMessageId'] }
+        : {}),
       ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
       ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
@@ -1036,7 +1051,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       displayName: departure['displayName'],
       departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
-  } else if (author.kind === 'system') {
+  } else if (author.kind === 'system' && asRecord(record['onboardingWelcome'])?.['version'] !== 1) {
     return undefined;
   }
   let botDmAction: ChannelMessage['botDmAction'];
@@ -1317,6 +1332,12 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(asRecord(record['onboardingWelcome'])?.['version'] === 1 && author.kind === 'system'
+      ? { onboardingWelcome: { version: 1 as const } }
+      : {}),
+    ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
+      ? { contentPurged: true as const }
+      : {}),
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(mentions === undefined
       ? {}
@@ -1893,6 +1914,28 @@ export async function setBotAvatar(
   const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
+export async function setBotBanner(
+  call: BridgeCall,
+  channelId: string,
+  banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botBannerSet', { channelId, banner }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botBannerSet response');
+  return bot;
+}
+
+export async function updateBotProfile(
+  call: BridgeCall,
+  slug: string,
+  patch: { roles?: string[]; description?: string },
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'update', { slug, patch }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid update response');
   return bot;
 }
 
@@ -2904,6 +2947,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
   today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
@@ -3199,11 +3244,19 @@ export async function loadProfileUsage(
   return value as unknown as UsageQueryResult;
 }
 
+export interface ProfileActivityWindow {
+  before: string;
+  weeks: number;
+}
+
 export async function loadProfileActivity(
   call: BridgeCall,
   channelId: string,
+  window?: ProfileActivityWindow,
 ): Promise<ProfileActivity> {
-  const response = asRecord(await unwrap(call, 'profileActivity', { channelId }));
+  const response = asRecord(
+    await unwrap(call, 'profileActivity', { channelId, ...(window ?? {}) }),
+  );
   if (
     response === undefined ||
     typeof response['slug'] !== 'string' ||
@@ -3249,7 +3302,8 @@ export async function loadProfileActivity(
           );
         }))) ||
     (response['modelUsageStatus'] !== undefined &&
-      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus']))) ||
+    (response['createdDay'] !== undefined && typeof response['createdDay'] !== 'string')
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
@@ -3428,6 +3482,7 @@ export async function loadMessagingDefaults(
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
     typeof value['identityEnabled'] !== 'boolean' ||
+    (platform === 'weixin' && typeof value['typingEnabled'] !== 'boolean') ||
     !['mentions', 'all'].includes(String(value['collection'])) ||
     !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
     !Number.isInteger(value['count']) ||

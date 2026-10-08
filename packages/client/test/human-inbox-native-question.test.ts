@@ -142,7 +142,8 @@ describe('Human Inbox native question', () => {
           'Which launch channel?',
         );
         expect(container.textContent).toContain('Small launch');
-        expect(container.querySelector('.bh-question-custom')).not.toBeNull();
+        expect(container.querySelector('input[aria-label="其他回答"]')).not.toBeNull();
+        expect(container.querySelector('.bh-question-source')).toBeNull();
         expect(container.querySelector('textarea')).toBeNull();
         expect(container.querySelector('.bh-human-inbox-reply h2')?.textContent).toBe(
           '回答问题 · ada',

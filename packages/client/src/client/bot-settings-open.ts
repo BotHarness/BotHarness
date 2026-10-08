@@ -42,6 +42,7 @@ export function openImSettings(
   doc: Document,
   ready: (element: Element) => void,
   unavailable: () => void = () => {},
+  selectFeishu = true,
 ): () => void {
   let disposed = false;
   let selected = false;
@@ -65,11 +66,11 @@ export function openImSettings(
     const platform = [...dialog.querySelectorAll('button')].find((b) =>
       ['飞书', 'Feishu', 'Lark / Feishu'].includes(b.textContent?.trim() ?? ''),
     );
-    if (!platform) return;
+    if (selectFeishu && !platform) return;
     disposed = true;
     observer.disconnect();
     clearTimeout(timer);
-    platform.click();
+    if (selectFeishu) platform?.click();
     ready(dialog);
   };
   const observer = new MutationObserver(inspect);
@@ -86,5 +87,37 @@ export function openImSettings(
     disposed = true;
     clearTimeout(timer);
     observer.disconnect();
+  };
+}
+
+export function openExternalBindingSettings(
+  doc: Document,
+  returned: () => void,
+  unavailable: () => void,
+): () => void {
+  let active = true;
+  let watcher: MutationObserver | undefined;
+  const stop = openImSettings(
+    doc,
+    (dialog) => {
+      watcher = new MutationObserver(() => {
+        if (!active || dialog.isConnected) return;
+        active = false;
+        watcher?.disconnect();
+        returned();
+      });
+      watcher.observe(doc.body, { childList: true, subtree: true });
+    },
+    () => {
+      if (!active) return;
+      active = false;
+      unavailable();
+    },
+    false,
+  );
+  return () => {
+    active = false;
+    stop();
+    watcher?.disconnect();
   };
 }

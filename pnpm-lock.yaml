@@ -397,6 +397,9 @@ importers:
       '@botharness/botui-core':
         specifier: 0.3.0
         version: 0.3.0
+      '@botharness/pixel-banner':
+        specifier: 0.1.0
+        version: 0.1.0
       '@botharness/pixel-morph':
         specifier: 0.2.0
         version: 0.2.0
@@ -567,6 +570,9 @@ importers:
       '@botharness/pixel-avatar':
         specifier: 0.2.0
         version: 0.2.0
+      '@botharness/pixel-banner':
+        specifier: 0.1.0
+        version: 0.1.0
       '@resvg/resvg-js':
         specifier: 2.6.2
         version: 2.6.2
@@ -1169,6 +1175,9 @@ packages:
 
   '@botharness/pixel-avatar@0.2.0':
     resolution: {integrity: sha512-YrOeogGRIJzoyy+EtysjfiD78nIwFIkWW4ZGK2zAoqb1tg8G/tHLCgDM2r3wgtu+2vhxEkb6cL6bMK2igBtk4g==}
+
+  '@botharness/pixel-banner@0.1.0':
+    resolution: {integrity: sha512-2qzZK8O73u9m97sCeQh9s/4QaRsMwCTM42n2HLxCHQNiQp7dYYhulYiYNviasr/9eAGR4ARZr3B06yOCD/Ge1A==}
 
   '@botharness/pixel-morph@0.2.0':
     resolution: {integrity: sha512-Mi8lIZJdYaBub6qYNMwqgFP88RkMEJFQOAUVVAsL/yCg8j9lw56EtIgYCHaFrIApx4bvs3eIwodwQAYd5OpLPg==}
@@ -10784,6 +10793,8 @@ snapshots:
   '@botharness/pixel-avatar@0.2.0':
     dependencies:
       '@botharness/pixel-morph': 0.2.0
+
+  '@botharness/pixel-banner@0.1.0': {}
 
   '@botharness/pixel-morph@0.2.0': {}
 

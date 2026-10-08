@@ -24,6 +24,7 @@ export function createModelCatalog(
   options: {
     credentials?: Pick<ProviderCredentialHealth, 'failure'>;
     defaultRoute?: () => ModelRoute | undefined;
+    credentialFailure?: (provider: string) => Promise<ProviderCredentialFailure | undefined>;
   } = {},
 ): ModelCatalog {
   return {
@@ -33,10 +34,12 @@ export function createModelCatalog(
       const groups = await Promise.all(
         providers.map(async (provider) => {
           const models = await llm.listModels(provider.id);
+          const credential =
+            options.credentials?.failure(provider.id) ??
+            (await options.credentialFailure?.(provider.id));
           return Promise.all(
             models.map(async (model): Promise<ModelCatalogEntry> => {
               const exact = await llm.resolveModelInfo(provider.id, model.id);
-              const credential = options.credentials?.failure(provider.id);
               return {
                 provider: provider.id,
                 providerName: provider.name,
@@ -63,7 +66,9 @@ export function createModelCatalog(
       }
       const provider = llm.listProviders().find((candidate) => candidate.id === route.provider);
       if (provider === undefined) throw new Error(`Provider ${route.provider} is unavailable`);
-      const credential = options.credentials?.failure(route.provider);
+      const credential =
+        options.credentials?.failure(route.provider) ??
+        (await options.credentialFailure?.(route.provider));
       if (credential !== undefined) {
         throw new Error(
           `Provider ${route.provider} has ${credential === 'missing' ? 'no' : 'an invalid'} API key; configure it in DSH model settings first`,

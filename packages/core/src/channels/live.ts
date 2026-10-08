@@ -1,4 +1,5 @@
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
+import type { PurgedPlacement } from '../purge/contracts.js';
 import type { ChannelDraft, ChannelDraftEvent } from './draft.js';
 import type { ChannelMessage } from './channel.js';
 import type { ChannelMessageCommit, ChannelStore } from './store.js';
@@ -12,6 +13,7 @@ export const CHANNEL_DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
 export const CHANNEL_DRAFT_SETTLED_EVENT = 'channel/draft-settled';
 export const CHANNEL_DRAFT_ABANDONED_EVENT = 'channel/draft-abandoned';
 export const ROSTER_CHANGED_EVENT = 'roster/changed';
+export const CONTENT_PURGED_EVENT = 'content/purged';
 
 interface PublishedDraft extends ChannelDraft {
   revision: number;
@@ -43,6 +45,7 @@ export interface ChannelLiveHub {
   publishHumanRead(channelId: string, humanId: string, revision: number): void;
   publishDraft(event: ChannelDraftEvent): void;
   publishRosterCommitted(): void;
+  publishContentPurged(): void;
   close(): void;
 }
 
@@ -75,6 +78,7 @@ interface ActivitySource {
 export function createChannelLiveHub(
   channels: ChannelStore,
   activity?: ActivitySource,
+  redactions?: () => PurgedPlacement[],
 ): ChannelLiveHub {
   const subscribers = new Map<string, Set<Subscriber>>();
   const drafts = new Map<string, Map<string, PublishedDraft>>();
@@ -151,15 +155,33 @@ export function createChannelLiveHub(
       },
     });
   };
-  const rosterSubscribers = new Set<{ push(): void; close(): void }>();
+  interface RosterSubscriber {
+    push(): void;
+    purge(placements: PurgedPlacement[]): void;
+    close(): void;
+  }
+  const rosterSubscribers = new Set<RosterSubscriber>();
   const openRoster = (): Response => {
     const encoder = new TextEncoder();
-    let subscriber: { push(): void; close(): void } | undefined;
+    let subscriber: RosterSubscriber | undefined;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         let ended = false;
         subscriber = {
+          purge(placements) {
+            if (ended) return;
+            try {
+              for (let offset = 0; offset < placements.length; offset += 100)
+                controller.enqueue(
+                  encoder.encode(
+                    `event: ${CONTENT_PURGED_EVENT}\ndata: ${JSON.stringify({ placements: placements.slice(offset, offset + 100) })}\n\n`,
+                  ),
+                );
+            } catch {
+              this.close();
+            }
+          },
           push() {
             if (ended) return;
             try {
@@ -180,6 +202,7 @@ export function createChannelLiveHub(
         };
         rosterSubscribers.add(subscriber);
         controller.enqueue(encoder.encode('retry: 1500\n\n'));
+        subscriber.purge(redactions?.() ?? []);
         heartbeat = setInterval(() => {
           if (ended) return;
           try {
@@ -398,6 +421,10 @@ export function createChannelLiveHub(
     },
     publishRosterCommitted() {
       for (const subscriber of rosterSubscribers) subscriber.push();
+    },
+    publishContentPurged() {
+      const placements = redactions?.() ?? [];
+      for (const subscriber of rosterSubscribers) subscriber.purge(placements);
     },
     close() {
       drafts.clear();

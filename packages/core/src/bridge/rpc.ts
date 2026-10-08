@@ -1,3 +1,4 @@
+import type { OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
 import type { ChannelHistoryItem, PurgeSource, PurgePreview } from '../purge/contracts.js';
@@ -287,6 +288,25 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
+  onboarding(slug?: string, action?: TutorialAction): Promise<OnboardingSnapshot> {
+    return unwrapAsync(this.methods.onboarding({ slug, action }));
+  }
+  onboardingModel(
+    slug: string | undefined,
+    expectedRevision: number,
+    route: ModelRoute,
+    globalDefault: boolean,
+  ): Promise<{ revision: number }> {
+    return unwrapAsync(
+      this.methods.onboardingModel({ slug, expectedRevision, route, globalDefault }),
+    );
+  }
+  modelPlanInherit(slug: string, expectedRevision: number): { revision: number } {
+    return unwrap(this.methods.modelPlanInherit({ slug, expectedRevision }));
+  }
+  channelRetry(channelId: string, messageId: string): Promise<{ accepted: true }> {
+    return unwrapAsync(this.methods.channelRetry({ channelId, messageId }));
+  }
   modelCatalog(): Promise<{
     models: ModelCatalogEntry[];
     default?: ModelRoute;
@@ -465,6 +485,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
+  }
+
+  botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botBannerSet({ channelId, banner }));
   }
 
   botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
@@ -911,8 +935,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.profileUsage({ channelId, filter }));
   }
 
-  profileActivity(channelId: string): ProfileActivity {
-    return unwrap(this.methods.profileActivity({ channelId }));
+  profileActivity(channelId: string, before?: string, weeks?: number): ProfileActivity {
+    return unwrap(this.methods.profileActivity({ channelId, before, weeks }));
   }
 
   groupProfileActivity(channelId: string): GroupProfileActivity {
@@ -1085,6 +1109,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingRevoke',
   'messagingConversation',
   'messagingSend',
+  'onboarding',
+  'onboardingModel',
+  'modelPlanInherit',
+  'channelRetry',
   'modelCatalog',
   'modelPresets',
   'modelPresetCreate',
@@ -1197,6 +1225,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',

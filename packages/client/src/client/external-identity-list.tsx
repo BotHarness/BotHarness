@@ -1,6 +1,15 @@
 import { externalPlatformLabel } from './bridge-source-label.js';
-import { useState, type ReactElement } from 'react';
-import { Button, Input, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useRef, useState, type ReactElement } from 'react';
+import {
+  Button,
+  Input,
+  Switch,
+  Tag,
+  Tooltip,
+  IconPlusOutlineRegular,
+  IconRefreshOutlineRegular,
+  IconRightUpOutlineRegular,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type {
   MessagingIdentityInput,
@@ -14,7 +23,8 @@ import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
-import { openImSettings } from './bot-settings-open.js';
+import { openExternalBindingSettings } from './bot-settings-open.js';
+import { useMountedResource } from './mounted-resource.js';
 
 const AVAILABILITY = {
   available: 'identity.state.available',
@@ -29,26 +39,59 @@ export function ExternalIdentityList({
   mutate,
   conversation,
   rules,
+  refresh,
   channels,
   botName = (slug) => slug,
+  bindDialog,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
+  refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
   botName?(slug: string): string;
+  bindDialog?: { onClose(): void; dismissLabel: string; description: string };
 }): ReactElement {
-  const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
+  const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind' | undefined>(
+    bindDialog ? 'bind' : undefined,
+  );
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
   const [typingEnabled, setTypingEnabled] = useState(true);
+  const [inheritTyping, setInheritTyping] = useState(false);
   const [newConversations, setNewConversations] = useState<'auto' | 'ask' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const active = useRef(false);
+  const refreshSequence = useRef(0);
+  const settingsCleanup = useRef<(() => void) | undefined>(undefined);
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    active.current = true;
+    if (bindDialog) void refreshApps();
+    return () => {
+      active.current = false;
+      refreshSequence.current++;
+      settingsCleanup.current?.();
+    };
+  }, []);
+  const refreshApps = async () => {
+    const sequence = ++refreshSequence.current;
+    const current = () => active.current && refreshSequence.current === sequence;
+    setRefreshing(true);
+    setError('');
+    try {
+      await refresh();
+    } catch {
+      if (current()) setError(t('identity.refreshFailed'));
+    } finally {
+      if (current()) setRefreshing(false);
+    }
+  };
   const identities = snapshot?.identities ?? [];
   const accounts = snapshot?.accounts ?? [];
   const selectedAccount = accounts.find((a) => a.providerId + ':' + a.ref === accountKey);
@@ -61,19 +104,47 @@ export function ExternalIdentityList({
       (g) => g.bindingId === row.id && !g.revokedAt && g.receiveScope !== undefined,
     );
   const open = (next: typeof mode, row?: MessagingIdentityView) => {
+    settingsCleanup.current?.();
+    refreshSequence.current++;
+    setRefreshing(false);
     setError('');
     setMode(next);
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
     setTypingEnabled(row?.typingEnabled !== false);
+    setInheritTyping(row?.typingInheritance === 'inherit');
     setNewConversations(
       row?.newConversationsInheritance === 'custom' ? row.newConversations : 'inherit',
     );
     setAccountKey('');
+    if (next === 'bind') void refreshApps();
   };
   const close = () => {
-    if (!busy) setMode(undefined);
+    if (!busy) {
+      refreshSequence.current++;
+      setRefreshing(false);
+      settingsCleanup.current?.();
+      setMode(undefined);
+      bindDialog?.onClose();
+    }
+  };
+  const openAppSettings = () => {
+    setMode(undefined);
+    settingsCleanup.current?.();
+    settingsCleanup.current = openExternalBindingSettings(
+      document,
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        void refreshApps();
+      },
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        setError(t('identity.settingsUnavailable'));
+      },
+    );
   };
   const operate = async (operation: () => Promise<void>, done = false) => {
     if (busy) return;
@@ -91,9 +162,11 @@ export function ExternalIdentityList({
         t(
           code === 'identity-stale' || code === 'identity-changed' || code === 'conversation-stale'
             ? 'identity.stale'
-            : code === 'conversation-limit'
-              ? 'conversation.limit'
-              : 'identity.failed',
+            : code === 'defaults-stale'
+              ? 'defaults.stale'
+              : code === 'conversation-limit'
+                ? 'conversation.limit'
+                : 'identity.failed',
         ),
       );
     } finally {
@@ -120,7 +193,7 @@ export function ExternalIdentityList({
               enabled: selected.enabled,
               inheritEnabled,
               newConversations,
-              ...(selected.platform === 'weixin' ? { typingEnabled } : {}),
+              ...(selected.platform === 'weixin' ? { typingEnabled, inheritTyping } : {}),
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -131,88 +204,91 @@ export function ExternalIdentityList({
   };
   return (
     <>
+      <span hidden ref={mount} />
       {error && !mode ? (
         <p role="alert" className="bh-error">
           {error}
         </p>
       ) : null}
-      <SidebarCardList label={t('identity.title')}>
-        {[...identities]
-          .sort(
-            (a, b) =>
-              platform(a.platform).localeCompare(platform(b.platform)) ||
-              a.createdAt.localeCompare(b.createdAt),
-          )
-          .map((row) => (
-            <SidebarCardRow
-              key={row.id}
-              icon="id-card"
-              title={row.name}
-              meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
-                count: conversations(row).length,
-              })}`}
-              chips={
-                <>
-                  <Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>
-                  {row.platform === 'weixin' ? (
-                    <span className="bh-bridge-secondary" role="status">
-                      {t(
-                        !row.typing?.supported
-                          ? 'identity.typing.unavailable'
-                          : !row.typingEnabled
-                            ? 'identity.typing.off'
-                            : row.typing.phase === 'cleanup-unconfirmed'
-                              ? 'identity.typing.cleanup'
-                              : row.typing.phase === 'unavailable'
-                                ? 'identity.typing.refused'
-                                : row.typing.phase === 'accepted'
-                                  ? 'identity.typing.accepted'
-                                  : row.typing.phase === 'requesting'
-                                    ? 'identity.typing.requesting'
-                                    : 'identity.typing.ready',
-                      )}
-                    </span>
-                  ) : null}
-                </>
-              }
-              muted={!row.enabled}
-              hint={t('identity.editFor', { name: row.name })}
-              dialog
-              disabled={busy}
-              onClick={() => open('edit', row)}
-              trailing={
-                <Switch
-                  label={t('identity.enableFor', { name: row.name })}
-                  checked={row.enabled}
-                  disabled={busy}
-                  onChange={(enabled) =>
-                    void operate(() =>
-                      mutate({
-                        kind: 'update',
-                        id: row.id,
-                        expectedRevision: row.revision,
-                        name: row.name,
-                        enabled,
-                      }),
-                    )
-                  }
-                />
-              }
-            />
-          ))}
-        <SidebarCardRow
-          anchor="lark-bind"
-          icon="plus"
-          title={t('identity.bind')}
-          meta={
-            !snapshot ? t('im.loading') : identities.length ? undefined : t('identity.emptyShort')
-          }
-          muted
-          dialog
-          disabled={busy || !snapshot}
-          onClick={() => open('bind')}
-        />
-      </SidebarCardList>
+      {bindDialog ? null : (
+        <SidebarCardList label={t('identity.title')}>
+          {[...identities]
+            .sort(
+              (a, b) =>
+                platform(a.platform).localeCompare(platform(b.platform)) ||
+                a.createdAt.localeCompare(b.createdAt),
+            )
+            .map((row) => (
+              <SidebarCardRow
+                key={row.id}
+                icon="id-card"
+                title={row.name}
+                meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
+                  count: conversations(row).length,
+                })}`}
+                chips={
+                  <>
+                    <Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>
+                    {row.platform === 'weixin' ? (
+                      <span className="bh-bridge-secondary" role="status">
+                        {t(
+                          !row.typing?.supported
+                            ? 'identity.typing.unavailable'
+                            : !row.typingEnabled
+                              ? 'identity.typing.off'
+                              : row.typing.phase === 'cleanup-unconfirmed'
+                                ? 'identity.typing.cleanup'
+                                : row.typing.phase === 'unavailable'
+                                  ? 'identity.typing.refused'
+                                  : row.typing.phase === 'accepted'
+                                    ? 'identity.typing.accepted'
+                                    : row.typing.phase === 'requesting'
+                                      ? 'identity.typing.requesting'
+                                      : 'identity.typing.ready',
+                        )}
+                      </span>
+                    ) : null}
+                  </>
+                }
+                muted={!row.enabled}
+                hint={t('identity.editFor', { name: row.name })}
+                dialog
+                disabled={busy}
+                onClick={() => open('edit', row)}
+                trailing={
+                  <Switch
+                    label={t('identity.enableFor', { name: row.name })}
+                    checked={row.enabled}
+                    disabled={busy}
+                    onChange={(enabled) =>
+                      void operate(() =>
+                        mutate({
+                          kind: 'update',
+                          id: row.id,
+                          expectedRevision: row.revision,
+                          name: row.name,
+                          enabled,
+                        }),
+                      )
+                    }
+                  />
+                }
+              />
+            ))}
+          <SidebarCardRow
+            anchor="lark-bind"
+            icon="plus"
+            title={t('identity.bind')}
+            meta={
+              !snapshot ? t('im.loading') : identities.length ? undefined : t('identity.emptyShort')
+            }
+            muted
+            dialog
+            disabled={busy || !snapshot}
+            onClick={() => open('bind')}
+          />
+        </SidebarCardList>
+      )}
       <Modal
         className="bh-sidebar-modal"
         open={mode !== undefined}
@@ -252,7 +328,7 @@ export function ExternalIdentityList({
               </>
             ) : mode === 'bound' ? null : (
               <Button variant="outline" disabled={busy} onClick={close}>
-                {t('common.cancel')}
+                {bindDialog?.dismissLabel ?? t('common.cancel')}
               </Button>
             )}
             {mode === 'bound' ? (
@@ -265,7 +341,12 @@ export function ExternalIdentityList({
                 className={mode === 'unbind' ? 'bh-im-danger' : undefined}
                 disabled={
                   busy ||
-                  (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
+                  (mode === 'bind' &&
+                    (refreshing ||
+                      !selectedAccount ||
+                      !selectedAccount.connected ||
+                      !!selectedAccount.boundBotSlug ||
+                      !!selectedAccount.unsupported)) ||
                   (mode === 'edit' && !name.trim())
                 }
                 onClick={() => void operate(save, mode !== 'bind')}
@@ -287,6 +368,7 @@ export function ExternalIdentityList({
         }
       >
         <div className="bh-sidebar-modal-form">
+          {bindDialog ? <p className="bh-note">{bindDialog.description}</p> : null}
           {error ? (
             <p role="alert" className="bh-error">
               {error}
@@ -305,68 +387,94 @@ export function ExternalIdentityList({
                       rel="noopener noreferrer"
                     >
                       {t(`identity.tutorial.${guide}`)}
+                      <IconRightUpOutlineRegular size={14} />
                     </a>
                   ))}
                 </div>
               </nav>
-              <label className="bh-im-field">
-                <span>{t('identity.app')}</span>
-                <Combobox
-                  label={t('identity.app')}
-                  toggleLabel={t('identity.app')}
-                  placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
-                  emptyLabel={t('identity.noApps')}
-                  disabled={busy}
-                  value={accountKey}
-                  onSelect={setAccountKey}
-                  options={accounts
-                    .filter(
-                      (account) =>
-                        !identities.some(
-                          (i) =>
-                            i.providerId === account.providerId && i.accountRef === account.ref,
-                        ),
-                    )
-                    .sort(
-                      (a, b) =>
-                        Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
-                          Number(b.boundBotSlug !== undefined || !b.connected || !!b.unsupported) ||
-                        platform(a.platform).localeCompare(platform(b.platform)) ||
-                        a.name.localeCompare(b.name),
-                    )
-                    .map((account) => ({
-                      value: account.providerId + ':' + account.ref,
-                      label: account.name,
-                      hint: account.unsupported
-                        ? t('identity.appUnsupported', { platform: platform(account.platform) })
-                        : account.boundBotSlug === undefined
-                          ? account.connected
-                            ? platform(account.platform)
-                            : t('identity.appOffline', { platform: platform(account.platform) })
-                          : t('identity.appUsedBy', {
-                              platform: platform(account.platform),
-                              name: botName(account.boundBotSlug),
-                            }),
-                      disabled:
-                        !account.connected ||
-                        account.boundBotSlug !== undefined ||
-                        !!account.unsupported,
-                    }))}
-                />
-              </label>
-              <div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    setMode(undefined);
-                    openImSettings(document, () => undefined);
-                  }}
-                >
-                  {t('identity.manageApps')}
-                </Button>
+              <div className="bh-im-field">
+                <div className="bh-im-app-heading">
+                  <span>{t('identity.app')}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy || refreshing}
+                    onClick={openAppSettings}
+                  >
+                    <IconPlusOutlineRegular size={16} />
+                    {t('identity.manageApps')}
+                  </Button>
+                </div>
+                <div className="bh-im-app-picker">
+                  <Combobox
+                    label={t('identity.app')}
+                    toggleLabel={t('identity.app')}
+                    placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
+                    emptyLabel={t('identity.noApps')}
+                    disabled={busy}
+                    value={accountKey}
+                    onSelect={setAccountKey}
+                    action={{
+                      label: t('identity.manageApps'),
+                      onSelect: openAppSettings,
+                      disabled: busy || refreshing,
+                    }}
+                    options={accounts
+                      .filter(
+                        (account) =>
+                          !identities.some(
+                            (i) =>
+                              i.providerId === account.providerId && i.accountRef === account.ref,
+                          ),
+                      )
+                      .sort(
+                        (a, b) =>
+                          Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
+                            Number(
+                              b.boundBotSlug !== undefined || !b.connected || !!b.unsupported,
+                            ) ||
+                          platform(a.platform).localeCompare(platform(b.platform)) ||
+                          a.name.localeCompare(b.name),
+                      )
+                      .map((account) => ({
+                        value: account.providerId + ':' + account.ref,
+                        label: account.name,
+                        hint:
+                          account.boundBotSlug !== undefined
+                            ? t('identity.appUsedBy', {
+                                platform: platform(account.platform),
+                                name: botName(account.boundBotSlug),
+                              })
+                            : account.unsupported
+                              ? t('identity.appUnsupported', {
+                                  platform: platform(account.platform),
+                                })
+                              : account.connected
+                                ? platform(account.platform)
+                                : t('identity.appOffline', {
+                                    platform: platform(account.platform),
+                                  }),
+                        disabled:
+                          !account.connected ||
+                          account.boundBotSlug !== undefined ||
+                          !!account.unsupported,
+                      }))}
+                  />
+                  <Tooltip label={t('identity.refreshApps')} portal side="bottom" delayMs={250}>
+                    <button
+                      type="button"
+                      className="bh-icon-btn bh-im-app-refresh"
+                      aria-label={t('identity.refreshApps')}
+                      aria-busy={refreshing}
+                      disabled={busy || refreshing}
+                      onClick={() => void refreshApps()}
+                    >
+                      <IconRefreshOutlineRegular size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
+              {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
             </>
           ) : mode === 'bound' && selectedAccount ? (
             <>
@@ -470,12 +578,28 @@ export function ExternalIdentityList({
               {mode === 'edit' && selected.platform === 'weixin' ? (
                 <div className="bh-im-field">
                   <span>{t('identity.typing.label')}</span>
-                  <Switch
-                    label={t('identity.typing.label')}
-                    checked={typingEnabled}
+                  <Combobox
+                    searchable={false}
+                    label={t('defaults.typingOrigin')}
+                    toggleLabel={t('defaults.typingOrigin')}
+                    value={inheritTyping ? 'inherit' : 'custom'}
                     disabled={busy}
-                    onChange={setTypingEnabled}
+                    onSelect={(value) => setInheritTyping(value === 'inherit')}
+                    options={[
+                      { value: 'inherit', label: t('defaults.inherited') },
+                      { value: 'custom', label: t('defaults.custom') },
+                    ]}
                   />
+                  {inheritTyping ? (
+                    <span className="bh-bridge-secondary">{t('defaults.typingInheritHint')}</span>
+                  ) : (
+                    <Switch
+                      label={t('identity.typing.label')}
+                      checked={typingEnabled}
+                      disabled={busy}
+                      onChange={setTypingEnabled}
+                    />
+                  )}
                   <span className="bh-bridge-secondary">{t('identity.typing.hint')}</span>
                   {!selected.typing?.supported ? (
                     <span className="bh-bridge-secondary">{t('identity.typing.unavailable')}</span>
