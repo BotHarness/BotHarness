@@ -95,6 +95,10 @@ export class OnboardingController {
       else sessionStorage.removeItem(key);
     } catch {}
   }
+  markSubmitted(channelId: string, body: string): void {
+    if (this.state.pending?.channelId === channelId && this.state.pending.body === body)
+      this.savePending(undefined);
+  }
   pauseGuide(): void {
     this.update({ guideOpen: false });
     if (this.state.receipt?.tutorial === 'active' && !this.state.receipt.completed)
@@ -107,7 +111,11 @@ export class OnboardingController {
       return true;
     }
     if (!this.state.receipt || this.state.receipt.completed) return true;
-    return this.inspectSend(channelId, slug, body);
+    return this.inspectSend(channelId, slug, body).catch((error: unknown) => {
+      this.savePending({ channelId, slug, body });
+      this.update({ error: errorMessage(error) });
+      return false;
+    });
   }
   private async inspectSend(channelId: string, slug: string, body: string): Promise<boolean> {
     const [{ models, default: fallback }, state] = await Promise.all([

@@ -2012,6 +2012,7 @@ export function createActions(
       if (snapshot.conversation.channel?.id !== channel.id || snapshot.conversation.sending)
         return false;
       const localId = nextLocalEchoId();
+      onboardingFor(actions).markSubmitted(channel.id, text);
       clientStore.setConversation({
         sending: true,
         error: undefined,

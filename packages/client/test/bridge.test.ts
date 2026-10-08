@@ -20,6 +20,7 @@ import {
   type BridgeCall,
 } from '../src/client/bridge.js';
 import { createStore } from '../src/client/store.js';
+import { onboardingFor } from '../src/client/onboarding.js';
 
 type Handler = (payload: Record<string, unknown>) => unknown;
 
@@ -1496,6 +1497,47 @@ describe('bridge actions', () => {
     expect(committed?.id).toBe(local.id);
     expect(committed?.pending).toBeUndefined();
     expect(committed?.failed).toBeUndefined();
+  });
+
+  it('hands a confirmed onboarding draft to its original message when the accepted response is lost', async () => {
+    const accepted: Array<{ id: string; at: string; author: { kind: 'human' }; body: string }> = [];
+    const { clientStore, actions } = setup({
+      onboardingModel: () => ({}),
+      channelSend: (payload) => {
+        accepted.push({
+          id: String(payload['messageId']),
+          at: BOT.createdAt,
+          author: { kind: 'human' },
+          body: String(payload['body']),
+        });
+        throw new Error('response lost');
+      },
+      channelTimeline: () => ({
+        revision: accepted.length,
+        page: {
+          entries: accepted,
+          olderCursor: null,
+          newerCursor: null,
+          hasOlder: false,
+          hasNewer: false,
+        },
+      }),
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const controller = onboardingFor(actions);
+    controller.chooseModel('dm-ada', 'ada', 'Only one question');
+    await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+    expect(clientStore.getSnapshot().conversation.messages).toEqual([
+      expect.objectContaining({ id: accepted[0]!.id, failed: 'response lost' }),
+    ]);
+    expect(controller.getSnapshot().pending).toBeUndefined();
+    await actions.refreshChannelMessages('dm-ada');
+    controller.reviewPending();
+    await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+    expect(accepted).toHaveLength(1);
+    expect(clientStore.getSnapshot().conversation.messages).toEqual([accepted[0]]);
+    expect(controller.getSnapshot().modelOpen).toBe(false);
   });
 
   it('generates a Host-valid UUID fallback when Web Crypto is unavailable', async () => {

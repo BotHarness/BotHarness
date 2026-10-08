@@ -157,3 +157,23 @@ it('shares active tutorial progress without reopening highlights in another clie
   expect(controller.getSnapshot().guideOpen).toBe(false);
   expect(actions.onboarding).toHaveBeenLastCalledWith(undefined, 'pause');
 });
+
+it('retains an unsent question and surfaces a failed readiness lookup without submitting', async () => {
+  const { actions, controller } = harness();
+  await controller.enter();
+  actions.modelCatalog.mockRejectedValueOnce(new Error('catalog unavailable'));
+  await expect(controller.prepareSend('dm-ada', 'ada', 'Keep this question')).resolves.toBe(false);
+  expect(controller.getSnapshot()).toMatchObject({
+    error: 'catalog unavailable',
+    pending: { body: 'Keep this question' },
+  });
+  expect(actions.send).not.toHaveBeenCalled();
+});
+it('keeps a confirmed draft when sending stops before allocating a message', async () => {
+  const { actions, controller } = harness();
+  await controller.enter();
+  controller.chooseModel('dm-ada', 'ada', 'Keep this question');
+  actions.send.mockResolvedValueOnce(false);
+  await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+  expect(controller.getSnapshot().pending?.body).toBe('Keep this question');
+});

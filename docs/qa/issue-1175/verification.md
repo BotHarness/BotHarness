@@ -17,11 +17,12 @@ The integrated generation-69 Host was also started with a new isolated Profile. 
 
 ## Automated checks
 
-- After integration with main, final Client suite: **943 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
+- After integration with main, final Client suite: **946 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
 - Before integration with main, related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output. After integration, the combined run including Content Purge was **37 passed, 5 failed**: four onboarding timeouts and one Content Purge filesystem `fsync` EPERM. The isolated final core rerun then passed **23/23** with one worker and a 60-second per-test limit; this does not make the default-limit combined run green.
+- The final recovery regression commits a Human message before losing the transport response, refreshes canonical history and tries to continue the old draft: only the original message remains. Draft ownership transfers to the normal message chain when its message ID is allocated. A send stopped before allocation preserves the draft; a failed readiness lookup preserves text and displays an error.
 - Typecheck, lint (existing warnings), format check, build, bilingual release-ledger checks, ADR uniqueness and `git diff --check` passed.
 - The earlier complete Windows run was **2653 passed, 549 failed, 29 pending**. It included read-only filesystem/SQLite cleanup EPERM failures and resource/time-limit failures as well as regressions subsequently repaired and rerun above. It is not a passing full-suite result, and was not repeated after the last corrections.
-- A baseline spot-check at `895153357ba11c1729a8f9df2c3e5093401ab968` produced **16 passed, 13 failed** in `bridge-rpc`, `channel-model-read`, `dev-model` and browser `container-driver`. This establishes representative pre-existing Windows failures, not that every failure in the full run is pre-existing. Linux CI must still verify the full repository.
+- A baseline spot-check at `895153357ba11c1729a8f9df2c3e5093401ab968` produced **16 passed, 13 failed** in `bridge-rpc`, `channel-model-read`, `dev-model` and browser `container-driver`. This establishes representative pre-existing Windows failures, not that every failure in the full run is pre-existing. Linux full-repository CI passed at `14d8feed` ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37758142165)); the PR checks track the subsequent recovery correction.
 
 ## Visual evidence
 
