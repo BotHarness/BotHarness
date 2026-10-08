@@ -424,10 +424,20 @@ it('creates and binds a Lark app in the current dialog without sending credentia
   const { ProviderAppSetup } = await import('../src/client/provider-app-setup.js');
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const providerCalls: string[] = [];
+  let releaseStart!: () => void;
+  const startGate = new Promise<void>((resolve) => {
+    releaseStart = resolve;
+  });
   const client = new ProviderAppSetup({
     async call(_channel, endpoint, input) {
       providerCalls.push(endpoint);
       const method = (input as { method: string }).method;
+      if (method === 'setup.start') await startGate;
+      if (method === 'setup.credentials')
+        expect((input as { payload: unknown }).payload).toMatchObject({
+          appId: 'cli_created',
+          appSecret: 'private-ui-sentinel',
+        });
       return {
         ok: true,
         value: {
@@ -506,6 +516,10 @@ it('creates and binds a Lark app in the current dialog without sending credentia
         .find((button) => button.textContent === '创建并绑定')!
         .click(),
     );
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="App ID"]')?.disabled).toBe(
+      true,
+    );
+    await act(async () => releaseStart());
     expect(providerCalls).toEqual(['dsh-im/app-setup', 'dsh-im/app-setup']);
     expect(mutate).toHaveBeenCalledWith({
       kind: 'bind',

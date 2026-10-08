@@ -106,3 +106,45 @@ it('cancels verification without waiting for the pending credential request to f
   }
   expect(client.current('ada')?.state).toBe('cancelled');
 });
+
+it('allows a fresh setup after a closed dialog expires instead of trapping it on the old handle', async () => {
+  let expired = false;
+  let starts = 0;
+  const descriptor = {
+    providerId: 'dsh-im/feishu',
+    version: 1 as const,
+    platform: 'feishu' as const,
+    kind: 'credentials' as const,
+    endpoint: 'dsh-im/app-setup' as const,
+  };
+  const client = new ProviderAppSetup({
+    async call(_channel, _endpoint, payload) {
+      const method = (payload as { method: string }).method;
+      if (method === 'setup.start') {
+        starts++;
+        expired = false;
+      }
+      if (expired)
+        return {
+          ok: false,
+          error: { code: 'setup-expired', message: 'setup-expired', details: {} },
+        };
+      return {
+        ok: true,
+        value: {
+          version: 1,
+          channel: 'feishu',
+          attemptId: 'setup-' + starts,
+          state: 'credentials',
+          expiresAt: Date.now() + 60000,
+        },
+      };
+    },
+  });
+  await client.start('ada', descriptor);
+  expired = true;
+  await expect(client.poll('ada')).rejects.toThrow();
+  expect(client.current('ada')).toBeUndefined();
+  await client.start('ada', descriptor);
+  expect(client.current('ada')?.attemptId).toBe('setup-2');
+});

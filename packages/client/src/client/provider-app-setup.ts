@@ -123,6 +123,14 @@ export class ProviderAppSetup {
         session.attempt = attempt;
         return this.current(scope)!;
       })
+      .catch((error: unknown) => {
+        if (error instanceof Error && 'code' in error && error.code === 'setup-expired') {
+          if (session.attempt.state === 'ready' && method === 'setup.poll')
+            return this.current(scope)!;
+          this.#sessions.delete(scope);
+        }
+        throw error;
+      })
       .finally(() => this.#pending.delete(scope));
     this.#pending.set(scope, promise);
     return promise;
@@ -133,7 +141,10 @@ export class ProviderAppSetup {
     payload: Record<string, unknown>,
   ): Promise<AppSetupAttempt> {
     const result = await this.rpc.call('/api', descriptor.endpoint, { method, payload });
-    if (!result.ok) throw failure();
+    if (!result.ok)
+      throw Object.assign(failure(), {
+        code: result.error.code === 'setup-expired' ? 'setup-expired' : 'setup-failed',
+      });
     const raw = record(result.value);
     if (
       !raw ||

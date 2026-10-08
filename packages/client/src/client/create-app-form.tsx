@@ -45,7 +45,10 @@ export function CreateAppForm({
           if (active.current) setAttempt(value);
         })
         .catch(() => {
-          if (active.current) setError(true);
+          if (active.current) {
+            setError(true);
+            if (!client.current(botSlug)) setAttempt(undefined);
+          }
         })
         .finally(() => {
           if (active.current) setBusy(false);
@@ -57,6 +60,7 @@ export function CreateAppForm({
   }, []);
   const create = async () => {
     if (busy) return;
+    const data = new FormData(form.current!);
     const epoch = ++requestEpoch.current;
     setBusy(true);
     setError(false);
@@ -65,7 +69,6 @@ export function CreateAppForm({
       if (!descriptor) throw new Error('setup-unavailable');
       let value = client.current(botSlug) ?? (await client.start(botSlug, descriptor));
       if (value.state === 'credentials') {
-        const data = new FormData(form.current!);
         value = await client.credentials(botSlug, {
           appId: String(data.get('appId') ?? '').trim(),
           appSecret: String(data.get('appSecret') ?? '').trim(),
@@ -167,7 +170,10 @@ export function CreateAppForm({
                 }
               })
               .catch(() => {
-                if (active.current) setError(true);
+                if (active.current) {
+                  setError(true);
+                  if (!client.current(botSlug)) setAttempt(undefined);
+                }
               })
               .finally(() => {
                 if (active.current) setBusy(false);
