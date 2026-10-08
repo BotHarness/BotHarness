@@ -48,7 +48,7 @@ Capture exception: no comparable base-revision completed-replay screenshot was r
 - Final focused controller/model-card rerun: **23/23**.
 - Related Host suites (onboarding, credential readiness, model credential health): **9/9**, one worker with 60-second test timeout.
 - Full build, typecheck, lint, formatting, bilingual Release Ledger and whitespace checks pass. Lint retains existing warnings.
-- The merged base passed [full Linux CI](https://github.com/BotHarness/DeepSeekBot/actions/runs/37774779801); the new PR gets its own required checks. This does not relabel prior Windows full-repository limitations as passing.
+- After syncing main `52d68d66`, the full Client suite passed **976/976**, 135 files, and all required local checks/build passed again; a cold restart of the same existing-Bot Profile retained the real reply/completion, stayed quiet on entry and reopened the guide only after explicit Restart; see the PR for its new CI result. The merged onboarding base passed [full Linux CI](https://github.com/BotHarness/DeepSeekBot/actions/runs/37774779801); the new PR gets its own required checks. This does not relabel prior Windows full-repository limitations as passing.
 
 ## Runtime limitations retained
 
