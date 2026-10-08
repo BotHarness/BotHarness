@@ -2,6 +2,7 @@ import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboa
 import type { BridgeActions } from './actions.js';
 import { errorMessage, type ModelRouteView } from './bridge.js';
 import { store } from './store.js';
+import { invalidateModelPlan } from './model-plan-store.js';
 import type { WindowCompanions } from './window-companions.js';
 
 export interface PendingWelcomeRequest {
@@ -54,11 +55,12 @@ export class OnboardingController {
     try {
       const receipt = await this.actions.onboarding(slug, action);
       const first = this.state.receipt === undefined;
+      const justCompleted = receipt.completed && !this.state.receipt?.completed;
       this.update({
         receipt,
         error: undefined,
         guideOpen:
-          receipt.completed || receipt.tutorial !== 'active'
+          justCompleted || receipt.tutorial !== 'active'
             ? false
             : action === 'start' || action === 'continue' || action === 'restart'
               ? true
@@ -106,9 +108,9 @@ export class OnboardingController {
       this.savePending(undefined);
   }
   pauseGuide(): void {
+    const wasOpen = this.state.guideOpen;
     this.update({ guideOpen: false });
-    if (this.state.receipt?.tutorial === 'active' && !this.state.receipt.completed)
-      void this.refresh(undefined, 'pause');
+    if (wasOpen && this.state.receipt?.tutorial === 'active') void this.refresh(undefined, 'pause');
   }
   prepareSend(channelId: string, slug: string, body: string): boolean | Promise<boolean> {
     this.pauseGuide();
@@ -191,6 +193,7 @@ export class OnboardingController {
     this.update({ busy: true, error: undefined });
     try {
       await this.actions.onboardingModel(target.slug, expectedRevision, route, globalDefault);
+      invalidateModelPlan(target.slug);
       this.update({
         modelOpen: false,
         modelTarget: undefined,

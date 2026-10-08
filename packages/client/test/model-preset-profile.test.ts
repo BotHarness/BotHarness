@@ -94,6 +94,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
 import type { BridgeActions } from '../src/client/actions.js';
 import type { ModelPlanView, ModelPresetView } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
+import { invalidateModelPlan, modelPlanOf } from '../src/client/model-plan-store.js';
+import { OnboardingController } from '../src/client/onboarding.js';
 import { ModelPresetProfile } from '../src/client/model-preset-profile.js';
 import { OnboardingModelDialog, OnboardingWelcome } from '../src/client/onboarding-view.js';
 
@@ -583,4 +585,42 @@ it('offers news, daily-summary and timed-test requests through the normal welcom
     expect(send).toHaveBeenLastCalledWith(prompt);
   }
   expect(send).toHaveBeenCalledTimes(4);
+});
+
+it('refreshes the already-open Bot model card after onboarding saves a fixed model or returns to inheritance', async () => {
+  let state: { revision: number; plan?: ModelPlanView } = { revision: 0 };
+  const route = { provider: 'deepseek', model: 'flash' };
+  const actions = {
+    modelPlanState: vi.fn(async () => state),
+    onboardingModel: vi.fn(
+      async (_slug: string, _revision: number, _route: typeof route, globalDefault: boolean) => {
+        state = globalDefault
+          ? { revision: state.revision + 1 }
+          : {
+              revision: state.revision + 1,
+              plan: {
+                revision: state.revision + 1,
+                sourcePresetId: '',
+                sourcePresetName: '',
+                orchestrator: route,
+                assignmentDefault: route,
+                appliedAt: '',
+              },
+            };
+      },
+    ),
+  } as unknown as BridgeActions;
+  invalidateModelPlan('ada');
+  const host = await render(actions);
+  expect(cards(host)).toContain('Inherit global');
+  const controller = new OnboardingController(actions);
+  controller.chooseModel('dm-ada', 'ada');
+  await act(async () => controller.saveModel(route, false, 0));
+  expect(cards(host)).toContain('flash');
+  expect(cards(host)).not.toContain('Inherit global');
+  expect(modelPlanOf('ada')?.orchestrator).toEqual(route);
+  controller.chooseModel('dm-ada', 'ada');
+  await act(async () => controller.saveModel(route, true, 1));
+  expect(cards(host)).toContain('Inherit global');
+  expect(modelPlanOf('ada')).toBeNull();
 });

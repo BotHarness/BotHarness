@@ -16,6 +16,26 @@
 | 单个 Bot 的工作目录与任务权限        | 右侧「工作区授权」。                                     |
 | 当前 DSH Session 的模型和权限        | 右侧「会话」打开目标 Session，在该会话的原生控件中查看。 |
 
+## 完整环境备份与恢复
+
+进入 **Bot 设置 → 完整环境备份与恢复 → 管理备份**。点击「预览导出」查看历史身份总数、受管文件数、估算大小与未迁移的底层 Session 数量；「下载已验证备份」生成一个 `.botharness-backup`，完成后显示实际压缩大小。
+
+备份包含完整 BotHarness 数据库、自定义位置及已删除身份保留的 Memory 仓库、当前引用附件与身份绑定、仍可达的旧 CAS、模型预设与各 Bot 的独立计划、运行依赖、哈希和真实内容清除检查点。保留数据缺失会使导出失败，主动清除的 Memory 单独标记。文件含敏感聊天、来源内容、账号描述、授权／触发设置及 Outbox／审计历史，请私密保存。
+
+凭证、可执行插件、Workspace 文件和底层 DSH Session 正文不进入备份；Session 历史归属保留为不可用引用。源机器 Git 配置替换为安全默认值，hooks 在恢复时隔离。这是整个 Profile 的备份，与单个 Bot 的 Profile 详情及生成新身份的 Zip／Git 分享不同。
+
+选择备份文件可检查清单、数据库完整性、数量、实际大小和 SHA-256；哈希证明完整性，不证明来源。用可信安装包提供的本地命令，将文件恢复到一个尚不存在的新目录：
+
+```text
+botharness-profile restore --file "environment.botharness-backup" --new-home "new-environment"
+```
+
+源码 checkout 可使用 `node scripts/profile-restore.mjs` 加相同参数。恢复完成时环境仍停止；用可信的 DSH **0.2.0-rc.1** 和匹配的 BotHarness Bundle 启动该 DSH_HOME。开发环境可运行 `node scripts/dev-instance.mjs --home <新目录> --port <端口>`，由固定原生 CLI 创建 Profile 组合，不加载备份里的可执行配置。运行中的 Settings 不提供任意目标目录写入，也不替换自身数据；已有目录会被拒绝，暂存数据库使用既有 Profile Writer Lease 校验和迁移后才发布。
+
+恢复默认进入灾难恢复状态：Bot 暂停，账号绑定、外部触发器、Service Grants、持久工具授权和定时任务挂起；Workspace 需要重新映射，Browser／Computer 访问关闭，旧 Session／Inbox／Outbox 不重放。冷状态仍能读取聊天历史和 Memory。在 DSH 模型设置配置目标本地凭证，并在 Bot Profile 保存明确的模型计划；回到管理备份刷新准备度，点击「授权此目标模型」，确认已考虑旧设备仍运行的同身份双活风险，再「激活此 Bot」。发送新的 DM，保留身份并使用新的 Orchestrator Session。模型不可用或计划修订变化会阻止新请求，不静默回退；外部账号需要另行明确授权。
+
+恢复在开放 Messaging 前应用包中的真实清除检查点；离线旧文件无法知道导出后接受的清除。当前解包限制为 512 MiB／60,000 项。空间不足、文件变动、捕获超时或输出文件已存在会拒绝导出；关闭／取消会在发布前中止，下载丢失后应重新预览导出。支持的向前迁移只发生在暂存区；较新且不支持的 Schema、损坏文件、不安全路径／链接或引用闭包缺失会拒绝恢复，不留下已提交目标。计划迁移及替换已有环境留待后续。
+
 ## DSH 通用设置
 
 这些是 DSH 的原生设置。下表的初始值来自本页的干净 RC1 Profile；已有 Profile 可能保留自己的选择。选择器和开关直接保存，名称等带保存按钮的字段需点击保存。

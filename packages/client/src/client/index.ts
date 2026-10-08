@@ -24,6 +24,7 @@ import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
 import { TelemetrySettings } from './telemetry-settings.js';
 import { GitSettings } from './git-settings.js';
+import { ProfileBackupSettings } from './profile-backup.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { ReleaseNotesController } from './release-notes.js';
 import { ReleaseSettings } from './release-notes-view.js';
@@ -442,6 +443,12 @@ export function apply(ctx: ClientContext): void {
           inject: () => ({ call }),
         },
         GitSettings,
+      ),
+    );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        { name: 'botharness.settings.item', id: 'profile-backup', order: 35, locale: LOCALE_NS },
+        ProfileBackupSettings,
       ),
     );
     settingsCtx.slots.inject('settings.section', () =>

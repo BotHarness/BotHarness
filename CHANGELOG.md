@@ -9,11 +9,17 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Breaking Changes
 
+- Profile recovery adds schema Generation 72; repair forward after upgrade. A restored environment preserves identity and history while requiring explicit target-local model authorization and fresh activation; it never resumes old Sessions or Outbox work ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)).
+
 - Content Purge adds Profile schema Generation 70 and a required independent Purge Ledger; retain that ledger when restoring operational snapshots and repair forward after upgrade. Checkpoint v2 includes managed-file selectors and imports existing v1 text checkpoints; accepted purges cannot be undone by rolling back code or the operational database ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
 - Bot onboarding adds Profile schema Generation 71. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
+
+- After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
+
+- Bot settings can export and inspect one verified complete `.botharness-backup`, including retained custom/deleted Memory, current attachments, model templates and independent plans, and the canonical purge checkpoint; the installed local command restores only into a new stopped environment ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)).
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 
@@ -84,6 +90,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - The event activity and Memory commit heatmaps in the Bot Profile now fill the card's width, newest week on the right, and load older weeks as you scroll left, back to the day the Bot was created; the popover versions fill the popover without scrolling. The per-reason event list moved into each day's tooltip ([#1089](https://github.com/BotHarness/BotHarness/issues/1089)).
 
 ### Fixed
+
+- Bot onboarding no longer pauses another window's tutorial when an observing window leaves or sets a model; completed onboarding can be explicitly replayed, and saving a Bot-specific model or restoring inheritance immediately refreshes the open model card ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).
 
 - **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
 

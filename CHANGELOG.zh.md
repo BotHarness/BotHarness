@@ -9,11 +9,17 @@
 
 ### Breaking Changes
 
+- 环境恢复新增 Schema Generation 72；升级后应向前修复。恢复环境保留身份和历史，但需要明确授权目标本地模型并激活新会话；旧 Session 和 Outbox 工作不会重放（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
+
 - 内容清除新增 Profile schema Generation 70 与必须保留的独立 Purge Ledger；恢复运行数据库快照时须保留该账本，升级后应向前修复。v2 检查点包含托管文件选择器并兼容导入 v1 纯文本检查点；回退代码或运行数据库不能撤销已接受的清除事实（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
 - Bot 引导增加 Profile schema Generation 71。升级前请备份；升级后的 Profile 需使用兼容版本，或从升级前备份恢复（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
 - PersonaBot 删除引入 Profile schema Generation 66；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
 ### Added
+
+- Bot 模式首次真实回复后，欢迎消息提供可选的记忆体验：查看现有记忆文件与实际变更，或将自由填写的偏好作为普通私聊请求发送；跳过不打扰，也不会把初始模板或回复当作保存成功的证据（[#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)）。
+
+- Bot 设置可导出、检查一个完整且已验证的 `.botharness-backup`，包含自定义及已删除身份保留的 Memory、当前附件、模型模板与独立计划，以及真实清除检查点；安装包提供的本地命令仅恢复至新的停止环境（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
 
 - 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
 
@@ -84,6 +90,8 @@
 - Bot 资料页的事件活跃和 Memory 提交热力图现在铺满卡片宽度，最新一周在最右边，向左滚动会加载更早的周，一直到 Bot 创建那天；小窗里的热力图铺满小窗，不需要滚动。按来源分的事件列表移到了每天的悬停提示里（[#1089](https://github.com/BotHarness/BotHarness/issues/1089)）。
 
 ### Fixed
+
+- Bot 引导不会再因旁观窗口退出或设置模型而暂停其他窗口的教程；完成后仍可主动重播，单独保存 Bot 模型或恢复继承后，已打开的模型卡片立即刷新（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
 
 - **绑定应用** 保留其他 Bot 已绑定的应用并明确标注归属，教程链接增加跳转箭头，应用标题行和各种下拉状态始终提供 **添加新应用** 入口；从 IM 设置返回后恢复弹窗并自动刷新，选择框右侧提供带提示的刷新图标以便重试（[#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 
