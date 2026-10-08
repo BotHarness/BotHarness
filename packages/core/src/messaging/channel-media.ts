@@ -26,7 +26,14 @@ function authority(db: DatabaseSync, input: MediaRequest, active: (slug: string)
     .get(input.channelId, input.sourceEventId) as { payload_json: string } | undefined;
   const source = row && (JSON.parse(row.payload_json) as { external?: ExternalSource }).external;
   const attachment = source?.event.attachments?.find((item) => item.id === input.attachmentId);
-  if (!source || !attachment || !attachment.mediaType?.startsWith('image/'))
+  if (
+    !source ||
+    !attachment ||
+    !(
+      attachment.mediaType?.startsWith('image/') ||
+      (source.platform === 'qq' && attachment.mediaType === 'application/octet-stream')
+    )
+  )
     throw new MessagingError('source-unavailable');
   const rows = db
     .prepare(`SELECT g.body, p.route_id FROM messaging_source_paths p
@@ -227,7 +234,10 @@ export function createChannelMediaAccess(options: {
         await downloaded.body.cancel();
         throw new ChannelAttachmentError('Attachment exceeds limit', 'too-large');
       }
-      if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(downloaded.ref.mime)) {
+      if (
+        initial.attachment.mediaType?.startsWith('image/') &&
+        !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(downloaded.ref.mime)
+      ) {
         await downloaded.body.cancel();
         throw new MessagingError('media-format-unsupported');
       }
@@ -266,7 +276,11 @@ export function createChannelMediaAccess(options: {
           log('cancelled');
         },
       });
-      return { ref: downloaded.ref, body };
+      return {
+        ref: downloaded.ref,
+        body,
+        inline: initial.attachment.mediaType?.startsWith('image/') === true,
+      };
     } catch (error) {
       cleanup();
       controller.abort(error);

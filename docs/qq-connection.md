@@ -52,6 +52,18 @@ Choose the result type before replying: text and image share one durable reply i
 
 Image results use the receiving app and original group. Upload is separate from the single final message send, with authorization checked again after upload. A native message receipt records provider acceptance; unknown results are not automatically resent. Real QQ/model/Client image qualification is tracked on #1157 and is not implied by this candidate contract.
 
+## Process group files (development candidate)
+
+The [#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) candidate negotiates ordinary files separately from images. A native group @mention can carry a direct file or a qualifying explicit file quote. If QQ sends files separately, reply to the file, select @Bot in that reply and add the processing request. The current native type-103 quote must contain one actual file block with consistent reference indices and matching group/message/author identity; adjacency alone does not establish source association. The quoted file belongs to this current mention Source and its reply authority, without reconstructing a historical message. Real QQ qualification on 2026-10-08 accepted this quoted-file path. A scalar `message_type:103` on the file block is metadata; recursive quote structure remains unsupported. Tencent's native `file` category becomes opaque `application/octet-stream` metadata; it is not a platform MIME claim.
+
+A synced Channel shows the existing file card with **Download to this device**. Each request checks current Channel membership, source placement, receiving identity and conversation authority. The original file is acquired lazily into the canonical AttachmentStore, bounded to 25 MiB and served as a download. Inbox-only reception uses the same source without requiring Channel placement.
+
+To process a file, the Bot saves an independent copy with `bridge_attachment_save` into a currently write-authorized Workspace Grant, edits that copy, imports the selected output with `channel_attachment_import`, then sends it using `bridge_reply_file`. The stored original remains unchanged. Choose file output before sending text because each Bot/source has one durable reply intent; put a separate explanation in the local DM.
+
+Native file output uploads with `file_type=4` without sending, then rechecks current authority before one original-group message POST. Its native receipt records provider acceptance; an unknown outcome is not retried. Audio/video-native output is outside this file slice.
+
+**Qualified test application:** on 2026-10-08, the maintained Provider `6d24d1f` on DSH `0.2.0-rc.1` and one authorized QQ application received a quoted CSV, acquired it from the native download host, saved and read an independent working copy, and returned a distinct `total.csv` through its own identity in the original group. The Human downloaded the result and confirmed `total_quantity` followed by `5`; the stored original remained unchanged. This qualifies that application and quoted-file path, not every QQ application, direct-file carrier or the modern upstream Host runtime. Verify permissions with each target application; SDK support alone does not establish them. Private tickets are process-local and cannot be reconstructed after restart.
+
 ## Understand the text path
 
 | Behavior        | Current contract                                                |

@@ -9,6 +9,8 @@
 
 ### Added
 
+- 新增 QQ 群文件候选路径，提供直接或显式原生引用文件关联、受授权的 Channel 下载、独立工作副本处理及受检原群结果文件回复；一个已授权应用已通过真实引用 CSV 处理及 Human 结果下载验收（[#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158)、[指南](docs/qq-connection.md)）。
+
 - QQ 图片候选复用获授权的 Channel 预览及原生模型读图工具，使用接收应用回传选定图片结果并保存原生回执；实际 QQ／模型资格另行记录（[#1157](https://github.com/BotHarness/BotHarness/issues/1157)，[QQ 指南](docs/qq-connection.md)）。
 
 - 共享群 Channel 中的 QQ 来源在作者标签和来源详情展示接收应用，群 Profile 活动也保留独立应用归属；指南说明双应用显式映射及自身身份回复边界（[#1156](https://github.com/BotHarness/BotHarness/issues/1156)，[QQ 指南](docs/qq-connection.md)）。

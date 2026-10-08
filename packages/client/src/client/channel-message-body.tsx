@@ -1,3 +1,4 @@
+import { BridgeFile } from './bridge-file.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
 import { MessageAttachment } from './message-attachment.js';
@@ -668,9 +669,19 @@ export function ChannelMessageBody({
   }
   if (message.bridgeMedia && message.bridgeOrigin && channelId) {
     const media = message.bridgeMedia;
-    const renderImage = (id: string, index: number) => {
-      const item = media.items.find((image) => image.id === id);
-      return item ? (
+    const renderMedia = (id: string, index: number) => {
+      const item = media.items.find((item) => item.id === id);
+      return item?.kind === 'file' ? (
+        <BridgeFile
+          key={index}
+          channelId={channelId}
+          sourceEventId={message.bridgeOrigin!.sourceEventId}
+          attachmentId={id}
+          name={item.name}
+          sizeBytes={item.sizeBytes}
+          t={t}
+        />
+      ) : item ? (
         <BridgeImage
           key={index}
           channelId={channelId}
@@ -694,7 +705,7 @@ export function ChannelMessageBody({
                 />
               </span>
             ) : (
-              renderImage(part.id, index)
+              renderMedia(part.id, index)
             ),
           )
         ) : (
@@ -708,7 +719,7 @@ export function ChannelMessageBody({
                 />
               </div>
             ) : null}
-            {media.items.map((image, index) => renderImage(image.id, index))}
+            {media.items.map((item, index) => renderMedia(item.id, index))}
           </>
         )}
       </div>
