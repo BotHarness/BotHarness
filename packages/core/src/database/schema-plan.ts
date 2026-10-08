@@ -1807,6 +1807,7 @@ const COMPLETE_CONTENT_PURGE_MIGRATION: SchemaMigration = {
         file_id TEXT NOT NULL, role TEXT NOT NULL,
         PRIMARY KEY (source_event_id, file_id)
       );
+      CREATE INDEX memory_accepted_commits_source ON memory_accepted_commits(cause_kind, cause_id);
       DROP TRIGGER messaging_purge_source_update;
       CREATE TRIGGER messaging_purge_source_update BEFORE UPDATE ON source_events
         WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE

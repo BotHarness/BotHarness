@@ -225,6 +225,36 @@ export function ChannelHistory({
               </div>
             ) : null}
             <div className="bh-channel-history-toolbar">
+              <span>{t('purge.derivativeReport', { count: preview.derivatives.length })}</span>
+              <MessagingHelp
+                title={t('purge.derivativeDetails')}
+                text={
+                  preview.derivatives
+                    .map((item) =>
+                      [
+                        item.kind,
+                        item.botSlug,
+                        t(
+                          item.tracking === 'recorded'
+                            ? 'purge.derivative.recorded'
+                            : item.tracking === 'possible'
+                              ? 'purge.derivative.possible'
+                              : 'purge.derivative.unavailable',
+                        ),
+                        item.location,
+                        item.reference,
+                      ]
+                        .filter(Boolean)
+                        .join(' · '),
+                    )
+                    .join('\n') +
+                  '\n\n' +
+                  t('purge.derivatives')
+                }
+                t={t}
+              />
+            </div>
+            <div className="bh-channel-history-toolbar">
               <p>{t('purge.irreversible')}</p>
               <MessagingHelp title={t('purge.boundaries')} text={boundaries} t={t} />
             </div>

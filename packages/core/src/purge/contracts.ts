@@ -75,6 +75,13 @@ export interface PurgePreview {
   admissions: { botSlug: string; state: string }[];
   files: { identity: string; name: string; disposition: 'remove' | 'shared' }[];
   effects: { id: string; kind: 'outbox' | 'assignment' | 'causal-source'; state: string }[];
+  derivatives: {
+    kind: 'memory' | 'workspace';
+    botSlug: string;
+    location: string;
+    reference?: string;
+    tracking: 'recorded' | 'possible' | 'unavailable';
+  }[];
 }
 
 export interface ContentPurge {

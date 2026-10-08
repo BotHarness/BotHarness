@@ -42,6 +42,10 @@ export function mountContentPurge(options: {
   restoreCheckpoint?: unknown;
   restoring?: boolean;
   attachments?: AttachmentStore;
+  derivatives?(
+    sourceEventIds: readonly string[],
+    botSlugs: readonly string[],
+  ): PurgePreview['derivatives'];
   now?: () => Date;
   faultInjector?: (
     stage: 'after-acceptance' | 'during-application' | 'during-file-cleanup',
@@ -340,12 +344,15 @@ export function mountContentPurge(options: {
           dependencies.push(entry);
         }
       }
+      const derivatives =
+        options.derivatives?.(selected, [...new Set(admissions.map((a) => a.botSlug))]) ?? [];
       return {
         rows,
         placements,
         admissions,
         files: [...files.values()],
         effects,
+        derivatives,
         fingerprint: createHash('sha256')
           .update(
             JSON.stringify([
@@ -353,6 +360,7 @@ export function mountContentPurge(options: {
               rows,
               dependencies,
               [...files.values()],
+              derivatives,
               ledger!.checkpoint(),
             ]),
           )
@@ -454,6 +462,7 @@ export function mountContentPurge(options: {
           admissions: result.admissions,
           files: result.files,
           effects: result.effects,
+          derivatives: result.derivatives,
         };
       }),
     confirm: (channelId, ids, token) =>

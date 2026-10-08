@@ -28,10 +28,13 @@ const home = resolve(
       mode === 'before' ? 'qa-base' : 'qa-completion',
     ),
 );
-const out = resolve(repo, '.humanlayer/tasks/897-complete-purge/evidence');
+const out = resolve(
+  process.env.BH_PURGE_QA_OUTPUT ?? resolve(repo, '.humanlayer/tasks/897-complete-purge/evidence'),
+);
 const sceneFile = resolve(out, 'scene.json');
 mkdirSync(out, { recursive: true });
 assert.ok(home.includes('897-complete-purge'), 'Use this task-owned disposable Profile only');
+assert.ok(out.includes('897-complete-purge'), 'Keep evidence inside this task directory');
 const url = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}-${port}.log`), 'utf8').match(
   /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9._-]+/u,
 )?.[0];
@@ -126,6 +129,10 @@ const select = async (body) => {
   }, body);
 };
 const send = async (body, name) => {
+  await page.waitForFunction(() => {
+    const input = document.querySelector('.bh-composer-input');
+    return input && !input.disabled && input.getAttribute('aria-disabled') !== 'true';
+  });
   if (name) {
     await page.evaluate((name) => {
       const input = document.querySelector('input.bh-composer-file-input');

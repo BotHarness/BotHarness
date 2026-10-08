@@ -519,7 +519,7 @@ Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位�
 
 ### Channel 内容清除运行路径（#897）
 
-Generation 69 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API Gateway 提供已结束 Group 的只读历史、所选 Source Event 预览和单独确认；不注册模型 Tool。已结束 Group 的身份保持占用，同名新群聊不覆盖旧历史。本地和外部来源可以共享到仍活跃的会话，但全部位置在对应 revision 上均须仍在 Human 当前可读范围内。普通删除只结束所选 Channel 的路由／摄入，保留其他 Channel／Inbox 目标及外部会话。[ADR-0146](../adr/0146-content-purge-retains-file-selectors-and-settles-issued-effects.md) 记录文件、效果与恢复边界。
+Generation 69 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API Gateway 提供已结束 Group 的只读历史、所选 Source Event 预览和单独确认；不注册模型 Tool。已结束 Group 的身份保持占用，同名新群聊不覆盖旧历史。本地和外部来源可以共享到仍活跃的会话，但全部位置在对应 revision 上均须仍在 Human 当前可读范围内。普通删除只结束所选 Channel 的路由／摄入，保留其他 Channel／Inbox 目标及外部会话。[ADR-0146](../adr/0146-content-purge-retains-file-selectors-and-settles-issued-effects.md) 记录文件、效果与恢复边界。 Memory 通过自己的查询和 retained／deleted 仓库定位提供已记录的来源衍生提交；Workspace Grant 提供可能的副本位置。这些引用参与确认前重验证，不写入清除账本，也不声称扫描过未追踪的文件或导出。
 
 独立 `botharness/purge/ledger.db` 由同一 Host 生命周期拥有，SQLite FULL 同步事务先接受无正文的事件身份、作者／时间／因果、Human 审计及托管文件选择器，再移除运行正文；该文件不属于 `botharness.db` 快照。最小墓碑及 placement 保留，secure-delete 后截断 WAL；应用失败关闭运行数据库进入 recovery，启动先应用事实再创建 Messaging Consumers。Attachment owner 重查全部保留来源、迁移／获取绑定和 Outbox 引用后，仅移除已审阅的独占当前文件和 legacy CAS；共享文件保留，受阻清理可见且重启继续。待投递意图脱敏并取消，已发出请求在活跃 Host 中按真实证据结算，冷中断保持结果未知。持久栅栏和原生 Tool Guard 拒绝重复回填、旧命令与新的内容依赖效果。
 

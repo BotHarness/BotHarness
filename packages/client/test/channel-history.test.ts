@@ -51,6 +51,7 @@ async function fixture() {
       admissions: [],
       files: [],
       effects: [],
+      derivatives: [],
     })),
     channelPurgeConfirm: vi.fn(async () => {
       throw new Error('Scope changed; review again');

@@ -375,6 +375,28 @@ export function createCore(
     dshHome,
     database: operationalDatabase,
     attachments,
+    derivatives: (ids, botSlugs) => {
+      const references = memory.sourceReferences(ids);
+      const slugs = [...new Set([...botSlugs, ...references.map((ref) => ref.botSlug)])].sort();
+      return [
+        ...references.map((ref) => ({
+          kind: 'memory' as const,
+          botSlug: ref.botSlug,
+          location: ref.memoryDir ?? '',
+          reference: ref.sha,
+          tracking: ref.available ? ('recorded' as const) : ('unavailable' as const),
+        })),
+        ...slugs.flatMap((slug) =>
+          grants.list(slug).map((grant) => ({
+            kind: 'workspace' as const,
+            botSlug: slug,
+            location: grant.workspacePath,
+            reference: grant.id,
+            tracking: 'possible' as const,
+          })),
+        ),
+      ];
+    },
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   let runtime: BotRuntime | undefined;

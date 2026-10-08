@@ -27,11 +27,16 @@ export const zh = {
   'purge.fileRemove': '独占，清除',
   'purge.cleanupPending': '正文已清除，{count} 个附件待清理；重启后继续。',
   'purge.effects': '{count} 项投递或衍生记录',
+  'purge.derivativeReport': '衍生副本 · {count} 项已知引用',
+  'purge.derivativeDetails': 'Memory、Workspace 与导出副本',
+  'purge.derivative.recorded': '已记录的衍生提交，保留',
+  'purge.derivative.possible': '可能有副本的位置，未扫描',
+  'purge.derivative.unavailable': '历史引用，仓库不可用',
   'purge.effectsTitle': '投递与衍生记录',
   'purge.effectsHint':
     '未发出的内容依赖投递会取消；已发出请求按实际结果结算，无法确定时保留结果未知。已有 Assignment、其他来源正文和 DSH Session 副本保留，旧来源不能启动新效果。',
   'purge.derivatives':
-    '不会扫描或修改用户管理的 Memory、Workspace 和导出文件；其中可能留有衍生副本。',
+    '仅报告已记录的 Memory 衍生提交和可能的 Workspace 位置；未追踪的文件与导出可能仍保留内容。不会扫描或修改这些副本。',
   'purge.disclosure':
     'DSH Session 的提示与结果、外部提供方副本、Git 远程和人工离线备份可能仍保留内容，本操作不能召回。',
   'purge.offline': '旧独立备份只能执行其自身携带的清除检查点；本入口不提供完整 Profile 备份恢复。',
@@ -2236,11 +2241,16 @@ export const en = {
   'purge.fileRemove': 'Exclusive, removed',
   'purge.cleanupPending': 'Bodies cleared; {count} attachments await cleanup on restart.',
   'purge.effects': '{count} delivery or derivative records',
+  'purge.derivativeReport': 'Derived copies · {count} known references',
+  'purge.derivativeDetails': 'Memory, Workspace and export copies',
+  'purge.derivative.recorded': 'Recorded derived commit, retained',
+  'purge.derivative.possible': 'Possible copy location, not scanned',
+  'purge.derivative.unavailable': 'Historical reference, repository unavailable',
   'purge.effectsTitle': 'Deliveries and derivatives',
   'purge.effectsHint':
     'Pending content-dependent deliveries are cancelled. Issued requests settle with actual evidence or remain unknown. Existing Assignments, other Source Event bodies and DSH Session copies survive; stale sources cannot start new effects.',
   'purge.derivatives':
-    'Human-managed Memory, Workspace and export files are not scanned or modified; derivative copies may survive there.',
+    'Only recorded source-derived Memory commits and possible Workspace locations are reported. Untracked files and exports may retain copies; these copies are not scanned or modified.',
   'purge.disclosure':
     'DSH Session prompts/results, external provider copies, Git remotes and Human-managed offline backups may retain content and cannot be recalled by this operation.',
   'purge.offline':

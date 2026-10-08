@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -13,6 +14,8 @@ import { createAttachmentStore } from '../src/attachments/store.js';
 import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { mountContentPurge } from '../src/purge/owner.js';
 import { requireSourceContent } from '../src/purge/fence.js';
+import { createCore } from '../src/plugin.js';
+import { createPersonaBotDeletions } from '../src/bots/deletion.js';
 
 const owners: OperationalDatabaseOwner[] = [];
 afterEach(() => {
@@ -212,4 +215,94 @@ it('previews a live shared placement and invalidates consent when its references
   expect(() =>
     core.port.read((db) => requireSourceContent(db, core.source.sourceEventId)),
   ).toThrow();
+});
+
+it('reports a recorded Memory derivative through a deleted identity locator and retains its actual Git bytes', async () => {
+  const home = createTempRoot('purge-memory-reference-');
+  const core = createCore({ dshHome: home });
+  try {
+    expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const root = core.registry.memoryDirFor('ada')!;
+    const channel = core.channels.createGroup({ name: 'Derived Memory QA', members: [] });
+    await core.channels.appendMessage(channel.id, {
+      id: 'remember-message',
+      at: '2026-10-08T00:00:00.000Z',
+      author: { kind: 'human' },
+      body: 'synthetic source body',
+    });
+    const port = attachOperationalModule(core.operationalDatabase, 'memory-test');
+    const id = port.read((db) =>
+      String(
+        db
+          .prepare('SELECT source_event_id FROM source_events WHERE message_id = ?')
+          .get('remember-message')!.source_event_id,
+      ),
+    );
+    port.transaction((db) =>
+      db
+        .prepare(
+          "INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, attempt_state) VALUES (?, 'ada', 'group-mention', 'running')",
+        )
+        .run(id),
+    );
+    core.ownership.claim({
+      sessionId: 'memory-reference-turn',
+      botSlug: 'ada',
+      rootRole: 'orchestrator',
+      at: '2026-10-08T00:00:00.000Z',
+    });
+    core.memory.prepareTurn('ada', 'memory-reference-turn');
+    const path = join(root, 'derived.md');
+    writeFileSync(path, 'synthetic retained Memory derivative');
+    execFileSync('git', ['add', '.'], { cwd: root, windowsHide: true });
+    execFileSync('git', ['commit', '-m', 'Synthetic derived memory'], {
+      cwd: root,
+      windowsHide: true,
+    });
+    const [commit] = core.memory.reconcileTurn({
+      botSlug: 'ada',
+      sessionId: 'memory-reference-turn',
+      sourceEventId: id,
+    });
+    expect(commit).toBeDefined();
+    core.channels.deleteGroup(channel.id);
+    const deletion = createPersonaBotDeletions({
+      database: core.operationalDatabase,
+      registry: core.registry,
+      dependencies: () => ({
+        sessions: [],
+        workspaces: [],
+        grants: [],
+        identities: [],
+        channels: [],
+      }),
+      allWorkspacePaths: () => [],
+      stop: async () => {},
+    });
+    const deleting = deletion.preview('ada');
+    await deletion.confirm('ada', deleting.token, false);
+    expect(core.registry.get('ada')).toBeUndefined();
+    const preview = core.contentPurge.preview(channel.id, [id]);
+    expect(preview.derivatives).toContainEqual({
+      kind: 'memory',
+      botSlug: 'ada',
+      location: root,
+      reference: commit!.sha,
+      tracking: 'recorded',
+    });
+    core.contentPurge.confirm(channel.id, preview.sourceEventIds, preview.token);
+    expect(readFileSync(path, 'utf8')).toBe('synthetic retained Memory derivative');
+    expect(
+      execFileSync('git', ['show', commit!.sha + ':derived.md'], {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true,
+      }),
+    ).toBe('synthetic retained Memory derivative');
+    expect(JSON.stringify(core.contentPurge.checkpoint())).not.toContain(root);
+  } finally {
+    await core.runtime.close();
+    core.externalMessaging.close();
+    core.operationalDatabase.close();
+  }
 });
