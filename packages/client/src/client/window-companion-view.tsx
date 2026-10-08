@@ -595,6 +595,7 @@ export function WindowCompanionView({
             state={state}
             activity={activity?.activity}
             surface="companion"
+            mouth={view.mouth}
             indicator={false}
             still={bot.paused}
             t={t}

@@ -9,6 +9,7 @@ import {
   type AvatarRecipe,
   type PixelCell,
   type PixelSymbol,
+  type PixelMouthState,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { morphPixels, pixelPathMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
 import type { Sampled } from 'morphicons';
@@ -20,6 +21,7 @@ import {
   type LineMorphRun,
 } from './line-morph.js';
 import { useMountedResource } from './mounted-resource.js';
+import { AvatarSpeech } from './avatar-speech.js';
 import type { PersonaBotActivityEffect, PersonaBotActivityState } from './avatar.js';
 
 type Step = readonly [number, number];
@@ -149,19 +151,27 @@ export function IllustratedAvatar({
   symbol,
   surface = 'portrait',
   still = false,
+  mouth = 'saved',
 }: {
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
   symbol?: PixelSymbol | undefined;
+  mouth?: PixelMouthState | undefined;
   surface?: 'portrait' | 'companion' | undefined;
   still?: boolean | undefined;
 }): ReactElement {
+  const speech = surface === 'companion' && recipe.family === 'illustrated';
   const turning = !still && state === 'thinking' && size > 64;
   const markup = useMemo(
-    () => avatarSvg(recipe, { surface, ...(turning ? { turns: AVATAR_TURNS } : {}) }),
-    [recipe, turning, surface],
+    () =>
+      avatarSvg(recipe, {
+        surface,
+        mouthLayers: speech,
+        ...(turning ? { turns: AVATAR_TURNS } : {}),
+      }),
+    [recipe, turning, surface, speech],
   );
   const line = useRef<LineShown>({ velocity: 0, since: 0 });
   const pixel = useRef<PixelShown>({ since: 0 });
@@ -468,10 +478,13 @@ export function IllustratedAvatar({
     [state, effect, size, markup, recipe, symbol, still],
   );
   return (
-    <span
-      ref={mount}
-      className="bh-avatar-media bh-avatar-media-composed"
-      dangerouslySetInnerHTML={{ __html: markup }}
-    />
+    <>
+      <span
+        ref={mount}
+        className="bh-avatar-media bh-avatar-media-composed"
+        dangerouslySetInnerHTML={{ __html: markup }}
+      />
+      {speech && <AvatarSpeech markup={markup} mouth={mouth} still={still} />}
+    </>
   );
 }

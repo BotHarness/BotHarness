@@ -37,7 +37,14 @@ it('renders the same pixel recipe as a transparent companion while retaining the
       root.render(createElement(PersonaBotAvatar, { ...props, surface: 'companion' })),
     );
     expect(node.querySelector('svg > rect[width="32"]')).toBeNull();
-    expect(node.querySelector('.bh-illustrated-head')!.innerHTML).toBe(head);
+    const restored = node.querySelector('.bh-illustrated-head')!.cloneNode(true);
+    if (!(restored instanceof Element)) throw new Error('Missing companion head');
+    for (const layer of restored.querySelectorAll('[data-avatar-mouth]')) {
+      if (layer.getAttribute('data-avatar-mouth') === 'saved')
+        layer.replaceWith(...layer.childNodes);
+      else layer.remove();
+    }
+    expect(restored.innerHTML).toBe(head);
     expect(node.querySelector('[data-surface="companion"]')).not.toBeNull();
   } finally {
     await act(() => root.unmount());
