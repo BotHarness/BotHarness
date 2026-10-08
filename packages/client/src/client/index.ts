@@ -1,3 +1,4 @@
+import { DefaultModelSettings } from './onboarding-view.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
@@ -179,6 +180,7 @@ export function apply(ctx: ClientContext): void {
       companion.dispose();
     };
   }, 'botharness: independent Window Companion owner');
+  const prefs = new BotModePrefs(storage);
   ctx.slots.inject('shell.overlay', () =>
     ctx.slots.register(
       {
@@ -187,6 +189,7 @@ export function apply(ctx: ClientContext): void {
         locale: LOCALE_NS,
         inject: () => ({
           companion,
+          prefs,
           actions,
           openDm: (botId: string) => {
             ctx.layout.selectPanel(PANEL_ID);
@@ -206,7 +209,6 @@ export function apply(ctx: ClientContext): void {
       WindowCompanionsView,
     ),
   );
-  const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
     openBotSettings(() => [t('settings.nav')]);
@@ -364,6 +366,18 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.item',
+          id: 'default-model',
+          order: -5,
+          locale: LOCALE_NS,
+          inject: () => ({ actions }),
+        },
+        DefaultModelSettings,
+      ),
+    );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
           id: 'companions',
           order: 15,
           locale: LOCALE_NS,
@@ -493,6 +507,7 @@ export function apply(ctx: ClientContext): void {
           profileCards,
           nativeChatT,
           nativeSessions,
+          prefs,
           releaseNotes,
           telemetryNotice,
         }),
@@ -593,6 +608,7 @@ export function apply(ctx: ClientContext): void {
             profileCards,
             nativeChatT,
             nativeSessions,
+            prefs,
           }),
         },
         BotMain,

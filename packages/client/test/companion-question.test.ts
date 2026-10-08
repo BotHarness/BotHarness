@@ -10,6 +10,7 @@ import { zhTranslate } from '../src/client/locale.js';
 import type { BridgeCall } from '../src/client/bridge.js';
 import { UserQuestionCard } from '../src/client/user-question-card.js';
 import { companionRequests } from '../src/client/companion-requests.js';
+import { BotModePrefs } from '../src/client/bot-mode-prefs.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({ children, variant: _variant, ...props }: { children: ReactNode; variant?: string }) =>
@@ -59,12 +60,17 @@ const message: ChannelMessage = {
 };
 
 function input(node: Element, index: number, value: string): void {
-  const field = node.querySelectorAll('input')[index]!;
+  const field = node.querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')[index]!;
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value);
   field.dispatchEvent(new Event('input', { bubbles: true }));
 }
 function button(node: Element, text: string): HTMLButtonElement {
   return [...node.querySelectorAll<HTMLButtonElement>('button')].find((entry) =>
+    entry.textContent?.includes(text),
+  )!;
+}
+function choice(node: Element, text: string): HTMLLabelElement {
+  return [...node.querySelectorAll<HTMLLabelElement>('label.bh-card-main')].find((entry) =>
     entry.textContent?.includes(text),
   )!;
 }
@@ -78,6 +84,7 @@ it('keeps all question drafts through speech, reading, offline and current-state
   let revision = 0;
   let pending = true;
   const answers: unknown[] = [];
+  const prefs = new BotModePrefs();
   const call: BridgeCall = async (endpoint, payload) => {
     if (endpoint === 'userQuestionStatus')
       return { ok: true, value: { status: pending ? 'pending' : 'expired' } };
@@ -155,6 +162,7 @@ it('keeps all question drafts through speech, reading, offline and current-state
       root.render(
         createElement(WindowCompanionsView, {
           companion,
+          prefs,
           actions: createActions(call, store),
           t: zhTranslate,
           openDm() {},
@@ -163,7 +171,7 @@ it('keeps all question drafts through speech, reading, offline and current-state
         }),
       ),
     );
-    expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(2);
+    expect(node.querySelectorAll('.bh-companion-pending > ol > li')).toHaveLength(2);
     const card = () => node.querySelector('.bh-question-card')!;
     expect(card().textContent).toContain('Current branch');
     expect(card().textContent).toContain('Answer in your own words');
@@ -174,9 +182,16 @@ it('keeps all question drafts through speech, reading, offline and current-state
     await act(() => input(card(), 0, 'custom-branch'));
     expect(button(card(), 'main').getAttribute('aria-pressed')).toBe('false');
     await act(() => button(card(), 'history').click());
-    expect(card().querySelectorAll('input')[0]!.value).toBe('');
-    await act(() => button(card(), 'Read').click());
-    await act(() => button(card(), 'Summarize').click());
+    expect(card().querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')[0]!.value).toBe(
+      '',
+    );
+    await act(() => choice(card(), 'Read').click());
+    await act(() => choice(card(), 'Summarize').click());
+    expect(
+      [...card().querySelectorAll<HTMLInputElement>('input[type=checkbox]')].map(
+        (field) => field.checked,
+      ),
+    ).toEqual([true, true]);
     await act(() => input(card(), 1, 'also check status'));
     await act(() => input(card(), 2, 'Keep it short'));
     await act(() => {
@@ -196,9 +211,20 @@ it('keeps all question drafts through speech, reading, offline and current-state
       companion.get('ada')!.advance(30_000);
       snapshot();
     });
-    expect(card().querySelectorAll('input')[2]!.value).toBe('Keep it short');
+    expect(card().querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')[2]!.value).toBe(
+      'Keep it short',
+    );
+    expect(card().querySelector('.bh-question-source')).toBeNull();
+    await act(() => prefs.setDeveloperMode(true));
+    expect(card().querySelector('.bh-question-source code')?.textContent).toBe('owned-session');
+    expect(card().textContent).toContain('Memory');
+    await act(() => prefs.setDeveloperMode(false));
+    expect(card().querySelector('.bh-question-source')).toBeNull();
+    expect(card().querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')[2]!.value).toBe(
+      'Keep it short',
+    );
     expect(companion.get('ada')!.getSnapshot().cards[0]?.shown).toBe(0);
-    expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(2);
+    expect(node.querySelectorAll('.bh-companion-pending > ol > li')).toHaveLength(2);
     await act(() => events.dispatchEvent(new Event('error')));
     expect(button(card(), '回答并继续').disabled).toBe(true);
     await act(async () => {
@@ -211,7 +237,9 @@ it('keeps all question drafts through speech, reading, offline and current-state
       await Promise.resolve();
       snapshot();
     });
-    expect(card().querySelectorAll('input')[2]!.value).toBe('Keep it short');
+    expect(card().querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')[2]!.value).toBe(
+      'Keep it short',
+    );
     const submit = button(card(), '回答并继续');
     submit.focus();
     await act(async () => {
@@ -293,7 +321,7 @@ it.each(['native', 'wrong-target', 'offline', 'expired', 'unmounted'] as const)(
         ),
       );
       await act(() => button(node, 'history').click());
-      await act(() => button(node, 'Read').click());
+      await act(() => choice(node, 'Read').click());
       await act(() => input(node, 2, 'QA'));
       await act(async () => button(node, '回答并继续').click());
       if (context === 'unmounted') {

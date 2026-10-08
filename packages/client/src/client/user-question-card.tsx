@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactElement } from 'react';
+import { useContext, useId, useRef, useState, type ReactElement } from 'react';
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 import { errorMessage } from './bridge.js';
 import type { BridgeActions } from './actions.js';
@@ -6,6 +6,8 @@ import type { BotHarnessTranslate } from './locale.js';
 import { store, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { CompanionRequestTarget } from './companion-requests.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { MessageDeveloperMode } from './message-developer-mode.js';
 
 export function UserQuestionCard({
   message,
@@ -20,6 +22,7 @@ export function UserQuestionCard({
   t: BotHarnessTranslate;
   companionTarget?: CompanionRequestTarget | undefined;
 }): ReactElement {
+  const developerMode = useContext(MessageDeveloperMode);
   const request = message.userQuestionRequest!;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
   const [status, setStatus] = useState<
@@ -142,38 +145,50 @@ export function UserQuestionCard({
   return (
     <div ref={questionMount} className="bh-question-card">
       <div className="bh-grant-request-title">{t('question.title')}</div>
-      <details className="bh-question-source">
-        <summary>{t('question.source')}</summary>
-        <code>{request.sessionId}</code>
-      </details>
+      {developerMode ? (
+        <details className="bh-question-source">
+          <summary>{t('question.source')}</summary>
+          <code>{request.sessionId}</code>
+        </details>
+      ) : null}
       {request.questions.map((question) => (
         <div className="bh-question-item" key={question.id}>
-          {question.header === undefined ? null : <div className="bh-note">{question.header}</div>}
+          {developerMode && question.header !== undefined ? (
+            <div className="bh-note">{question.header}</div>
+          ) : null}
           <div className="bh-question-prompt">{question.question}</div>
           {question.detail === undefined ? null : <div className="bh-note">{question.detail}</div>}
-          {question.options?.map((option) => (
-            <Button
-              key={option.label}
-              variant={(selected[question.id] ?? []).includes(option.label) ? 'primary' : 'outline'}
-              disabled={disabled}
-              aria-pressed={(selected[question.id] ?? []).includes(option.label)}
-              onClick={() => choose(question.id, option.label, question.multiSelect === true)}
-            >
-              <span className="bh-question-option">
-                <span>{option.label}</span>
-                {option.description === undefined ? null : <small>{option.description}</small>}
-              </span>
-            </Button>
-          ))}
-          <label className="bh-question-custom" htmlFor={inputId + '-' + question.id}>
-            {t('question.custom')}
-          </label>
+          {question.options?.length ? (
+            <SidebarCardList label={question.question} className="bh-message-card-list">
+              {question.options.map((option) => (
+                <SidebarCardRow
+                  key={option.label}
+                  title={option.label}
+                  meta={option.description}
+                  selection={{
+                    checked: (selected[question.id] ?? []).includes(option.label),
+                    multiple: question.multiSelect === true,
+                  }}
+                  disabled={disabled}
+                  onClick={() => choose(question.id, option.label, question.multiSelect === true)}
+                />
+              ))}
+            </SidebarCardList>
+          ) : null}
+          {question.options?.length ? null : (
+            <label className="bh-question-custom" htmlFor={inputId + '-' + question.id}>
+              {t('question.custom')}
+            </label>
+          )}
           <Input
             id={inputId + '-' + question.id}
+            aria-label={t('question.custom')}
             value={custom[question.id] ?? ''}
             disabled={disabled}
             maxLength={2000}
-            placeholder={t('question.customPlaceholder')}
+            placeholder={t(
+              question.options?.length ? 'question.otherPlaceholder' : 'question.customPlaceholder',
+            )}
             onChange={(event) => {
               const value = event.target.value;
               setCustom((current) => ({ ...current, [question.id]: value }));

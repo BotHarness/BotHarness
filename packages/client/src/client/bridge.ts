@@ -204,6 +204,7 @@ export async function loadModelPlan(
 }
 
 export interface ModelPlanStateView {
+  revision?: number;
   plan?: ModelPlanView;
   repair?: {
     code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
@@ -1009,6 +1010,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       role: failure['role'],
       sessionId: failure['sessionId'],
       detail: failure['detail'],
+      ...(typeof failure['requestMessageId'] === 'string'
+        ? { requestMessageId: failure['requestMessageId'] }
+        : {}),
       ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
       ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
@@ -1036,7 +1040,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       displayName: departure['displayName'],
       departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
-  } else if (author.kind === 'system') {
+  } else if (author.kind === 'system' && asRecord(record['onboardingWelcome'])?.['version'] !== 1) {
     return undefined;
   }
   let botDmAction: ChannelMessage['botDmAction'];
@@ -1317,6 +1321,12 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(asRecord(record['onboardingWelcome'])?.['version'] === 1 && author.kind === 'system'
+      ? { onboardingWelcome: { version: 1 as const } }
+      : {}),
+    ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
+      ? { contentPurged: true as const }
+      : {}),
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(mentions === undefined
       ? {}
@@ -1893,6 +1903,17 @@ export async function setBotAvatar(
   const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
+export async function updateBotProfile(
+  call: BridgeCall,
+  slug: string,
+  patch: { roles?: string[]; description?: string },
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'update', { slug, patch }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid update response');
   return bot;
 }
 
@@ -3428,6 +3449,7 @@ export async function loadMessagingDefaults(
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
     typeof value['identityEnabled'] !== 'boolean' ||
+    (platform === 'weixin' && typeof value['typingEnabled'] !== 'boolean') ||
     !['mentions', 'all'].includes(String(value['collection'])) ||
     !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
     !Number.isInteger(value['count']) ||

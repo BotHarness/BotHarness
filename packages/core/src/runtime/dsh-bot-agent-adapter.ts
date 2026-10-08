@@ -551,6 +551,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           : undefined,
       );
       if (borrowed) borrowedDisposers.push(disposeNativeSchedules);
+      const disposePurgeFence = agentCtx.tools.guard(() => {
+        try {
+          this.#runs.get(run.sessionId)?.run.requireContent?.();
+        } catch {
+          return 'Source Event content was purged or its authority is unavailable';
+        }
+        return undefined;
+      });
+      if (borrowed) borrowedDisposers.push(disposePurgeFence);
       const disposeRolePrompt = agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
         order: ROLE_PROMPT_ORDER,
@@ -2881,6 +2890,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }
         setSandboxMode(agent.session, run.permission.mode);
         setApprovalPolicy(agent.session, run.permission.approval);
+        const disposePurgeFence = agentCtx.tools.guard(() => {
+          try {
+            this.#runs.get(run.sessionId)?.run.requireContent?.();
+          } catch {
+            return 'Source Event content was purged or its authority is unavailable';
+          }
+          return undefined;
+        });
+        if (borrowed) borrowedDisposers.push(disposePurgeFence);
         this.#onAgentSetup?.(agentCtx, agent, {
           botSlug: run.bot.slug,
           rootRole: 'assignment',

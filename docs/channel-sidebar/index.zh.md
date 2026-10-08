@@ -28,9 +28,11 @@
 | [外部身份](/zh/docs/channel-sidebar/external-identities)   | 绑定这个 Bot 在 Lark / 飞书、Slack、微信的发言身份；IM 管理员配对与审批通知。 |
 | [外部连接器](/zh/docs/channel-sidebar/external-connectors) | 修改、暂停同步到 Channel 的会话；高级的保存发送目标。                         |
 
-| 本地群聊中的项目                                | 可以做什么                                     |
-| ----------------------------------------------- | ---------------------------------------------- |
-| [成员与群管理](/zh/docs/channel-sidebar/groups) | 查看成员、邀请 Bot、处理入群申请和编辑群信息。 |
+| 本地群聊中的项目                                           | 可以做什么                                        |
+| ---------------------------------------------------------- | ------------------------------------------------- |
+| [成员与群管理](/zh/docs/channel-sidebar/groups)            | 查看成员、邀请 Bot、处理入群申请和编辑群信息。    |
+| [唤醒策略](/zh/docs/channel-sidebar/wake-policy)           | 为每个成员 Bot 选择这个群里的普通消息如何唤醒它。 |
+| [外部连接器](/zh/docs/channel-sidebar/external-connectors) | 接入、编辑和暂停同步进这个群的外部会话。          |
 
 [显示与布局](/zh/docs/channel-sidebar/display)说明宽度、项目排序、隐藏和各功能的显示选项；其他非 IM 参数见[设置指南](/zh/docs/settings)。
 

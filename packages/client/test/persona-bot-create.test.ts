@@ -54,7 +54,7 @@ import {
 } from '../src/client/persona-bot-create.js';
 
 describe('PersonaBot creation form', () => {
-  it('asks for the Human-facing name, optional role badges, and an optional description', () => {
+  it('asks for the Human-facing name, optional tags, and an optional bio', () => {
     const markup = renderToStaticMarkup(
       createElement(CreatePersonaBotModal, {
         actions: { createBot: vi.fn() } as unknown as BridgeActions,
@@ -66,7 +66,7 @@ describe('PersonaBot creation form', () => {
     expect(markup).toContain('创建 PersonaBot');
     expect(markup).toContain('名称用于列表和 @；内部身份由系统生成');
     expect(markup).not.toContain('Git 仓库地址');
-    expect(markup).toContain('岗位 / 职位（可选）');
+    expect(markup).toContain('标签（可选）');
     expect(markup).toContain('简介（可选）');
     expect(markup).toContain('placeholder="例如：小研"');
     expect(markup).toContain('placeholder="例如：研究员"');
@@ -115,7 +115,7 @@ describe('PersonaBot creation form', () => {
 
   it('turns stable Host errors into actionable inline copy without exposing IDs', () => {
     expect(personaBotCreateError(new BridgeCallError('invalid-input', 'bad'))).toBe(
-      '请检查 Bot 名称、岗位或简介。',
+      '请检查 Bot 名称、标签或简介。',
     );
     expect(personaBotCreateError(new BridgeCallError('duplicate', 'exists'))).toBe(
       '系统未能分配唯一身份，请重试。',

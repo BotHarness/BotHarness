@@ -113,6 +113,10 @@ function stubActions(): BridgeActions {
     channelHistorySources: vi.fn(),
     channelPurgePreview: vi.fn(),
     channelPurgeConfirm: vi.fn(),
+    onboarding: vi.fn(),
+    onboardingModel: vi.fn(),
+    inheritModel: vi.fn(),
+    retryMessage: vi.fn(),
     deletionPreview: vi.fn(),
     deletionConfirm: vi.fn(),
     deletionRetry: vi.fn(),
@@ -291,6 +295,7 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    updateBotProfile: vi.fn(async () => true),
     setBotAppearance: vi.fn(async () => true),
     profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({

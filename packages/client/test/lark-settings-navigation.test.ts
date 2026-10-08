@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { openImSettings } from '../src/client/bot-settings-open.js';
+import { openExternalBindingSettings, openImSettings } from '../src/client/bot-settings-open.js';
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -55,3 +55,38 @@ it('cancels a pending settings transition and reports an unavailable control onc
   expect(unavailable).toHaveBeenCalledTimes(1);
   stop();
 });
+
+it.each([false, true])(
+  'watches QR settings returning once without forcing Feishu; cancelled=%s',
+  async (cancelled) => {
+    const trigger = document.createElement('button');
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const nav = document.createElement('button');
+    nav.textContent = 'IM机器人';
+    const wechat = document.createElement('button');
+    wechat.textContent = '微信';
+    const selected = vi.fn();
+    wechat.onclick = selected;
+    nav.onclick = () => dialog.append(wechat);
+    dialog.append(nav);
+    trigger.onclick = () => document.body.append(dialog);
+    document.body.append(trigger);
+    const returned = vi.fn();
+    const unavailable = vi.fn();
+    const stop = openExternalBindingSettings(document, returned, unavailable);
+    await Promise.resolve();
+    expect(dialog.isConnected).toBe(true);
+    expect(selected).not.toHaveBeenCalled();
+    if (cancelled) stop();
+    dialog.remove();
+    await Promise.resolve();
+    expect(returned).toHaveBeenCalledTimes(cancelled ? 0 : 1);
+    expect(unavailable).not.toHaveBeenCalled();
+    document.body.append(document.createElement('div'));
+    await Promise.resolve();
+    expect(returned).toHaveBeenCalledTimes(cancelled ? 0 : 1);
+    stop();
+  },
+);

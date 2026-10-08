@@ -47,6 +47,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
+import { BotModePrefs } from '../src/client/bot-mode-prefs.js';
 import { BotMain, committedMessageIds, resolvedGrantRequestIds } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
@@ -632,5 +633,76 @@ describe('Bot main Sessions pane', () => {
     const unavailable = render();
     expect(unavailable).toContain('bh-bubble-reply-unavailable');
     expect(unavailable).not.toContain('class="bh-bubble-reply"');
+  });
+});
+
+describe('Bot main question developer details', () => {
+  it('reacts to the shared Bot settings preference without remounting the question', async () => {
+    const previous = store.getSnapshot();
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-10-08T00:00:00.000Z',
+      updatedAt: '2026-10-08T00:00:00.000Z',
+    };
+    const message: ChannelMessage = {
+      id: 'developer-question',
+      at: channel.createdAt,
+      author: { kind: 'bot', slug: 'ada' },
+      body: '',
+      userQuestionRequest: {
+        sessionId: 'orchestrator-private',
+        questions: [
+          {
+            id: 'start',
+            header: 'Start',
+            question: 'Where should we start?',
+            options: [{ label: 'News' }],
+          },
+        ],
+      },
+    };
+    const actions = {
+      userQuestionStatus: vi.fn().mockResolvedValue('pending'),
+      markRead: vi.fn().mockResolvedValue(undefined),
+    } as unknown as BridgeActions;
+    const prefs = new BotModePrefs();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    store.select({ kind: 'channel', channelId: channel.id });
+    store.setConversation({ status: 'ready', channel, messages: [message] });
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    try {
+      await act(async () =>
+        root.render(
+          createElement(BotMain, {
+            prefs,
+            actions,
+            channelSidebar: createChannelSidebarRegistry(),
+          }),
+        ),
+      );
+      expect(node.querySelector('.bh-question-source')).toBeNull();
+      const choice = node.querySelector<HTMLButtonElement>('.bh-question-item button')!;
+      await act(async () => choice.click());
+      await act(async () => prefs.setDeveloperMode(true));
+      expect(node.querySelector('.bh-question-source code')?.textContent).toBe(
+        'orchestrator-private',
+      );
+      expect(choice.getAttribute('aria-pressed')).toBe('true');
+      await act(async () => prefs.setDeveloperMode(false));
+      expect(node.querySelector('.bh-question-source')).toBeNull();
+      expect(choice.getAttribute('aria-pressed')).toBe('true');
+      expect(actions.userQuestionStatus).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => root.unmount());
+      node.remove();
+      store.select(previous.selection);
+      store.setConversation(previous.conversation);
+    }
   });
 });

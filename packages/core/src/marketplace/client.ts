@@ -85,7 +85,8 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
   if (description !== null && typeof description !== 'string') return undefined;
   if (typeof stars !== 'number' || !Array.isArray(topics)) return undefined;
   const displayName = source['displayName'];
-  const roles = source['roles'];
+  const roles = Array.isArray(source['tags']) ? source['tags'] : source['roles'];
+  const bio = source['bio'];
   return {
     id: source['id'] as string,
     owner: source['owner'] as string,
@@ -95,7 +96,7 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
     roles: Array.isArray(roles)
       ? roles.filter((role): role is string => typeof role === 'string')
       : [],
-    description,
+    description: typeof bio === 'string' && bio.length > 0 ? bio : description,
     topics: topics.filter((topic): topic is string => typeof topic === 'string'),
     stars,
     pushedAt: source['pushedAt'] as string,
