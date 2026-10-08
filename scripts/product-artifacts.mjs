@@ -15,7 +15,7 @@ export const productImProvider = Object.freeze({
   upstream: Object.freeze({
     package: '@xmanrui/dsh-im',
     packageVersion: '4.32.0',
-    source: 'b4603eadcbc752b77396ecccdf05ee459dc63ba2',
+    source: 'bddd7d93e1c1b969ce137721c2494f6d72bfa8bc',
     dsh: '0.2.0-rc.1',
     runtimeFiles: 412,
     runtimeSha256: 'c2047738952dc155f95eb1b23cd56ba96bb7585a7e343e3916ee7da63b282548',

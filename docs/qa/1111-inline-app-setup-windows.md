@@ -176,3 +176,30 @@ connected. This check used the real packaged Host and Provider production wrappe
 but did not operate the Client UI or scan the QR. No QR contents or credentials
 were saved in the public proof. The candidate tab was retained for later review;
 its browser debugger remained unavailable in the final capture attempt.
+
+## Current-main integration and complete Provider regression
+
+Main `f1e6fc61` was integrated in `58a97aaf`. The only conflicts were the bilingual
+Unreleased Ledger entries; both feature entries are retained, and the `1.2.0`
+release and all older records remain byte-identical to incoming main. Shared
+locale/styles merged without changing setup behavior. TypeScript, lint, formatting,
+ledgers and 136 tests across seven focused files passed. Both incremental review
+axes found no actionable regression. The PR became mergeable and new verify/package
+runs 37837200319 / 37837200254 started on that exact commit; these are distinct from
+the previously green older runs.
+
+A clean Linux Provider checkout of `b4603ead` completed 3768 tests: 3766 passed and
+two existing composed-Host tests failed because their fixtures omitted the new
+`/app-setup` route. The tests now use a real management transport and assert the
+complete route set plus an actual setup RPC response; their original channel
+availability, one update-error and disposal assertions remain intact. No runtime
+source changed. Both review axes accepted the correction, and 75 Host regressions
+passed on Windows. The complete Linux run on `bddd7d93e1c1b969ce137721c2494f6d72bfa8bc`
+then passed **3768/3768**, zero skips, in 16.1 seconds (Node 24.21.0).
+
+The product pin now selects that test-corrected immutable Provider source. Its
+412-file runtime SHA-256 remains `c2047738952dc155f95eb1b23cd56ba96bb7585a7e343e3916ee7da63b282548`.
+The earlier `.5` packaged QR proof remains tied to product `1fd67ed7` / Provider
+`b4603ead`; the unchanged runtime digest does not turn that public-contract check
+into Client visual or native WeChat pairing qualification. Windows full-run failure
+logs above remain retained and are not replaced by the Linux results.
