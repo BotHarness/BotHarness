@@ -8,7 +8,7 @@ BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产
 
 Bot 模式首次体验（#1175，[ADR-0147](../adr/0147-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）由 application-defined Onboarding owner 在现有 operational database 的 Schema Generation 71 保存 Profile receipt；只有主动进入模式才准备身份。空 Profile 记录稳定 Bot ID 后通过 Registry/Memory owner 创建 DeepSeek Bot，保存官网固定 Appearance，并经 Channel owner 幂等创建真实 Human DM 与 system welcome。已有 Bot 可复用／选择；归档和删除不会自动恢复。真实 Human 请求与同一 DM 的 Bot 回复，由 Channel 提交事务保留可信 Session ownership／原请求 Source Event 关联，作为完成证据；欢迎卡、失败通知、发送接受、Memory 初始化均不算成功。教程开始／暂停／跳过与历史成功独立；刷新、重启和多 Client 重读 Host 事实，后台核对不改变当前 Channel。未发出的请求只留在当前 Client，恢复后须再次明确确认。窗口伙伴初始化一次并尊重后续本地移除等偏好。完成后的欢迎消息提供可选 Memory 入口（#1200）：Client 复用既有 Memory 查询、文件树及正常阅读／差异视图，自由偏好经原 Human DM 发送链路提交；不新增写入 authority 或完成条件，初始化模板和回复本身均不证明偏好已保存。可选绑定入口（#1203）直接复用 Sidebar 的 Bind app Modal、当前 PersonaBot 的 Messaging snapshot 与原绑定命令；平台目录、凭据设置、官网教程和实际接收状态仍由既有 owner 提供，暂时不绑定不改变完成事实，也不保存第二份绑定进度。
 
-欢迎消息提供能力介绍、今日新闻、每日摘要与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
+欢迎消息提供能力介绍、每日晚间问候与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。新闻选项由 Host 在 onboarding 查询中投影当前 native 搜索配置和所选 Bot preset 的 `web_search` 可见性，只返回就绪布尔值，不保存第二份配置或凭据。固定 RC1 的已知 DeepSeek 搜索 Provider 与其独立凭据已配置时提供带真实来源链接的今日 AI 新闻；未配置、无法确认或不支持的搜索组合显示通用工作规划示例。配置就绪不保证网络请求成功，实际搜索失败、空结果和不可用必须如实说明。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
 
 当前 Client UI 由独立 `@botharness/ui` Bundle 挂载，源码仍在 `packages/client`；RC2 的插件图把结尾 `/client` 解释为导出子路径，因此包身份依 [ADR-0066](../adr/0066-rc2-client-bundle-identity.md) 避开该后缀。Client HMR 只暂存当前 Bot/Channel 选择以恢复视图，不复制 Host 中的 PersonaBot、Channel 或消息权威。
 
@@ -46,6 +46,19 @@ Orchestrator 自己的原生审批或正式提问仍占有当前 Step；Admissio
 记录本次资格边界，不改变 ADR-0035 的单一 Orchestrator root 约束。
 [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 追踪缺失的受支持原生
 continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交付。
+
+后续[隔离 RC2 实验](../research/1220-native-timed-question-experiment.md) 验证原生 timed
+question 可先真实返回 pending，问题保持可回答；同一 Session 可回复无关消息，再通过
+带原 call 身份的 qualified Inbox 输入处理稍后答案。这是 Tool 已结束、问题仍持续的机制，
+不是挂起未结束调用。[DM 卡片适配](../research/1220-timed-question-card-e2e.md) 以原 Session／call
+关联卡片：只有 `ASK_TIMED_OUT` 结束前台等待，卡片仍查询原生 Projection；稍后答案通过
+原生 `userQuestions.answer` 提交，显示已提交，直到原生接收后才写入 Channel 回答记录。
+稍后提交进入既有 per-Bot Runtime 队列，为同一 live Session 建立新的 application run，保留
+原 Source Event 上下文并重验当前归属、DM 与源内容 fence；run 持续到原生 idle，让模型能使用
+既有 Channel 工具，不追加普通输入或 Inbox Admission。
+进程内映射仅关联已存在的 live Agent／卡片，不是第二个问题权威，也不实现冷恢复。
+生产依赖仍为 RC1，timed 模式仅在显式配置的隔离 RC2 Profile 验证。权限审批、容量释放／重获和同群隐私验收
+继续阻塞，不从这次 DM 能力实验推断完成。
 
 ## 1 · 系统上下文
 

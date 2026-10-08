@@ -142,6 +142,7 @@ export interface UserQuestionAnswerItem {
 }
 
 export interface UserQuestionRequestCard {
+  callId?: string;
   sessionId: string;
   questions: UserQuestionItem[];
 }

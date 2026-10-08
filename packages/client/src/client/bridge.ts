@@ -1001,6 +1001,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     if (parsed.some((item) => item === undefined)) return undefined;
     userQuestionRequest = {
       sessionId: request['sessionId'],
+      ...(typeof request['callId'] === 'string' ? { callId: request['callId'] } : {}),
       questions: parsed as NonNullable<ChannelMessage['userQuestionRequest']>['questions'],
     };
   }
@@ -2372,10 +2373,15 @@ export async function loadUserQuestionStatus(
   call: BridgeCall,
   channelId: string,
   messageId: string,
-): Promise<'pending' | 'expired'> {
+): Promise<'pending' | 'submitted' | 'answered' | 'expired'> {
   const response = asRecord(await unwrap(call, 'userQuestionStatus', { channelId, messageId }));
   const status = response?.['status'];
-  if (status !== 'pending' && status !== 'expired')
+  if (
+    status !== 'pending' &&
+    status !== 'submitted' &&
+    status !== 'answered' &&
+    status !== 'expired'
+  )
     throw new Error('invalid userQuestionStatus response');
   return status;
 }

@@ -104,7 +104,10 @@ export const zh = {
   'onboarding.welcome': '开始和你的 Bot 对话',
   'onboarding.prompt': '想让 Bot 帮你做点什么？',
   'onboarding.firstRequest': '介绍一下你能帮我做什么',
-  'onboarding.newsRequest': '帮我看一下今天的新闻',
+  'onboarding.newsRequest': '看看今天的 AI 新闻',
+  'onboarding.newsBody':
+    '请搜索今天的 AI 新闻，简要总结并附上实际搜索结果的来源链接。如果搜索失败、没有结果或无法使用，请如实说明，不要把已有知识当作今天的新闻，也不要编造来源。',
+  'onboarding.exampleRequest': '帮我规划今天的工作',
   'onboarding.dailyRequest': '每天晚上 9 点来和我打个招呼',
   'onboarding.dailyHint': '每天 21:00 · 当前私聊 · {timeZone}',
   'onboarding.dailyBody':
@@ -2244,6 +2247,7 @@ export const zh = {
   'question.otherPlaceholder': '其他回答（可选）',
   'question.submit': '回答并继续',
   'question.answered': '已回答',
+  'question.submitted': '已提交，等待会话接收',
   'question.cancelled': '提问已取消',
   'question.expired': '此提问已失效，请重新向 Bot 发起请求',
   'question.statusUnavailable': '暂时无法确认提问状态。',
@@ -2539,7 +2543,10 @@ export const en = {
   'onboarding.welcome': 'Start a conversation with your Bot',
   'onboarding.prompt': 'What would you like your Bot to help with?',
   'onboarding.firstRequest': 'Tell me what you can help with',
-  'onboarding.newsRequest': 'Help me catch up on today’s news',
+  'onboarding.newsRequest': 'Catch up on today’s AI news',
+  'onboarding.newsBody':
+    'Search for today’s AI news, give a brief summary and link to sources from the actual search results. If search fails, returns no results or is unavailable, say so honestly. Do not present prior knowledge as today’s news or invent sources.',
+  'onboarding.exampleRequest': 'Help me plan today’s work',
   'onboarding.dailyRequest': 'Check in with me every evening at 9',
   'onboarding.dailyHint': 'Daily at 21:00 · This DM · {timeZone}',
   'onboarding.dailyBody':
@@ -4788,6 +4795,7 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'question.otherPlaceholder': 'Other answer (optional)',
   'question.submit': 'Answer and continue',
   'question.answered': 'Answered',
+  'question.submitted': 'Submitted; waiting for the conversation to receive it',
   'question.cancelled': 'Question cancelled',
   'question.expired': 'This question is no longer active. Ask the Bot again.',
   'question.statusUnavailable': 'Question status is temporarily unavailable.',
