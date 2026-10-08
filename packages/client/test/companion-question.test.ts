@@ -340,6 +340,9 @@ it.each(['native', 'wrong-target', 'offline', 'expired', 'unmounted'] as const)(
 
 it('accepts only formal well-formed questions qualified for the selected Bot', () => {
   expect(companionRequests([request], 'ada')).toEqual([request]);
+  expect(companionRequests([{ ...request, callId: 'native-timed-call' }], 'ada')).toEqual([
+    { ...request, callId: 'native-timed-call' },
+  ]);
   expect(
     companionRequests(
       [
@@ -347,6 +350,8 @@ it('accepts only formal well-formed questions qualified for the selected Bot', (
         { ...request, botSlug: 'bea' },
         { ...request, channelId: 'group' },
         { ...request, questions: [] },
+        { ...request, callId: '' },
+        { ...request, callId: 7 },
         { ...request, questions: [questions[0], questions[0]] },
         {
           ...request,

@@ -103,6 +103,36 @@ function button(text: string): HTMLButtonElement | undefined {
 }
 
 describe('native question card interaction', () => {
+  it('keeps a late answer submitted until the native Session admits it', async () => {
+    vi.useFakeTimers();
+    try {
+      const actions = {
+        userQuestionStatus: vi
+          .fn()
+          .mockResolvedValueOnce('pending')
+          .mockResolvedValueOnce('submitted')
+          .mockResolvedValue('answered'),
+        answerUserQuestion: vi.fn().mockResolvedValue(undefined),
+      } as unknown as BridgeActions;
+      const card: ChannelMessage = {
+        ...message,
+        userQuestionRequest: { ...message.userQuestionRequest!, callId: 'original' },
+      };
+      await act(async () => render(actions, undefined, card));
+      await act(async () => button('main')?.click());
+      await act(async () => button('回答并继续')?.click());
+      expect(container.textContent).toContain('已提交，等待会话接收');
+      expect(container.textContent).not.toContain('已回答');
+      expect(button('main')?.disabled).toBe(true);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+      expect(container.textContent).toContain('已回答');
+      expect(actions.answerUserQuestion).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('submits the chosen branch and shows a durable answered state', async () => {
     const actions = {
       userQuestionStatus: vi.fn().mockResolvedValue('pending'),

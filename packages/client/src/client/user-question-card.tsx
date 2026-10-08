@@ -26,7 +26,7 @@ export function UserQuestionCard({
   const request = message.userQuestionRequest!;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
   const [status, setStatus] = useState<
-    'loading' | 'pending' | 'expired' | 'answered' | 'cancelled'
+    'loading' | 'pending' | 'submitted' | 'expired' | 'answered' | 'cancelled'
   >(resolution ?? 'loading');
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [custom, setCustom] = useState<Record<string, string>>({});
@@ -53,23 +53,31 @@ export function UserQuestionCard({
   const questionMount = useMountedResource<HTMLDivElement>(() => {
     mounted.current = true;
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     if (resolution !== undefined) {
       setStatus(resolution);
     } else if (botSlug !== undefined) {
       if (companionTarget) setStatus('loading');
       setStatusError(false);
-      void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
-        (value) => {
-          if (active) setStatus(value);
-        },
-        () => {
-          if (active) setStatusError(true);
-        },
-      );
+      const refresh = (): void => {
+        void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
+          (value) => {
+            if (active) {
+              setStatus(value);
+              if (value === 'submitted') retry = setTimeout(refresh, 800);
+            }
+          },
+          () => {
+            if (active) setStatusError(true);
+          },
+        );
+      };
+      refresh();
     }
     return () => {
       active = false;
       mounted.current = false;
+      clearTimeout(retry);
     };
   }, [actions, botSlug, message.id, resolution, statusRetry, companionTarget?.live]);
 
@@ -123,7 +131,13 @@ export function UserQuestionCard({
         }
       }
       await actions.answerUserQuestion(channelId, message.id, answers);
-      if (mounted.current) setStatus('answered');
+      if (mounted.current) {
+        if (request.callId === undefined) setStatus('answered');
+        else {
+          setStatus('submitted');
+          setStatusRetry((current) => current + 1);
+        }
+      }
     };
     void submitAnswer()
       .then(
@@ -207,6 +221,8 @@ export function UserQuestionCard({
         <div className="bh-note" role="status">
           {status === 'answered' ? (
             t('question.answered')
+          ) : status === 'submitted' ? (
+            t('question.submitted')
           ) : status === 'cancelled' ? (
             t('question.cancelled')
           ) : status === 'loading' ? (

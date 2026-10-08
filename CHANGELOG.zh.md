@@ -17,6 +17,8 @@
 
 ### Added
 
+- 像素头像可以选择哥布林：尖耳朵穿出头发、带小獠牙、配建议的绿色肤色；左右侧发可以分别选择样式和颜色。哥布林在 Window Companion 中同样支持转头和说话嘴型，随机也会覆盖两个物种，已有头像渲染不变（[#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)）。
+
 - 欢迎消息提供每天 21:00 的晚间问候示例，选择前显示浏览器时区与当前私聊；无法识别时区时先询问，既有模型配置流程保留完整请求并等待明确发送（[#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)）。
 
 - Bot 市场现在会显示每个 Bot 的资料横幅：列表每一行有缩略图，详情页顶部是完整横幅；没有横幅的 Bot 显示中性占位。市场 Worker 从 `.botharness/bot.json` 读取 `banner`：像素场景在本地绘制，上传的图片按收录时的提交从仓库加载（[#1093](https://github.com/BotHarness/BotHarness/issues/1093)）。
@@ -92,6 +94,7 @@
 
 ### Changed
 
+- Bot 市场的卡片改成了资料卡的样子：资料横幅在上，Bot 头像压在横幅下沿，名称、仓库和安装按钮排在头像右侧，下面是两行简介，以及标签、星数、更新时间合成的一行。详情页顶部也用同样的横幅和头像，弹窗每行显示两张卡（[#1232](https://github.com/BotHarness/BotHarness/pull/1232)）。
 - **绑定应用** 弹窗可直接打开官网的 Lark／飞书、Slack、微信连接教程和更多平台总览；移除侧栏独立的 Lark 配置引导卡片，让平台配置说明集中在官网维护 ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
 - **新会话** 也成了平台默认设置：飞书、Slack、Discord 的全局 IM 默认设置里各有一个 **新会话** 选项（不改就是 **自动接收**），每个已绑定应用都跟随它，除非你为这个应用单独选择。已经设为 **先问我** 的应用保持不变（[#1134](https://github.com/BotHarness/BotHarness/issues/1134)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
@@ -106,6 +109,8 @@
 - 界面文案统一称呼「你」和「Bot」：中英文标签里不再出现 Human、PersonaBot、Source Event 和 Attention，清除后的占位显示「正文已清除 · 你 · {时间}」，连接器入口统一叫「外部连接器」。这些内部术语再次出现时会有测试失败（[#1090](https://github.com/BotHarness/BotHarness/issues/1090)）。
 
 ### Fixed
+
+- 显式配置原生 RC2 timed 问题的 Profile 中，DM 问题卡片在前台超时后仍可回答，同一个 Bot 可以处理其他消息；稍后提交的答案在原生会话接收前显示为已提交。生产版本依赖与 RC1 阻塞式提问保持不变（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。
 
 - Bot 引导不会再因旁观窗口退出或设置模型而暂停其他窗口的教程；完成后仍可主动重播，单独保存 Bot 模型或恢复继承后，已打开的模型卡片立即刷新（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
 
@@ -125,6 +130,8 @@
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
 
 ### Documentation
+
+- 通过隔离的真实模型实验验证 RC2 原生 timed question：稍后答案可准确关联原问题，等待期间仍可对话；现有 Web 问题卡片仍会过期，生产权限审批与容量门禁继续阻塞（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](docs/research/1220-native-timed-question-experiment.md)）。
 
 - 记录 [AX 浏览器验收流程](docs/agents/ax-browser.md)，区分准确地址的权限证据、Host 传输、导航拒绝和截图／输入超时，并保留用户明确授权的本地端口重试结果（[#1225](https://github.com/BotHarness/DeepSeekBot/issues/1225)）。
 

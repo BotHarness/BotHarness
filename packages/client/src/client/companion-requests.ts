@@ -97,7 +97,16 @@ export function companionRequests(value: unknown, botSlug: string): CompanionReq
         new Set(questions.map((question) => question.id)).size !== questions.length
       )
         return [];
-      return [{ ...target, kind: 'user-question', questions }];
+      if (item['callId'] !== undefined && (typeof item['callId'] !== 'string' || !item['callId']))
+        return [];
+      return [
+        {
+          ...target,
+          kind: 'user-question',
+          questions,
+          ...(typeof item['callId'] === 'string' ? { callId: item['callId'] } : {}),
+        },
+      ];
     }
     if (
       item['kind'] !== 'tool-approval' ||
