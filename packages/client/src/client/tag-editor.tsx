@@ -64,6 +64,7 @@ export function TagEditor({
         onBlur={commit}
         onChange={(event) => onDraft(event.currentTarget.value)}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
           if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
             event.preventDefault();
             commit();
