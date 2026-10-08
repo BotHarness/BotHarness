@@ -13,6 +13,7 @@ import {
   seededAvatarRecipe,
   type AvatarPart,
   type IllustratedAvatarRecipe,
+  withAvatarSpecies,
 } from '../src/bots/avatar-appearance.js';
 import { deriveAvatarAppearance } from '../src/bots/avatar-snapshot.js';
 import { MAX_PERSONA_BOT_AVATAR_BYTES } from '../src/bots/persona-bot.js';
@@ -211,5 +212,25 @@ describe('illustrated Avatar artwork', () => {
       const bytes = Buffer.from(derived!.avatar.split(',')[1]!, 'base64');
       expect(bytes.byteLength).toBeLessThanOrEqual(MAX_PERSONA_BOT_AVATAR_BYTES);
     }
+  });
+
+  it('derives a goblin with split, separately colored side hair as asset version 2', () => {
+    const goblin = {
+      ...withAvatarSpecies({ ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'bob' }, 'goblin'),
+      rightSideHair: 'none' as const,
+      leftSideHairColor: '#E2B04A',
+    };
+    const derived = deriveAvatarAppearance(goblin);
+    expect(derived?.appearance.recipe).toMatchObject({
+      assetVersion: 2,
+      species: 'goblin',
+      rightSideHair: 'none',
+      leftSideHairColor: '#e2b04a',
+    });
+    expect(deriveAvatarAppearance({ ...goblin, species: 'dragon' } as never)).toBeUndefined();
+    const human = withAvatarSpecies(DEFAULT_ILLUSTRATED_RECIPE, 'human');
+    expect(
+      illustratedAvatarSvg({ ...human, skinColor: DEFAULT_ILLUSTRATED_RECIPE.skinColor }),
+    ).toBe(illustratedAvatarSvg(detailedAvatarRecipe(DEFAULT_ILLUSTRATED_RECIPE)));
   });
 });
