@@ -270,8 +270,12 @@ flowchart LR
 旧版本保存会要求刷新并保留未保存草稿。
 
 #912 候选的自动检查覆盖升级保留、独立覆盖、恢复继承、重启、旧版本拒绝、运行中输入清理
-与扫码账号私聊边界。真实微信新消息验收与截图仍待完成；本节提供候选的审阅路径，
-不代表已发布或通过 Human 验收。
+与扫码账号私聊边界。Windows Chrome 保存与重开、原生输入状态继承开关、接收暂停和
+同一 Profile 重启后的偏好保留已检查。Human 亦确认重启后新消息正常处理与回复、输入提示
+结束后消失，暂停消息未被补回复；截图及限制见
+[Windows 验证记录](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/qa/wechat-912-defaults-windows.md)。本节提供候选的审阅路径，不代表已发布。
+
+![微信接收与原生输入状态全局默认值](https://raw.githubusercontent.com/BotHarness/DeepSeekBot/main/docs/evidence/issue-912/defaults-after-zh-dark.jpg)
 
 ## 暂停与重新连接
 

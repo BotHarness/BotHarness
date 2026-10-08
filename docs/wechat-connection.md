@@ -274,9 +274,14 @@ Accepted sources and replies retain their original author, time, native message 
 Source Event ID and trusted route. A stale save asks for refresh and keeps the draft.
 
 The #912 candidate's automated checks cover upgrade preservation, independent overrides,
-restoration, restart, stale revisions, active typing cleanup and owner-DM fencing. Native
-fresh-message qualification and screenshots remain pending; this section gives the
-candidate's review path, not a released or Human-accepted build.
+restoration, restart, stale revisions, active typing cleanup and owner-DM fencing. Windows
+Chrome save/reopen, native inherited typing off/on, reception pause and same-Profile
+preference persistence have been checked. The Human also confirmed fresh native processing,
+reply and typing cleanup after restart, with no paused-message backfill;
+see the [Windows verification record and screenshots](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/qa/wechat-912-defaults-windows.md).
+This is a candidate review path, not a released build.
+
+![WeChat global reception and typing defaults](https://raw.githubusercontent.com/BotHarness/DeepSeekBot/main/docs/evidence/issue-912/defaults-after-zh-dark.jpg)
 
 ## Pause or reconnect
 
