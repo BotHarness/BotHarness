@@ -1,0 +1,20 @@
+{
+  "runtimeCode": "e4926548",
+  "pixelAvatar": "0.5.0",
+  "viewport": [
+    1559,
+    865
+  ],
+  "theme": "light",
+  "realCanonicalBotReplies": 1,
+  "bodyLength": 1170,
+  "checks": [
+    "Actual unpin during partial DM reveal removes the companion; native repin reconnects live with saved mouth and zero old cards, no historical replay observed"
+  ],
+  "limits": [
+    "Continuous silent official Chrome DevTools MCP recording, remux only",
+    "Native Channel header unpin and repin during partial text reveal",
+    "No historical replay observed in this capture; not broad reconnect or performance qualification",
+    "Original formal mouth artwork; does not qualify new opt-in artwork or Human acceptance"
+  ]
+}
