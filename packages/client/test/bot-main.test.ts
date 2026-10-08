@@ -1,4 +1,6 @@
-import { createElement, type PropsWithChildren } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type PropsWithChildren } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +28,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconRefreshOutlineRegular: stub,
     IconSearchOutlineRegular: stub,
     IconSendOutlineRegular: stub,
+    IconPinFillRegular: stub,
+    IconPinOutlineRegular: stub,
     IconTrashOutlineRegular: stub,
     FileTypeIcon: stub,
     ImageLightbox: stub,
@@ -49,6 +53,7 @@ import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
+import { WindowCompanions } from '../src/client/window-companions.js';
 
 describe('Channel read position candidates', () => {
   it('does not resolve a Grant request from a pending or failed local echo', () => {
@@ -149,7 +154,7 @@ describe('Bot main Sessions pane', () => {
     }
   });
 
-  it('shows a Session entry beside a DM while keeping the Bot title in the channel header', () => {
+  it('shows separately focusable companion and Profile actions beside the DM title and Sessions', async () => {
     const bot = {
       slug: 'ada',
       displayName: 'Ada',
@@ -189,9 +194,38 @@ describe('Bot main Sessions pane', () => {
       error: undefined,
     });
 
-    const markup = renderToStaticMarkup(
-      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    const companion = new WindowCompanions({
+      context: async () => ({ profileId: 'dm-header-qa' }),
+      source: () => ({ addEventListener() {}, close() {} }),
+      update: async () => {},
+    });
+    await companion.start();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    await act(() =>
+      root.render(
+        createElement(BotMain, {
+          actions: {
+            modelPlanState: async () => undefined,
+            botSourcePolicies: async () => [],
+          } as unknown as BridgeActions,
+          channelSidebar: sidebarRegistry(),
+          companion,
+        }),
+      ),
     );
+    const markup = node.innerHTML;
+    expect(markup).toContain('class="bh-companion-pin"');
+    expect(markup).toContain('aria-label="' + zhTranslate('companion.show') + ' · Ada"');
+    expect(node.querySelector('button button')).toBeNull();
+    const pin = node.querySelector<HTMLButtonElement>('.bh-companion-pin')!;
+    await act(() => pin.click());
+    expect(companion.get('ada')).toBeDefined();
+    expect(pin.getAttribute('aria-pressed')).toBe('true');
+    await act(() => root.unmount());
+    node.remove();
 
     expect(markup).toContain('会话');
     expect(markup).toContain('收起 Channel sidebar');
@@ -216,6 +250,7 @@ describe('Bot main Sessions pane', () => {
     store.select(beforeChannelSelection.selection);
     store.setConversation(beforeChannelSelection.conversation);
     store.setSessions(previous.sessions);
+    companion.dispose();
   });
 
   it('opens Group Profile from the group Channel header', () => {

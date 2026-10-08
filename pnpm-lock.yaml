@@ -565,8 +565,8 @@ importers:
   packages/core:
     dependencies:
       '@botharness/pixel-avatar':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.2.0
+        version: 0.2.0
       '@resvg/resvg-js':
         specifier: 2.6.2
         version: 2.6.2
@@ -1167,11 +1167,8 @@ packages:
   '@botharness/botui-core@0.3.0':
     resolution: {integrity: sha512-ZfuyXyAtxIijqxPb7zWKu3/aO3GKT8kTzQpCBYD08t9vOp858r/xL8BsQvwjswTTH2bTZ8saXBnUgjYBRnY8xQ==}
 
-  '@botharness/pixel-avatar@0.1.0':
-    resolution: {integrity: sha512-O6AV6cx8EZzDjrEiqcDNY4CR4v4ULFAkZ+OohdyMsaAhCVbzDXV+vwbLT8EycZmN98BOHWHDxXpuNAmHVr3nfg==}
-
-  '@botharness/pixel-morph@0.1.0':
-    resolution: {integrity: sha512-LHVZsfjRrBeWLwMjZ+ubeVTHt1lTTTPXzkCeGi7h2mwNjhlXOZZFOBojJts82PJsUaVAQPuNrjOOV3hU1M3q4A==}
+  '@botharness/pixel-avatar@0.2.0':
+    resolution: {integrity: sha512-YrOeogGRIJzoyy+EtysjfiD78nIwFIkWW4ZGK2zAoqb1tg8G/tHLCgDM2r3wgtu+2vhxEkb6cL6bMK2igBtk4g==}
 
   '@botharness/pixel-morph@0.2.0':
     resolution: {integrity: sha512-Mi8lIZJdYaBub6qYNMwqgFP88RkMEJFQOAUVVAsL/yCg8j9lw56EtIgYCHaFrIApx4bvs3eIwodwQAYd5OpLPg==}
@@ -10784,11 +10781,9 @@ snapshots:
 
   '@botharness/botui-core@0.3.0': {}
 
-  '@botharness/pixel-avatar@0.1.0':
+  '@botharness/pixel-avatar@0.2.0':
     dependencies:
-      '@botharness/pixel-morph': 0.1.0
-
-  '@botharness/pixel-morph@0.1.0': {}
+      '@botharness/pixel-morph': 0.2.0
 
   '@botharness/pixel-morph@0.2.0': {}
 

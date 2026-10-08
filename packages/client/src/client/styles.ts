@@ -1,14 +1,17 @@
-import { LARK_SETUP_CSS } from './lark-setup-styles.js';
+import { INTERNAL_TOUR_CSS } from './internal-tour-styles.js';
 import { WINDOW_COMPANION_CSS } from './window-companion-styles.js';
 import { COMBOBOX_CSS } from './combobox.js';
 import { keyframesFor } from '@botharness/botui-core';
 import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
 
 export const CSS =
-  LARK_SETUP_CSS +
+  INTERNAL_TOUR_CSS +
   COMBOBOX_CSS +
   WINDOW_COMPANION_CSS +
   `
+.bh-im-tutorials { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.bh-im-tutorials a { color: var(--bh-accent); text-underline-offset: 3px; }
+.bh-im-tutorials a:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 3px; border-radius: 2px; }
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic
      tokens (ADR-0028): at most three entries, no second design system. */
@@ -756,9 +759,9 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   background: var(--dsw-alias-bg-base);
   pointer-events: none;
 }
-.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-head,
-.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-body,
-.bh-persona-avatar svg[data-pixel-cover] [data-avatar-turn] {
+.bh-persona-avatar svg[data-pixel-cover]:not([data-avatar-speaking]) .bh-illustrated-head,
+.bh-persona-avatar svg[data-pixel-cover]:not([data-avatar-speaking]) .bh-illustrated-body,
+.bh-persona-avatar svg[data-pixel-cover]:not([data-avatar-speaking]) [data-avatar-turn] {
   visibility: hidden;
 }
 .bh-avatar-editor-title {
@@ -1528,6 +1531,15 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 }
 
 /* 创建失败提示留在 Modal 体内；Modal 在 body 下，不能依赖 .bh-root 前缀。 */
+ .bh-bot-deletion { display: grid; gap: 12px; }
+.bh-bot-deletion p { margin: 0; }
+.bh-bot-deletion-path { overflow-wrap: anywhere; font-family: var(--dsw-font-family-mono); }
+.bh-bot-deletion-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bh-bot-deletion-choice { display: flex; align-items: center; gap: 8px; }
+.bh-bot-deletion-confirm { color: var(--dsw-alias-state-error-primary); }
+.bh-bot-deletion dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.bh-bot-deletion dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .bh-modal-error {
   margin-top: 8px;
   border: 1px solid var(--dsw-alias-state-error-secondary);

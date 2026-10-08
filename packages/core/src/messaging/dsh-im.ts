@@ -159,7 +159,13 @@ const inboundSchema = z
       .object({ kind: z.literal('user'), id: identifier, name: identifier.optional() })
       .strict()
       .transform(({ name, ...actor }) => ({ ...actor, ...(name === undefined ? {} : { name }) })),
-    conversation: z.object({ kind: z.enum(['group', 'dm']), id: identifier }).strict(),
+    conversation: z
+      .object({ kind: z.enum(['group', 'dm']), id: identifier, name: identifier.optional() })
+      .strict()
+      .transform(({ name, ...conversation }) => ({
+        ...conversation,
+        ...(name === undefined ? {} : { name }),
+      })),
     mentions: z
       .array(
         z

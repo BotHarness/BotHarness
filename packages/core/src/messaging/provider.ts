@@ -71,7 +71,7 @@ export interface MessagingInboundEvent {
   eventId: string;
   messageId: string;
   actor: { kind: 'user'; id: string; name?: string };
-  conversation: { kind: 'group' | 'dm'; id: string };
+  conversation: { kind: 'group' | 'dm'; id: string; name?: string };
   mentions: { id: string; key: string; name?: string }[];
   mentionedAccount: boolean;
   at: string;

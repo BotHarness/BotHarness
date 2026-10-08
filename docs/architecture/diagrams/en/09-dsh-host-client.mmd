@@ -6,20 +6,22 @@ flowchart TB
     ReadRPC["botharness/channelMarkAllRead<br/>application-defined RPC"] --> Channels["Channel owner<br/>visible message-head snapshot"]
     Channels --> ReadPositions["Existing Human read positions"]
     Remote <--> Gateway["API Gateway<br/>sole /api interceptor"]
-    Registry["Registry / Activity / Session ownership"] --> Feed["Application-defined Companion Feed"]
-    Channels --> Feed
+    Registry["Registry commit / Activity / Session ownership"] -->|"committed identity / Activity / owned output"| Feed["Application-defined Companion Feed<br/>bounded reference lease and recovery"]
+    Channels --> Observation["outputCheckpoint / observeOutput<br/>canonical position + message + membership + read eligibility"]
+    Observation --> Feed
   end
   subgraph Browser["DSH Web Client"]
     direction LR
     ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
     Overview["BotHarness Overview"] --> ReadAction["actions.markAllRead"]
     Model --> Slots["Slots<br/>UI composition"]
-    Companion["WindowCompanion owner<br/>Client Plugin lifetime"] --> Overlay["shell.overlay"]
+    Companion["WindowCompanions collection<br/>Profile prefs + per-Bot playback"] --> Overlay["shell.overlay"]
     Companion --> Activity["Shared Client Activity store<br/>replaces independent Activity SSE while pinned"]
   end
   Gateway <--> Model
   Gateway -->|"Authenticated Connection Fetch"| Feed
-  Feed -->|"/api/botharness/companion SSE<br/>baseline + future messages"| Companion
+  Feed -->|"One authenticated SSE<br/>selection ack + future messages / bounded recovery"| Companion
+  Companion -->|"Authenticated POST<br/>selection + source epochs + capacity + revision"| Feed
   ReadAction --> Gateway
   Remote --> ReadRPC
   Overview --> UsageAction["actions.overviewUsage"]

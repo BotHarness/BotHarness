@@ -1716,8 +1716,26 @@ const CONVERSATION_INGEST_MIGRATION: SchemaMigration = {
   },
 };
 
-const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
+const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
   generation: 66,
+  module: 'bot-registry',
+  description: 'Terminal PersonaBot deletion and exclusive Memory ownership proofs',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE persona_bot_deletions (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE TABLE persona_bot_memory_ownership (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+    `);
+  },
+};
+
+const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
+  generation: 67,
   module: 'messaging',
   description: 'Persist identity-local native typing preference without persisting tickets',
   migrate(database) {
@@ -1793,5 +1811,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SEVERAL_APPS_MIGRATION,
   CONVERSATION_INGEST_MIGRATION,
   NEW_CONVERSATION_DEFAULT_MIGRATION,
+  PERSONA_BOT_DELETION_MIGRATION,
   MESSAGING_TYPING_MIGRATION,
 ]);

@@ -6,7 +6,6 @@ import { useClientState } from './bot-sidebar.js';
 import { ChannelBridgeList } from './channel-bridge-list.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { ExternalIdentityList } from './external-identity-list.js';
-import { LarkSetupGuide } from './lark-setup-guide.js';
 import { MessagingGrantRow } from './messaging-grant.js';
 import { useMessagingSnapshot } from './messaging-store.js';
 import { Modal } from './modal.js';
@@ -78,7 +77,6 @@ function IdentitiesForBot({
         channels={syncChannels}
         botName={(owner) => state.bots.find((item) => item.slug === owner)?.displayName ?? owner}
       />
-      <LarkSetupGuide snapshot={snapshot} t={t} refresh={refresh} />
       <SidebarCardList label={t('pairing.title')}>
         <SidebarCardRow
           icon="user-check"

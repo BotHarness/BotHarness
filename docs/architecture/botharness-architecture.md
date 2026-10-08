@@ -235,7 +235,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 接收以外部身份 Binding 为键，而不是保存的目标。启用的 Binding 把应用的默认流量（私聊和合格的群 @）接收进绑定 Bot 的 Inbox。会话的第一条被接收的消息，会与其 Source Event、Inbox Admission 在同一事务中提交一个隐式会话条目（`messaging_grants` 中 `origin: 'implicit'` 的行），使 Outbox fence、群策略、Channel Bridge 路由和撤销仍挂在同一个锚点上。Binding 的新会话模式（`auto` 或 `ask`）及其上限（每小时 20 个新条目、500 个活跃、200 个等待）决定新会话被接收还是等待处理。屏蔽按 Bot、应用指纹、会话类型和 ID 持久保存；静音只推进 `preferenceRevision`，不改动条目的 Outbox revision。一个 Bot 可以绑定同一平台的多个应用，每个应用仍只属于一个 Bot。Client 中，应用的会话列表管理这些条目并显示已有的 Channel Bridge 路由（新建同步正在围绕外部连接器重新设计），「外部连接器」列出这些路由并保留保存目标的 Service Grant，作为 Provider 无法列出或直接发往会话时的高级后备。
 
-[#824](https://github.com/BotHarness/BotHarness/issues/824) 在 PersonaBot Profile 增加可恢复的配置引导，本地打包的 Driver.js 定位既有原生 IM 设置、身份与群授权控件。进度只投影当前兼容 Provider、账号、Binding／Grant、已收测试 Source Event 和沿原来源回复的 Outbox 回执；可选的认证自身回传仍单独呈现。平台接受、外部可见投递和已读回执明确区分。不建立新手引导数据库、额外凭据存储或消息权威；打开和关闭引导不产生授权或发送。
+外部应用的准备步骤由官网教程维护，既有 **绑定应用** 弹窗提供对应语言的教程链接，不再显示独立 Lark 配置引导卡片。Driver.js 保留为应用内部控件定位工具，不承载平台配置说明。绑定、接收与回复结果仍来自既有 Provider／Host 权威；打开教程不产生授权或发送，也不新增引导存储。
 
 ### 首条外部出站路径（ADR-0101）
 
@@ -456,6 +456,18 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 [#751](https://github.com/BotHarness/BotHarness/issues/751) 的首条人物路径使用 Registry 的 `setAppearance`：受控、严格版本化的部件与十六进制颜色配方和 Host 由同一 SVG 派生的 512×512 PNG 在一次原子写入内保存，SHA-256 revision 绑定配方与快照。DTO 只携带配方／revision 与既有快照 URL；图片覆盖或移除会清除 composed 配方。Client 的 Profile 草稿在 Save 前不写入，侧栏和大图消费同一保存配方；稳定 SVG 节点上的 Web Animations 只持有有界局部姿态，真实 activity 切换会重新定向，减少动画、隐藏、离屏和卸载取消资源。Host 光栅化依赖仅在保存时执行，不进入 Client Bundle；第二家族、细分发件／五官和缺版本兼容回退仍由后续切片验收。
 
+### 5.3 · 窗口伙伴（已接受设计，待实现）
+
+[ADR-0144](../adr/0144-window-companions-consume-owned-activity-and-scoped-output.md) 与 [规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135) 记录 Q1–Q23 共识。Human 主动从 Bot 行右键或 Channel header 的具体 Bot 入口选择“显示为窗口伙伴”，与 Channel 置顶独立；通过官方 RC 的 shell overlay Slot 跨 Harness 页面显示既有半身 Avatar。Client companion owner 持有当前 Client × DSH Profile 的选择、每 Bot 来源/范围/漫游偏好，以及所有伙伴共享的卡片层数/保留数量设置；不更改 Registry 的身份/外观、Memory 或 Channel pin。伙伴像素视图省略画布底色与方形头像框背景，呈现透明人物轮廓；既有侧栏头像与保存配方不变，透明区域仍保留可用 hit area 和独立 attention。图片/缺失 rig 快照不自动抠图。底部漫游、拖拽、受窗口边界约束的位置和锚定像素气泡属于呈现层，逐帧姿态不跨 RPC。
+
+消费路径为 owning Registry/Activity Projection/canonical Channel → 认证 Typert/API Gateway 与有界 live/query adapter → 独立 companion Client owner → 既有 Avatar 与卡片。当前 Activity Client 退出 Bot mode 会关闭消费，当前 SSE 只有单 Channel 输出流；伙伴的独立生命周期和按 Bot 跨 Channel 输出合同是待实现工作，不由现有页面组件顺便提供。Host 内其他 Plugin 继续查询同一 Activity Service 并消费 application-defined Cordis 通知；不存在伙伴 UI 到 Activity authority 的反向写入。
+
+每 Bot 独立开关 Activity 标签、DM、群聊消息，默认开、开、关。Companion Visibility 默认“Bot 和我都在的 Channel”，另有“仅我和 Bot 的 Channel”与“所有 Bot 加入的 Channel”；Bot–Bot DM 在第三档归 DM 开关。只展示当前 Bot 的已提交输出并标识来源 Channel/DM 双方。第三档需要面向受信 Human Consumer 的 Host-owned Bot 输出只读合同，范围限制在被选 Bot 的 authored output；不能删除通用 timeline 成员检查、授予模型新权限或读取其他作者的完整历史。点击原 Channel 仍检查 owning 读边界，不能访问时解释限制。
+
+首次选择/Client 或 Host 重启建立 Host 一致的新消息基线，不重播旧输出，直接查询当前 Activity；短暂后台/断线仅有界恢复本轮基线后尚未播出的消息，canonical identity 去重并拒绝旧 generation 响应。关闭来源清卡片与待播，重新开启或新合格 Channel 从当前基线继续。进程内 output-committed 只是通知，不能充当持久 cursor；查询成本与队列都必须有界。气泡到期/移除不更新 Channel read position。独立 Human attention 即使所有播放关闭仍保留并导航到 owning 活动/Human Inbox，不从计数编造正文或审批控件。
+
+每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
+
 ## 6 · 持久化、导出与恢复边界
 
 ```mermaid
@@ -504,6 +516,12 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 [ADR-0130](../adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md) 与 #138 将 PersonaBot／Channel 的结束参与和物理内容清除分开。删除 PersonaBot 的确认框展示实际 Memory Repository 与依赖，提供“打开记忆文件夹”及默认不勾选的“同时删除记忆文件”；打开文件夹不改变勾选或确认状态。未勾选时保留记忆及 Git，勾选后也只能清除经 Host 重查、专属且归属明确的仓库。共享、路径变化或无法证明归属时不可清除；Workspace、原生 DSH Session、远端 Git、外部导出与备份不随之删除。普通删除先关闭执行／收件／授权入口，等待所拥有的 AgentHandle 执行树静止，再保留 deleted identity、历史 Session Ownership 和仍保留记忆的持久位置；它不同于可恢复归档。Channel 删除保留消息及因果归属，只结束其成员和路由，不删除外部会话或其他路由；Hidden Channel 仍可恢复。另行确认的 Content Purge 才清除选中的 Source Event 正文，附件需检查共享引用，并覆盖 legacy CAS 与当前真实文件绑定。
 
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
+
+### PersonaBot 删除运行路径（#896）
+
+Registry 在 Generation 66 持久化不可恢复的身份关闭状态和确认时的记忆位置。活动查询排除已接受删除的身份；历史查询保留身份、Session Ownership、Report、消息和用量归属。Human Profile 确认框复用 Typert/API Gateway 与原生 Host 文件打开能力。“同时删除记忆文件”默认不勾选，清除需要专属 Git 仓库、已记录的目录身份，以及与其他保留仓库和所有注册 Workspace 均无重叠。新建自定义仓库可以记录同样的归属证明；已有自定义路径本身不足以证明独占归属。Host 共享存储也受到保护。
+
+删除 owner 先接受持久身份关闭状态，再停止该 Bot 所拥有的原生 AgentHandle 执行树、撤销 Workspace／工具规则，并停用其 Messaging 绑定。已发出的原生／provider 效果保留实际结果。可选文件清理具有明确接受的范围和未完成状态；重试只使用原目录身份，不能选择新路径。DSH Session Persistence 与共享 provider 账号保留。冷启动仍排除已删除身份，即使清理需要修复。后续 Profile Backup 必须枚举历史 Registry 记录及删除位置，区分主动清除的记忆。Channel Content Purge 与支持恢复的 ledger 仍属于 #897。
 
 ### Bot Marketplace（已接受设计，待实现）
 
@@ -681,12 +699,20 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 
 [#910](https://github.com/BotHarness/BotHarness/issues/910) extends the canonical external-only report path to qualified paired-owner WeChat DMs ([ADR-0139](../adr/0139-wechat-external-reports-use-private-owner-context.md)). The Profile form and `bridge_post` share owned Outbox authority. The Provider explicitly negotiates receipt and final-fence support, keeps current owner context private with fingerprint/order/retention checks, and invokes the application's current Binding/Grant/Registration fence immediately before one native send. Genuine server IDs stay separate from client acknowledgements. Missing context and native rejection offer explicit fresh-message recovery; unknown outcomes never trigger automatic retry. No local DM mirror, new Inbox delivery, scheduler or standalone Provider Session is introduced.
 
-[#911](https://github.com/BotHarness/BotHarness/issues/911) adds a candidate process-local checked typing lease for the authorized WeChat owner DM ([ADR-0144](../adr/0144-wechat-typing-follows-owned-processing-leases.md)). Canonical Messaging resolves own source, Binding, Grant and Registration authority; actual Orchestrator/accepted steering and related Assignment work share one bounded native lifecycle. The Provider keeps tickets and continuations private, renews only under a current fence and cancels on the last processing owner or invalidation. Identity persistence stores only the preference; live activity resets on restart and never becomes a SessionEvent, Outbox delivery or read receipt. Native client visibility and packaged-product qualification remain pending on #911; global defaults/inheritance belong to #912.
+[#911](https://github.com/BotHarness/BotHarness/issues/911) adds a candidate process-local checked typing lease for the authorized WeChat owner DM ([ADR-0145](../adr/0145-wechat-typing-follows-owned-processing-leases.md)). Canonical Messaging resolves own source, Binding, Grant and Registration authority; actual Orchestrator/accepted steering and related Assignment work share one bounded native lifecycle. The Provider keeps tickets and continuations private, renews only under a current fence and cancels on the last processing owner or invalidation. Identity persistence stores only the preference; live activity resets on restart and never becomes a SessionEvent, Outbox delivery or read receipt. Native client visibility and packaged-product qualification remain pending on #911; global defaults/inheritance belong to #912.
 
-### 首个窗口伙伴切片（#1138）
+### 窗口伙伴（#1138–#1142）
+
+EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用单一重试计时器重新建立连接，间隔从 1 秒退避到最多 8 秒。最后确认的过程消费 ID 通过 `?resume=` 携带；新连接随后原生自动重连时，`Last-Event-ID` 优先于查询参数。两条路径共享同一认证、有界 Host 租约与规范资格重查。成功基线重置退避；移除最后一个选择或卸载 Plugin 清理计时器和恢复标识。Client 重启不保留恢复标识。
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 
-选中伙伴时，这个 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者合并 Activity，并最多保留二十条待发送消息；Client 最多保留二十张卡片；稳定阅读时另外有界保留最多二十条新到达消息，离开时合并并裁到最新二十张。阅读过程中最多四十条卡片记录，不挤掉正在阅读的卡片。收起时显示三层，悬浮或聚焦时冻结顺序和过期，已有文字按完整字素继续播放。移除伙伴释放消费。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。多伙伴设置、更广可见范围、有界离线恢复和生命周期扩展按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 继续交付。
+应用定义的 `WindowCompanions` 集合拥有 Profile 的钉选集合和共用容量，组合每个 Bot 独立的播放 owner 与运动 View。侧栏菜单与各 Bot 的 header 按钮均操作此集合，与 Channel 置顶无关。偏好从单选 v1 迁移到 v2；只持久化形象选择、来源/范围、位置、走动与容量。多个伙伴复用一条受认证 SSE，通过原生随机的临时 consumer ID 和同路径 POST 原子替换消费集合；控制句柄随流关闭释放，既不是身份也不是耐久权威。递增选择版本阻止迟到的基线初始化被替换的消费；增加或移除其他 Bot 不重置正在阅读的卡片。
+
+选中伙伴时，共享 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者分别合并 Activity 和选择快照，按 Bot 有界保留消息并轮流排出。容量默认层叠 3／保留 20，层数 1–10、保留 1–100 且层数不超过保留；每个 Bot 的 Host 待发队列、Client 保留卡片与阅读到达队列各受保留数量约束。阅读中最多两倍保留数量的卡片，离开时合并最新消息；已有文字按完整字素继续播放。View 做基本气泡避让与视口夹取，不设钉选数量上限或自动折叠人物。移除一个 Bot 只释放自身播放，最后一个移除后关闭共享流。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。每个 Bot 的 DM、群聊与 Activity 标签独立开关；消息开关与 own-dm/shared/all-bot 范围相交。Channel owner 的 `observeOutput` 单条规范查询返回安全正文、作者、当前成员关系与独立的 Human 读取判定，Feed 验证所选 Bot 后推送，队列在范围变化及排出时重新资格判断。来源或范围变化只移除不再符合条件的显示及排队卡片，同一 Host 的确认基线保留仍可见内容与阅读进度，新启用来源不回放禁用期；点击来源先按需刷新 owner 会话列表，再检查锚点 timeline 读取权限，失败在卡片解释。卡片标明 Channel、Bot DM 双方和原会话可读性，不自动加入或改变已读位置。宽范围仅新增所选 Bot 的输出观察，既有通用 timeline 和模型能力不扩权。同一 Host 的 EventSource 断线重连通过 `Last-Event-ID` 识别过程租约；最多保留 60 秒、128 个已断开的租约，每 Bot 的规范消息引用受保留数量约束。Channel owner 的 `outputCheckpoint` 读取最新 placement 位置，`observeOutput` 返回单条位置；首次选择及新开启来源建立 Host 基线，延迟的旧通知不能成为新消息。四类来源各有 Client 过程 epoch，离线开关或范围变更后只恢复连续启用且仍合格的引用；补播重新查询规范正文和成员关系。恢复 GET 原子接管持续收件，等待 POST 确认或握手再次中断时仍有界留存；重复规范引用不占用额外队列容量。订阅确认先于补播；Client 保留同 Host 的阅读进度，按 Channel/message 标识去重。租约或 generation 失效、Client 重启均开始未来基线；无全历史扫描、耐久消息副本或共享已读写入。页面隐藏取消帧采样并暂停文字和到期时间。生命周期扩展仍按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 交付。
+
+Companion Feed 通过一条可释放的订阅直接观察已提交的 `bot-registry` 通知，独立于 Bot 模式。归档保留带标签的静止形象；规范的暂停／重新启用变化重置有界消息引用和来源检查点。过程生命周期标识随流恢复保留，让合并过的归档／重新启用变化仍可被 Client 识别，不新增耐久身份状态。确认删除通过已确认选择快照发送移除 ID；collection 只释放对应子项、偏好和卡片，旧 revision 不能恢复已删除项。当前 owner 的 attention 事实仅用于导航。上传图片保留原媒体与整体交互；不支持的 rig／schema 保留配方和带版本的保存快照，并明确说明动作限制。图片 owner 拒绝过期版本 URL，不以另一形象替换该版本。键盘焦点与 hover 同样展开阅读；菜单键／Shift+F10 打开原生菜单，Escape 返回焦点，关闭气泡选取存活控件。减少动态效果立即归位，离屏／隐藏停止采样，销毁释放 observer、帧及 morph／fade 动画；旧动画完成回调不能再排入动作。性能验收仍须真实多 Bot 帧、内存、资源测量及 Human 同意的预算。
+
+支持的像素伙伴通过 BotPixel 的可选 `mouthLayers` 公共合约预绘制 saved／closed／half-open／open 四层，普通头像与 Host 保存快照保持默认输出。`WindowCompanion` 从既有安全字素播放进度派生一份嘴型，不引入说话 Activity、第二个消息队列、计时器或耐久表情状态。生产 Avatar 仅在 companion surface 请求这些层，独立 `AvatarSpeech` 资源在既有 SVG 内做短透明度过渡，不重建人物或重启眨眼／转头；说话时暂时显露脸部，外层 Activity 和 attention 仍反映真实事实。标点闭嘴，播放结束、取消、归档、断线及销毁恢复保存表情；减少动态效果、隐藏与离屏由现有共享策略立即归静。多卡片选择第一条仍在逐字呈现的卡片驱动一套有界嘴型。上传图片、不支持的 family／版本保留原有降级，不拼接替代部件。该呈现不需要 TTS、音素、模型动作标记或 Tool 私有内容（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。

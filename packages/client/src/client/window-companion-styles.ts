@@ -11,6 +11,14 @@ export const WINDOW_COMPANION_CSS = `
   /* @bh-companion-aliases:end */
   position: absolute; inset: 0; pointer-events: none; overflow: hidden;
 }
+.bh-companion-chip { display: inline-flex; align-items: center; gap: 2px; }
+.bh-channel-island-wrap > .bh-companion-pin { margin-left: 2px; }
+.bh-companion-pin { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; background: transparent; color: var(--bh-overview-muted); border-radius: var(--bh-overview-radius-control); cursor: pointer; opacity: 0; transition: opacity 150ms ease; }
+.bh-companion-chip:hover .bh-companion-pin, .bh-channel-island-wrap:hover > .bh-companion-pin, .bh-companion-pin:focus-visible, .bh-companion-pin[aria-pressed='true'] { opacity: 1; }
+.bh-companion-pin:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
+.bh-companion-pin:disabled { cursor: default; }
+.bh-companion-capacity-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.bh-companion-capacity-controls label { display: grid; gap: 4px; max-width: 150px; }
 .bh-companion { position: absolute; width: 96px; height: 96px; pointer-events: auto; }
 .bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; transform-origin: center 20%; transition: transform 140ms ease-out, transform-origin 140ms ease-out; }
 .bh-companion[data-motion='fall'] .bh-companion-character,
@@ -26,8 +34,13 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-gutter: stable; }
 .bh-companion-card { position: absolute; width: 100%; height: 104px; padding: 8px 10px; background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); transform-origin: center top; color: var(--bh-companion-text); transition: top 220ms ease, transform 220ms ease; box-shadow: 3px 3px 0 var(--bh-companion-border); }
 .bh-companion-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bh-companion-source { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
+.bh-companion-source small { font: 11px/14px var(--bh-companion-font); color: var(--bh-companion-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-companion-source button { text-align: left; line-height: 14px; }
+.bh-companion-source button:disabled { cursor: default; }
 .bh-companion-card header button { font-size: 11px; color: var(--bh-companion-muted); background: transparent; border: 0; padding: 0; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow: auto; }
+.bh-companion-card p[data-context='true'] { max-height: 36px; }
 .bh-companion-toolbar { position: absolute; bottom: 96px; left: -10px; display: flex; align-items: center; gap: 4px; padding: 5px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); opacity: 0; visibility: hidden; transition: opacity 150ms ease; }
 .bh-companion-toolbar[data-open='true'] { opacity: 1; visibility: visible; }
 .bh-companion-toolbar button { display: grid; place-items: center; min-width: 28px; height: 26px; border: 0; background: transparent; color: var(--bh-companion-text); cursor: pointer; }

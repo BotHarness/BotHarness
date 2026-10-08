@@ -277,7 +277,12 @@ it('Bind app shows real readiness after the commit and the app row lists its con
       b.textContent?.includes('绑定应用'),
     )!;
     await act(async () => bind.click());
-    expect(container.textContent).toContain('不需要保存目标或授权会话');
+    const tutorial = container.querySelector<HTMLAnchorElement>(
+      'a[href="https://botharness.ai/zh/docs/lark-connection/"]',
+    );
+    expect(tutorial?.textContent).toBe('Lark / 飞书');
+    expect(tutorial?.target).toBe('_blank');
+    expect(tutorial?.rel).toBe('noopener noreferrer');
     await chooseOption('应用', 'dsh-im/feishu:lark-app', container);
     const confirm = [
       ...container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),

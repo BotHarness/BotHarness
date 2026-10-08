@@ -155,9 +155,7 @@ In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the
 
 _Each admitted DM or group appears in the app’s conversation list. **Mute** keeps the conversation but stops the Bot from being woken by it. **Rules** sets which group messages are received, for example ordinary messages without a mention. **Block** refuses the conversation durably until you click **Allow again**; nothing sent while blocked is backfilled._
 
-**Connect Lark / Feishu** (the setup guide in External identities) tracks the same three steps: connect the app, bind it to this Bot and send a test message. **Locate** highlights the matching control; steps are marked done only from real configuration and a correlated reply.
-
-![The setup guide with three steps: connect the app, bind it, send a test message](/guides/lark/28-setup-guide.en.webp)
+**Bind app** includes a link to this website tutorial. Keep it open in another tab while creating, connecting and binding the app; the sidebar no longer duplicates these instructions in a separate setup guide.
 
 ## 5. Optional: sync a conversation into a local Channel
 

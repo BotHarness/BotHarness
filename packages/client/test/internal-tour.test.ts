@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { highlightLarkSetup } from '../src/client/lark-setup-tour.js';
+import { highlightInternalControl } from '../src/client/internal-tour.js';
 
 let stop: (() => void) | undefined;
 
@@ -30,7 +30,7 @@ it('retargets the real binding dialog and exits without closing it or focusing o
   bind.textContent = 'Bind identity';
   document.body.append(bind);
   bind.focus();
-  stop = highlightLarkSetup(bind, 'Bind identity', 'Choose your account', 'Close');
+  stop = highlightInternalControl(bind, 'Bind identity', 'Choose your account', 'Close');
   await vi.advanceTimersByTimeAsync(50);
 
   const dialog = document.createElement('section');
@@ -64,7 +64,7 @@ it('restores the original control and removes keyboard interception after dismis
   const trigger = document.createElement('button');
   document.body.append(trigger);
   trigger.focus();
-  stop = highlightLarkSetup(trigger, 'Connect account', 'Open settings', 'Close');
+  stop = highlightInternalControl(trigger, 'Connect account', 'Open settings', 'Close');
   await vi.advanceTimersByTimeAsync(50);
   document.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),

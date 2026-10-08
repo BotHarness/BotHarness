@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useId, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 import {
   Menu,
   IconEllipsisOutlineRegular,
@@ -10,15 +10,37 @@ import { PersonaBotAvatar, personaBotPresentationSummary } from './avatar.js';
 import { attentionCount } from './activity-attention.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { WindowCompanion } from './window-companion.js';
+import type { CompanionBot } from '../../../core/src/companions/feed.js';
+import type { CompanionViewState, WindowCompanion } from './window-companion.js';
 import { CompanionMotion } from './companion-motion.js';
+import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
+import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
+import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+
+function avatarLimitation(
+  bot: CompanionBot | undefined,
+): 'imageOnly' | 'rigUnavailable' | undefined {
+  if (bot?.appearance && !isAvatarAppearance(bot.appearance)) return 'rigUnavailable';
+  if (bot?.avatar && !bot.appearance) return 'imageOnly';
+  return;
+}
+const statusVisible = (state: CompanionViewState): boolean =>
+  Boolean(
+    state.selection?.activity ||
+    state.bot?.paused ||
+    avatarLimitation(state.bot) ||
+    state.sync !== 'live',
+  );
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
   openDm(botId: string): void;
   openAttention(): void;
-  openChannel(channelId: string): void;
+  openChannel(channelId: string, messageId: string): void | Promise<void>;
   t: BotHarnessTranslate;
+  onRemove?(botId: string): void;
+  bubbles?: CompanionBubbles | undefined;
+  openSettings?(): void;
 }
 export function WindowCompanionView({
   companion,
@@ -26,13 +48,19 @@ export function WindowCompanionView({
   openAttention,
   openChannel,
   t,
+  onRemove,
+  bubbles,
+  openSettings,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
   latest.current = view;
   const [motion] = useState(() => new CompanionMotion());
   const [point, setPoint] = useState(motion.point);
+  const [bubble, setBubble] = useState<BubblePlacement | undefined>(undefined);
+  const bubbleOffset = bubble?.offset ?? 0;
   const root = useRef<HTMLDivElement | null>(null);
+  const character = useRef<HTMLButtonElement | null>(null);
   const pointer = useRef<
     | {
         id: number;
@@ -51,6 +79,21 @@ export function WindowCompanionView({
   const exit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clickReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [menu, setMenu] = useState(false);
+  const menuClass = `bh-companion-menu-${useId()}`;
+  const menuTrigger = useRef<HTMLElement | null>(null);
+  const focusMenu = useMountedResource<HTMLSpanElement>(() => {
+    menuTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const timer = window.setTimeout(() => {
+      document
+        .getElementsByClassName(menuClass)
+        .item(0)
+        ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+        ?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [menuClass]);
+  const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(() => new Set());
   const menuOpen = useRef(false);
   menuOpen.current = menu;
   const reducedMotion = (): boolean =>
@@ -78,6 +121,21 @@ export function WindowCompanionView({
     if (exit.current !== undefined) clearTimeout(exit.current);
     companion.reading(true);
   };
+  const closeMenu = (): void => {
+    const returnFocus = document
+      .getElementsByClassName(menuClass)
+      .item(0)
+      ?.contains(document.activeElement)
+      ? menuTrigger.current
+      : null;
+    setMenu(false);
+    leave();
+    if (returnFocus) {
+      queueMicrotask(() => {
+        if (returnFocus.isConnected) returnFocus.focus();
+      });
+    }
+  };
   const mount = useMountedResource<HTMLDivElement>(
     (node) => {
       root.current = node;
@@ -85,6 +143,7 @@ export function WindowCompanionView({
       let previous = performance.now();
       let elapsed = 0;
       let measured = false;
+      let visible = true;
       const measure = () => {
         const width = node.getBoundingClientRect().width;
         const next = measured
@@ -101,11 +160,12 @@ export function WindowCompanionView({
         setPoint(next);
       };
       const tick = (now: number) => {
+        frame = 0;
         const milliseconds = Math.min(100, Math.max(0, now - previous));
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
-        if (!document.hidden) {
+        if (!document.hidden && visible) {
           elapsed += milliseconds;
           if (elapsed >= 50) {
             companion.advance(elapsed, reduced);
@@ -122,30 +182,85 @@ export function WindowCompanionView({
           );
           const previousPoint = motion.point;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
+          if (state.selection) {
+            if (statusVisible(state) || state.cards.length) {
+              const placement = bubbles?.place(
+                state.selection.botId,
+                next.x,
+                next.y,
+                next.width,
+                window.innerHeight,
+                state.reading
+                  ? state.cards.length
+                  : Math.min(state.cards.length, state.capacity.layers),
+                state.reading,
+              );
+              setBubble((previous) =>
+                previous?.offset === placement?.offset &&
+                previous?.left === placement?.left &&
+                previous?.cardHeight === placement?.cardHeight
+                  ? previous
+                  : placement,
+              );
+            } else {
+              bubbles?.remove(state.selection.botId);
+              setBubble(undefined);
+            }
+          }
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
           if (next !== previousPoint) setPoint(next);
           if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
-        frame = requestAnimationFrame(tick);
+        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
       };
+      const visibility = () => {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        previous = performance.now();
+        elapsed = 0;
+        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
+      };
+      const observer =
+        typeof IntersectionObserver === 'undefined'
+          ? undefined
+          : new IntersectionObserver((entries) => {
+              visible = entries.some((entry) => entry.isIntersecting);
+              visibility();
+            });
+      const target = node.querySelector('.bh-companion');
+      if (target) observer?.observe(target);
+      const policy = new MutationObserver(() => {
+        if (reducedMotion()) setPoint(motion.advance(0, true, false, direction.current));
+      });
+      policy.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-botharness-motion'],
+      });
       measure();
-      frame = requestAnimationFrame(tick);
+      visibility();
       window.addEventListener('resize', measure);
+      document.addEventListener('visibilitychange', visibility);
       return () => {
         cancelAnimationFrame(frame);
+        observer?.disconnect();
+        policy.disconnect();
         window.removeEventListener('resize', measure);
+        document.removeEventListener('visibilitychange', visibility);
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
+        if (latest.current.selection) bubbles?.remove(latest.current.selection.botId);
         root.current = null;
       };
     },
-    [companion, view.selection?.botId],
+    [companion, view.selection?.botId, bubbles],
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
-  const state = activity?.state ?? 'idle';
+  const state = bot.paused ? 'idle' : (activity?.state ?? 'idle');
+  const limitationKey = avatarLimitation(bot);
+  const limitation = limitationKey ? t(`companion.${limitationKey}`) : undefined;
   const attention = activity?.attention;
   const items: MenuEntry[] = [
     {
@@ -158,20 +273,50 @@ export function WindowCompanionView({
       label: t('companion.dm'),
       icon: <span aria-hidden="true">{selection.dm ? '✓' : ''}</span>,
     },
+    {
+      id: 'group',
+      label: t('companion.group'),
+      icon: <span aria-hidden="true">{selection.group ? '✓' : ''}</span>,
+    },
+    { type: 'separator', id: 'scope-separator' },
+    ...(['own-dm', 'shared', 'all-bot'] as const).map((scope) => ({
+      id: scope,
+      label: t(`companion.scope.${scope}`),
+      icon: <span aria-hidden="true">{selection.visibility === scope ? '✓' : ''}</span>,
+    })),
+    { type: 'separator', id: 'walking-separator' },
+    { id: 'walking', label: t(selection.walking ? 'companion.pause' : 'companion.walk') },
     { type: 'separator', id: 'remove-separator' },
+    ...(openSettings ? [{ id: 'settings', label: t('companion.settings') }] : []),
     { id: 'remove', label: t('companion.remove') },
   ];
-  const cards = view.reading ? view.cards : view.cards.slice(-3);
-  const bubbleLeft = Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
+  const cards = view.reading ? view.cards : view.cards.slice(-view.capacity.layers);
+  const bubbleLeft = bubble
+    ? bubble.left - point.x
+    : Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
   return (
     <div ref={mount} className="bh-root bh-companion-stage">
       <section
         className="bh-companion"
         aria-label={t('companion.label', { name: bot.name })}
         data-reading={view.reading}
+        data-static={bot.paused}
         data-sync={view.sync}
         data-motion={point.phase}
-        style={{ left: point.x, bottom: point.y }}
+        data-bot={bot.slug}
+        style={{ left: point.x, bottom: point.y, zIndex: view.reading ? 10 : 1 }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && menu) {
+            event.preventDefault();
+            setMenu(false);
+            character.current?.focus();
+          }
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          enter();
+          setMenu(true);
+        }}
         onPointerEnter={enter}
         onPointerLeave={leave}
         onFocusCapture={enter}
@@ -179,13 +324,18 @@ export function WindowCompanionView({
           if (!event.currentTarget.contains(event.relatedTarget)) leave();
         }}
       >
-        {selection.activity || view.sync !== 'live' ? (
-          <div className="bh-companion-activity" style={{ left: bubbleLeft }} role="status">
+        {statusVisible(view) ? (
+          <div
+            className="bh-companion-activity"
+            style={{ left: bubbleLeft, bottom: 134 + bubbleOffset }}
+            role="status"
+          >
             {view.sync !== 'live'
               ? t('companion.stale')
               : bot.paused
                 ? t('companion.archived')
                 : personaBotPresentationSummary(state, activity?.activity, undefined, t)}
+            {limitation ? ` · ${limitation}` : null}
           </div>
         ) : null}
         {view.cards.length ? (
@@ -194,16 +344,30 @@ export function WindowCompanionView({
             aria-label={t('companion.messages')}
             style={{
               left: bubbleLeft,
+              bottom: 174 + bubbleOffset,
               height: view.reading
-                ? Math.min(cards.length * 112, Math.max(112, window.innerHeight - 240))
+                ? (bubble?.cardHeight ??
+                  Math.min(
+                    cards.length * 112,
+                    Math.max(112, window.innerHeight - point.y - 174 - bubbleOffset - 16),
+                  ))
                 : 112,
             }}
           >
             {cards.map((card, index) => {
+              const identity = companionMessageIdentity(card.channelId, card.messageId);
               const layer = cards.length - index - 1;
+              const context = [
+                card.source === 'bot-dm' ? card.participants?.join(' ↔ ') : '',
+                card.canOpen === false || unavailable.has(identity)
+                  ? t('companion.sourceUnavailable')
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' · ');
               return (
                 <li
-                  key={card.messageId}
+                  key={identity}
                   ref={(node) => {
                     if (node) node.inert = !view.reading && layer !== 0;
                   }}
@@ -218,18 +382,61 @@ export function WindowCompanionView({
                   aria-hidden={!view.reading && layer !== 0}
                 >
                   <header>
-                    <button type="button" onClick={() => openChannel(card.channelId)}>
-                      {t('companion.source', { name: card.channelName })}
-                    </button>
+                    <div className="bh-companion-source">
+                      <button
+                        type="button"
+                        disabled={card.canOpen === false}
+                        title={
+                          card.canOpen === false ? t('companion.sourceUnavailable') : undefined
+                        }
+                        onClick={async () => {
+                          if (card.canOpen === false) return;
+                          try {
+                            await openChannel(card.channelId, card.messageId);
+                            setUnavailable(
+                              (prior) => new Set([...prior].filter((id) => id !== identity)),
+                            );
+                          } catch {
+                            setUnavailable(
+                              (prior) =>
+                                new Set([...prior, identity].slice(-view.capacity.retention)),
+                            );
+                          }
+                        }}
+                      >
+                        {t(
+                          card.source === 'shared-group' || card.source === 'bot-group'
+                            ? 'companion.sourceGroup'
+                            : 'companion.source',
+                          { name: card.channelName },
+                        )}
+                      </button>
+                      {context && <small title={context}>{context}</small>}
+                    </div>
                     <button
                       type="button"
                       aria-label={t('companion.dismiss')}
-                      onClick={() => companion.dismiss(card.messageId)}
+                      onClick={(event) => {
+                        if (document.activeElement === event.currentTarget) {
+                          const controls = [
+                            ...root.current!.querySelectorAll<HTMLButtonElement>(
+                              '.bh-companion-card header > button',
+                            ),
+                          ];
+                          const current = controls.indexOf(event.currentTarget);
+                          (
+                            controls[current + 1] ??
+                            controls[current - 1] ??
+                            character.current
+                          )?.focus();
+                        }
+                        companion.dismiss(card.messageId, card.channelId);
+                      }}
                     >
                       <IconCloseFillRegular size={14} />
                     </button>
                   </header>
-                  <p>{card.body.slice(0, card.shown)}</p>
+                  <p data-context={Boolean(context)}>{card.body.slice(0, card.shown)}</p>
                 </li>
               );
             })}
@@ -253,14 +460,16 @@ export function WindowCompanionView({
           >
             {selection.walking ? 'Ⅱ' : '▷'}
           </button>
+          {menu ? <span ref={focusMenu} aria-hidden="true" /> : null}
           <Menu
             open={menu}
-            onClose={() => {
-              setMenu(false);
-              leave();
-            }}
+            onClose={closeMenu}
             items={items}
             dense
+            side="top"
+            portal
+            autoFocus
+            listClassName={menuClass}
             anchor={
               <button
                 type="button"
@@ -272,11 +481,25 @@ export function WindowCompanionView({
               </button>
             }
             onSelect={(id) => {
-              if (id === 'remove') companion.remove();
+              if (id === 'remove') {
+                const pin = [
+                  ...document.querySelectorAll<HTMLButtonElement>('[data-companion-pin]'),
+                ].find((item) => item.dataset['companionPin'] === bot.slug);
+                const next = [
+                  ...document.querySelectorAll<HTMLButtonElement>('.bh-companion-character'),
+                ].find((item) => item !== character.current);
+                (pin ?? next)?.focus();
+                if (onRemove) onRemove(bot.slug);
+                else companion.remove();
+              }
               if (id === 'activity') companion.configure({ activity: !selection.activity });
               if (id === 'dm') companion.configure({ dm: !selection.dm });
-              setMenu(false);
-              leave();
+              if (id === 'group') companion.configure({ group: !selection.group });
+              if (id === 'walking') companion.configure({ walking: !selection.walking });
+              if (id === 'settings') openSettings?.();
+              if (id === 'own-dm' || id === 'shared' || id === 'all-bot')
+                companion.configure({ visibility: id });
+              closeMenu();
             }}
           />
           {view.pending ? <span role="status">+{view.pending}</span> : null}
@@ -294,6 +517,7 @@ export function WindowCompanionView({
         <button
           type="button"
           className="bh-companion-character"
+          ref={character}
           style={{
             transform: `rotate(${point.tilt}deg) scale(${1 + point.squash}, ${1 - point.squash})`,
           }}
@@ -302,6 +526,11 @@ export function WindowCompanionView({
             if (!pointer.current?.moved) openDm(bot.slug);
           }}
           onKeyDown={(event) => {
+            if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+              event.preventDefault();
+              enter();
+              setMenu(true);
+            }
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
               setPoint(motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)));
@@ -366,7 +595,9 @@ export function WindowCompanionView({
             state={state}
             activity={activity?.activity}
             surface="companion"
+            mouth={view.mouth}
             indicator={false}
+            still={bot.paused}
             t={t}
           />
         </button>

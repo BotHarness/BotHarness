@@ -150,13 +150,12 @@ const props = {
   t: zhTranslate,
 };
 
-it('lists the Bot identities, the Lark guide and pending pairings as sidebar rows', async () => {
+it('lists Bot identities and pending pairings without a standalone platform guide', async () => {
   await act(async () => root.render(createElement(ExternalIdentitiesEntry, props)));
   const titles = [...host.querySelectorAll('.bh-card-title')].map((node) => node.textContent);
   expect(titles).toEqual([
     'Ada on Lark',
     zhTranslate('identity.bind'),
-    zhTranslate('setup.title'),
     zhTranslate('pairing.title'),
     zhTranslate('approvalIm.title'),
   ]);

@@ -39,6 +39,7 @@ import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
+import type { PersonaBotDeletionPreview, PersonaBotDeletion } from '../bots/deletion.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import type { UsageFilter, UsageQueryResult } from '../usage/query.js';
@@ -420,6 +421,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.update({ slug, patch }));
   }
 
+  deletionPreview(slug: string): { preview: PersonaBotDeletionPreview } {
+    return unwrap(this.methods.deletionPreview({ slug }));
+  }
+  async deletionConfirm(
+    slug: string,
+    token: string,
+    eraseMemory: boolean,
+  ): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionConfirm({ slug, token, eraseMemory }));
+  }
+  async deletionRetry(slug: string): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionRetry({ slug }));
+  }
+  deletionMemoryFolder(slug: string): {
+    target: { path: string; relativePath: string; kind: 'directory' };
+  } {
+    return unwrap(this.methods.deletionMemoryFolder({ slug }));
+  }
   pause(slug: string): { bot: PersonaBotDetail } {
     return unwrap(this.methods.pause({ slug }));
   }
@@ -1055,6 +1074,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'create',
   'createFromGit',
   'update',
+  'deletionPreview',
+  'deletionConfirm',
+  'deletionRetry',
+  'deletionMemoryFolder',
   'pause',
   'resume',
   'channels',

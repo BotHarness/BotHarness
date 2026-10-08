@@ -172,53 +172,51 @@ it('preserves legacy counters on upgrade and seeds old receipts without doubling
 });
 
 describe('Host PersonaBot lifecycle', () => {
-  it('keeps archived usage and removes only purged Bot usage, including receipts, despite replay', async () => {
+  it('retains archived and deleted identity usage, without granting a same-name replacement historical ownership', async () => {
     const home = createTempRoot('botharness-usage-lifecycle-');
     const core = createCore({ dshHome: home });
     trackTestOwner(core.operationalDatabase);
-    expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
-    expect(core.registry.create({ slug: 'bea', displayName: 'Bea' }).ok).toBe(true);
-    const at = new Date(Date.now() + 1).toISOString();
     for (const slug of ['ada', 'bea']) {
+      expect(core.registry.create({ slug, displayName: 'Ada' }).ok).toBe(true);
       core.ownership.claim({
         sessionId: slug + '-session',
         botSlug: slug,
         rootRole: 'orchestrator',
-        at,
+        at: new Date(Date.now() + 1).toISOString(),
       });
       core.usage!.handleSessionEvent(slug + '-session', settlement(1));
     }
     expect(core.registry.setPaused('ada', true).ok).toBe(true);
-    const before = core.usage!.activity('ada', SINCE);
-    expect(before[0]?.totalTokens).toBe(170);
-    await core.usage!.rebuild(['ada-session'], async () => undefined);
-    expect(core.usage!.activity('ada', SINCE)).toEqual(before);
-    expect(core.registry.remove('ada', { purge: true })).toBe(true);
+    expect(core.usage!.activity('ada', SINCE)[0]?.totalTokens).toBe(170);
+    const deleted = await core.deletions.confirm('ada', core.deletions.preview('ada').token, true);
+    expect(deleted).toMatchObject({ phase: 'complete', memory: 'erased' });
     core.usage!.handleSessionEvent('ada-session', settlement(2));
-    expect(core.usage!.activity('ada', SINCE)).toEqual([]);
+    expect(core.usage!.activity('ada', SINCE)[0]?.totalTokens).toBe(340);
     expect(core.usage!.activity('bea', SINCE)[0]?.totalTokens).toBe(170);
+    await core.runtime.close();
+    core.externalMessaging.close();
     core.operationalDatabase.close();
     const restarted = createCore({ dshHome: home });
     trackTestOwner(restarted.operationalDatabase);
     await restarted.usage!.rebuild(['ada-session'], async () => ({
-      events: [settlement(1)],
+      events: [settlement(1), settlement(2)],
       inheritedEventCount: 0,
     }));
-    expect(restarted.usage!.activity('ada', SINCE)).toEqual([]);
-    expect(restarted.registry.create({ slug: 'ada', displayName: 'New Ada' }).ok).toBe(true);
-    restarted.usage!.handleSessionEvent('ada-session', settlement(3));
+    expect(restarted.usage!.activity('ada', SINCE)[0]?.totalTokens).toBe(340);
+    expect(restarted.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(false);
+    expect(restarted.registry.create({ slug: 'replacement', displayName: 'Ada' }).ok).toBe(true);
     restarted.ownership.claim({
-      sessionId: 'new-ada-session',
-      botSlug: 'ada',
+      sessionId: 'replacement-session',
+      botSlug: 'replacement',
       rootRole: 'orchestrator',
       at: new Date(Date.now() + 1).toISOString(),
     });
-    restarted.usage!.handleSessionEvent('new-ada-session', settlement(1));
-    expect(restarted.usage!.activity('ada', SINCE)[0]?.totalTokens).toBe(170);
-    const receipts = attachOperationalModule(restarted.operationalDatabase, 'usage').read((db) =>
-      db.prepare('SELECT * FROM usage_receipts WHERE bot_slug = ?').all('ada'),
-    );
-    expect(receipts).toHaveLength(1);
+    restarted.usage!.handleSessionEvent('replacement-session', settlement(1));
+    expect(restarted.usage!.activity('replacement', SINCE)[0]?.totalTokens).toBe(170);
+    expect(restarted.ownership.resolve('ada-session')?.botSlug).toBe('ada');
+    expect(restarted.usage!.activity('ada', SINCE)[0]?.totalTokens).toBe(340);
+    await restarted.runtime.close();
+    restarted.externalMessaging.close();
   });
 });
 

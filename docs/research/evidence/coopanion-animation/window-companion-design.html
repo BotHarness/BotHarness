@@ -1,0 +1,2591 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>BotHarness · 窗口伙伴设计审阅</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'base',
+        securityLevel: 'strict',
+        fontFamily: 'system-ui, Microsoft YaHei, sans-serif',
+        themeVariables: {
+          primaryColor: '#f0fdf4',
+          primaryTextColor: '#0f172a',
+          primaryBorderColor: '#16a34a',
+          lineColor: '#64748b',
+          secondaryColor: '#f8fafc',
+        },
+      });
+    </script>
+    <style>
+      :root {
+        --ink: #0f172a;
+        --soft: #475569;
+        --paper: #f8fafc;
+        --brand: #16a34a;
+        --green: #15803d;
+        --line: #dce4e1;
+        --muted: #64748b;
+        --wash: #f0fdf4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-padding-top: 24px;
+      }
+      html body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          15px/1.65 system-ui,
+          -apple-system,
+          'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+      }
+      body h1 {
+        font-size: clamp(34px, 4.5vw, 56px);
+        font-weight: 750;
+        line-height: 1.2;
+        letter-spacing: -1.8px;
+      }
+      body h2 {
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      body h3 {
+        font-size: 21px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      body h4 {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      body p,
+      body h1,
+      body h2,
+      body h3,
+      body h4,
+      body figure {
+        margin: 0;
+      }
+      body a {
+        color: var(--green);
+        text-decoration: none;
+      }
+      body a:hover {
+        text-decoration: underline;
+      }
+      body a:focus-visible {
+        outline: 3px solid #2563eb;
+        outline-offset: 4px;
+      }
+      main {
+        max-width: 1120px;
+        margin: auto;
+        padding: 30px 30px 50px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: center;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        font-weight: 750;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .logo {
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+        background: var(--brand);
+        box-shadow: 6px -6px 0 -3px var(--ink);
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.6px;
+        color: var(--green);
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: 1.08fr 1fr;
+        gap: 35px;
+        align-items: center;
+        padding: 40px 0;
+      }
+      .hero h1 {
+        margin: 13px 0 20px;
+      }
+      .hero p {
+        color: var(--soft);
+        font-size: 16px;
+      }
+      .pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+      .pill {
+        font-size: 11px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 999px;
+        padding: 4px 10px;
+        display: inline-block;
+      }
+      .strong {
+        background: #dcfce7;
+        color: #166534;
+        border-color: #bbf7d0;
+      }
+      .worth {
+        background: #fef3c7;
+        color: #92400e;
+        border-color: #fde68a;
+      }
+      .spec {
+        background: #e2e8f0;
+        color: #475569;
+      }
+      .hero-note {
+        font-size: 12px !important;
+        margin-top: 16px;
+      }
+      .scene {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .scene-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .scene-main {
+        padding: 20px 20px 0;
+        min-height: 210px;
+        position: relative;
+      }
+      .hint-lines {
+        width: 60%;
+        height: 7px;
+        border-radius: 4px;
+        background: #e8eeeb;
+        box-shadow:
+          0 17px #eef2ef,
+          0 34px #eef2ef;
+        margin-bottom: 50px;
+      }
+      .bubble-mini {
+        position: relative;
+        background: var(--wash);
+        border: 1px solid var(--ink);
+        box-shadow: 3px 3px 0 #dbe5de;
+        padding: 11px 13px;
+        font-size: 12px;
+        max-width: 290px;
+        margin: 0 0 14px auto;
+      }
+      .bubble-mini:after {
+        content: '';
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        bottom: -6px;
+        right: 65px;
+        border-right: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+        background: var(--wash);
+        transform: rotate(45deg);
+      }
+      .bubble-mini .origin {
+        display: block;
+        font-size: 10px;
+        color: var(--green);
+        margin-bottom: 5px;
+      }
+      .companions {
+        display: flex;
+        justify-content: space-around;
+        align-items: flex-end;
+        gap: 20px;
+        padding: 5px 12px 0;
+        border-bottom: 2px solid #b6c9ba;
+      }
+      .companions svg {
+        width: 72px;
+        height: 72px;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .companion {
+        text-align: center;
+      }
+      .companion span {
+        font-size: 10px;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 3px;
+      }
+      .scene-foot {
+        background: #f1f5f3;
+        color: var(--muted);
+        padding: 12px 18px;
+        font-size: 11px;
+      }
+      .nav {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 14px 0;
+        font-size: 12px;
+      }
+      .nav a {
+        color: var(--soft);
+      }
+      section {
+        padding-top: 34px;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: baseline;
+        margin-bottom: 18px;
+      }
+      .section-head .num {
+        font-size: 13px;
+        color: var(--brand);
+        font-family: ui-monospace, Consolas, monospace;
+        margin-right: 12px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 21px;
+      }
+      .card p {
+        font-size: 13px;
+        color: var(--soft);
+        margin-top: 9px;
+      }
+      .label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .tagline {
+        padding: 12px 16px;
+        background: var(--wash);
+        border-left: 3px solid var(--brand);
+        font-size: 12px;
+        color: #376042;
+        margin-top: 16px;
+      }
+      .amber {
+        background: #fffbeb;
+        border-left-color: #d97706;
+        color: #89551b;
+      }
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 16px;
+      }
+      .panel {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+      .panel.after {
+        background: #f5fbf6;
+        border-color: #c7e7cd;
+      }
+      .stack-area {
+        height: 235px;
+        position: relative;
+        padding-top: 30px;
+      }
+      .msg {
+        background: #fff;
+        border: 1px solid #afbcaf;
+        box-shadow: 2px 2px 0 #e1e9e3;
+        border-radius: 3px;
+        padding: 11px 13px;
+        font-size: 12px;
+        position: relative;
+      }
+      .msg .origin {
+        font-size: 10px;
+        color: var(--green);
+        display: block;
+        margin-bottom: 4px;
+      }
+      .stacked .msg {
+        position: absolute;
+        width: 90%;
+        left: 5%;
+        top: 42px;
+      }
+      .stacked .msg:nth-child(1) {
+        transform: translateY(-18px) scale(0.9);
+        background: #edf4ef;
+      }
+      .stacked .msg:nth-child(2) {
+        transform: translateY(-9px) scale(0.95);
+        background: #f5faf6;
+      }
+      .stacked .msg:nth-child(3) {
+        background: #fff;
+      }
+      .list .msg {
+        margin-bottom: 8px;
+      }
+      .phase-note {
+        font-size: 12px;
+        color: var(--soft);
+        margin-top: 12px;
+      }
+      .pending {
+        font-size: 10px;
+        color: #166534;
+        background: #dcfce7;
+        border-radius: 999px;
+        padding: 3px 9px;
+        display: inline-block;
+        margin-top: 7px;
+      }
+      .arrow-caption {
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted);
+        padding: 13px 0 0;
+      }
+      .rules {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 18px;
+      }
+      .rule {
+        border-top: 1px solid var(--line);
+        padding-top: 13px;
+      }
+      .rule b {
+        font-size: 13px;
+      }
+      .rule p {
+        font-size: 12px;
+        color: var(--soft);
+        margin-top: 5px;
+      }
+      .settings .value {
+        font-size: 30px;
+        font-weight: 750;
+        line-height: 1.2;
+        margin-bottom: 6px;
+      }
+      .switch-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        padding: 7px 0;
+        border-bottom: 1px solid #edf1ed;
+      }
+      .switch {
+        font-size: 10px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: #dcfce7;
+        color: #166534;
+      }
+      .switch.off {
+        background: #e2e8f0;
+        color: #64748b;
+      }
+      .key {
+        display: inline-block;
+        font-size: 11px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: #fff;
+      }
+      .menu-line {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .flow-box {
+        padding: 20px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .mermaid {
+        text-align: center;
+        white-space: pre-wrap;
+        font-size: 12px;
+        overflow: auto;
+        margin: 0;
+        min-height: 180px;
+      }
+      .mermaid svg {
+        width: 100%;
+        max-height: 330px;
+      }
+      .caption {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .candidate {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 15px;
+        padding: 24px;
+        margin-top: 22px;
+      }
+      .candidate-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+      }
+      .candidate-head .pills {
+        margin: 0;
+      }
+      .candidate .problem {
+        font-size: 13px;
+        color: var(--soft);
+        margin-top: 12px;
+      }
+      .files {
+        font-size: 11px;
+        font-family: ui-monospace, Consolas, monospace;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin-top: 11px;
+      }
+      .before-after {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 17px;
+      }
+      .diagram {
+        background: var(--paper);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        min-height: 255px;
+      }
+      .diagram.proposed {
+        background: #f4fbf5;
+        border-color: #c7e7cd;
+      }
+      .node {
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        text-align: center;
+        font-size: 12px;
+      }
+      .node-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .dashed {
+        border-style: dashed;
+      }
+      .down {
+        text-align: center;
+        color: #94a3b8;
+        height: 24px;
+      }
+      .deep {
+        background: var(--ink);
+        border: 3px solid var(--ink);
+        border-radius: 8px;
+        color: #fff;
+        padding: 0 12px 12px;
+      }
+      .interface {
+        padding: 8px 0;
+        border-bottom: 1px dashed #5b7969;
+        text-align: center;
+        font-size: 10px;
+        color: #bde1c7;
+      }
+      .deep-name {
+        text-align: center;
+        font-size: 13px;
+        font-weight: 650;
+        padding: 10px 0;
+      }
+      .inside {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .inside span {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        text-align: center;
+        padding: 5px;
+        font-size: 10px;
+        color: #dbe7df;
+      }
+      .wins {
+        font-size: 12px;
+        color: var(--soft);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px 20px;
+        margin-top: 14px;
+      }
+      .wins span:before {
+        content: '＋';
+        color: var(--brand);
+        margin-right: 4px;
+      }
+      .deletion {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 9px;
+      }
+      .timeline {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-top: 18px;
+      }
+      .time {
+        border-top: 3px solid #cbd5e1;
+        background: #fff;
+        border-radius: 0 0 10px 10px;
+        padding: 18px;
+        border-left: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+      .time.current {
+        border-top-color: var(--brand);
+      }
+      .time b {
+        font-size: 14px;
+        display: block;
+        margin-top: 5px;
+      }
+      .time p {
+        font-size: 12px;
+        color: var(--soft);
+        margin-top: 7px;
+      }
+      .recommendation {
+        padding: 25px 28px;
+        background: var(--ink);
+        color: #fff;
+        border-radius: 14px;
+      }
+      .recommendation .eyebrow {
+        color: #86efac;
+      }
+      .recommendation h3 {
+        margin: 8px 0;
+      }
+      .recommendation p {
+        font-size: 14px;
+        color: #ccd9d0;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .step {
+        padding: 16px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 10px;
+      }
+      .step b {
+        font-size: 13px;
+        display: block;
+        margin-bottom: 7px;
+      }
+      .step p {
+        font-size: 12px;
+        color: var(--soft);
+      }
+      .question {
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        border-radius: 10px;
+        padding: 18px;
+      }
+      .question h4 {
+        color: #92400e;
+      }
+      .question p {
+        font-size: 12px;
+        color: #775325;
+        margin-top: 8px;
+      }
+      .source-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        border-top: 1px solid var(--line);
+        padding-top: 21px;
+        margin-top: 25px;
+        font-size: 12px;
+        color: var(--soft);
+      }
+      .source-grid p {
+        margin-top: 8px;
+      }
+      .foot {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 25px;
+        border-top: 1px solid var(--line);
+        padding-top: 15px;
+        overflow-wrap: anywhere;
+      }
+      .table-wrap {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 12px;
+        background: #fff;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 650;
+        width: 105px;
+      }
+      body code {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 760px) {
+        main {
+          padding: 22px 18px 35px;
+        }
+        .hero,
+        .grid2,
+        .comparison,
+        .rules,
+        .before-after,
+        .source-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero {
+          padding: 28px 0;
+          gap: 24px;
+        }
+        .hero h1 {
+          letter-spacing: -1px;
+        }
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+        .section-head {
+          display: block;
+        }
+        .section-head .small {
+          margin-top: 7px;
+          display: block;
+        }
+        .nav {
+          gap: 10px 17px;
+        }
+        .candidate {
+          padding: 20px;
+        }
+        .candidate-head {
+          display: block;
+        }
+        .candidate-head .pills {
+          margin-top: 10px;
+        }
+        .steps {
+          grid-template-columns: 1fr 1fr;
+        }
+        .timeline {
+          grid-template-columns: 1fr;
+        }
+        .top .small {
+          text-align: right;
+          max-width: 140px;
+        }
+        .mermaid svg {
+          min-width: 510px;
+        }
+        .flow-box {
+          overflow: hidden;
+        }
+        .stack-area {
+          height: 235px;
+        }
+        .scene {
+          max-width: 530px;
+        }
+        .recommendation {
+          padding: 23px;
+        }
+        th {
+          width: 90px;
+        }
+        .files {
+          font-size: 10px;
+        }
+      }
+      @media print {
+        body {
+          background: #fff;
+        }
+        main {
+          padding: 0;
+          max-width: none;
+        }
+        .nav {
+          display: none;
+        }
+        .candidate,
+        .scene,
+        .card,
+        .question,
+        .recommendation {
+          break-inside: avoid;
+        }
+        a {
+          color: inherit;
+        }
+        .hero {
+          padding: 20px 0;
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <main class="mx-auto">
+      <div class="top">
+        <div class="brand">
+          <span class="logo" aria-hidden="true"></span>BotHarness
+          <span class="small">/ design review</span>
+        </div>
+        <div class="small">2026.10.08 · Asia/Tokyo<br />访谈汇总 · 尚未实施</div>
+      </div>
+      <header class="hero">
+        <div>
+          <div class="eyebrow">WINDOW COMPANION</div>
+          <h1>同一个 Bot，<br />留在窗口里。</h1>
+          <p>
+            用户钉选自己的透明半身 Avatar；它沿窗口底部活动，以真实 Activity
+            和已提交消息驱动动作与像素气泡。
+          </p>
+          <div class="pills">
+            <span class="pill strong">官方 DSH 窗口内</span><span class="pill">半身外观</span
+            ><span class="pill worth">完整设计已确认</span>
+          </div>
+          <p class="hero-note">
+            跨页面保留 · 可拖拽 · 每 Bot 独立气泡栈<br />展示图为静态设计示意，不是已完成产品。
+          </p>
+        </div>
+        <figure
+          class="scene"
+          aria-label="窗口底部三个既有半身 Avatar 与 Channel 来源气泡的静态设计示意"
+        >
+          <div class="scene-top"><span>DSH 主窗口 · 会话内容</span><span>静态示意</span></div>
+          <div class="scene-main">
+            <div class="hint-lines" aria-hidden="true"></div>
+            <div class="bubble-mini">
+              <span class="origin">群聊 · 产品设计</span>“我整理好了动效方案，可以看一下。”
+            </div>
+            <div class="companions">
+              <div class="companion">
+                <span>思考中</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 32 32"
+                  width="512"
+                  height="512"
+                  shape-rendering="crispEdges"
+                  aria-hidden="true"
+                >
+                  <g class="bh-illustrated-body">
+                    <rect x="4" y="22" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="22" width="1" height="1" fill="#2a1f24" />
+                    <rect x="9" y="22" width="2" height="1" fill="#372f35" />
+                    <rect x="21" y="22" width="2" height="1" fill="#342c33" />
+                    <rect x="23" y="22" width="1" height="1" fill="#271d23" />
+                    <rect x="27" y="22" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="23" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="23" width="1" height="1" fill="#2a1f24" />
+                    <rect x="9" y="23" width="2" height="1" fill="#2f2e36" />
+                    <rect x="11" y="23" width="1" height="1" fill="#372f35" />
+                    <rect x="20" y="23" width="1" height="1" fill="#342c33" />
+                    <rect x="21" y="23" width="2" height="1" fill="#292930" />
+                    <rect x="23" y="23" width="1" height="1" fill="#271d23" />
+                    <rect x="27" y="23" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="24" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="24" width="1" height="1" fill="#2a1f24" />
+                    <rect x="9" y="24" width="2" height="1" fill="#b6ddd3" />
+                    <rect x="11" y="24" width="1" height="1" fill="#78a297" />
+                    <rect x="12" y="24" width="8" height="1" fill="#b7c0be" />
+                    <rect x="20" y="24" width="1" height="1" fill="#78a297" />
+                    <rect x="21" y="24" width="2" height="1" fill="#81afa3" />
+                    <rect x="23" y="24" width="1" height="1" fill="#292930" />
+                    <rect x="27" y="24" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="25" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="25" width="2" height="1" fill="#b6ddd3" />
+                    <rect x="10" y="25" width="3" height="1" fill="#a8d7cb" />
+                    <rect x="13" y="25" width="1" height="1" fill="#ffffff" />
+                    <rect x="14" y="25" width="1" height="1" fill="#749c92" />
+                    <rect x="15" y="25" width="2" height="1" fill="#ebf6f3" />
+                    <rect x="17" y="25" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="25" width="3" height="1" fill="#9ad0c2" />
+                    <rect x="22" y="25" width="2" height="1" fill="#81afa3" />
+                    <rect x="27" y="25" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="26" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="26" width="1" height="1" fill="#b6ddd3" />
+                    <rect x="9" y="26" width="1" height="1" fill="#7eab9f" />
+                    <rect x="10" y="26" width="3" height="1" fill="#9ad0c2" />
+                    <rect x="13" y="26" width="2" height="1" fill="#749c92" />
+                    <rect x="15" y="26" width="2" height="1" fill="#ebf6f3" />
+                    <rect x="17" y="26" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="26" width="3" height="1" fill="#9ad0c2" />
+                    <rect x="22" y="26" width="1" height="1" fill="#7eab9f" />
+                    <rect x="23" y="26" width="1" height="1" fill="#81afa3" />
+                    <rect x="27" y="26" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="27" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="27" width="1" height="1" fill="#7eab9f" />
+                    <rect x="9" y="27" width="4" height="1" fill="#9ad0c2" />
+                    <rect x="13" y="27" width="1" height="1" fill="#ffffff" />
+                    <rect x="14" y="27" width="1" height="1" fill="#749c92" />
+                    <rect x="15" y="27" width="2" height="1" fill="#ebf6f3" />
+                    <rect x="17" y="27" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="27" width="4" height="1" fill="#9ad0c2" />
+                    <rect x="23" y="27" width="1" height="1" fill="#7eab9f" />
+                    <rect x="27" y="27" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="28" width="1" height="1" fill="#281e23" />
+                    <rect x="8" y="28" width="5" height="1" fill="#9ad0c2" />
+                    <rect x="13" y="28" width="2" height="1" fill="#749c92" />
+                    <rect x="15" y="28" width="2" height="1" fill="#ebf6f3" />
+                    <rect x="17" y="28" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="28" width="5" height="1" fill="#9ad0c2" />
+                    <rect x="27" y="28" width="1" height="1" fill="#251c22" />
+                    <rect x="3" y="29" width="1" height="1" fill="#27272e" />
+                    <rect x="4" y="29" width="1" height="1" fill="#749c92" />
+                    <rect x="8" y="29" width="16" height="1" fill="#749c92" />
+                    <rect x="27" y="29" width="1" height="1" fill="#61837b" />
+                    <rect x="28" y="29" width="1" height="1" fill="#25242c" />
+                    <rect x="2" y="30" width="1" height="1" fill="#2c2d34" />
+                    <rect x="3" y="30" width="1" height="1" fill="#9ad0c2" />
+                    <rect x="4" y="30" width="1" height="1" fill="#7eab9f" />
+                    <rect x="8" y="30" width="5" height="1" fill="#9ad0c2" />
+                    <rect x="13" y="30" width="2" height="1" fill="#749c92" />
+                    <rect x="15" y="30" width="2" height="1" fill="#9ad0c2" />
+                    <rect x="17" y="30" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="30" width="5" height="1" fill="#9ad0c2" />
+                    <rect x="27" y="30" width="1" height="1" fill="#7eab9f" />
+                    <rect x="28" y="30" width="1" height="1" fill="#81afa3" />
+                    <rect x="29" y="30" width="1" height="1" fill="#292930" />
+                    <rect x="4" y="31" width="9" height="1" fill="#9ad0c2" />
+                    <rect x="13" y="31" width="2" height="1" fill="#749c92" />
+                    <rect x="15" y="31" width="2" height="1" fill="#9ad0c2" />
+                    <rect x="17" y="31" width="2" height="1" fill="#749c92" />
+                    <rect x="19" y="31" width="9" height="1" fill="#9ad0c2" />
+                  </g>
+                  <g class="bh-illustrated-head">
+                    <rect x="14" y="2" width="4" height="1" fill="#2a1f24" />
+                    <rect x="11" y="3" width="2" height="1" fill="#2c2328" />
+                    <rect x="13" y="3" width="1" height="1" fill="#2a1f24" />
+                    <rect x="14" y="3" width="4" height="1" fill="#8a5a36" />
+                    <rect x="18" y="3" width="2" height="1" fill="#2a1f24" />
+                    <rect x="20" y="3" width="1" height="1" fill="#281e23" />
+                    <rect x="9" y="4" width="2" height="1" fill="#2c2328" />
+                    <rect x="11" y="4" width="2" height="1" fill="#a17b5e" />
+                    <rect x="13" y="4" width="3" height="1" fill="#8a5a36" />
+                    <rect x="16" y="4" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="17" y="4" width="3" height="1" fill="#8a5a36" />
+                    <rect x="20" y="4" width="1" height="1" fill="#7c5131" />
+                    <rect x="21" y="4" width="2" height="1" fill="#281e23" />
+                    <rect x="8" y="5" width="1" height="1" fill="#2c2328" />
+                    <rect x="9" y="5" width="3" height="1" fill="#a17b5e" />
+                    <rect x="12" y="5" width="1" height="1" fill="#efb93f" />
+                    <rect x="13" y="5" width="1" height="1" fill="#8a5a36" />
+                    <rect x="14" y="5" width="1" height="1" fill="#bfa490" />
+                    <rect x="15" y="5" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="5" width="1" height="1" fill="#efb93f" />
+                    <rect x="17" y="5" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="18" y="5" width="1" height="1" fill="#8a5a36" />
+                    <rect x="19" y="5" width="1" height="1" fill="#7c5131" />
+                    <rect x="20" y="5" width="1" height="1" fill="#f59fba" />
+                    <rect x="21" y="5" width="2" height="1" fill="#7c5131" />
+                    <rect x="23" y="5" width="1" height="1" fill="#281e23" />
+                    <rect x="24" y="5" width="1" height="1" fill="#352a25" />
+                    <rect x="7" y="6" width="1" height="1" fill="#362733" />
+                    <rect x="8" y="6" width="1" height="1" fill="#f59fba" />
+                    <rect x="9" y="6" width="2" height="1" fill="#a17b5e" />
+                    <rect x="11" y="6" width="1" height="1" fill="#efb93f" />
+                    <rect x="12" y="6" width="1" height="1" fill="#e2565f" />
+                    <rect x="13" y="6" width="1" height="1" fill="#efb93f" />
+                    <rect x="14" y="6" width="1" height="1" fill="#8a5a36" />
+                    <rect x="15" y="6" width="1" height="1" fill="#5aa36b" />
+                    <rect x="16" y="6" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="17" y="6" width="1" height="1" fill="#5aa36b" />
+                    <rect x="18" y="6" width="1" height="1" fill="#8a5a36" />
+                    <rect x="19" y="6" width="1" height="1" fill="#f59fba" />
+                    <rect x="20" y="6" width="1" height="1" fill="#efb93f" />
+                    <rect x="21" y="6" width="1" height="1" fill="#f59fba" />
+                    <rect x="22" y="6" width="2" height="1" fill="#6e482b" />
+                    <rect x="24" y="6" width="1" height="1" fill="#efb93f" />
+                    <rect x="25" y="6" width="1" height="1" fill="#352a25" />
+                    <rect x="6" y="7" width="1" height="1" fill="#362733" />
+                    <rect x="7" y="7" width="1" height="1" fill="#f59fba" />
+                    <rect x="8" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="9" y="7" width="1" height="1" fill="#f59fba" />
+                    <rect x="10" y="7" width="1" height="1" fill="#a17b5e" />
+                    <rect x="11" y="7" width="1" height="1" fill="#5aa36b" />
+                    <rect x="12" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="13" y="7" width="1" height="1" fill="#5aa36b" />
+                    <rect x="14" y="7" width="5" height="1" fill="#8a5a36" />
+                    <rect x="19" y="7" width="1" height="1" fill="#5aa36b" />
+                    <rect x="20" y="7" width="1" height="1" fill="#f59fba" />
+                    <rect x="21" y="7" width="1" height="1" fill="#5aa36b" />
+                    <rect x="22" y="7" width="1" height="1" fill="#6e482b" />
+                    <rect x="23" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="24" y="7" width="1" height="1" fill="#e2565f" />
+                    <rect x="25" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="26" y="7" width="1" height="1" fill="#352a25" />
+                    <rect x="6" y="8" width="1" height="1" fill="#24282a" />
+                    <rect x="7" y="8" width="1" height="1" fill="#5aa36b" />
+                    <rect x="8" y="8" width="1" height="1" fill="#f59fba" />
+                    <rect x="9" y="8" width="1" height="1" fill="#5aa36b" />
+                    <rect x="10" y="8" width="1" height="1" fill="#bfa490" />
+                    <rect x="11" y="8" width="8" height="1" fill="#8a5a36" />
+                    <rect x="19" y="8" width="3" height="1" fill="#7c5131" />
+                    <rect x="22" y="8" width="1" height="1" fill="#6e482b" />
+                    <rect x="23" y="8" width="1" height="1" fill="#5aa36b" />
+                    <rect x="24" y="8" width="1" height="1" fill="#efb93f" />
+                    <rect x="25" y="8" width="1" height="1" fill="#352a25" />
+                    <rect x="5" y="9" width="1" height="1" fill="#2a1f24" />
+                    <rect x="6" y="9" width="12" height="1" fill="#8a5a36" />
+                    <rect x="18" y="9" width="3" height="1" fill="#7c5131" />
+                    <rect x="21" y="9" width="5" height="1" fill="#6e482b" />
+                    <rect x="26" y="9" width="1" height="1" fill="#271d23" />
+                    <rect x="5" y="10" width="1" height="1" fill="#2a1f24" />
+                    <rect x="6" y="10" width="6" height="1" fill="#8a5a36" />
+                    <rect x="12" y="10" width="1" height="1" fill="#634127" />
+                    <rect x="13" y="10" width="3" height="1" fill="#8a5a36" />
+                    <rect x="16" y="10" width="1" height="1" fill="#634127" />
+                    <rect x="17" y="10" width="1" height="1" fill="#8a5a36" />
+                    <rect x="18" y="10" width="2" height="1" fill="#7c5131" />
+                    <rect x="20" y="10" width="1" height="1" fill="#634127" />
+                    <rect x="21" y="10" width="5" height="1" fill="#6e482b" />
+                    <rect x="26" y="10" width="1" height="1" fill="#271d23" />
+                    <rect x="4" y="11" width="1" height="1" fill="#2a1f24" />
+                    <rect x="5" y="11" width="7" height="1" fill="#8a5a36" />
+                    <rect x="12" y="11" width="1" height="1" fill="#634127" />
+                    <rect x="13" y="11" width="3" height="1" fill="#8a5a36" />
+                    <rect x="16" y="11" width="1" height="1" fill="#634127" />
+                    <rect x="17" y="11" width="1" height="1" fill="#8a5a36" />
+                    <rect x="18" y="11" width="2" height="1" fill="#7c5131" />
+                    <rect x="20" y="11" width="1" height="1" fill="#634127" />
+                    <rect x="21" y="11" width="6" height="1" fill="#6e482b" />
+                    <rect x="27" y="11" width="1" height="1" fill="#271d23" />
+                    <rect x="4" y="12" width="1" height="1" fill="#2a1f24" />
+                    <rect x="5" y="12" width="7" height="1" fill="#8a5a36" />
+                    <rect x="12" y="12" width="1" height="1" fill="#634127" />
+                    <rect x="13" y="12" width="3" height="1" fill="#8a5a36" />
+                    <rect x="16" y="12" width="1" height="1" fill="#634127" />
+                    <rect x="17" y="12" width="1" height="1" fill="#8a5a36" />
+                    <rect x="18" y="12" width="2" height="1" fill="#7c5131" />
+                    <rect x="20" y="12" width="1" height="1" fill="#634127" />
+                    <rect x="21" y="12" width="6" height="1" fill="#6e482b" />
+                    <rect x="27" y="12" width="1" height="1" fill="#271d23" />
+                    <rect x="4" y="13" width="1" height="1" fill="#2a1f24" />
+                    <rect x="5" y="13" width="7" height="1" fill="#8a5a36" />
+                    <rect x="12" y="13" width="1" height="1" fill="#563821" />
+                    <rect x="13" y="13" width="3" height="1" fill="#8a5a36" />
+                    <rect x="16" y="13" width="1" height="1" fill="#563821" />
+                    <rect x="17" y="13" width="3" height="1" fill="#7c5131" />
+                    <rect x="20" y="13" width="1" height="1" fill="#563821" />
+                    <rect x="21" y="13" width="6" height="1" fill="#6e482b" />
+                    <rect x="27" y="13" width="1" height="1" fill="#271d23" />
+                    <rect x="4" y="14" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="14" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="14" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="14" width="1" height="1" fill="#774d2e" />
+                    <rect x="9" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="10" y="14" width="1" height="1" fill="#8a5a36" />
+                    <rect x="11" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="12" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="13" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="14" y="14" width="1" height="1" fill="#8a5a36" />
+                    <rect x="15" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="16" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="17" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="18" y="14" width="1" height="1" fill="#7c5131" />
+                    <rect x="19" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="20" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="21" y="14" width="1" height="1" fill="#563821" />
+                    <rect x="22" y="14" width="1" height="1" fill="#6e482b" />
+                    <rect x="23" y="14" width="1" height="1" fill="#5f3e25" />
+                    <rect x="24" y="14" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="14" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="14" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="15" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="15" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="15" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="15" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="10" y="15" width="1" height="1" fill="#563821" />
+                    <rect x="11" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="12" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="13" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="14" y="15" width="1" height="1" fill="#563821" />
+                    <rect x="15" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="16" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="17" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="18" y="15" width="1" height="1" fill="#563821" />
+                    <rect x="19" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="20" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="21" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="22" y="15" width="1" height="1" fill="#563821" />
+                    <rect x="23" y="15" width="1" height="1" fill="#5f3e25" />
+                    <rect x="24" y="15" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="15" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="15" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="16" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="16" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="16" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="16" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="16" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="10" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="11" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="14" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="15" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="18" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="19" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="23" y="16" width="1" height="1" fill="#664328" />
+                    <rect x="24" y="16" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="16" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="16" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="17" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="17" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="17" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="17" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="17" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="17" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="17" width="1" height="1" fill="#664328" />
+                    <rect x="24" y="17" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="17" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="17" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="18" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="18" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="18" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="18" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="18" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="18" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="18" width="1" height="1" fill="#563821" />
+                    <rect x="24" y="18" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="18" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="18" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="19" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="19" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="19" width="1" height="1" fill="#8a5a36" />
+                    <rect x="7" y="19" width="1" height="1" fill="#2a1f24" />
+                    <rect x="8" y="19" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="19" width="14" height="1" fill="#ffe3cf" />
+                    <rect x="23" y="19" width="1" height="1" fill="#dab8ac" />
+                    <rect x="24" y="19" width="1" height="1" fill="#664328" />
+                    <rect x="25" y="19" width="1" height="1" fill="#6e482b" />
+                    <rect x="26" y="19" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="19" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="20" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="20" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="20" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="20" width="1" height="1" fill="#664328" />
+                    <rect x="9" y="20" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="20" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="20" width="1" height="1" fill="#342c33" />
+                    <rect x="24" y="20" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="20" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="20" width="1" height="1" fill="#251c22" />
+                    <rect x="4" y="21" width="1" height="1" fill="#281e23" />
+                    <rect x="5" y="21" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="21" width="2" height="1" fill="#8a5a36" />
+                    <rect x="8" y="21" width="1" height="1" fill="#2a1f24" />
+                    <rect x="9" y="21" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="21" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="21" width="1" height="1" fill="#342c33" />
+                    <rect x="24" y="21" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="21" width="1" height="1" fill="#5f3e25" />
+                    <rect x="27" y="21" width="1" height="1" fill="#251c22" />
+                    <rect x="5" y="22" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="22" width="2" height="1" fill="#8a5a36" />
+                    <rect x="11" y="22" width="9" height="1" fill="#ffe3cf" />
+                    <rect x="20" y="22" width="1" height="1" fill="#e6ccba" />
+                    <rect x="24" y="22" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="22" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="23" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="23" width="2" height="1" fill="#8a5a36" />
+                    <rect x="12" y="23" width="7" height="1" fill="#ffe3cf" />
+                    <rect x="19" y="23" width="1" height="1" fill="#e6ccba" />
+                    <rect x="24" y="23" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="23" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="24" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="24" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="24" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="24" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="25" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="25" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="25" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="25" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="26" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="26" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="26" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="26" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="27" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="27" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="27" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="27" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="28" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="28" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="28" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="28" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="29" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="29" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="29" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="29" width="1" height="1" fill="#5f3e25" />
+                    <rect x="5" y="30" width="1" height="1" fill="#774d2e" />
+                    <rect x="6" y="30" width="2" height="1" fill="#8a5a36" />
+                    <rect x="24" y="30" width="2" height="1" fill="#6e482b" />
+                    <rect x="26" y="30" width="1" height="1" fill="#5f3e25" />
+                    <g class="bh-illustrated-face">
+                      <rect x="11" y="13" width="3" height="1" fill="#4c321e" />
+                      <rect x="18" y="13" width="3" height="1" fill="#4c321e" />
+                      <rect x="16" y="18" width="1" height="1" fill="#e0c8b6" />
+                      <rect x="9" y="19" width="2" height="1" fill="#f79ea7" />
+                      <rect x="21" y="19" width="2" height="1" fill="#f79ea7" />
+                      <rect x="14" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="17" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="15" y="21" width="2" height="1" fill="#7a2a38" />
+                      <g class="bh-illustrated-gaze">
+                        <rect x="10" y="15" width="4" height="1" fill="#2a2230" />
+                        <rect x="18" y="15" width="4" height="1" fill="#2a2230" />
+                        <rect x="10" y="16" width="1" height="1" fill="#2a4c21" />
+                        <rect x="11" y="16" width="1" height="1" fill="#ffffff" />
+                        <rect x="12" y="16" width="2" height="1" fill="#2a4c21" />
+                        <rect x="18" y="16" width="2" height="1" fill="#2a4c21" />
+                        <rect x="20" y="16" width="1" height="1" fill="#ffffff" />
+                        <rect x="21" y="16" width="1" height="1" fill="#2a4c21" />
+                        <rect x="10" y="17" width="1" height="1" fill="#4c8a3c" />
+                        <rect x="11" y="17" width="2" height="1" fill="#2a4c21" />
+                        <rect x="13" y="17" width="1" height="1" fill="#4c8a3c" />
+                        <rect x="18" y="17" width="1" height="1" fill="#4c8a3c" />
+                        <rect x="19" y="17" width="2" height="1" fill="#2a4c21" />
+                        <rect x="21" y="17" width="1" height="1" fill="#4c8a3c" />
+                        <rect x="10" y="18" width="1" height="1" fill="#9dbf94" />
+                        <rect x="11" y="18" width="2" height="1" fill="#4c8a3c" />
+                        <rect x="13" y="18" width="1" height="1" fill="#9dbf94" />
+                        <rect x="18" y="18" width="1" height="1" fill="#9dbf94" />
+                        <rect x="19" y="18" width="2" height="1" fill="#4c8a3c" />
+                        <rect x="21" y="18" width="1" height="1" fill="#9dbf94" />
+                      </g>
+                      <g class="bh-illustrated-blink" opacity="0">
+                        <rect x="10" y="17" width="4" height="1" fill="#2a2230" />
+                        <rect x="18" y="17" width="4" height="1" fill="#2a2230" />
+                      </g>
+                    </g>
+                  </g>
+                  <g data-avatar-pixel-morph=""></g>
+                </svg>
+              </div>
+              <div class="companion">
+                <span>正在工作</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 32 32"
+                  width="512"
+                  height="512"
+                  shape-rendering="crispEdges"
+                  aria-hidden="true"
+                >
+                  <g class="bh-illustrated-body">
+                    <rect x="4" y="22" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="22" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="23" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="23" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="24" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="24" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="25" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="25" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="26" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="26" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="27" width="1" height="1" fill="#1d1821" />
+                    <rect x="27" y="27" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="28" width="1" height="1" fill="#341f29" />
+                    <rect x="27" y="28" width="1" height="1" fill="#301d27" />
+                    <rect x="3" y="29" width="1" height="1" fill="#341f29" />
+                    <rect x="4" y="29" width="1" height="1" fill="#e2565f" />
+                    <rect x="27" y="29" width="1" height="1" fill="#be4850" />
+                    <rect x="28" y="29" width="1" height="1" fill="#301d27" />
+                    <rect x="2" y="30" width="1" height="1" fill="#341f29" />
+                    <rect x="3" y="30" width="1" height="1" fill="#e2565f" />
+                    <rect x="4" y="30" width="1" height="1" fill="#b9474e" />
+                    <rect x="5" y="30" width="1" height="1" fill="#e2565f" />
+                    <rect x="26" y="30" width="1" height="1" fill="#e2565f" />
+                    <rect x="27" y="30" width="1" height="1" fill="#b9474e" />
+                    <rect x="28" y="30" width="1" height="1" fill="#be4850" />
+                    <rect x="29" y="30" width="1" height="1" fill="#301d27" />
+                    <rect x="4" y="31" width="2" height="1" fill="#e2565f" />
+                    <rect x="26" y="31" width="2" height="1" fill="#e2565f" />
+                  </g>
+                  <g class="bh-illustrated-head">
+                    <rect x="12" y="2" width="2" height="1" fill="#1d1821" />
+                    <rect x="14" y="2" width="4" height="1" fill="#1d1822" />
+                    <rect x="18" y="2" width="2" height="1" fill="#1d1821" />
+                    <rect x="10" y="3" width="2" height="1" fill="#1d1821" />
+                    <rect x="12" y="3" width="2" height="1" fill="#18161c" />
+                    <rect x="14" y="3" width="4" height="1" fill="#1d1b22" />
+                    <rect x="18" y="3" width="2" height="1" fill="#18161c" />
+                    <rect x="20" y="3" width="2" height="1" fill="#1d1821" />
+                    <rect x="9" y="4" width="1" height="1" fill="#1d1821" />
+                    <rect x="10" y="4" width="1" height="1" fill="#18161c" />
+                    <rect x="11" y="4" width="2" height="1" fill="#4a494e" />
+                    <rect x="13" y="4" width="7" height="1" fill="#1d1b22" />
+                    <rect x="20" y="4" width="1" height="1" fill="#1a181f" />
+                    <rect x="21" y="4" width="1" height="1" fill="#18161c" />
+                    <rect x="22" y="4" width="1" height="1" fill="#1d1821" />
+                    <rect x="7" y="5" width="1" height="1" fill="#1d1821" />
+                    <rect x="8" y="5" width="1" height="1" fill="#221d27" />
+                    <rect x="9" y="5" width="4" height="1" fill="#4a494e" />
+                    <rect x="13" y="5" width="1" height="1" fill="#1d1b22" />
+                    <rect x="14" y="5" width="1" height="1" fill="#838285" />
+                    <rect x="15" y="5" width="4" height="1" fill="#1d1b22" />
+                    <rect x="19" y="5" width="4" height="1" fill="#1a181f" />
+                    <rect x="23" y="5" width="2" height="1" fill="#1d1821" />
+                    <rect x="6" y="6" width="1" height="1" fill="#1d1821" />
+                    <rect x="7" y="6" width="1" height="1" fill="#18161c" />
+                    <rect x="8" y="6" width="5" height="1" fill="#4a494e" />
+                    <rect x="13" y="6" width="1" height="1" fill="#838285" />
+                    <rect x="14" y="6" width="2" height="1" fill="#1d1b22" />
+                    <rect x="16" y="6" width="2" height="1" fill="#838285" />
+                    <rect x="18" y="6" width="1" height="1" fill="#1d1b22" />
+                    <rect x="19" y="6" width="3" height="1" fill="#1a181f" />
+                    <rect x="22" y="6" width="2" height="1" fill="#17161b" />
+                    <rect x="24" y="6" width="1" height="1" fill="#18161c" />
+                    <rect x="25" y="6" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="7" width="1" height="1" fill="#1d1821" />
+                    <rect x="6" y="7" width="1" height="1" fill="#18161c" />
+                    <rect x="7" y="7" width="4" height="1" fill="#4a494e" />
+                    <rect x="11" y="7" width="1" height="1" fill="#838285" />
+                    <rect x="12" y="7" width="7" height="1" fill="#1d1b22" />
+                    <rect x="19" y="7" width="1" height="1" fill="#838285" />
+                    <rect x="20" y="7" width="2" height="1" fill="#1a181f" />
+                    <rect x="22" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="23" y="7" width="1" height="1" fill="#17161b" />
+                    <rect x="24" y="7" width="1" height="1" fill="#efb93f" />
+                    <rect x="25" y="7" width="1" height="1" fill="#18161c" />
+                    <rect x="26" y="7" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="8" width="1" height="1" fill="#1d1821" />
+                    <rect x="6" y="8" width="1" height="1" fill="#18161c" />
+                    <rect x="7" y="8" width="3" height="1" fill="#1d1b22" />
+                    <rect x="10" y="8" width="1" height="1" fill="#838285" />
+                    <rect x="11" y="8" width="8" height="1" fill="#1d1b22" />
+                    <rect x="19" y="8" width="3" height="1" fill="#1a181f" />
+                    <rect x="22" y="8" width="1" height="1" fill="#17161b" />
+                    <rect x="23" y="8" width="1" height="1" fill="#efb93f" />
+                    <rect x="24" y="8" width="1" height="1" fill="#17161b" />
+                    <rect x="25" y="8" width="1" height="1" fill="#18161c" />
+                    <rect x="26" y="8" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="9" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="9" width="1" height="1" fill="#18161c" />
+                    <rect x="6" y="9" width="6" height="1" fill="#1d1b22" />
+                    <rect x="12" y="9" width="1" height="1" fill="#151318" />
+                    <rect x="13" y="9" width="3" height="1" fill="#1d1b22" />
+                    <rect x="16" y="9" width="1" height="1" fill="#151318" />
+                    <rect x="17" y="9" width="1" height="1" fill="#1d1b22" />
+                    <rect x="18" y="9" width="2" height="1" fill="#1a181f" />
+                    <rect x="20" y="9" width="1" height="1" fill="#151318" />
+                    <rect x="21" y="9" width="1" height="1" fill="#17161b" />
+                    <rect x="22" y="9" width="1" height="1" fill="#efb93f" />
+                    <rect x="23" y="9" width="1" height="1" fill="#17161b" />
+                    <rect x="24" y="9" width="1" height="1" fill="#efb93f" />
+                    <rect x="25" y="9" width="1" height="1" fill="#17161b" />
+                    <rect x="26" y="9" width="1" height="1" fill="#18161c" />
+                    <rect x="27" y="9" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="10" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="10" width="1" height="1" fill="#18161c" />
+                    <rect x="6" y="10" width="6" height="1" fill="#1d1b22" />
+                    <rect x="12" y="10" width="1" height="1" fill="#151318" />
+                    <rect x="13" y="10" width="3" height="1" fill="#1d1b22" />
+                    <rect x="16" y="10" width="1" height="1" fill="#151318" />
+                    <rect x="17" y="10" width="1" height="1" fill="#1d1b22" />
+                    <rect x="18" y="10" width="2" height="1" fill="#1a181f" />
+                    <rect x="20" y="10" width="1" height="1" fill="#151318" />
+                    <rect x="21" y="10" width="5" height="1" fill="#17161b" />
+                    <rect x="26" y="10" width="1" height="1" fill="#18161c" />
+                    <rect x="27" y="10" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="11" width="1" height="1" fill="#1d1822" />
+                    <rect x="5" y="11" width="7" height="1" fill="#1d1b22" />
+                    <rect x="12" y="11" width="1" height="1" fill="#151318" />
+                    <rect x="13" y="11" width="3" height="1" fill="#1d1b22" />
+                    <rect x="16" y="11" width="1" height="1" fill="#151318" />
+                    <rect x="17" y="11" width="1" height="1" fill="#1d1b22" />
+                    <rect x="18" y="11" width="2" height="1" fill="#1a181f" />
+                    <rect x="20" y="11" width="1" height="1" fill="#151318" />
+                    <rect x="21" y="11" width="1" height="1" fill="#17161b" />
+                    <rect x="22" y="11" width="1" height="1" fill="#5a9be0" />
+                    <rect x="23" y="11" width="1" height="1" fill="#17161b" />
+                    <rect x="24" y="11" width="1" height="1" fill="#5a9be0" />
+                    <rect x="25" y="11" width="2" height="1" fill="#17161b" />
+                    <rect x="27" y="11" width="1" height="1" fill="#1d1821" />
+                    <rect x="3" y="12" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="12" width="1" height="1" fill="#18161c" />
+                    <rect x="5" y="12" width="5" height="1" fill="#1d1b22" />
+                    <rect x="10" y="12" width="12" height="1" fill="#121115" />
+                    <rect x="22" y="12" width="1" height="1" fill="#17161b" />
+                    <rect x="23" y="12" width="1" height="1" fill="#5a9be0" />
+                    <rect x="24" y="12" width="3" height="1" fill="#17161b" />
+                    <rect x="27" y="12" width="1" height="1" fill="#18161c" />
+                    <rect x="28" y="12" width="1" height="1" fill="#1d1821" />
+                    <rect x="3" y="13" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="13" width="1" height="1" fill="#18161c" />
+                    <rect x="5" y="13" width="5" height="1" fill="#1d1b22" />
+                    <rect x="10" y="13" width="12" height="1" fill="#d2c2c1" />
+                    <rect x="22" y="13" width="1" height="1" fill="#5a9be0" />
+                    <rect x="23" y="13" width="1" height="1" fill="#17161b" />
+                    <rect x="24" y="13" width="1" height="1" fill="#5a9be0" />
+                    <rect x="25" y="13" width="2" height="1" fill="#17161b" />
+                    <rect x="27" y="13" width="1" height="1" fill="#18161c" />
+                    <rect x="28" y="13" width="1" height="1" fill="#1d1821" />
+                    <rect x="3" y="14" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="14" width="1" height="1" fill="#18161c" />
+                    <rect x="5" y="14" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="14" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="14" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="14" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="14" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="14" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="14" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="14" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="14" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="14" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="14" width="1" height="1" fill="#18161c" />
+                    <rect x="28" y="14" width="1" height="1" fill="#1d1821" />
+                    <rect x="3" y="15" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="15" width="1" height="1" fill="#18161c" />
+                    <rect x="5" y="15" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="15" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="15" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="15" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="15" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="15" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="15" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="15" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="15" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="15" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="15" width="1" height="1" fill="#18161c" />
+                    <rect x="28" y="15" width="1" height="1" fill="#1d1821" />
+                    <rect x="4" y="16" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="16" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="16" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="16" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="16" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="16" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="16" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="16" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="16" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="16" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="16" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="16" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="17" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="17" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="17" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="17" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="17" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="17" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="17" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="17" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="17" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="17" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="17" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="17" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="18" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="18" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="18" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="18" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="18" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="18" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="18" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="18" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="18" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="18" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="18" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="18" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="19" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="19" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="19" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="19" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="19" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="19" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="19" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="19" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="19" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="19" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="19" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="19" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="20" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="20" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="20" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="20" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="20" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="20" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="20" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="20" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="20" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="20" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="20" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="20" width="1" height="1" fill="#1c1720" />
+                    <rect x="4" y="21" width="1" height="1" fill="#1d1821" />
+                    <rect x="5" y="21" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="21" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="21" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="21" width="1" height="1" fill="#151419" />
+                    <rect x="10" y="21" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="21" y="21" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="21" width="1" height="1" fill="#151419" />
+                    <rect x="23" y="21" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="21" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="21" width="1" height="1" fill="#141317" />
+                    <rect x="27" y="21" width="1" height="1" fill="#1c1720" />
+                    <rect x="5" y="22" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="22" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="22" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="22" width="1" height="1" fill="#1d1b22" />
+                    <rect x="10" y="22" width="1" height="1" fill="#18161c" />
+                    <rect x="11" y="22" width="9" height="1" fill="#f4f1ec" />
+                    <rect x="20" y="22" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="21" y="22" width="1" height="1" fill="#18161c" />
+                    <rect x="22" y="22" width="1" height="1" fill="#17161b" />
+                    <rect x="23" y="22" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="22" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="22" width="1" height="1" fill="#141317" />
+                    <rect x="5" y="23" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="23" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="23" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="23" width="1" height="1" fill="#1d1b22" />
+                    <rect x="10" y="23" width="2" height="1" fill="#18161c" />
+                    <rect x="12" y="23" width="7" height="1" fill="#f4f1ec" />
+                    <rect x="19" y="23" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="20" y="23" width="2" height="1" fill="#18161c" />
+                    <rect x="22" y="23" width="1" height="1" fill="#17161b" />
+                    <rect x="23" y="23" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="23" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="23" width="1" height="1" fill="#141317" />
+                    <rect x="5" y="24" width="1" height="1" fill="#19171d" />
+                    <rect x="6" y="24" width="2" height="1" fill="#1d1b22" />
+                    <rect x="8" y="24" width="1" height="1" fill="#19171d" />
+                    <rect x="9" y="24" width="1" height="1" fill="#1d1b22" />
+                    <rect x="10" y="24" width="1" height="1" fill="#9f8ad7" />
+                    <rect x="11" y="24" width="1" height="1" fill="#5f489b" />
+                    <rect x="12" y="24" width="1" height="1" fill="#8e81af" />
+                    <rect x="13" y="24" width="2" height="1" fill="#5f489b" />
+                    <rect x="15" y="24" width="2" height="1" fill="#c7c7c7" />
+                    <rect x="17" y="24" width="2" height="1" fill="#5f489b" />
+                    <rect x="19" y="24" width="1" height="1" fill="#8e81af" />
+                    <rect x="20" y="24" width="1" height="1" fill="#5f489b" />
+                    <rect x="21" y="24" width="1" height="1" fill="#664da7" />
+                    <rect x="22" y="24" width="1" height="1" fill="#17161b" />
+                    <rect x="23" y="24" width="1" height="1" fill="#141317" />
+                    <rect x="24" y="24" width="2" height="1" fill="#17161b" />
+                    <rect x="26" y="24" width="1" height="1" fill="#141317" />
+                    <rect x="5" y="25" width="3" height="1" fill="#18161c" />
+                    <rect x="8" y="25" width="1" height="1" fill="#9f8ad7" />
+                    <rect x="9" y="25" width="1" height="1" fill="#cabee9" />
+                    <rect x="10" y="25" width="4" height="1" fill="#8d73cf" />
+                    <rect x="14" y="25" width="1" height="1" fill="#ffffff" />
+                    <rect x="15" y="25" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="16" y="25" width="1" height="1" fill="#b6a5e0" />
+                    <rect x="17" y="25" width="1" height="1" fill="#ffffff" />
+                    <rect x="18" y="25" width="4" height="1" fill="#7a5cc7" />
+                    <rect x="22" y="25" width="1" height="1" fill="#664da7" />
+                    <rect x="23" y="25" width="1" height="1" fill="#998bbc" />
+                    <rect x="24" y="25" width="3" height="1" fill="#18161c" />
+                    <rect x="5" y="26" width="2" height="1" fill="#18161c" />
+                    <rect x="7" y="26" width="2" height="1" fill="#9f8ad7" />
+                    <rect x="9" y="26" width="1" height="1" fill="#644ba3" />
+                    <rect x="10" y="26" width="3" height="1" fill="#7a5cc7" />
+                    <rect x="13" y="26" width="1" height="1" fill="#b6a5e0" />
+                    <rect x="14" y="26" width="4" height="1" fill="#7a5cc7" />
+                    <rect x="18" y="26" width="1" height="1" fill="#ffffff" />
+                    <rect x="19" y="26" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="20" y="26" width="1" height="1" fill="#b6a5e0" />
+                    <rect x="21" y="26" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="22" y="26" width="1" height="1" fill="#644ba3" />
+                    <rect x="23" y="26" width="2" height="1" fill="#664da7" />
+                    <rect x="25" y="26" width="2" height="1" fill="#18161c" />
+                    <rect x="5" y="27" width="1" height="1" fill="#18161c" />
+                    <rect x="6" y="27" width="2" height="1" fill="#7a5cc7" />
+                    <rect x="8" y="27" width="1" height="1" fill="#644ba3" />
+                    <rect x="9" y="27" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="10" y="27" width="1" height="1" fill="#b6a5e0" />
+                    <rect x="11" y="27" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="12" y="27" width="1" height="1" fill="#ffffff" />
+                    <rect x="13" y="27" width="4" height="1" fill="#7a5cc7" />
+                    <rect x="17" y="27" width="1" height="1" fill="#b6a5e0" />
+                    <rect x="18" y="27" width="1" height="1" fill="#7a5cc7" />
+                    <rect x="19" y="27" width="1" height="1" fill="#ffffff" />
+                    <rect x="20" y="27" width="3" height="1" fill="#7a5cc7" />
+                    <rect x="23" y="27" width="1" height="1" fill="#644ba3" />
+                    <rect x="24" y="27" width="1" height="1" fill="#998bbc" />
+                    <rect x="25" y="27" width="1" height="1" fill="#664da7" />
+                    <rect x="26" y="27" width="1" height="1" fill="#18161c" />
+                    <rect x="5" y="28" width="1" height="1" fill="#e2565f" />
+                    <rect x="6" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="7" y="28" width="1" height="1" fill="#b9474e" />
+                    <rect x="8" y="28" width="1" height="1" fill="#e2565f" />
+                    <rect x="9" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="10" y="28" width="2" height="1" fill="#e2565f" />
+                    <rect x="12" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="13" y="28" width="2" height="1" fill="#e2565f" />
+                    <rect x="15" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="16" y="28" width="2" height="1" fill="#e2565f" />
+                    <rect x="18" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="19" y="28" width="2" height="1" fill="#e2565f" />
+                    <rect x="21" y="28" width="1" height="1" fill="#efb93f" />
+                    <rect x="22" y="28" width="2" height="1" fill="#e2565f" />
+                    <rect x="24" y="28" width="1" height="1" fill="#c49834" />
+                    <rect x="25" y="28" width="2" height="1" fill="#be4850" />
+                    <rect x="5" y="29" width="1" height="1" fill="#b9474e" />
+                    <rect x="6" y="29" width="20" height="1" fill="#e2565f" />
+                    <rect x="26" y="29" width="1" height="1" fill="#b9474e" />
+                    <rect x="6" y="30" width="20" height="1" fill="#e2565f" />
+                    <rect x="6" y="31" width="20" height="1" fill="#e2565f" />
+                    <g class="bh-illustrated-face">
+                      <rect x="11" y="13" width="3" height="1" fill="#100f13" />
+                      <rect x="18" y="13" width="3" height="1" fill="#100f13" />
+                      <rect x="16" y="18" width="1" height="1" fill="#d7d4d0" />
+                      <rect x="9" y="19" width="2" height="1" fill="#f4a2af" />
+                      <rect x="21" y="19" width="2" height="1" fill="#f4a2af" />
+                      <rect x="14" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="17" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="15" y="21" width="2" height="1" fill="#7a2a38" />
+                      <g class="bh-illustrated-gaze">
+                        <rect x="10" y="16" width="4" height="1" fill="#2a2230" />
+                        <rect x="18" y="16" width="4" height="1" fill="#2a2230" />
+                        <rect x="10" y="17" width="1" height="1" fill="#d0533f" />
+                        <rect x="11" y="17" width="2" height="1" fill="#722e23" />
+                        <rect x="13" y="17" width="1" height="1" fill="#d0533f" />
+                        <rect x="18" y="17" width="1" height="1" fill="#d0533f" />
+                        <rect x="19" y="17" width="2" height="1" fill="#722e23" />
+                        <rect x="21" y="17" width="1" height="1" fill="#d0533f" />
+                        <rect x="10" y="18" width="1" height="1" fill="#e5a095" />
+                        <rect x="11" y="18" width="2" height="1" fill="#d0533f" />
+                        <rect x="13" y="18" width="1" height="1" fill="#e5a095" />
+                        <rect x="18" y="18" width="1" height="1" fill="#e5a095" />
+                        <rect x="19" y="18" width="2" height="1" fill="#d0533f" />
+                        <rect x="21" y="18" width="1" height="1" fill="#e5a095" />
+                      </g>
+                      <g class="bh-illustrated-blink" opacity="0">
+                        <rect x="10" y="17" width="4" height="1" fill="#2a2230" />
+                        <rect x="18" y="17" width="4" height="1" fill="#2a2230" />
+                      </g>
+                    </g>
+                  </g>
+                  <g data-avatar-pixel-morph=""></g>
+                </svg>
+              </div>
+              <div class="companion">
+                <span>需要你的注意</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 32 32"
+                  width="512"
+                  height="512"
+                  shape-rendering="crispEdges"
+                  aria-hidden="true"
+                >
+                  <g class="bh-illustrated-body">
+                    <rect x="4" y="22" width="1" height="1" fill="#322d35" />
+                    <rect x="27" y="22" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="23" width="1" height="1" fill="#322d35" />
+                    <rect x="27" y="23" width="1" height="1" fill="#2d2830" />
+                    <rect x="5" y="24" width="1" height="1" fill="#363039" />
+                    <rect x="27" y="24" width="1" height="1" fill="#2d2830" />
+                    <rect x="5" y="25" width="1" height="1" fill="#312c34" />
+                    <rect x="26" y="25" width="1" height="1" fill="#312c34" />
+                    <rect x="6" y="26" width="1" height="1" fill="#362d2c" />
+                    <rect x="7" y="26" width="2" height="1" fill="#f6d280" />
+                    <rect x="9" y="26" width="1" height="1" fill="#c69e40" />
+                    <rect x="10" y="26" width="3" height="1" fill="#f2c14e" />
+                    <rect x="13" y="26" width="2" height="1" fill="#b6913b" />
+                    <rect x="15" y="26" width="2" height="1" fill="#fcf3dc" />
+                    <rect x="17" y="26" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="26" width="3" height="1" fill="#f2c14e" />
+                    <rect x="22" y="26" width="1" height="1" fill="#c69e40" />
+                    <rect x="23" y="26" width="2" height="1" fill="#cba242" />
+                    <rect x="25" y="26" width="1" height="1" fill="#312825" />
+                    <rect x="5" y="27" width="1" height="1" fill="#362b27" />
+                    <rect x="6" y="27" width="2" height="1" fill="#f2c14e" />
+                    <rect x="8" y="27" width="1" height="1" fill="#c69e40" />
+                    <rect x="9" y="27" width="4" height="1" fill="#f2c14e" />
+                    <rect x="13" y="27" width="1" height="1" fill="#ffffff" />
+                    <rect x="14" y="27" width="1" height="1" fill="#b6913b" />
+                    <rect x="15" y="27" width="2" height="1" fill="#fcf3dc" />
+                    <rect x="17" y="27" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="27" width="4" height="1" fill="#f2c14e" />
+                    <rect x="23" y="27" width="1" height="1" fill="#c69e40" />
+                    <rect x="24" y="27" width="2" height="1" fill="#cba242" />
+                    <rect x="26" y="27" width="1" height="1" fill="#312825" />
+                    <rect x="4" y="28" width="1" height="1" fill="#362b27" />
+                    <rect x="5" y="28" width="2" height="1" fill="#f2c14e" />
+                    <rect x="7" y="28" width="1" height="1" fill="#c69e40" />
+                    <rect x="8" y="28" width="5" height="1" fill="#f2c14e" />
+                    <rect x="13" y="28" width="2" height="1" fill="#b6913b" />
+                    <rect x="15" y="28" width="2" height="1" fill="#fcf3dc" />
+                    <rect x="17" y="28" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="28" width="5" height="1" fill="#f2c14e" />
+                    <rect x="24" y="28" width="1" height="1" fill="#c69e40" />
+                    <rect x="25" y="28" width="2" height="1" fill="#cba242" />
+                    <rect x="27" y="28" width="1" height="1" fill="#312825" />
+                    <rect x="3" y="29" width="1" height="1" fill="#2f2625" />
+                    <rect x="4" y="29" width="1" height="1" fill="#b6913b" />
+                    <rect x="5" y="29" width="1" height="1" fill="#957730" />
+                    <rect x="6" y="29" width="20" height="1" fill="#b6913b" />
+                    <rect x="26" y="29" width="1" height="1" fill="#957730" />
+                    <rect x="27" y="29" width="1" height="1" fill="#997a32" />
+                    <rect x="28" y="29" width="1" height="1" fill="#2c2323" />
+                    <rect x="2" y="30" width="1" height="1" fill="#362b27" />
+                    <rect x="3" y="30" width="1" height="1" fill="#f2c14e" />
+                    <rect x="4" y="30" width="1" height="1" fill="#c69e40" />
+                    <rect x="5" y="30" width="8" height="1" fill="#f2c14e" />
+                    <rect x="13" y="30" width="2" height="1" fill="#b6913b" />
+                    <rect x="15" y="30" width="2" height="1" fill="#f2c14e" />
+                    <rect x="17" y="30" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="30" width="8" height="1" fill="#f2c14e" />
+                    <rect x="27" y="30" width="1" height="1" fill="#c69e40" />
+                    <rect x="28" y="30" width="1" height="1" fill="#cba242" />
+                    <rect x="29" y="30" width="1" height="1" fill="#312825" />
+                    <rect x="4" y="31" width="9" height="1" fill="#f2c14e" />
+                    <rect x="13" y="31" width="2" height="1" fill="#b6913b" />
+                    <rect x="15" y="31" width="2" height="1" fill="#f2c14e" />
+                    <rect x="17" y="31" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="31" width="9" height="1" fill="#f2c14e" />
+                  </g>
+                  <g class="bh-illustrated-head">
+                    <rect x="9" y="0" width="1" height="1" fill="#363139" />
+                    <rect x="10" y="0" width="2" height="1" fill="#f6f4f0" />
+                    <rect x="12" y="0" width="1" height="1" fill="#363139" />
+                    <rect x="19" y="0" width="1" height="1" fill="#332e36" />
+                    <rect x="20" y="0" width="2" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="0" width="1" height="1" fill="#332e36" />
+                    <rect x="9" y="1" width="1" height="1" fill="#363139" />
+                    <rect x="10" y="1" width="1" height="1" fill="#f6f4f0" />
+                    <rect x="11" y="1" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="12" y="1" width="1" height="1" fill="#362832" />
+                    <rect x="19" y="1" width="1" height="1" fill="#362832" />
+                    <rect x="20" y="1" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="21" y="1" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="1" width="1" height="1" fill="#332e36" />
+                    <rect x="9" y="2" width="1" height="1" fill="#363139" />
+                    <rect x="10" y="2" width="1" height="1" fill="#f6f4f0" />
+                    <rect x="11" y="2" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="12" y="2" width="1" height="1" fill="#362832" />
+                    <rect x="13" y="2" width="1" height="1" fill="#312c34" />
+                    <rect x="14" y="2" width="4" height="1" fill="#363039" />
+                    <rect x="18" y="2" width="1" height="1" fill="#312c34" />
+                    <rect x="19" y="2" width="1" height="1" fill="#362832" />
+                    <rect x="20" y="2" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="21" y="2" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="2" width="1" height="1" fill="#332e36" />
+                    <rect x="9" y="3" width="1" height="1" fill="#37313a" />
+                    <rect x="10" y="3" width="1" height="1" fill="#f9f7f5" />
+                    <rect x="11" y="3" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="12" y="3" width="2" height="1" fill="#c8c6c2" />
+                    <rect x="14" y="3" width="4" height="1" fill="#f4f1ec" />
+                    <rect x="18" y="3" width="2" height="1" fill="#c8c6c2" />
+                    <rect x="20" y="3" width="1" height="1" fill="#f4a3b5" />
+                    <rect x="21" y="3" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="3" width="1" height="1" fill="#332e36" />
+                    <rect x="9" y="4" width="1" height="1" fill="#363139" />
+                    <rect x="10" y="4" width="2" height="1" fill="#f6f4f0" />
+                    <rect x="12" y="4" width="7" height="1" fill="#f4f1ec" />
+                    <rect x="19" y="4" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="4" width="1" height="1" fill="#332e36" />
+                    <rect x="7" y="5" width="1" height="1" fill="#312c34" />
+                    <rect x="8" y="5" width="1" height="1" fill="#363039" />
+                    <rect x="9" y="5" width="5" height="1" fill="#f4f1ec" />
+                    <rect x="14" y="5" width="1" height="1" fill="#f9f7f5" />
+                    <rect x="15" y="5" width="4" height="1" fill="#f4f1ec" />
+                    <rect x="19" y="5" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="22" y="5" width="1" height="1" fill="#c3c1bd" />
+                    <rect x="23" y="5" width="1" height="1" fill="#302b33" />
+                    <rect x="24" y="5" width="1" height="1" fill="#312c34" />
+                    <rect x="6" y="6" width="1" height="1" fill="#312c34" />
+                    <rect x="7" y="6" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="8" y="6" width="5" height="1" fill="#f4f1ec" />
+                    <rect x="13" y="6" width="1" height="1" fill="#f9f7f5" />
+                    <rect x="14" y="6" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="6" width="2" height="1" fill="#f9f7f5" />
+                    <rect x="18" y="6" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="21" y="6" width="3" height="1" fill="#c3c1bd" />
+                    <rect x="24" y="6" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="25" y="6" width="1" height="1" fill="#312c34" />
+                    <rect x="5" y="7" width="1" height="1" fill="#312c34" />
+                    <rect x="6" y="7" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="7" y="7" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="18" y="7" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="19" y="7" width="1" height="1" fill="#f9f7f5" />
+                    <rect x="20" y="7" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="21" y="7" width="4" height="1" fill="#c3c1bd" />
+                    <rect x="25" y="7" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="26" y="7" width="1" height="1" fill="#312c34" />
+                    <rect x="5" y="8" width="1" height="1" fill="#312c34" />
+                    <rect x="6" y="8" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="7" y="8" width="11" height="1" fill="#f4f1ec" />
+                    <rect x="18" y="8" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="21" y="8" width="4" height="1" fill="#c3c1bd" />
+                    <rect x="25" y="8" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="26" y="8" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="9" width="1" height="1" fill="#312c34" />
+                    <rect x="5" y="9" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="6" y="9" width="12" height="1" fill="#f4f1ec" />
+                    <rect x="18" y="9" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="21" y="9" width="5" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="9" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="27" y="9" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="10" width="1" height="1" fill="#312c34" />
+                    <rect x="5" y="10" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="6" y="10" width="6" height="1" fill="#f4f1ec" />
+                    <rect x="12" y="10" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="13" y="10" width="3" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="10" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="17" y="10" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="20" y="10" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="21" y="10" width="5" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="10" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="27" y="10" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="11" width="1" height="1" fill="#363039" />
+                    <rect x="5" y="11" width="7" height="1" fill="#f4f1ec" />
+                    <rect x="12" y="11" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="13" y="11" width="3" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="11" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="17" y="11" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="20" y="11" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="21" y="11" width="6" height="1" fill="#c3c1bd" />
+                    <rect x="27" y="11" width="1" height="1" fill="#302b33" />
+                    <rect x="3" y="12" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="12" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="5" y="12" width="7" height="1" fill="#f4f1ec" />
+                    <rect x="12" y="12" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="13" y="12" width="3" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="12" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="17" y="12" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="20" y="12" width="1" height="1" fill="#b0aeaa" />
+                    <rect x="21" y="12" width="6" height="1" fill="#c3c1bd" />
+                    <rect x="27" y="12" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="28" y="12" width="1" height="1" fill="#312c34" />
+                    <rect x="3" y="13" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="13" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="5" y="13" width="7" height="1" fill="#f4f1ec" />
+                    <rect x="12" y="13" width="1" height="1" fill="#979592" />
+                    <rect x="13" y="13" width="3" height="1" fill="#f4f1ec" />
+                    <rect x="16" y="13" width="1" height="1" fill="#979592" />
+                    <rect x="17" y="13" width="3" height="1" fill="#dcd9d4" />
+                    <rect x="20" y="13" width="1" height="1" fill="#979592" />
+                    <rect x="21" y="13" width="6" height="1" fill="#c3c1bd" />
+                    <rect x="27" y="13" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="28" y="13" width="1" height="1" fill="#312c34" />
+                    <rect x="3" y="14" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="14" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="5" y="14" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="14" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="14" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="9" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="10" y="14" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="11" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="12" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="13" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="14" y="14" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="15" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="16" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="17" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="18" y="14" width="1" height="1" fill="#dcd9d4" />
+                    <rect x="19" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="20" y="14" width="1" height="1" fill="#dab8ac" />
+                    <rect x="21" y="14" width="1" height="1" fill="#979592" />
+                    <rect x="22" y="14" width="1" height="1" fill="#c3c1bd" />
+                    <rect x="23" y="14" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="24" y="14" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="14" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="14" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="28" y="14" width="1" height="1" fill="#312c34" />
+                    <rect x="3" y="15" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="15" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="5" y="15" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="15" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="15" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="10" y="15" width="1" height="1" fill="#979592" />
+                    <rect x="11" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="12" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="13" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="14" y="15" width="1" height="1" fill="#979592" />
+                    <rect x="15" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="16" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="17" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="18" y="15" width="1" height="1" fill="#979592" />
+                    <rect x="19" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="20" y="15" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="21" y="15" width="1" height="1" fill="#dab8ac" />
+                    <rect x="22" y="15" width="1" height="1" fill="#979592" />
+                    <rect x="23" y="15" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="24" y="15" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="15" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="15" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="28" y="15" width="1" height="1" fill="#312c34" />
+                    <rect x="4" y="16" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="16" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="16" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="16" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="16" width="1" height="1" fill="#ffe3cf" />
+                    <rect x="10" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="11" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="14" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="15" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="18" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="19" y="16" width="3" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="16" width="1" height="1" fill="#dab8ac" />
+                    <rect x="23" y="16" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="16" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="16" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="16" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="17" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="17" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="17" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="17" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="17" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="17" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="17" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="17" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="17" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="17" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="18" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="18" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="18" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="18" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="18" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="18" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="18" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="18" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="18" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="18" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="19" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="19" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="19" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="19" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="19" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="19" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="19" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="19" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="19" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="19" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="20" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="20" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="20" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="20" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="20" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="20" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="20" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="20" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="20" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="20" width="1" height="1" fill="#2d2830" />
+                    <rect x="4" y="21" width="1" height="1" fill="#322d35" />
+                    <rect x="5" y="21" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="21" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="21" width="1" height="1" fill="#b5b2af" />
+                    <rect x="9" y="21" width="13" height="1" fill="#ffe3cf" />
+                    <rect x="22" y="21" width="1" height="1" fill="#e6ccba" />
+                    <rect x="23" y="21" width="1" height="1" fill="#b5b2af" />
+                    <rect x="24" y="21" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="21" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="27" y="21" width="1" height="1" fill="#2d2830" />
+                    <rect x="5" y="22" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="22" width="2" height="1" fill="#f4f1ec" />
+                    <rect x="8" y="22" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="9" y="22" width="2" height="1" fill="#c8c6c2" />
+                    <rect x="11" y="22" width="9" height="1" fill="#ffe3cf" />
+                    <rect x="20" y="22" width="1" height="1" fill="#e6ccba" />
+                    <rect x="21" y="22" width="2" height="1" fill="#c8c6c2" />
+                    <rect x="23" y="22" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="24" y="22" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="22" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="5" y="23" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="6" y="23" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="7" y="23" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="8" y="23" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="9" y="23" width="3" height="1" fill="#c8c6c2" />
+                    <rect x="12" y="23" width="7" height="1" fill="#ffe3cf" />
+                    <rect x="19" y="23" width="1" height="1" fill="#e6ccba" />
+                    <rect x="20" y="23" width="4" height="1" fill="#c8c6c2" />
+                    <rect x="24" y="23" width="2" height="1" fill="#c3c1bd" />
+                    <rect x="26" y="23" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="6" y="24" width="1" height="1" fill="#f4f1ec" />
+                    <rect x="7" y="24" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="8" y="24" width="1" height="1" fill="#d2cfcb" />
+                    <rect x="9" y="24" width="2" height="1" fill="#f6d280" />
+                    <rect x="11" y="24" width="1" height="1" fill="#bd973d" />
+                    <rect x="12" y="24" width="8" height="1" fill="#c5beac" />
+                    <rect x="20" y="24" width="1" height="1" fill="#bd973d" />
+                    <rect x="21" y="24" width="2" height="1" fill="#cba242" />
+                    <rect x="23" y="24" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="24" y="24" width="1" height="1" fill="#c3c1bd" />
+                    <rect x="25" y="24" width="1" height="1" fill="#c8c6c2" />
+                    <rect x="26" y="24" width="1" height="1" fill="#a8a6a3" />
+                    <rect x="6" y="25" width="2" height="1" fill="#c8c6c2" />
+                    <rect x="8" y="25" width="2" height="1" fill="#f6d280" />
+                    <rect x="10" y="25" width="3" height="1" fill="#f4ca67" />
+                    <rect x="13" y="25" width="1" height="1" fill="#ffffff" />
+                    <rect x="14" y="25" width="1" height="1" fill="#b6913b" />
+                    <rect x="15" y="25" width="2" height="1" fill="#fcf3dc" />
+                    <rect x="17" y="25" width="2" height="1" fill="#b6913b" />
+                    <rect x="19" y="25" width="3" height="1" fill="#f2c14e" />
+                    <rect x="22" y="25" width="2" height="1" fill="#cba242" />
+                    <rect x="24" y="25" width="2" height="1" fill="#c8c6c2" />
+                    <g class="bh-illustrated-face">
+                      <rect x="11" y="13" width="3" height="1" fill="#868582" />
+                      <rect x="18" y="13" width="3" height="1" fill="#868582" />
+                      <rect x="16" y="18" width="1" height="1" fill="#e0c8b6" />
+                      <rect x="9" y="19" width="2" height="1" fill="#f79ea7" />
+                      <rect x="21" y="19" width="2" height="1" fill="#f79ea7" />
+                      <rect x="14" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="17" y="20" width="1" height="1" fill="#7a2a38" />
+                      <rect x="15" y="21" width="2" height="1" fill="#7a2a38" />
+                      <g class="bh-illustrated-gaze">
+                        <rect x="11" y="16" width="2" height="1" fill="#2a2230" />
+                        <rect x="19" y="16" width="2" height="1" fill="#2a2230" />
+                        <rect x="10" y="17" width="1" height="1" fill="#2a2230" />
+                        <rect x="13" y="17" width="1" height="1" fill="#2a2230" />
+                        <rect x="18" y="17" width="1" height="1" fill="#2a2230" />
+                        <rect x="21" y="17" width="1" height="1" fill="#2a2230" />
+                      </g>
+                      <g class="bh-illustrated-blink" opacity="0">
+                        <rect x="10" y="17" width="4" height="1" fill="#2a2230" />
+                        <rect x="18" y="17" width="4" height="1" fill="#2a2230" />
+                      </g>
+                    </g>
+                  </g>
+                  <g data-avatar-pixel-morph=""></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <figcaption class="scene-foot">
+            现有 BotPixel 人物轮廓 · 不显示头像底色 · 沿底部移动，拖拽后回到底部<br />不设置钉选数量上限，不增加“＋N”折叠入口。
+          </figcaption>
+        </figure>
+      </header>
+      <nav class="nav" aria-label="设计章节">
+        <a href="#choices">已定交互</a><a href="#reading">气泡与阅读</a
+        ><a href="#architecture">module 与 seam</a><a href="#recovery">重启规则</a
+        ><a href="#slice">首个切片</a><a href="#visibility">三档消息范围</a>
+      </nav>
+      <section id="choices">
+        <div class="section-head">
+          <h2><span class="num">01</span>身份不变，新增一种 Binding</h2>
+          <span class="small">钉选伙伴 ≠ 置顶 Channel</span>
+        </div>
+        <div class="grid3">
+          <article class="card">
+            <div class="label">如何召出</div>
+            <h4>显示为窗口伙伴</h4>
+            <p>
+              侧栏对应 Bot 的右键菜单；Channel header 对应 Bot chip 的 hover/focus
+              操作。群聊入口指向具体成员。
+            </p>
+          </article>
+          <article class="card">
+            <div class="label">在哪里</div>
+            <h4>主窗口各页面保留</h4>
+            <p>
+              切到原生 DSH Session
+              仍显示。底部有界活动，空白区域允许点击穿过；用户自行调整伙伴数量。
+            </p>
+          </article>
+          <article class="card">
+            <div class="label">如何操作</div>
+            <h4>拖拽与悬浮快捷工具</h4>
+            <p>
+              打开 DM、暂停自动走动、更多。右键/更多内调整播放来源或移除伙伴；视觉暂停不停止 Bot
+              工作。
+            </p>
+          </article>
+        </div>
+        <div class="tagline">
+          Avatar Appearance、Bot state、Channel 历史与 Human attention 继续使用既有
+          owner。窗口伙伴不创建新身份、聊天或执行历史。
+        </div>
+      </section>
+      <section id="reading">
+        <div class="section-head">
+          <h2><span class="num">02</span>每个 Bot 的气泡，从层叠到列表</h2>
+          <span class="small">已提交内容 · 并行逐字播放</span>
+        </div>
+        <div class="comparison">
+          <div class="panel">
+            <div class="label">平时 / STACK</div>
+            <div class="stack-area stacked">
+              <div class="msg"><span class="origin">活动</span>正在查询资料</div>
+              <div class="msg"><span class="origin">DM · 你与 Bot</span>第一版整理完成</div>
+              <div class="msg">
+                <span class="origin">群聊 · 产品设计</span>“我整理好了动效方案，可以看一下。”
+              </div>
+            </div>
+            <p class="phase-note">
+              每 Bot 默认最多 3 层；不同消息各自逐字播放，播完后按长度保留阅读时间。
+            </p>
+          </div>
+          <div class="panel after">
+            <div class="label">HOVER / FOCUS · 稳定阅读</div>
+            <div class="stack-area list">
+              <div class="msg"><span class="origin">活动 · 持续更新一张卡</span>正在查询资料</div>
+              <div class="msg"><span class="origin">DM · 你与 Bot</span>第一版整理完成</div>
+              <div class="msg">
+                <span class="origin">群聊 · 产品设计</span>“我整理好了动效方案，可以看一下。”
+              </div>
+            </div>
+            <span class="pending">＋2 条新消息待加入 · 示例</span>
+            <p class="phase-note">
+              人物停止自动移动、暂停到期。已显示文字继续播放；新增内容不挤走正在阅读的位置。
+            </p>
+          </div>
+        </div>
+        <p class="arrow-caption">
+          静态前后对照 · 实现时用可中断的 transition 重定向，而不是排满动作队列。
+        </p>
+        <div class="rules">
+          <div class="rule">
+            <b>消息卡</b>
+            <p>
+              每条 DM/群聊输出一张卡，注明来源 Channel；长文提供预览，点击回原
+              Channel。关闭气泡不标记已读。
+            </p>
+          </div>
+          <div class="rule">
+            <b>当前活动卡</b>
+            <p>
+              每 Bot 只一张，随真实 Activity
+              更新；关闭标签播放不关闭人物状态动效。工具细节只用公开合同。
+            </p>
+          </div>
+          <div class="rule">
+            <b>容量与到期</b>
+            <p>
+              默认保留 20 张未到期卡片，展开可滚动；超量有界处理并保留原 Channel
+              的查看入口，不建立第二份聊天历史。
+            </p>
+          </div>
+          <div class="rule">
+            <b>独立 attention</b>
+            <p>
+              审批、问题、阻塞等提示不受三个播放开关控制；点击进入 owning 活动/Human Inbox
+              surface，实际事实解决后才更新。
+            </p>
+          </div>
+        </div>
+        <div class="grid3 settings" style="margin-top: 22px">
+          <div class="card">
+            <div class="label">每 Bot 独立开关</div>
+            <div class="switch-row"><span>活动标签</span><span class="switch">默认开</span></div>
+            <div class="switch-row"><span>DM 消息</span><span class="switch">默认开</span></div>
+            <div class="switch-row">
+              <span>群聊消息</span><span class="switch off">默认关</span>
+            </div>
+            <p>
+              另选三档 Channel 可见范围；Bot–Bot DM 归 DM
+              类型。关闭立即清除对应气泡和待播内容，开启不补播历史。
+            </p>
+          </div>
+          <div class="card">
+            <div class="label">全局 / 所有伙伴</div>
+            <div class="value">3 / 20</div>
+            <h4>层叠层数 / 保留数量</h4>
+            <p>可在全局设置调整，受合理容量预算约束；不改变 Channel 成员关系或 Agent 执行权限。</p>
+          </div>
+          <div class="card">
+            <div class="label">偏好范围</div>
+            <h4>当前 Client × DSH Profile</h4>
+            <p>
+              钉选及设置重启后恢复，多个 Client 各自选择；位置适应当前窗口，不随 Bot
+              的分享外观一起导出。
+            </p>
+            <div class="menu-line">
+              <span class="key">拖拽</span><span class="key">暂停走动</span
+              ><span class="key">移除伙伴</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="architecture">
+        <div class="section-head">
+          <h2><span class="num">03</span>复用真实事实，聚拢消费与呈现</h2>
+          <span class="small">实线：既有 owner · Client module：候选</span>
+        </div>
+        <div class="flow-box">
+          <pre class="mermaid">
+flowchart LR
+ R[PersonaBot Registry<br/>Appearance] --> C[窗口伙伴 Client module]
+ A[Activity Projection<br/>执行与 attention] --> C
+ M[Canonical Channel<br/>已提交消息] --> C
+ C --> V[既有 Avatar 呈现]
+ C --> B[每 Bot 气泡栈]
+ S[官方 shell.overlay Slot] --> C
+ classDef candidate fill:#0f172a,color:#fff,stroke:#0f172a;
+ class C candidate;
+</pre>
+          <p class="caption">
+            Host 事实经认证 Typert/API Gateway 与有界消息消费交付；Cordis Event 不是浏览器的持久化
+            feed。动作帧与逐字播放留在 Client。
+          </p>
+        </div>
+        <article class="candidate">
+          <div class="candidate-head">
+            <h3>独立 scope 的实时消费 module</h3>
+            <div class="pills">
+              <span class="pill strong">Strong</span><span class="pill">ports &amp; adapters</span>
+            </div>
+          </div>
+          <p class="problem">
+            <b>问题：</b>主 Client mode 和 active Channel 控制现有订阅；跨页面伙伴需要自己的
+            selection 和 lifecycle。
+          </p>
+          <div class="files">
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/client/src/client/activity-live.ts#L216"
+              >client/activity-live.ts:216 ↗</a
+            ><a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/client/src/client/channel-live.ts#L225"
+              >client/channel-live.ts:225 ↗</a
+            ><a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/core/src/channels/live.ts#L211"
+              >core/channels/live.ts:211 ↗</a
+            >
+          </div>
+          <div class="before-after">
+            <div class="diagram">
+              <div class="label">BEFORE</div>
+              <div class="node dashed">主窗口 mode / active Channel</div>
+              <div class="down">↓</div>
+              <div class="node-row">
+                <div class="node">Activity live</div>
+                <div class="node">Channel live</div>
+              </div>
+              <div class="down">↓</div>
+              <div class="node">主会话与 Avatar</div>
+              <p class="caption">
+                离开 Bot mode 或切 Channel 会改变消费路径；没有已交付的跨 Channel Bot 输出 feed。
+              </p>
+            </div>
+            <div class="diagram proposed">
+              <div class="label">AFTER / 候选</div>
+              <div class="node dashed">主会话 selection / 伙伴 selection</div>
+              <div class="down">↓</div>
+              <div class="deep">
+                <div class="interface">seam · 明确 scope 与取消</div>
+                <div class="deep-name">有界消费 module</div>
+                <div class="inside">
+                  <span>独立 lifecycle</span><span>Channel 基线</span><span>可读范围 / 去重</span
+                  ><span>有界恢复</span>
+                </div>
+              </div>
+              <p class="caption">
+                Activity 与 Channel 合同分开；adapter 使用既有认证传输和可控事件源测试。
+              </p>
+            </div>
+          </div>
+          <p class="problem">
+            <b>方案：</b>先比较独立 ClientStore 复用，再提取已证实重复的
+            implementation；补齐有界读取，不新建消息权威。
+          </p>
+          <div class="wins">
+            <span>locality：恢复集中</span><span>leverage：多个 Binding</span
+            ><span>interface 测试：缺帧与关闭</span>
+          </div>
+          <p class="deletion">
+            Deletion test：删除后若基线、去重和 cleanup 散回各 Consumer，才赚取 depth；浅转发不够。
+          </p>
+          <div class="tagline">
+            ADR-0049：Activity Projection 是执行读模型；Channel output
+            是另一类事实，不把二者合成第二份 Bot 状态。
+          </div>
+        </article>
+        <article class="candidate">
+          <div class="candidate-head">
+            <h3>沿既有 Avatar module 深化短动作</h3>
+            <div class="pills">
+              <span class="pill worth">Worth exploring</span><span class="pill">in-process</span>
+            </div>
+          </div>
+          <p class="problem">
+            <b>问题：</b>新呈现不能复制眨眼、转场、freshness、reduced motion
+            和清理知识；当前嘴型仍是静态 features。
+          </p>
+          <div class="files">
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/client/src/client/avatar.tsx#L330"
+              >client/avatar.tsx:330 ↗</a
+            ><a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/client/src/client/illustrated-avatar.tsx#L144"
+              >client/illustrated-avatar.tsx:144 ↗</a
+            >
+          </div>
+          <div class="before-after">
+            <div class="diagram">
+              <div class="label">BEFORE</div>
+              <div class="node">Roster / Chat / Profile</div>
+              <div class="down">↓</div>
+              <div class="node">PersonaBotAvatar → IllustratedAvatar</div>
+              <div class="down">↓</div>
+              <div class="node">BotPixel recipe / 转场 / gates</div>
+              <p class="caption">
+                现有 module 已较 deep；已有半身形象和头部/目光分层，保留其 depth。
+              </p>
+            </div>
+            <div class="diagram proposed">
+              <div class="label">AFTER / 候选</div>
+              <div class="node dashed">既有 Binding / Window Companion</div>
+              <div class="down">↓</div>
+              <div class="deep">
+                <div class="interface">seam · 同一 appearance 与真实 state</div>
+                <div class="deep-name">共享 Avatar 呈现 module</div>
+                <div class="inside">
+                  <span>既有 gates</span><span>头部与目光</span><span>有界 retarget</span
+                  ><span>静态 fallback</span>
+                </div>
+              </div>
+              <p class="caption">
+                位置/拖拽由伙伴场景拥有；嘴型留下一片，renderer 差异不泄漏到调用方。
+              </p>
+            </div>
+          </div>
+          <div class="wins">
+            <span>locality：pose 与取消</span><span>leverage：各 Binding 共用</span
+            ><span>interface 测试：快速重定向</span>
+          </div>
+          <p class="deletion">
+            Deletion test：新增呈现知识应真正被 module 隐藏，避免另包一个 shallow Avatar 入口。
+          </p>
+          <div class="tagline">
+            ADR-0118：保存外观不改；图片保持静态 media、支持整体移动与气泡；缺失资源使用快照降级。
+          </div>
+        </article>
+        <div class="tagline amber">
+          独立 OS 桌窗与 fork 移植推迟：首版用官方 pinned RC 的 shell.overlay。桌面
+          helper、全身资源、TTS 和生成中正文直播均不进入首片。
+        </div>
+      </section>
+      <section id="recovery">
+        <div class="section-head">
+          <h2><span class="num">04</span>重启建立新起点，不重播过去</h2>
+          <span class="small">播放去重 ≠ Channel 已读</span>
+        </div>
+        <div class="timeline">
+          <div class="time">
+            <div class="eyebrow">T 之前</div>
+            <b>历史消息不进入气泡</b>
+            <p>重启以前的输出仍在原 Channel，伙伴不重新演播。</p>
+          </div>
+          <div class="time current">
+            <div class="eyebrow">重启 / 新起点 T</div>
+            <b>恢复钉选与当前活动</b>
+            <p>建立每 Channel 的新消费基线，订阅与 baseline 避免空隙；不假定两个时钟天然一致。</p>
+          </div>
+          <div class="time">
+            <div class="eyebrow">T 之后</div>
+            <b>继续处理新输出</b>
+            <p>
+              短时后台/断线仅有界补查起点之后尚未播放的内容；去重后播放，超量回原 Channel 查看。
+            </p>
+          </div>
+        </div>
+        <div class="tagline">
+          后台暂停动画与阅读计时；断线标 freshness，不能把失联显示成 idle、成功或失败。
+        </div>
+        <p class="caption">
+          现有 output-committed 只提供 live 通知。单 Channel canonical timeline 已有有界读取基础，跨
+          Channel 的过滤、基线和统一恢复仍需交付。
+        </p>
+      </section>
+      <section id="slice">
+        <div class="section-head">
+          <h2><span class="num">05</span>先跑通一个真实窗口伙伴</h2>
+          <span class="small">完整目标分成可验证切片</span>
+        </div>
+        <div class="recommendation">
+          <div class="eyebrow">TOP RECOMMENDATION</div>
+          <h3>第一片：一个 Bot、真实 Activity 与 DM、可拖拽气泡</h3>
+          <p>
+            通过现有 Host owner 和官方 Slot，在跨页面浮层里完成真实端到端路径。Human
+            看过手感，再扩展群聊覆盖、多伙伴压力和嘴型。
+          </p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <b>01 / 钉选与外观</b>
+            <p>侧栏入口 → 本 Client/Profile 偏好 → 官方 overlay → 同一半身 Avatar。</p>
+          </div>
+          <div class="step">
+            <b>02 / 活动与 DM</b>
+            <p>独立消费 → 真实状态和提交消息 → 来源标识 → 点击回原 Channel。</p>
+          </div>
+          <div class="step">
+            <b>03 / 拖拽与阅读</b>
+            <p>底部移动、hover 菜单、层叠到列表、全局容量、来源开关。</p>
+          </div>
+          <div class="step">
+            <b>04 / 验证后扩展</b>
+            <p>验证重启/去重/关闭、键盘与 reduced motion；后续 BotPixel 三档嘴型。</p>
+          </div>
+        </div>
+        <p class="caption">
+          整套目标包括群聊和多个伙伴；首片先验证最小完整路径，不把静态 HTML
+          当作生产验证。每片必须可在真实 DSH 中打开、操作与判断。
+        </p>
+      </section>
+      <section id="visibility">
+        <div class="section-head">
+          <h2><span class="num">06</span>三档可见范围，包含 Bot–Bot DM</h2>
+          <span class="small">范围资格 × 消息类型开关</span>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="窗口伙伴消息可见范围">
+            <thead>
+              <tr>
+                <th>范围</th>
+                <th>我与 Bot 的 DM</th>
+                <th>我与 Bot 同在的群聊</th>
+                <th>Bot–Bot DM</th>
+                <th>我不在、Bot 在的群聊</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>仅我和 Bot 的 Channel</th>
+                <td>是</td>
+                <td>否</td>
+                <td>否</td>
+                <td>否</td>
+              </tr>
+              <tr>
+                <th>Bot 和我都在的 Channel<br /><span class="pill worth">默认已确认</span></th>
+                <td>是</td>
+                <td>是</td>
+                <td>否</td>
+                <td>否</td>
+              </tr>
+              <tr>
+                <th>所有 Bot 加入的 Channel</th>
+                <td>是</td>
+                <td>是</td>
+                <td>是</td>
+                <td>是</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          每个 Bot
+          独立选择；第二档为已确认默认范围。群聊开关默认关，因此范围合格不代表自动播放群聊。
+        </p>
+        <div class="grid2" style="margin-top: 18px">
+          <div class="card">
+            <h4>只展示当前伙伴发出的内容</h4>
+            <p>
+              第三档包含它发给其他 Bot 的 DM。气泡标明来源 Channel；Bot–Bot DM
+              标明双方。不开启其他成员原话广播。
+            </p>
+            <p>Activity 与 Human attention 继续使用既有 Projection，不由消息可见范围裁剪。</p>
+          </div>
+          <div class="card">
+            <h4>归档静态保留，删除自动移除</h4>
+            <p>
+              归档后保留形象和“已归档”标记，停止自动漫游；删除身份后清理伙伴选择。UI
+              偏好不唤醒被归档的 Bot。
+            </p>
+            <p>自定义图片保持原 media，支持整体移动与气泡；不承诺图片自动获得分层眨眼或嘴型。</p>
+          </div>
+        </div>
+        <div class="tagline amber">
+          第三档需要明确的 Host-owned Human 输出只读路径：不能直接删除现有 Channel
+          成员检查。仅观察选定 Bot 的已提交输出，不自动授予其他作者的完整内容或模型权限；原 Channel
+          导航仍检查可读能力。
+        </div>
+      </section>
+      <section>
+        <div class="source-grid">
+          <div>
+            <h4>事实与设计的证据</h4>
+            <p>
+              <a href="https://github.com/BotHarness/BotHarness/issues/1135"
+                >已发布实现规格 #1135 ↗</a
+              >
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/deepseek-ai/deepseek-harness/blob/4878cdabd87d4041bdaff61d04c966883b9fd07a/packages/client/ui-layout/src/client/index.ts"
+                >官方 RC · shell.overlay ↗</a
+              >
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/docs/adr/0049-personabot-activity-is-a-projection-with-live-events.md"
+                >ADR-0049 · Activity / 输出分开 ↗</a
+              >
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/docs/adr/0118-editable-avatar-appearance-is-independent-of-activity.md"
+                >ADR-0118 · 外观与呈现 ↗</a
+              >
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/BotHarness/BotHarness/blob/29dbcd0bd6b756606b8c9b77b7566742077eeac9/packages/core/src/bridge/methods.ts#L2183-L2201"
+                >canonical Human timeline 有界读取 ↗</a
+              >
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://sonner.emilkowal.ski/toaster"
+                >Sonner · 层叠与 hover 展开 ↗</a
+              >
+            </p>
+          </div>
+          <div>
+            <h4>借鉴与交付范围</h4>
+            <p>
+              MIT 前身提供拖拽/运动、hover 工具与气泡锚点的参考；新版 Coopanion 的 AGPL
+              和鲸鱼资产声明仍需逐项区分。
+            </p>
+            <p>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/Pal-AI-Lab/cortico-world-desktop-pet/blob/7ce70c271add681cbcb19cfebb07c40ac03215e3/LICENSE"
+                >MIT 固定版本许可 ↗</a
+              >
+              ·
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://github.com/Pal-AI-Lab/cortico-world-desktop-pet/blob/7ce70c271add681cbcb19cfebb07c40ac03215e3/web/pet-app.js#L805-L881"
+                >hover 工具手感 ↗</a
+              >
+            </p>
+            <p>
+              本页画像由现有 BotPixel 0.1.0 生成（MIT，© 2026
+              BotHarness）。消息文字为示例；未验证性能或交付运行功能。
+            </p>
+            <p>
+              详细证据与逐轮回答：<code
+                >docs/research/2026-10-08-coopanion-pixel-desktop-pet.md</code
+              >
+            </p>
+          </div>
+        </div>
+      </section>
+      <footer class="foot">
+        BotHarness 29dbcd0 · DSH RC 4878cda · BotPixel df53fc8 · MIT reference 7ce70c2<br />Q1–Q23
+        完整设计已确认 · 默认第二档 · 产品代码未改 · ADR-0144 / 规格 #1135<br />module · interface ·
+        depth · seam · adapter · locality · leverage
+      </footer>
+    </main>
+  </body>
+</html>

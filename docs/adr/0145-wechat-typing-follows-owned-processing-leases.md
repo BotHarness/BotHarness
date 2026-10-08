@@ -1,4 +1,4 @@
-# ADR-0144: WeChat typing follows owned processing leases
+# ADR-0145: WeChat typing follows owned processing leases
 
 - Status: Accepted design; native client qualification and Human QA pending on #911
 - Date: 2026-10-07
@@ -18,12 +18,12 @@ Actual Orchestrator processing, accepted steering and related Assignment work ac
 
 Renewal is at most once every five seconds, with a ten-minute hard lifetime. Native configuration/start calls have a five-second operation deadline; cancellation has its own three-second deadline and uses the original ticket even after authority is revoked. No failed renewal is blindly retried. Host startup and cleanup waits are also bounded; late startup results are cleaned once and cannot republish accepted activity. A process killed without disposal cannot prove successful native cleanup, and no undocumented native expiry is promised.
 
-Persist only the identity's enabled preference, defaulting to on in schema generation 66. Do not persist native tickets, runtime handles or accepted activity; a restart begins idle. The existing identity sidebar/modal exposes the preference, capability availability and bounded sanitized diagnostics. “Request accepted” means native API acceptance only; unavailable capability, refusal and unconfirmed cleanup remain distinct. Global defaults and Profile inheritance are the separate #912 slice.
+Persist only the identity's enabled preference, defaulting to on in schema generation 67. Do not persist native tickets, runtime handles or accepted activity; a restart begins idle. The existing identity sidebar/modal exposes the preference, capability availability and bounded sanitized diagnostics. “Request accepted” means native API acceptance only; unavailable capability, refusal and unconfirmed cleanup remain distinct. Global defaults and Profile inheritance are the separate #912 slice.
 
 ## Qualification boundary
 
-Build on the main-qualified Provider input `55b4528480ccce3e8acc067e10b880556bf5034c`, preserving Lark image/cards and the existing checked WeChat media, quote and proactive text capabilities, plus Slack/Discord receive behavior. Promote the fork revision and managed artifact only with corresponding build/package/regression evidence. Genuine native typing visibility, completion/stop cleanup and packaged-product behavior require fresh Human-controlled WeChat E2E; tests and HTTP acceptance cannot substitute for those observations. Merge and deployment remain separate Human decisions.
+Build on the main-qualified Provider input `a0ba2839dadbdcdda9a9bf7511da3094a79eb1fb`, preserving Lark image/cards and the existing checked WeChat media, quote and proactive text capabilities, plus Slack/Discord receive behavior. Promote the fork revision and managed artifact only with corresponding build/package/regression evidence. Genuine native typing visibility, completion/stop cleanup and packaged-product behavior require fresh Human-controlled WeChat E2E; tests and HTTP acceptance cannot substitute for those observations. Merge and deployment remain separate Human decisions.
 
 ## Consequences
 
-Schema upgrades are forward-only. A binary supporting only generation 65 cannot safely open a generation-66 profile; reverting code requires a supported newer binary or recovery from the pre-upgrade profile backup. The runtime itself adds no durable activity authority or independent Session lifecycle. Typing failure cannot prevent the underlying authorized message from being processed.
+Schema upgrades are forward-only. A binary supporting only generation 66 cannot safely open a generation-67 profile; reverting code requires a supported newer binary or recovery from the pre-upgrade profile backup. The runtime itself adds no durable activity authority or independent Session lifecycle. Typing failure cannot prevent the underlying authorized message from being processed.

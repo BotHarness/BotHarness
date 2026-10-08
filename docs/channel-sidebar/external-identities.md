@@ -8,15 +8,18 @@ The same goes for Slack and Discord: DM the app or @mention it in a channel it b
 
 ![The External identities entry with one row per bound app](/guides/channel-sidebar/18-external-identities-zh.webp)
 
+## Connection tutorials
+
+Open **+ Bind app** for direct links to the website tutorials for [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection) and [WeChat](/docs/wechat-connection). **More platforms** opens this overview, including Discord. Links open in a new tab so the binding dialog stays available. Application creation, permissions and publication instructions live in those tutorials; the sidebar has no separate Lark setup card.
+
 ## Read the rows
 
-| Row                                     | What it shows and does                                                                                                                                               |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One row per bound app                   | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
-| **+ Bind app**                          | Bind a connected app to this Bot.                                                                                                                                    |
-| **Connect Lark / Feishu** (Setup guide) | Opens the three-step Lark / Feishu setup guide: connect the app, bind it, send a test message. **Locate** highlights the matching control.                           |
-| **IM administrator pairing**            | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
-| **Lark approval notifications**         | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
+| Row                             | What it shows and does                                                                                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One row per bound app           | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
+| **+ Bind app**                  | Bind a connected app to this Bot.                                                                                                                                    |
+| **IM administrator pairing**    | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
+| **Lark approval notifications** | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
 
 ## Bind an app
 

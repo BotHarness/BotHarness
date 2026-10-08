@@ -1,11 +1,16 @@
 import type { CompanionBot, CompanionMessage } from '../../../core/src/companions/feed.js';
 import {
+  companionSourceEnabled,
+  companionMessageIdentity,
+} from '../../../core/src/companions/sources.js';
+import {
   messagePreview,
   messageGraphemeBoundaries,
 } from '../../../core/src/channels/message-preview.js';
 import {
   isAvatarAppearance,
   isRetainedAvatarAppearance,
+  type PixelMouthState,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { parseActivitySnapshot } from './activity-live.js';
 import type { PersonaBotActivitySnapshot } from './store.js';
@@ -16,7 +21,7 @@ export interface CompanionSelection {
   activity: boolean;
   dm: boolean;
   group: boolean;
-  visibility: 'shared';
+  visibility: 'own-dm' | 'shared' | 'all-bot';
   walking: boolean;
   position: number;
 }
@@ -34,13 +39,17 @@ export interface CompanionViewState {
   cards: readonly CompanionCard[];
   pending: number;
   reading: boolean;
+  mouth?: PixelMouthState | undefined;
+  capacity: { layers: number; retention: number };
 }
-interface CompanionStream {
+export interface CompanionStream {
   readonly readyState?: number;
   addEventListener(name: string, listener: (event: Event) => void): void;
   close(): void;
 }
 interface CompanionDependencies {
+  initialSelection?: CompanionSelection;
+  onSelection?(selection: CompanionSelection | undefined): void;
   onActivity?(snapshot: PersonaBotActivitySnapshot): void;
   storage?: ConfigStorage | undefined;
   context(): Promise<{ profileId: string }>;
@@ -60,6 +69,17 @@ function decode(event: Event): Record<string, unknown> | undefined {
   }
 }
 
+function speechMouth(state: CompanionViewState): PixelMouthState {
+  if (state.bot?.paused || state.sync !== 'live') return 'saved';
+  const card = state.cards.find((card) => card.shown > 0 && card.shown < card.body.length);
+  if (!card) return 'saved';
+  const index = card.boundaries.indexOf(card.shown);
+  const grapheme = card.body.slice(card.boundaries[index - 1], card.shown);
+  if (/[\p{P}\p{Z}\s]/u.test(grapheme)) return 'closed';
+  const cycle: readonly PixelMouthState[] = ['closed', 'half-open', 'open', 'half-open'];
+  return cycle[Math.floor(index / 3) % cycle.length]!;
+}
+
 export class WindowCompanion {
   private state: CompanionViewState = {
     ready: false,
@@ -67,15 +87,21 @@ export class WindowCompanion {
     cards: [],
     pending: 0,
     reading: false,
+    mouth: 'saved',
+    capacity: { layers: 3, retention: 20 },
   };
   private listeners = new Set<() => void>();
   private stream: CompanionStream | undefined;
   private profileId: string | undefined;
   private generation: string | undefined;
+  private preservedGeneration: string | undefined;
   private pendingCards: CompanionCard[] = [];
   private seen: string[] = [];
+  private identityRevision = 0;
   private disposed = false;
-  constructor(private readonly deps: CompanionDependencies) {}
+  constructor(private readonly deps: CompanionDependencies) {
+    if (deps.initialSelection) this.state = { ...this.state, selection: deps.initialSelection };
+  }
   getSnapshot = (): CompanionViewState => this.state;
   subscribe = (changed: () => void): (() => void) => {
     this.listeners.add(changed);
@@ -84,7 +110,8 @@ export class WindowCompanion {
     };
   };
   private update(value: Partial<CompanionViewState>): void {
-    this.state = { ...this.state, ...value };
+    const next = { ...this.state, ...value };
+    this.state = { ...next, mouth: speechMouth(next) };
     for (const changed of this.listeners) changed();
   }
   private get key(): string {
@@ -95,17 +122,20 @@ export class WindowCompanion {
       const { profileId } = await this.deps.context();
       if (this.disposed || !profileId) return;
       this.profileId = profileId;
-      let selection: CompanionSelection | undefined;
+      let selection: CompanionSelection | undefined = this.deps.initialSelection;
       try {
         const raw = this.deps.storage?.getItem(this.key);
         const value = raw ? object(JSON.parse(raw)) : undefined;
-        if (typeof value?.['botId'] === 'string' && value['botId'].length > 0)
+        if (!selection && typeof value?.['botId'] === 'string' && value['botId'].length > 0)
           selection = {
             botId: value['botId'],
             activity: value['activity'] !== false,
             dm: value['dm'] !== false,
             group: value['group'] === true,
-            visibility: 'shared',
+            visibility:
+              value['visibility'] === 'own-dm' || value['visibility'] === 'all-bot'
+                ? value['visibility']
+                : 'shared',
             walking: value['walking'] !== false,
             position:
               typeof value['position'] === 'number' && Number.isFinite(value['position'])
@@ -150,20 +180,34 @@ export class WindowCompanion {
     });
     this.save();
   }
-  configure(
-    change: Partial<Pick<CompanionSelection, 'walking' | 'activity' | 'dm' | 'position'>>,
-  ): void {
+  configure(change: Partial<Omit<CompanionSelection, 'botId'>>): void {
     const selected = this.state.selection;
     if (!selected) return;
     this.update({ selection: { ...selected, ...change } });
     this.save();
-    if (change.dm !== undefined && change.dm !== selected.dm) this.connect();
+    if (
+      (change.dm !== undefined && change.dm !== selected.dm) ||
+      (change.group !== undefined && change.group !== selected.group) ||
+      (change.visibility !== undefined && change.visibility !== selected.visibility)
+    )
+      this.connect(true);
+  }
+  setCapacity(capacity: { layers: number; retention: number }): void {
+    this.pendingCards = this.pendingCards.slice(-capacity.retention);
+    this.seen = this.seen.slice(-capacity.retention * 4);
+    this.update({
+      capacity,
+      cards: this.state.cards.slice(-capacity.retention),
+      pending: this.pendingCards.length,
+    });
   }
   reading(reading: boolean): void {
     if (reading === this.state.reading) return;
     if (reading) this.update({ reading });
     else {
-      const cards = [...this.state.cards, ...this.pendingCards].slice(-20);
+      const cards = [...this.state.cards, ...this.pendingCards].slice(
+        -this.state.capacity.retention,
+      );
       this.pendingCards = [];
       this.update({ reading, cards, pending: 0 });
     }
@@ -208,30 +252,55 @@ export class WindowCompanion {
       return;
     this.update({ cards });
   }
-  dismiss(messageId: string): void {
-    this.update({ cards: this.state.cards.filter((card) => card.messageId !== messageId) });
+  dismiss(messageId: string, channelId?: string): void {
+    this.update({
+      cards: this.state.cards.filter(
+        (card) =>
+          card.messageId !== messageId || (channelId !== undefined && card.channelId !== channelId),
+      ),
+    });
   }
   private save(): void {
+    this.deps.onSelection?.(this.state.selection);
     try {
       this.deps.storage?.setItem(this.key, JSON.stringify(this.state.selection ?? null));
     } catch {}
   }
   private disconnect(): void {
+    this.identityRevision++;
     this.stream?.close();
     this.stream = undefined;
     this.generation = undefined;
+    this.preservedGeneration = undefined;
     this.seen = [];
     this.pendingCards = [];
   }
-  private connect(): void {
-    this.disconnect();
-    this.update({ cards: [], pending: 0, sync: 'connecting' });
+  private connect(preserve = false): void {
+    const previousGeneration = this.generation ?? this.preservedGeneration;
     const selection = this.state.selection;
+    const cards =
+      preserve && selection
+        ? this.state.cards.filter((card) =>
+            companionSourceEnabled(card.source ?? 'own-dm', selection),
+          )
+        : [];
+    const pending =
+      preserve && selection
+        ? this.pendingCards.filter((card) =>
+            companionSourceEnabled(card.source ?? 'own-dm', selection),
+          )
+        : [];
+    const seen = preserve ? this.seen : [];
+    this.disconnect();
+    this.preservedGeneration = preserve ? previousGeneration : undefined;
+    this.pendingCards = pending;
+    this.seen = seen;
+    this.update({ cards, pending: pending.length, sync: 'connecting' });
     if (!selection || this.disposed) return;
     let stream: CompanionStream;
     try {
       stream = this.deps.source(
-        `/api/botharness/companion?botId=${encodeURIComponent(selection.botId)}&dm=${selection.dm ? 1 : 0}`,
+        `/api/botharness/companion?botId=${encodeURIComponent(selection.botId)}&dm=${selection.dm ? 1 : 0}&group=${selection.group ? 1 : 0}&visibility=${selection.visibility}`,
       );
     } catch {
       this.update({ sync: 'stale' });
@@ -251,15 +320,32 @@ export class WindowCompanion {
         activity === undefined
       )
         return;
+      this.identityRevision++;
       const appearance =
         isAvatarAppearance(bot['appearance']) || isRetainedAvatarAppearance(bot['appearance'])
           ? bot['appearance']
           : undefined;
-      if (baseline || (this.generation !== undefined && this.generation !== activity.generation)) {
+      if (
+        (this.state.bot && this.state.bot.paused !== bot['paused']) ||
+        (typeof bot['lifecycle'] === 'string' &&
+          this.state.bot?.lifecycle !== undefined &&
+          this.state.bot.lifecycle !== bot['lifecycle'])
+      ) {
+        this.seen = [];
+        this.pendingCards = [];
+        this.update({ cards: [], pending: 0, reading: false });
+      }
+      if (
+        (baseline &&
+          this.preservedGeneration !== activity.generation &&
+          !(value?.['recovered'] === true && this.generation === activity.generation)) ||
+        (this.generation !== undefined && this.generation !== activity.generation)
+      ) {
         this.seen = [];
         this.pendingCards = [];
         this.update({ cards: [], pending: 0 });
       }
+      this.preservedGeneration = undefined;
       this.generation = activity.generation;
       this.deps.onActivity?.(activity);
       this.update({
@@ -268,6 +354,7 @@ export class WindowCompanion {
           slug: selection.botId,
           name: bot['name'],
           paused: bot['paused'],
+          ...(typeof bot['lifecycle'] === 'string' ? { lifecycle: bot['lifecycle'] } : {}),
           ...(typeof bot['avatar'] === 'string' ? { avatar: bot['avatar'] } : {}),
           ...(appearance === undefined ? {} : { appearance }),
         },
@@ -277,14 +364,12 @@ export class WindowCompanion {
     stream.addEventListener('companion/baseline', (event) => snapshot(event, true));
     stream.addEventListener('companion/activity', (event) => snapshot(event, false));
     stream.addEventListener('companion/message', (event) => {
-      if (
-        this.disposed ||
-        this.stream !== stream ||
-        this.generation === undefined ||
-        !this.state.selection?.dm
-      )
-        return;
+      if (this.disposed || this.stream !== stream || this.generation === undefined) return;
       const value = decode(event);
+      const current = this.state.selection;
+      const source = value?.['source'] ?? 'own-dm';
+      if (!current || this.state.bot?.paused === true || !companionSourceEnabled(source, current))
+        return;
       if (
         value?.['generation'] !== this.generation ||
         value['botId'] !== selection.botId ||
@@ -295,11 +380,11 @@ export class WindowCompanion {
         typeof value['channelId'] !== 'string' ||
         typeof value['channelName'] !== 'string' ||
         typeof value['body'] !== 'string' ||
-        this.seen.includes(value['messageId'])
+        this.seen.includes(companionMessageIdentity(value['channelId'], value['messageId']))
       )
         return;
-      this.seen.push(value['messageId']);
-      if (this.seen.length > 80) this.seen.shift();
+      this.seen.push(companionMessageIdentity(value['channelId'], value['messageId']));
+      if (this.seen.length > this.state.capacity.retention * 4) this.seen.shift();
       const body = messagePreview(value['body']);
       const card: CompanionCard = {
         generation: this.generation,
@@ -308,24 +393,37 @@ export class WindowCompanion {
         channelId: value['channelId'],
         channelName: value['channelName'],
         body,
+        source,
+        canOpen: value['canOpen'] === undefined ? source === 'own-dm' : value['canOpen'] === true,
+        participants: Array.isArray(value['participants'])
+          ? value['participants'].filter((name): name is string => typeof name === 'string')
+          : [],
         boundaries: messageGraphemeBoundaries(body),
         shown: 0,
         remaining: 0,
       };
       if (this.state.reading) {
         this.pendingCards.push(card);
-        this.pendingCards = this.pendingCards.slice(-20);
+        this.pendingCards = this.pendingCards.slice(-this.state.capacity.retention);
         this.update({ pending: this.pendingCards.length });
-      } else this.update({ cards: [...this.state.cards, card].slice(-20) });
+      } else
+        this.update({ cards: [...this.state.cards, card].slice(-this.state.capacity.retention) });
     });
     stream.addEventListener('error', () => {
       if (this.disposed || this.stream !== stream) return;
+      const identityRevision = ++this.identityRevision;
       this.update({ sync: 'stale' });
       if (stream.readyState === 2)
         void this.deps
           .exists?.(selection.botId)
           .then((exists) => {
-            if (!exists && !this.disposed && this.stream === stream) this.remove();
+            if (
+              !exists &&
+              !this.disposed &&
+              this.stream === stream &&
+              this.identityRevision === identityRevision
+            )
+              this.remove();
           })
           .catch(() => undefined);
     });
@@ -334,6 +432,16 @@ export class WindowCompanion {
     if (this.disposed) return;
     this.disposed = true;
     this.disconnect();
+    this.state = {
+      ...this.state,
+      selection: undefined,
+      bot: undefined,
+      activity: undefined,
+      cards: [],
+      pending: 0,
+      reading: false,
+      mouth: 'saved',
+    };
     this.listeners.clear();
   }
 }

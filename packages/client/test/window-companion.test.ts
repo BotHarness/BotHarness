@@ -6,6 +6,100 @@ afterEach(() => {
   for (const owner of controllers.splice(0)) owner.dispose();
 });
 
+it('deduplicates by canonical Channel and message identity and dismisses only the selected source', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  owner.configure({ group: true });
+  const send = (name: string, data: unknown) =>
+    events.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) }));
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host', revision: 0, bots: [] },
+  });
+  const message = (channelId: string) =>
+    send('companion/message', {
+      botId: 'ada',
+      generation: 'host',
+      channelId,
+      channelName: channelId,
+      messageId: 'same-id',
+      body: channelId,
+      source: 'shared-group',
+    });
+  message('one');
+  message('two');
+  message('one');
+  expect(owner.getSnapshot().cards.map((card) => card.channelId)).toEqual(['one', 'two']);
+  owner.dismiss('same-id', 'one');
+  expect(owner.getSnapshot().cards.map((card) => card.channelId)).toEqual(['two']);
+});
+
+it('preserves eligible shown and queued cards while changing sources, but resets on a new Host', async () => {
+  const streams: EventTarget[] = [];
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => {
+      const target = new EventTarget();
+      streams.push(target);
+      return { addEventListener: target.addEventListener.bind(target), close() {} };
+    },
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (type: string, data: unknown) =>
+    streams.at(-1)!.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
+  const baseline = (generation = 'host-a') =>
+    send('companion/baseline', {
+      profileId: 'qa',
+      bot: { slug: 'ada', name: 'Ada', paused: false },
+      activity: { generation, revision: 0, bots: [{ slug: 'ada', state: 'working' }] },
+    });
+  const message = (messageId: string, source: string) =>
+    send('companion/message', {
+      generation: 'host-a',
+      botId: 'ada',
+      messageId,
+      source,
+      channelId: messageId,
+      channelName: messageId,
+      body: 'still reading this message',
+    });
+  baseline();
+  owner.configure({ group: true, visibility: 'all-bot' });
+  baseline();
+  message('dm', 'own-dm');
+  message('group', 'shared-group');
+  message('bot-dm', 'bot-dm');
+  owner.advance(100);
+  const dm = owner.getSnapshot().cards[0];
+  const botDm = owner.getSnapshot().cards[2];
+  owner.reading(true);
+  message('queued-dm', 'own-dm');
+  message('queued-group', 'shared-group');
+  message('queued-bot-dm', 'bot-dm');
+  owner.configure({ group: false });
+  expect(owner.getSnapshot()).toMatchObject({ cards: [dm, botDm], pending: 2, reading: true });
+  baseline();
+  expect(owner.getSnapshot()).toMatchObject({ cards: [dm, botDm], pending: 2 });
+  owner.configure({ visibility: 'own-dm' });
+  baseline();
+  owner.reading(false);
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['dm', 'queued-dm']);
+  message('dm', 'own-dm');
+  expect(owner.getSnapshot().cards).toHaveLength(2);
+  owner.configure({ group: true, visibility: 'all-bot' });
+  baseline('host-b');
+  expect(owner.getSnapshot()).toMatchObject({ cards: [], pending: 0 });
+});
+
 it('checks a closed stream against a fresh Registry result and preserves pins on lookup failure or replacement', async () => {
   const streams: EventTarget[] = [];
   let result = async (): Promise<boolean> => {
@@ -194,4 +288,98 @@ it('reveals whole emoji and combining graphemes and clips previews on a complete
   expect(card.body.slice(0, card.shown)).toBe('👩‍💻é');
   message('preview', 'a'.repeat(1999) + '👩‍💻');
   expect(owner.getSnapshot().cards[1]!.body).toBe('a'.repeat(1999));
+});
+
+it('clears playback and reading on archive and refuses queued archived speech', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const snapshot = (paused: boolean, name = 'companion/activity') =>
+    events.dispatchEvent(
+      new MessageEvent(name, {
+        data: JSON.stringify({
+          profileId: 'qa',
+          bot: { slug: 'ada', name: 'Ada', paused },
+          activity: { generation: 'host', revision: 1, bots: [{ slug: 'ada', state: 'working' }] },
+        }),
+      }),
+    );
+  const message = (messageId: string) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/message', {
+        data: JSON.stringify({
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId,
+          body: messageId,
+        }),
+      }),
+    );
+  snapshot(false, 'companion/baseline');
+  message('visible');
+  owner.reading(true);
+  message('pending');
+  snapshot(true);
+  message('late-archived');
+  expect(owner.getSnapshot()).toMatchObject({
+    cards: [],
+    pending: 0,
+    reading: false,
+    bot: { paused: true },
+  });
+  snapshot(false);
+  message('new');
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['new']);
+});
+
+it('resets playback after a coalesced archive-reactivation transition without closing focused controls repeatedly', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({
+      addEventListener: events.addEventListener.bind(events),
+      close() {},
+    }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const snapshot = (lifecycle: string, paused = false) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/baseline', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          recovered: true,
+          bot: { slug: 'ada', name: 'Ada', paused, lifecycle },
+          activity: { generation: 'host', revision: 1, bots: [] },
+        }),
+      }),
+    );
+  snapshot('active-a');
+  events.dispatchEvent(
+    new MessageEvent('companion/message', {
+      data: JSON.stringify({
+        generation: 'host',
+        botId: 'ada',
+        channelId: 'dm',
+        channelName: 'Ada',
+        messageId: 'old',
+        body: 'old',
+      }),
+    }),
+  );
+  owner.reading(true);
+  snapshot('active-b');
+  expect(owner.getSnapshot()).toMatchObject({ cards: [], pending: 0, reading: false });
+  snapshot('archived', true);
+  owner.reading(true);
+  snapshot('archived', true);
+  expect(owner.getSnapshot().reading).toBe(true);
 });
