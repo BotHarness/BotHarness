@@ -2576,6 +2576,25 @@ class BotRuntimeImplementation implements BotRuntime {
             [],
             [],
             () => {
+              const currentBot = this.#registry.get(owner.botSlug);
+              const currentOwner = this.#ownership.resolve(sessionId);
+              const currentDm = this.#channels.get(channelId);
+              if (
+                this.#closed ||
+                currentBot === undefined ||
+                currentBot.paused === true ||
+                currentOwner?.rootRole !== 'orchestrator' ||
+                currentOwner.botSlug !== owner.botSlug ||
+                !this.#ownership.contentAvailable(sessionId) ||
+                currentDm?.type !== 'dm' ||
+                currentDm.botSlug !== owner.botSlug
+              ) {
+                accept(false);
+                return false;
+              }
+              this.#database.read((db) => {
+                for (const id of sourceIds) requireSourceEffects(db, id, owner.botSlug);
+              });
               const result = deliver();
               accept(result);
               return result;

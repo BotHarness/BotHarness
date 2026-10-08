@@ -20,7 +20,9 @@ function gate() {
   return { done, release };
 }
 
-async function fixture() {
+async function fixture(
+  beforeNative?: (run: Parameters<BotAgentAdapter['runOrchestrator']>[0]) => void,
+) {
   const home = createTempRoot('bh-native-question-runtime-');
   const owner = trackTestOwner(
     mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
@@ -40,6 +42,7 @@ async function fixture() {
       sessions.push(run.sessionId);
       if (run.acceptNativeInput !== undefined) {
         expect(run.message).toBe('');
+        beforeNative?.(run);
         if (!run.acceptNativeInput()) return;
         await native.done;
         await run.channels.send({ body: 'Actual native answer reply' });
@@ -117,6 +120,18 @@ describe('native question answer uses the owning Orchestrator runtime', () => {
     expect(await state.getBound()(deliver)).toBe(false);
     expect(deliver).not.toHaveBeenCalled();
     expect(state.sessions).toHaveLength(1);
+    await state.runtime.close();
+  });
+
+  it('rechecks authority after preparing the application run and before native delivery', async () => {
+    const state = await fixture(() => state.ownership.markContentUnavailable());
+    state.first.release();
+    await state.admission.settled;
+    const deliver = vi.fn(() => true);
+    expect(await state.getBound()(deliver)).toBe(false);
+    expect(deliver).not.toHaveBeenCalled();
+    expect(state.sessions).toHaveLength(2);
+    await state.runtime.whenIdle();
     await state.runtime.close();
   });
 });
