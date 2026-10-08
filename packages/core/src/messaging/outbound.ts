@@ -49,6 +49,7 @@ import { decodeWeChatVoice, MAX_VOICE_INPUT_BYTES } from '../attachments/wechat-
 import { createHash, randomUUID } from 'node:crypto';
 import { createInboundMessaging, type InboundMessaging, type ExternalSource } from './inbound.js';
 import { createMessagingTyping, type MessagingProcessing } from './typing.js';
+import { createMessagingFeedback, type SourceFeedback } from './feedback.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { TelemetryCapture } from '../telemetry/service.js';
@@ -180,6 +181,7 @@ export type MessagingApp = MessagingAccount & {
 };
 
 export interface MessagingSnapshot {
+  feedback?: { sourceEventId: string; bindingId: string; attempts: SourceFeedback }[];
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
     providerReady: boolean;
@@ -562,6 +564,9 @@ export function createOutboundMessaging(options: {
     },
     sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
     isBotActive: options.isBotActive,
+    onAdmissionCommitted(botSlug, sourceEventId) {
+      feedback.notify(botSlug, sourceEventId, 'received');
+    },
     onAdmitted: options.onAdmitted ?? (() => undefined),
     ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
@@ -677,6 +682,44 @@ export function createOutboundMessaging(options: {
             latest.bindingId === identity.id &&
             inbound.available(botSlug, sourceEventId)
           );
+        },
+      };
+    },
+  });
+  const feedback = createMessagingFeedback({
+    database,
+    ...(options.warn ? { warn: options.warn } : {}),
+    candidate(botSlug, sourceEventId) {
+      if (!inbound.available(botSlug, sourceEventId)) return undefined;
+      const source = inbound.read(botSlug, sourceEventId);
+      if (source.platform !== 'feishu') return undefined;
+      const value = grant(botSlug, source.grantId);
+      if (value.botSlug !== botSlug) return undefined;
+      const identity = enabledBinding(value.bindingId);
+      const entry = provider(value.providerId);
+      return {
+        provider: entry.provider,
+        signal: inbound.sourceSignal(botSlug, sourceEventId),
+        input: {
+          accountRef: value.accountRef,
+          fingerprint: value.fingerprint,
+          route: source.event.reply,
+          beforeSend() {
+            try {
+              active(botSlug);
+              current(value.providerId, entry.token);
+              enabledBinding(value.bindingId, identity.revision);
+              const latest = grant(botSlug, value.id);
+              return (
+                !latest.revokedAt &&
+                !latest.suspendedReason &&
+                latest.revision === value.revision &&
+                inbound.available(botSlug, sourceEventId)
+              );
+            } catch {
+              return false;
+            }
+          },
         },
       };
     },
@@ -1159,7 +1202,7 @@ export function createOutboundMessaging(options: {
       if (!inbound.available(botSlug, sourceEventId))
         throw new MessagingError('source-unavailable');
       const source = inbound.read(botSlug, sourceEventId);
-      return service.send(
+      const result = await service.send(
         botSlug,
         source.grantId,
         'reply-' + sourceEventId,
@@ -1167,6 +1210,9 @@ export function createOutboundMessaging(options: {
         sourceEventId,
         file,
       );
+      if (result.state === 'provider-accepted')
+        feedback.notify(botSlug, sourceEventId, 'answered', result.id);
+      return result;
     },
     async reply(botSlug, sourceEventId, text) {
       let source: ExternalSource;
@@ -1180,8 +1226,18 @@ export function createOutboundMessaging(options: {
       const ingress = database.read((db) =>
         db.prepare('SELECT bot_slug FROM messaging_grants WHERE id = ?').get(source.grantId),
       ) as { bot_slug: string } | undefined;
-      if (ingress?.bot_slug === botSlug)
-        return service.send(botSlug, source.grantId, 'reply-' + sourceEventId, text, sourceEventId);
+      if (ingress?.bot_slug === botSlug) {
+        const result = await service.send(
+          botSlug,
+          source.grantId,
+          'reply-' + sourceEventId,
+          text,
+          sourceEventId,
+        );
+        if (result.state === 'provider-accepted')
+          feedback.notify(botSlug, sourceEventId, 'answered', result.id);
+        return result;
+      }
       const rows = database.read((db) =>
         db.prepare('SELECT body FROM messaging_grants WHERE bot_slug = ?').all(botSlug),
       ) as { body: string }[];
@@ -1571,6 +1627,25 @@ export function createOutboundMessaging(options: {
       return {
         accounts,
         appSetups,
+        feedback: database.read((db) =>
+          (
+            db
+              .prepare(`SELECT s.source_event_id, s.payload_json, g.binding_id
+          FROM source_events s JOIN inbox_admissions a USING(source_event_id)
+          JOIN messaging_grants g ON g.id = json_extract(s.payload_json, '$.external.grantId')
+          WHERE a.bot_slug = ? AND json_type(s.payload_json, '$.feedback') = 'object'
+          ORDER BY s.created_at DESC, s.source_event_id DESC LIMIT 30`)
+              .all(botSlug) as {
+              source_event_id: string;
+              payload_json: string;
+              binding_id: string;
+            }[]
+          ).map((row) => ({
+            sourceEventId: row.source_event_id,
+            bindingId: row.binding_id,
+            attempts: (JSON.parse(row.payload_json) as { feedback: SourceFeedback }).feedback,
+          })),
+        ),
         identities,
         pairings: pairing.list(botSlug),
         approvals: approvals.snapshot(botSlug),
@@ -2206,6 +2281,7 @@ export function createOutboundMessaging(options: {
     close() {
       closed = true;
       approvals.close();
+      feedback.close();
       typing.close();
       inbound.close();
       providers.clear();

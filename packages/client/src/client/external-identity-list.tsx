@@ -537,6 +537,39 @@ export function ExternalIdentityList({
               </p>
               {mode === 'edit' ? (
                 <>
+                  {selected.platform === 'feishu' ? (
+                    <div className="bh-im-field" role="status">
+                      <span>{t('identity.feedback.title')}</span>
+                      <p className="bh-bridge-secondary">
+                        {t(
+                          accounts.some(
+                            (account) =>
+                              account.providerId === selected.providerId &&
+                              account.ref === selected.accountRef &&
+                              account.fingerprint === selected.fingerprint &&
+                              account.reactionSupported === true,
+                          )
+                            ? 'identity.feedback.supported'
+                            : 'identity.feedback.capabilityUnavailable',
+                        )}
+                      </p>
+                      {(snapshot?.feedback ?? [])
+                        .filter((item) => item.bindingId === selected.id)
+                        .slice(0, 5)
+                        .map((item) => (
+                          <p
+                            key={item.sourceEventId}
+                            className="bh-bridge-secondary"
+                            title={item.sourceEventId}
+                          >
+                            {item.sourceEventId.slice(-8)} · {t('identity.feedback.received')}:{' '}
+                            {t(`identity.feedback.${item.attempts.received?.state ?? 'none'}`)} ·{' '}
+                            {t('identity.feedback.answered')}:{' '}
+                            {t(`identity.feedback.${item.attempts.answered?.state ?? 'none'}`)}
+                          </p>
+                        ))}
+                    </div>
+                  ) : null}
                   <label className="bh-im-field">
                     <span>{t('identity.displayName')}</span>
                     <Input

@@ -5,6 +5,7 @@ export interface MessagingAccount {
   fingerprint: string;
   connected: boolean;
   typingSupported?: boolean;
+  reactionSupported?: boolean;
   unsupported?: 'checked-send';
 }
 
@@ -175,6 +176,14 @@ export interface MessagingSetup {
 export interface MessagingProvider {
   setup?(): Promise<MessagingSetup | undefined>;
   id: string;
+  react?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    reaction: 'received' | 'answered';
+    signal: AbortSignal;
+    beforeSend(): boolean;
+  }): Promise<{ accepted: true }>;
   accounts(): Promise<MessagingAccount[]>;
   targets(accountRef: string): Promise<MessagingTarget[]>;
   inspectAccount?(accountRef: string): Promise<MessagingAccount>;

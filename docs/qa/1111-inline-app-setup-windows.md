@@ -41,9 +41,16 @@ and WeChat typing refusal codes are retained. The compiled Host was rebuilt.
   full run with four workers finished with 415 files passed, 5 skipped, and 2
   files containing one 15-second timeout each (3361 tests passed, 9 skipped).
   The two files passed all 12 tests on both the candidate and unchanged
-  `fe08fd92` baseline when run serially with the original timeout. A complete
-  serial run remains pending; no full-suite pass is claimed yet. Later candidate
-  commits currently change only this qualification document.
+  `fe08fd92` baseline when run serially with the original timeout. The complete
+  one-worker run finished with 416 files passed, 5 skipped and one file containing
+  a 15-second usage-filter-query timeout (3362 tests passed, 9 skipped). No
+  full-suite pass is claimed; neither timeout nor assertions were relaxed.
+- Integration with main `672e5024` preserves optional setup and reaction contracts
+  and both snapshot projections. TypeScript and six focused files passed (44
+  tests), including setup, messaging feedback and onboarding. Both incremental
+  review axes found no actionable integration regression. Provider `.16` does not
+  declare reaction capability, matching the earlier product pin; this record does
+  not qualify Lark reactions.
 - Delayed dialog submission retains the entered credentials while inputs are
   disabled. Expired handles permit a fresh setup. A created identity remains
   available for explicit binding after the dialog closes.
@@ -67,7 +74,11 @@ and does not qualify a connected identity.
 
 ## Outstanding qualification
 
+Installed evidence above belongs to product source `b49fbf15`; the main
+integration requires a freshly packaged runtime before further visual acceptance.
+
 New Lark Provider account creation/binding, DM and mention replies, secret absence
 across Host outputs, comparable baseline/after visual evidence and recording, and
-the WeChat QR slice remain to be verified. Full-suite results are pending.
+the WeChat QR slice remain to be verified. The full-suite timeout remains an
+explicit qualification limitation.
 No existing paired QA Profile is modified by this candidate.

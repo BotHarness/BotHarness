@@ -1,3 +1,4 @@
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { onboardingFor } from './onboarding.js';
 import type { ProviderAppSetup } from './provider-app-setup.js';
 import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
@@ -91,6 +92,7 @@ import {
   setGroupAvatar as setGroupAvatarViaBridge,
   setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
+  setBotBanner as setBotBannerViaBridge,
   updateBotProfile as updateBotProfileViaBridge,
   setBotAppearance as setBotAppearanceViaBridge,
   cancelGroupInvitation,
@@ -567,6 +569,10 @@ export interface BridgeActions {
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotBanner(
+    channelId: string,
+    banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+  ): Promise<boolean>;
   updateBotProfile(
     slug: string,
     patch: { roles?: string[]; description?: string },
@@ -2264,6 +2270,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: PersonaBot avatar update failed', error);
+        return false;
+      }
+    },
+    async setBotBanner(channelId, banner) {
+      try {
+        const bot = await setBotBannerViaBridge(call, channelId, banner);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: Bot banner update failed', error);
         return false;
       }
     },

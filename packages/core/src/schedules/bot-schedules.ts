@@ -318,6 +318,46 @@ export function previewBotScheduleTrigger(
   return occurrences;
 }
 
+export function relativeBotScheduleTrigger(
+  minutes: number,
+  timeZone: string,
+  now: Date = new Date(),
+): BotScheduleTrigger {
+  if (!Number.isSafeInteger(minutes) || minutes < 1 || !Number.isSafeInteger(minutes * 60_000))
+    throw new BotScheduleError('invalid-input', 'once_in_minutes must be a positive safe integer');
+  const deadline = new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
+  if (!Number.isFinite(deadline.getTime()))
+    throw new BotScheduleError('invalid-input', 'Relative reminder date is out of range');
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(deadline);
+  } catch {
+    throw new BotScheduleError('invalid-input', 'A valid IANA time_zone is required');
+  }
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  const trigger: BotScheduleTrigger = {
+    kind: 'once',
+    date: [part('year'), part('month'), part('day')].join('-'),
+    time: [part('hour'), part('minute')].join(':'),
+    timeZone,
+  };
+  if (previewBotScheduleTrigger(trigger, now, 1)[0] !== deadline.toISOString())
+    throw new BotScheduleError(
+      'invalid-input',
+      'Relative reminder falls in an ambiguous local time; choose an unambiguous later time',
+    );
+  return trigger;
+}
+
 export function createBotScheduleStore(options: BotScheduleStoreOptions): BotScheduleStore {
   const { database } = options;
   const now = options.now ?? (() => new Date());

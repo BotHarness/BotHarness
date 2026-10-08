@@ -1779,6 +1779,7 @@ it('routes external Tools through the active owning Orchestrator without a local
 
 describe('Bot Schedule Tools', () => {
   it('route schedule changes through the run and refuse native schedule tools', async () => {
+    const clockBefore = Date.now();
     const calls: Array<Promise<unknown>> = [];
     const created: unknown[] = [];
     const updated: unknown[] = [];
@@ -1838,6 +1839,9 @@ describe('Bot Schedule Tools', () => {
             { cron: '0 9 * * 1-5', time_zone: 'Asia/Shanghai' },
             { weekdays: [1] },
             { once_at: 'tomorrow' },
+            { once_in_minutes: 10, time_zone: 'Asia/Tokyo' },
+            { once_in_minutes: 10 },
+            { once_in_minutes: 10, once_at: '2026-11-01 09:00', time_zone: 'Asia/Tokyo' },
           ])
             calls.push(
               tool('bot_schedule_create').execute(
@@ -1922,7 +1926,10 @@ describe('Bot Schedule Tools', () => {
       },
     });
     try {
-      expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
+      const results = (await Promise.all(calls)).map((value) => JSON.parse(String(value)));
+      expect(Date.parse(results[0].currentTime)).toBeGreaterThanOrEqual(clockBefore);
+      expect(Date.parse(results[0].currentTime)).toBeLessThanOrEqual(Date.now());
+      expect(results).toMatchObject([
         { schedules: [{ id: 'sch-1' }], enabledLimit: 20 },
         { trigger: { kind: 'every', everySeconds: 3600 } },
         { trigger: { kind: 'daily', time: '09:00', timeZone: 'Asia/Shanghai' } },
@@ -1941,11 +1948,14 @@ describe('Bot Schedule Tools', () => {
         { trigger: { kind: 'cron', expression: '0 9 * * 1-5', timeZone: 'Asia/Shanghai' } },
         { error: { code: 'invalid-input', message: 'weekdays needs daily_time' } },
         { error: { code: 'invalid-input' } },
+        { trigger: { kind: 'once', timeZone: 'Asia/Tokyo' } },
+        { error: { code: 'invalid-input', message: 'once_in_minutes needs time_zone' } },
+        { error: { code: 'invalid-input' } },
         { enabled: false },
         { error: { code: 'locked', message: 'Bot Schedule locked-1 is locked by the Human' } },
         { id: 'sch-1', deleted: true },
       ]);
-      expect(created).toHaveLength(5);
+      expect(created).toHaveLength(6);
       expect(updated).toEqual([{ enabled: false }]);
       expect(denial).toContain('bot_schedule_create');
       expect(allowed).toBeUndefined();

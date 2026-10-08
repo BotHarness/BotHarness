@@ -12,6 +12,9 @@ import {
   AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
   AVATAR_PRESETS,
+  AVATAR_SPECIES,
+  AVATAR_SPECIES_SWATCHES,
+  isIllustratedAvatarRecipe,
   seededAvatarRecipe,
 } from '../../core/src/bots/avatar-appearance.js';
 import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
@@ -211,6 +214,75 @@ describe('Profile Avatar Appearance editing', () => {
     }
   });
 
+  it('saves a goblin with separately styled and colored side hair', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'grub',
+      displayName: 'Grub',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const click = async (selector: string) =>
+      act(() => container.querySelector<HTMLButtonElement>(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-grub',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="species"]');
+      expect(container.querySelectorAll('[data-avatar-option^="species:"]')).toHaveLength(
+        AVATAR_SPECIES.length,
+      );
+      await click('[data-avatar-option="species:goblin"]');
+      expect(
+        container
+          .querySelector('[data-avatar-option="species:goblin"]')
+          ?.getAttribute('aria-pressed'),
+      ).toBe('true');
+      await click('[data-avatar-category="sideHair"]');
+      await click('[data-avatar-option="sideHair:long"]');
+      await click('[data-avatar-category="rightSideHair"]');
+      await click('[data-avatar-option="rightSideHair:none"]');
+      await click('[data-avatar-category="colors"]');
+      const skin = AVATAR_SPECIES_SWATCHES.goblin;
+      expect(container.querySelectorAll('[data-avatar-option^="skinColor:"]')).toHaveLength(
+        skin.length,
+      );
+      await click('[data-avatar-option="leftSideHairColor:#e2b04a"]');
+      await click('[data-avatar-option="rightSideHairColor:#3fc1b8"]');
+      await click('[data-avatar-color-reset="rightSideHairColor"]');
+      expect(container.querySelector('[data-avatar-color-reset="rightSideHairColor"]')).toBeNull();
+      await click('[data-avatar-save]');
+      const saved = (save.mock.calls[0] as unknown[])[1] as Record<string, unknown>;
+      expect(saved).toMatchObject({
+        assetVersion: 2,
+        species: 'goblin',
+        sideHair: 'long',
+        rightSideHair: 'none',
+        leftSideHairColor: '#e2b04a',
+        skinColor: skin[0],
+      });
+      expect(saved).not.toHaveProperty('rightSideHairColor');
+      expect(isIllustratedAvatarRecipe(saved)).toBe(true);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it('switches families without substituting parts and saves a bounded line recipe', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const save = vi.fn(async () => true);
@@ -292,7 +364,7 @@ describe('unsupported saved appearance', () => {
             recipe: {
               family: 'illustrated',
               schemaVersion: 1,
-              assetVersion: 2,
+              assetVersion: 999,
               rigVersion: 1,
               tail: 'swirl',
             },

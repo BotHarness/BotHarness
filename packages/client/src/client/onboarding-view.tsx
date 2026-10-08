@@ -182,6 +182,13 @@ export function OnboardingWelcome({
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [modelLabel, setModelLabel] = useState('');
+  const [timeZone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     const slug = store.getSnapshot().conversation.channel?.botSlug;
@@ -221,14 +228,34 @@ export function OnboardingWelcome({
             'onboarding.dailyRequest',
             'onboarding.testRequest',
           ] as const
-        ).map((key) => (
-          <SidebarCardRow
-            key={key}
-            title={t(key)}
-            disabled={state.busy || store.getSnapshot().conversation.sending}
-            onClick={() => void controller.request(channelId, t(key))}
-          />
-        ))}
+        ).map((key) => {
+          const scheduled = key === 'onboarding.testRequest' || key === 'onboarding.dailyRequest';
+          const prefix = key === 'onboarding.dailyRequest' ? 'daily' : 'reminder';
+          return (
+            <SidebarCardRow
+              key={key}
+              title={t(key)}
+              meta={
+                scheduled
+                  ? timeZone
+                    ? t(`onboarding.${prefix}Hint`, { timeZone })
+                    : t('onboarding.reminderUnknownHint')
+                  : undefined
+              }
+              disabled={state.busy || store.getSnapshot().conversation.sending}
+              onClick={() =>
+                void controller.request(
+                  channelId,
+                  scheduled
+                    ? timeZone
+                      ? t(`onboarding.${prefix}Body`, { timeZone })
+                      : t(`onboarding.${prefix}UnknownBody`)
+                    : t(key),
+                )
+              }
+            />
+          );
+        })}
       </SidebarCardList>
       <p className="bh-note">{t('onboarding.freeform')}</p>
       <SidebarCardList className="bh-message-card-list" label={t('onboarding.model')}>

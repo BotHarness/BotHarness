@@ -12,6 +12,7 @@ export interface MarketplaceEntry {
   tags: string[];
   roles: string[];
   bio: string | null;
+  banner: MarketplaceBanner | null;
   description: string | null;
   topics: string[];
   stars: number;
@@ -20,6 +21,26 @@ export interface MarketplaceEntry {
   cloneUrl: string;
   defaultBranch: string;
   headCommit: { sha: string; committedAt: string } | null;
+}
+
+export type MarketplaceBanner = { recipe: { scene: string; seed: number } } | { image: string };
+
+function parseBanner(value: string | null): MarketplaceBanner | null {
+  if (value === null) return null;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const recipe = parsed['recipe'] as Record<string, unknown> | undefined;
+    if (
+      recipe !== undefined &&
+      typeof recipe['scene'] === 'string' &&
+      typeof recipe['seed'] === 'number'
+    ) {
+      return { recipe: { scene: recipe['scene'], seed: recipe['seed'] } };
+    }
+    return typeof parsed['image'] === 'string' ? { image: parsed['image'] } : null;
+  } catch {
+    return null;
+  }
 }
 
 export type SubmissionRefusal =
@@ -66,6 +87,7 @@ function entryFromRow(row: RepositoryRow): MarketplaceEntry {
     tags,
     roles: tags,
     bio: row.bio ?? row.description,
+    banner: parseBanner(row.banner),
     description: row.description,
     topics,
     stars: row.stars,

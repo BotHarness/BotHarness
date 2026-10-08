@@ -18,6 +18,15 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 ### Added
 
 - Bind app can create a Lark/Feishu app through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
+- Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
+
+- The welcome now offers a daily evening check-in at 21:00 with the browser time zone and current DM shown before selection; missing time zones are confirmed first, and existing model setup retains the complete request for explicit sending ([#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)).
+
+- The Bot Marketplace now shows each Bot's Profile banner: a thumbnail on every row and a full banner at the top of the detail view, with a neutral placeholder when a Bot has none. The Marketplace Worker reads `banner` from `.botharness/bot.json`; a pixel scene is drawn locally, and an uploaded image loads from the repository at the indexed commit ([#1093](https://github.com/BotHarness/BotHarness/issues/1093)).
+
+- The welcome’s ten-minute reminder now shows the browser time zone and requests a single delivery to the current DM; the Host computes relative deadlines without rounding them early, and the Bot receives concise one-time scheduling and destination guidance ([#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)).
+
+- Every Bot now has a Profile banner at the top of its Profile and its popover. New Bots get a pixel scene picked from their name, which a rename doesn't change; existing Bots get one at the next start. **Change banner** picks one of ten scenes, rerolls the picture, uploads an image cropped to 3:1, or resets to the generated scene. `.botharness/bot.json` records the banner, `.botharness/banner.png` is always written, and Bot Zip export, import and Git import keep it ([#1092](https://github.com/BotHarness/BotHarness/issues/1092)).
 
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
 
@@ -79,8 +88,11 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Bot mode can now install Git for you: when the Host's Git is unusable, **Install Git** downloads a pinned portable Git into the DeepSeek Harness data folder (from `media.botharness.ai`, falling back to GitHub), verifies its SHA-256 and starts using it without a restart or admin rights; the Orchestrator's Shell uses the same Git. A usable system Git still wins on each start ([#1097](https://github.com/BotHarness/BotHarness/issues/1097), [Git section](docs/installation.md#git)).
 - Importing a Bot from an SSH address now falls back to HTTPS: when cloning `git@host:owner/repo` or `ssh://git@host/owner/repo` fails, the Host retries once with the matching HTTPS address, says it switched, and the Bot syncs over HTTPS from then on; if HTTPS fails too, you see the original SSH error. DeepSeekBot settings gain a **Git** row showing the Git version in use and whether it is system or managed ([#1098](https://github.com/BotHarness/BotHarness/issues/1098), [Git section](docs/installation.md#git)).
 
+- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. An authorized scope update and guarded browser retest verified DM reactions and receipt-only silence; group and recovery qualification remain pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
+
 ### Changed
 
+- Bot Marketplace cards now read like a profile card: the Profile banner sits on top, the Bot's avatar overlaps its lower edge with the name, repository and Install beside it, then a two-line bio and one line of tags, stars and update date. The detail view opens with the same banner and avatar, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).
 - **Bind app** links directly to the website connection tutorials for Lark / Feishu, Slack and WeChat, with a more-platforms overview; the standalone Lark setup card is removed so platform instructions stay in one place ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
 - **New conversations** is now a platform default too: Lark, Slack and Discord each have a **New conversations** choice in their global IM defaults (**Admit automatically** unless changed), and every bound app follows it until you pick a value for that app. Apps already set to **Ask me first** keep it ([#1134](https://github.com/BotHarness/BotHarness/issues/1134), [External identities guide](docs/channel-sidebar/external-identities.md)).
@@ -114,6 +126,12 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Documented an [AX browser qualification loop](docs/agents/ax-browser.md) that separates exact-origin permission evidence, Host transport, navigation refusals and screenshot/input timeouts, including measured retries on Human-authorized local ports ([#1225](https://github.com/BotHarness/DeepSeekBot/issues/1225)).
+
+- Documented the accepted pixel Avatar extension: Avatar Species on one rig (fantasy, animal and flower bases), separately colored hair pieces, a through-hair headpiece slot, and Human-drawn Custom Parts in a Profile Part Library that travel with exported PersonaBots and move as PNGs; runtime behavior is unchanged ([#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md), [handoff](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)).
+
+- Documented the pinned native Human-wait qualification and the follow-up requirement to keep group conversation available during pending questions/permissions: independent Assignment approvals leave the Orchestrator available, while its own approval/question still blocks unrelated model processing; production continuation remains gated ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)).
 
 - Documented the accepted in-window transparent pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
 
