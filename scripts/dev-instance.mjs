@@ -65,6 +65,7 @@ function parseArgs(argv) {
     imProvider: false,
     productArtifacts: null,
     json: false,
+    clientDiagnostics: true,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -95,6 +96,9 @@ function parseArgs(argv) {
       case '--product-artifacts':
         options.productArtifacts = resolve(next ?? '');
         index += 1;
+        break;
+      case '--no-client-diagnostics':
+        options.clientDiagnostics = false;
         break;
       case '--json':
         options.json = true;
@@ -196,6 +200,7 @@ function launch(options) {
     BOTHARNESS_TELEMETRY: '0',
     ...process.env,
     DSH_HOME: options.home,
+    BOTHARNESS_CLIENT_DIAGNOSTICS: options.clientDiagnostics ? '1' : '0',
     ...devSecretEnvironment(),
     ...axModelEnvironment(options.axModel),
   };
@@ -333,6 +338,11 @@ async function main() {
         ? 'DSH profile credentials (verify with a real model call)'
         : 'missing (model calls will fail)'),
     health,
+    client: {
+      state: 'unobserved',
+      diagnostics: options.clientDiagnostics ? '/api/botharness/client-diagnostics' : 'disabled',
+      verification: 'Read real browser console and DOM; API health is not UI readiness',
+    },
     ...(options.axModel
       ? {
           model: {
@@ -359,7 +369,7 @@ async function main() {
   if (options.json) {
     console.log(JSON.stringify(summary, null, 2));
   } else {
-    console.log(`dev instance ready: ${url}`);
+    console.log(`dev Host API ready: ${url}`);
     console.log(`  DSH_HOME : ${summary.home}`);
     console.log(`  worktree : ${summary.worktree}`);
     console.log(`  secret   : ${summary.secret}`);

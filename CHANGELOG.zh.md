@@ -13,6 +13,8 @@
 
 ### Added
 
+- 隔离 AX 启动向 coding agent 提供有界、白名单化的真实 Client 启动／运行证据和明确 shell 就绪状态，跨文档重试保留首次失败（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)）。
+
 - 支持的像素窗口伙伴会随着已提交消息逐字呈现而开合嘴，在标点处闭嘴，播放结束、取消或切到后台后恢复保存的表情；名册头像与图片降级保留原有形象（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。
 
 - 窗口伙伴独立于 Bot 模式跟随归档和删除，保留图片及未知版本快照回退，并支持键盘阅读与操作；键盘菜单在定位完成后接收焦点，关闭时将焦点交还原控件；动态效果偏好变化立即归位，离屏呈现和旧动画停止，不重播旧消息 ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).

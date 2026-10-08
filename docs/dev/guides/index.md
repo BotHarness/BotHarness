@@ -9,5 +9,6 @@ Guides explain verified implementation and integration workflows. They must poin
 - [Assignment stop and recovery](/dev/guides/assignment-stop-recovery): verified Human stop workflow, restart semantics and isolated DSH acceptance.
 - [PersonaBot Output Committed](/dev/guides/personabot-output): Host-only public output notifications, correlation, failure isolation and Consumer lifecycle.
 - [IM Provider integration](im-provider-integration.md): verified Lark/Slack contracts, shared source authority and qualification for the next platform.
+- [Client startup diagnostics](/dev/guides/client-startup-diagnostics): proactive real console/DOM checks, bounded failure attempts and explicit shell readiness for coding agents.
 
 Additional guides should be added only after their workflow exists and can be verified. Research snapshots do not become guides by default.
