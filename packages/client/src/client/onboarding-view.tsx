@@ -211,7 +211,7 @@ export function OnboardingWelcome({
         <strong>{t('onboarding.welcome')}</strong>
         <p>{t('onboarding.prompt')}</p>
       </div>
-      <div className="bh-onboarding-choices" role="group" aria-label={t('onboarding.prompt')}>
+      <SidebarCardList className="bh-message-card-list" label={t('onboarding.prompt')}>
         {(
           [
             'onboarding.firstRequest',
@@ -220,18 +220,16 @@ export function OnboardingWelcome({
             'onboarding.testRequest',
           ] as const
         ).map((key) => (
-          <Button
+          <SidebarCardRow
             key={key}
-            variant="outline"
+            title={t(key)}
             disabled={state.busy || store.getSnapshot().conversation.sending}
             onClick={() => void controller.request(channelId, t(key))}
-          >
-            {t(key)}
-          </Button>
+          />
         ))}
-      </div>
+      </SidebarCardList>
       <p className="bh-note">{t('onboarding.freeform')}</p>
-      <SidebarCardList label={t('onboarding.model')}>
+      <SidebarCardList className="bh-message-card-list" label={t('onboarding.model')}>
         <SidebarCardRow
           icon="bot"
           title={t('onboarding.chooseModel')}

@@ -1,3 +1,4 @@
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { OnboardingWelcome } from './onboarding-view.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
@@ -398,20 +399,23 @@ function UserQuestionCard({
           {question.header === undefined ? null : <div className="bh-note">{question.header}</div>}
           <div className="bh-question-prompt">{question.question}</div>
           {question.detail === undefined ? null : <div className="bh-note">{question.detail}</div>}
-          {question.options?.map((option) => (
-            <Button
-              key={option.label}
-              variant={(selected[question.id] ?? []).includes(option.label) ? 'primary' : 'outline'}
-              disabled={status !== 'pending' || busy}
-              aria-pressed={(selected[question.id] ?? []).includes(option.label)}
-              onClick={() => choose(question.id, option.label, question.multiSelect === true)}
-            >
-              <span className="bh-question-option">
-                <span>{option.label}</span>
-                {option.description === undefined ? null : <small>{option.description}</small>}
-              </span>
-            </Button>
-          ))}
+          {question.options?.length ? (
+            <SidebarCardList label={question.question} className="bh-message-card-list">
+              {question.options.map((option) => (
+                <SidebarCardRow
+                  key={option.label}
+                  title={option.label}
+                  meta={option.description}
+                  selection={{
+                    checked: (selected[question.id] ?? []).includes(option.label),
+                    multiple: question.multiSelect === true,
+                  }}
+                  disabled={status !== 'pending' || busy}
+                  onClick={() => choose(question.id, option.label, question.multiSelect === true)}
+                />
+              ))}
+            </SidebarCardList>
+          ) : null}
           <label
             className="bh-question-custom"
             htmlFor={'bh-question-' + message.id + '-' + question.id}

@@ -76,10 +76,14 @@ afterEach(async () => {
   store.setConversation(previous);
 });
 
-function render(actions: BridgeActions, resolution?: 'answered' | 'cancelled') {
+function render(
+  actions: BridgeActions,
+  resolution?: 'answered' | 'cancelled',
+  card: ChannelMessage = message,
+) {
   root.render(
     createElement(ChannelMessageBody, {
-      message,
+      message: card,
       actions,
       t: zhTranslate,
       userQuestionResolution: resolution,
@@ -101,7 +105,10 @@ describe('native question card interaction', () => {
     } as unknown as BridgeActions;
     await act(async () => render(actions));
     expect(actions.userQuestionStatus).toHaveBeenCalledWith('dm-ada', 'question-1');
+    expect(container.querySelector('input[type=checkbox]')).toBeNull();
+    await act(async () => button('main')?.click());
     await act(async () => button('history-qa')?.click());
+    expect(button('main')?.getAttribute('aria-pressed')).toBe('false');
     expect(button('history-qa')?.getAttribute('aria-pressed')).toBe('true');
     await act(async () => button('回答并继续')?.click());
     expect(actions.answerUserQuestion).toHaveBeenCalledWith('dm-ada', 'question-1', [
@@ -111,6 +118,57 @@ describe('native question card interaction', () => {
     await act(async () => render(actions, 'answered'));
     expect(button('回答并继续')).toBeUndefined();
     expect(button('history-qa')?.disabled).toBe(true);
+  });
+
+  it('toggles multiple choices from the full label and submits only the checked answers', async () => {
+    const actions = {
+      userQuestionStatus: vi.fn().mockResolvedValue('pending'),
+      answerUserQuestion: vi.fn().mockResolvedValue(undefined),
+    } as unknown as BridgeActions;
+    const card: ChannelMessage = {
+      ...message,
+      userQuestionRequest: {
+        sessionId: 'orchestrator-1',
+        questions: [
+          {
+            id: 'topics',
+            question: 'Which topics?',
+            multiSelect: true,
+            options: [
+              { label: 'Science', description: 'Research and technology' },
+              { label: 'Business', description: 'Companies and markets' },
+              { label: 'Life' },
+            ],
+          },
+        ],
+      },
+    };
+    await act(async () => render(actions, undefined, card));
+    const choices = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type=checkbox]'),
+    );
+    const labels = Array.from(container.querySelectorAll<HTMLLabelElement>('label.bh-card-main'));
+    expect(choices).toHaveLength(3);
+    expect(container.querySelector('button input')).toBeNull();
+    await act(async () => labels[0]?.click());
+    await act(async () => labels[1]?.click());
+    expect(choices.map((choice) => choice.checked)).toEqual([true, true, false]);
+    await act(async () => labels[0]?.click());
+    expect(choices.map((choice) => choice.checked)).toEqual([false, true, false]);
+    const customInput = container.querySelector<HTMLInputElement>('input:not([type=checkbox])');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+        customInput,
+        'Design',
+      );
+      customInput?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(choices[1]?.checked).toBe(true);
+    await act(async () => button('回答并继续')?.click());
+    expect(actions.answerUserQuestion).toHaveBeenCalledWith('dm-ada', 'question-1', [
+      { id: 'topics', selected: ['Business'], custom: 'Design' },
+    ]);
+    expect(choices.every((choice) => choice.disabled)).toBe(true);
   });
 
   it('retries a failed status read without expiring a pending question', async () => {

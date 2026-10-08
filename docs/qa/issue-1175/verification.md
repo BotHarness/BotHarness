@@ -84,6 +84,31 @@ The previous revision’s `card-after-*` and `model-after-*` images are retained
 
 After merging main’s AX diagnostics change (`455e16b0`), the full Client suite passed **959/959**; typecheck, lint, formatting and build passed again. The related isolated core rerun passed **23/23** (credential readiness, model credential health, onboarding and Plugin integration; one worker, 60-second test limit). The merge retained both bilingual release entries. No onboarding UI source changed during this merge.
 
+## Grouped question choices verification
+
+Further Human feedback applies the Channel sidebar wake-policy grouping to both native question messages and the onboarding welcome. Both now compose the existing `SidebarCardList` and `SidebarCardRow`: one 10px outer radius, joined rows and native border separators. Existing sidebar consumers keep their icons and actions; tracked Browser/Computer bundles were rebuilt because they also embed this shared row.
+
+Single-choice options remain full-row buttons with exclusive `aria-pressed` state and no checkbox. Multiple-choice options use one real checkbox inside a full-row label, so the label and description toggle the same input without nested interactive controls. Their 16px input geometry and focus treatment follow the installed native `Checkbox.module.css`; the native Checkbox wrapper accepts only a string label, so the shared multi-line card owns this label composition. Freeform single answers still replace the selected option; multiple answers retain checked options alongside free text. Explicit submission and resolved/expired disabling remain unchanged.
+
+The message-only card surface reads native `--dsw-alias-bg-base`; it is visibly separate from the surrounding bubble's native active fill. Measured light options were opaque white against the translucent slate bubble, and dark options were RGB 21/21/23 against the translucent white bubble. Selected rows use a theme-derived accent tint and leading marker, retained while hovering. Wake-policy cards retain their existing surface.
+
+A genuine Bot `ask_user_question` call produced one single-choice and one multiple-choice question in the same QA DM. Chrome verification exercised switching the exclusive choice, checking two topics, Space toggling, light/dark rendering, explicit submission, disabled resolved controls and the real follow-up reply “选择已确认”. Exactly one Human answer contained the chosen capability and two topics. No scheduled task was created. The original Follow system theme and normal viewport were restored afterward.
+
+The browser had intermittent CDP observation/screenshot timeouts and one native connection retry warning during the first fresh-tab attempt. The old QA tab was released; the new tab loaded the rebuilt Client and retained the Host's same pending question. Recovery is recorded as browser/runtime evidence, not claimed as a bug fix. Final current-page console inspection found no new error; the earlier retry warning remains in the captured log history.
+
+Validation: full Client **960/960**; focused message/onboarding regression **42/42**; final question and style-token checks **20/20**. Typecheck, lint, format, build, release ledgers and whitespace checks passed. Previous main-sync revision `fdbd33e7` full Linux CI passed ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37767473019)). The new UI commit receives its own PR checks.
+
+Unmodified Chinese captures are **1559 × 920**:
+
+| View                               | Before                                      | After                                     |
+| ---------------------------------- | ------------------------------------------- | ----------------------------------------- |
+| Single + multiple questions, light | [Before](question-options-before-light.jpg) | [After](question-options-after-light.jpg) |
+| Single + multiple questions, dark  | [Before](question-options-before-dark.jpg)  | [After](question-options-after-dark.jpg)  |
+| Welcome choices, light             | [Before](choices-after-light.jpg)           | [After](question-welcome-after-light.jpg) |
+| Welcome choices, dark              | [Before](choices-after-dark.jpg)            | [After](question-welcome-after-dark.jpg)  |
+
+Question pairs use the same live question and selected values (one capability, two topics), with wake-policy grouping visible alongside. The welcome pairs show the same original welcome from the same Profile; the After capture also has the later QA request below it and its pending-question indicator, so the surrounding conversation state is explicitly different. The welcome options and model entry themselves are directly comparable.
+
 ## Runnable review
 
 Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-home> --port <free-port> --build` and open the printed local login URL. Never reuse a production Profile for schema verification. To reproduce missing configuration, point the native provider's `apiKeyEnv` at an unset QA reference through native Settings; do not remove shared credentials.
