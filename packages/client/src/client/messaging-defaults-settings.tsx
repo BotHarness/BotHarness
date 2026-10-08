@@ -241,7 +241,9 @@ function PlatformDefaultsSettings({
               </table>
             </div>
           )}
-          <p className="bh-bridge-secondary">{t('defaults.authorization')}</p>
+          {platform === 'weixin' ? null : (
+            <p className="bh-bridge-secondary">{t('defaults.authorization')}</p>
+          )}
           <table className="bh-source-policy-table" aria-label={t('defaults.identity')}>
             <thead>
               <tr>

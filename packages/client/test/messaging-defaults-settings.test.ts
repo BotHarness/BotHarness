@@ -75,6 +75,7 @@ it.each([zhTranslate, enTranslate])(
       expect(region.hidden).toBe(false);
       expect(region.querySelector('select')).toBeNull();
       expect(region.textContent).toContain(t('defaults.weixinScope'));
+      expect(region.textContent).not.toContain(t('defaults.authorization'));
       expect(region.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
       await act(async () =>
         region
