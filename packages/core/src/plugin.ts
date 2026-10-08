@@ -1,3 +1,4 @@
+import { onboardingNewsAvailable } from './onboarding/search.js';
 import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
@@ -1268,6 +1269,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     modelCatalog,
     modelReadiness,
     onboarding: core.onboarding,
+    onboardingNews: (slug) =>
+      onboardingNewsAvailable(
+        ctx,
+        (slug === undefined ? undefined : core.registry.get(slug)?.preset) ??
+          config.agentPreset ??
+          DEFAULT_AGENT_PRESET,
+      ),
     defaultModel: defaultModel as DshDefaultModelHost & {
       saveSelection(route: import('./models/presets.js').ModelRoute): Promise<void>;
     },

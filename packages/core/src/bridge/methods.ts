@@ -540,6 +540,7 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   onboarding?: BotOnboarding;
+  onboardingNews?: (slug?: string) => Promise<boolean>;
   defaultModel?: {
     currentSelection(): ModelRoute;
     saveSelection(route: ModelRoute): Promise<void>;
@@ -1365,10 +1366,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       )
         return invalidInput('Invalid tutorial action');
       try {
-        return {
-          ok: true,
-          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
-        };
+        const value = await deps.onboarding.enter(
+          asSlug(payload),
+          action as TutorialAction | undefined,
+        );
+        const newsAvailable =
+          (await deps
+            .onboardingNews?.(asSlug(payload) ?? value.defaultBotSlug)
+            .catch(() => false)) ?? false;
+        return { ok: true, value: { ...value, newsAvailable } };
       } catch (error) {
         return {
           ok: false,

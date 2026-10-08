@@ -54,11 +54,13 @@ async function render(
   configured = true,
   t = zhTranslate,
   option: BotHarnessKey = 'onboarding.testRequest',
+  newsAvailable = false,
 ) {
   const submitted = vi.fn(async (_body: string) => true);
   const actions = {
     onboarding: vi.fn(async () => ({
       profileId: 'reminder',
+      newsAvailable,
       completed: false,
       preparation: 'ready',
       tutorial: 'not-started',
@@ -206,3 +208,72 @@ it.each(['empty', 'throws'])(
     expect(submitted).toHaveBeenCalledExactlyOnceWith(enTranslate('onboarding.dailyUnknownBody'));
   },
 );
+
+it.each([zhTranslate, enTranslate])(
+  'offers sourced news only when the Host confirms search, using normal send guards',
+  async (t) => {
+    const { button, submitted } = await render(true, t, 'onboarding.newsRequest', true);
+    expect(container.textContent).not.toContain(t('onboarding.exampleRequest'));
+    expect(submitted).not.toHaveBeenCalled();
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(submitted).toHaveBeenCalledExactlyOnceWith(t('onboarding.newsBody'));
+  },
+);
+it('offers a general request even with a configured chat model when search is unavailable', async () => {
+  const { button, submitted } = await render(true, zhTranslate, 'onboarding.exampleRequest');
+  expect(container.textContent).not.toContain(zhTranslate('onboarding.newsRequest'));
+  await act(async () => button.click());
+  expect(submitted).toHaveBeenCalledExactlyOnceWith(zhTranslate('onboarding.exampleRequest'));
+});
+it('keeps the full sourced-news intent through model setup without automatic sending', async () => {
+  const { button, submitted, controller, actions } = await render(
+    false,
+    zhTranslate,
+    'onboarding.newsRequest',
+    true,
+  );
+  await act(async () => button.click());
+  expect(controller.getSnapshot().pending?.body).toBe(zhTranslate('onboarding.newsBody'));
+  await act(async () => controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0));
+  expect(submitted).not.toHaveBeenCalled();
+  actions.modelCatalog.mockResolvedValue({
+    default: { provider: 'deepseek', model: 'chat' },
+    models: [{ provider: 'deepseek', model: 'chat' }],
+  });
+  await act(async () => controller.sendPending());
+  expect(submitted).toHaveBeenCalledExactlyOnceWith(zhTranslate('onboarding.newsBody'));
+});
+
+it('refreshes search choices after configuration changes without submitting a request', async () => {
+  const { actions, controller, submitted } = await render(
+    true,
+    zhTranslate,
+    'onboarding.exampleRequest',
+  );
+  actions.onboarding.mockResolvedValue({
+    profileId: 'reminder',
+    preparation: 'ready',
+    tutorial: 'not-started',
+    completed: false,
+    channelId: 'dm-ada',
+    newsAvailable: true,
+  });
+  await act(async () => controller.refresh('ada'));
+  expect(container.textContent).toContain(zhTranslate('onboarding.newsRequest'));
+  expect(container.textContent).not.toContain(zhTranslate('onboarding.exampleRequest'));
+  actions.onboarding.mockResolvedValue({
+    profileId: 'reminder',
+    preparation: 'ready',
+    tutorial: 'not-started',
+    completed: false,
+    channelId: 'dm-ada',
+    newsAvailable: false,
+  });
+  await act(async () => controller.refresh('ada'));
+  expect(container.textContent).toContain(zhTranslate('onboarding.exampleRequest'));
+  expect(container.textContent).not.toContain(zhTranslate('onboarding.newsRequest'));
+  expect(submitted).not.toHaveBeenCalled();
+});
