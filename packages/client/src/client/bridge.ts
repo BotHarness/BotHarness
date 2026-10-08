@@ -204,6 +204,7 @@ export async function loadModelPlan(
 }
 
 export interface ModelPlanStateView {
+  revision?: number;
   plan?: ModelPlanView;
   repair?: {
     code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
@@ -1009,6 +1010,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       role: failure['role'],
       sessionId: failure['sessionId'],
       detail: failure['detail'],
+      ...(typeof failure['requestMessageId'] === 'string'
+        ? { requestMessageId: failure['requestMessageId'] }
+        : {}),
       ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
       ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
@@ -1036,7 +1040,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       displayName: departure['displayName'],
       departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
-  } else if (author.kind === 'system') {
+  } else if (author.kind === 'system' && asRecord(record['onboardingWelcome'])?.['version'] !== 1) {
     return undefined;
   }
   let botDmAction: ChannelMessage['botDmAction'];
@@ -1317,6 +1321,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(asRecord(record['onboardingWelcome'])?.['version'] === 1 && author.kind === 'system'
+      ? { onboardingWelcome: { version: 1 as const } }
+      : {}),
     ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
       ? { contentPurged: true as const }
       : {}),

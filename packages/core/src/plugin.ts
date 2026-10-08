@@ -1,3 +1,4 @@
+import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { mountContentPurge } from './purge/owner.js';
 import type { ContentPurge } from './purge/contracts.js';
@@ -55,6 +56,7 @@ import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/dele
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
+import { createCredentialReadiness } from './models/credential-readiness.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
@@ -216,6 +218,7 @@ export const Config = Schema.object({
 
 export interface BotHarnessCore {
   rootDir: string;
+  onboarding: BotOnboarding;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
@@ -699,10 +702,16 @@ export function createCore(
     changed: () => live?.publishRosterCommitted(),
     log: (event) => options.warn?.(JSON.stringify(event)),
   });
+  const onboarding = createBotOnboarding({
+    database: attachOperationalModule(operationalDatabase, 'bot-onboarding'),
+    registry,
+    channels,
+  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
     contentPurge,
+    onboarding,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -806,9 +815,31 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     events.on(event, forgetCredentialFailures);
   const modelCatalog = createModelCatalog(ctx.llm, {
     credentials: providerCredentials,
+    credentialFailure: createCredentialReadiness({
+      providers: () => ctx.llm.listConfigurableProviders(),
+      settings: () =>
+        (
+          ctx.get('settings') as unknown as
+            | { describe(options: { redactSecrets: boolean }): { ns: string; value: unknown }[] }
+            | undefined
+        )?.describe({ redactSecrets: true }) ?? [],
+      describe: async (ref) => {
+        const credentials = ctx.get('credentials') as unknown as
+          | { describe(ref: string): Promise<{ configured: boolean }> }
+          | undefined;
+        if (!credentials) throw new Error('Native credentials service is unavailable');
+        return credentials.describe(ref);
+      },
+    }),
     defaultRoute: () => {
       const selection = defaultModel.currentSelection();
-      return { provider: selection.provider, model: selection.model };
+      return {
+        provider: selection.provider,
+        model: selection.model,
+        ...(selection.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: selection.reasoningEffort }),
+      };
     },
   });
   const modelReadiness = createModelRouteReadiness(
@@ -1220,6 +1251,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     modelPresets: core.modelPresets,
     modelCatalog,
     modelReadiness,
+    onboarding: core.onboarding,
+    defaultModel: defaultModel as DshDefaultModelHost & {
+      saveSelection(route: import('./models/presets.js').ModelRoute): Promise<void>;
+    },
     states: core.states,
     runningSessionIds: () =>
       new Set(

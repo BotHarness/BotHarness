@@ -1,11 +1,5 @@
-import { useCallback, useId, useRef, useState, type ReactElement } from 'react';
-import {
-  Button,
-  Checkbox,
-  Input,
-  SegmentedControl,
-  Tag,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { Button, Checkbox, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -20,6 +14,7 @@ import { errorMessage } from './bridge.js';
 import { Combobox, type ComboboxOption } from './combobox.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
+import { ModelPicker } from './model-picker.js';
 import { rememberModelPlan } from './model-plan-store.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
@@ -95,67 +90,6 @@ function finalAllowed(draft: ModelDraft): AssignmentModelOptionView[] {
   ];
 }
 
-function ModelPicker({
-  title,
-  hint,
-  choice,
-  catalog,
-  options,
-  onChange,
-  disabled,
-  t,
-}: {
-  title: string;
-  hint: string;
-  choice: ModelChoice;
-  catalog: readonly ModelCatalogEntryView[];
-  options: readonly ComboboxOption[];
-  onChange: (choice: ModelChoice) => void;
-  disabled: boolean;
-  t: BotHarnessTranslate;
-}): ReactElement {
-  const id = useId();
-  const entry = catalog.find((item) => modelKey(item) === choice.key);
-  const efforts = [
-    { value: '', label: t('modelPreset.providerDefault') },
-    ...(entry?.efforts ?? []).map((effort) => ({ value: effort.id, label: effort.name })),
-  ];
-  return (
-    <div className="bh-model-picker">
-      <div className="bh-model-picker-heading">
-        <strong>{title}</strong>
-        <span>{hint}</span>
-      </div>
-      <Combobox
-        value={entry === undefined ? '' : choice.key}
-        options={options}
-        onSelect={(key) => onChange({ key, effort: '' })}
-        label={title}
-        toggleLabel={t('modelPreset.showModels')}
-        placeholder={
-          entry === undefined ? t('modelPreset.routeUnavailable') : t('modelPreset.chooseModel')
-        }
-        emptyLabel={t('modelPreset.noMatch')}
-        disabled={disabled}
-        invalid={entry === undefined}
-      />
-      {entry !== undefined && efforts.length > 1 && (
-        <div className="bh-model-picker-effort">
-          <span>{t('modelPreset.effort')}</span>
-          <SegmentedControl
-            id={id}
-            value={efforts.some((effort) => effort.value === choice.effort) ? choice.effort : ''}
-            options={efforts}
-            onChange={(effort) => onChange({ ...choice, effort })}
-            label={`${title} · ${t('modelPreset.effort')}`}
-            disabled={disabled}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ModelPresetProfile({
   slug,
   actions,
@@ -168,6 +102,7 @@ export function ModelPresetProfile({
   const [catalog, setCatalog] = useState<ModelCatalogEntryView[]>();
   const [presets, setPresets] = useState<ModelPresetView[]>([]);
   const [plan, setPlan] = useState<ModelPlanView>();
+  const [revision, setRevision] = useState(0);
   const [repair, setRepair] = useState<ModelPlanStateView['repair']>();
   const [planLoadError, setPlanLoadError] = useState(false);
   const planRequest = useRef(0);
@@ -177,11 +112,12 @@ export function ModelPresetProfile({
   const [error, setError] = useState<string>();
   const [editorOpen, setEditorOpen] = useState(false);
 
-  const acceptPlan = (current: ModelPlanView | undefined): void => {
+  const acceptPlan = (
+    current: ModelPlanView | undefined,
+    currentRevision = current?.revision ?? 0,
+  ): void => {
     rememberModelPlan(slug, current);
-    setPlan((previous) =>
-      (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
-    );
+    setPlan((previous) => ((previous?.revision ?? 0) > currentRevision ? previous : current));
   };
 
   const loadPlanOnMount = useCallback(
@@ -192,9 +128,12 @@ export function ModelPresetProfile({
         (state) => {
           if (planRequest.current !== request) return;
           rememberModelPlan(slug, state.plan);
+          setRevision(state.revision ?? state.plan?.revision ?? 0);
           setRepair(state.repair);
           setPlan((previous) =>
-            (previous?.revision ?? 0) > (state.plan?.revision ?? 0) ? previous : state.plan,
+            (previous?.revision ?? 0) > (state.revision ?? state.plan?.revision ?? 0)
+              ? previous
+              : state.plan,
           );
         },
         () => {
@@ -216,7 +155,8 @@ export function ModelPresetProfile({
       ]);
       if (planRequest.current !== request) return;
       const current = state.plan;
-      acceptPlan(current);
+      setRevision(state.revision ?? current?.revision ?? 0);
+      acceptPlan(current, state.revision);
       setRepair(state.repair);
       setCatalog(models);
       setPresets(saved);
@@ -249,7 +189,7 @@ export function ModelPresetProfile({
       : hasPlanError
         ? t('modelPreset.loadFailed')
         : plan === undefined
-          ? t('modelPreset.noPlan')
+          ? t('onboarding.inherit')
           : routeLabel(plan.orchestrator, t('modelPreset.providerDefault'));
 
   const openEditor = (): void => {
@@ -277,6 +217,7 @@ export function ModelPresetProfile({
     planRequest.current += 1;
     rememberModelPlan(slug, applied);
     setPlan(applied);
+    setRevision(applied.revision);
     setRepair(undefined);
     setEditorOpen(false);
   };
@@ -291,7 +232,7 @@ export function ModelPresetProfile({
           ? await actions.applyModelPreset(slug, draft.presetId)
           : await actions.setModelPlan(
               slug,
-              plan?.revision ?? 0,
+              plan?.revision ?? revision,
               routeOfKey(draft.orchestrator.key, draft.orchestrator.effort),
               routeOfKey(draft.assignment.key, draft.assignment.effort),
               finalAllowed(draft),
@@ -482,6 +423,35 @@ export function ModelPresetProfile({
       role="region"
       aria-label={t('modelPreset.title')}
     >
+      <div className="bh-onboarding-actions">
+        <span className="bh-note">
+          {t(plan === undefined ? 'onboarding.inheritHint' : 'onboarding.fixed')}
+        </span>
+        {plan !== undefined || repair !== undefined ? (
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void actions
+                .inheritModel(slug, plan?.revision ?? revision)
+                .then(
+                  (result) => {
+                    planRequest.current += 1;
+                    rememberModelPlan(slug, undefined);
+                    setPlan(undefined);
+                    setRevision(result.revision);
+                    setRepair(undefined);
+                  },
+                  (failure) => setError(errorMessage(failure)),
+                )
+                .finally(() => setBusy(false));
+            }}
+          >
+            {t('onboarding.inherit')}
+          </Button>
+        ) : null}
+      </div>
       <SidebarCardList label={t('modelPreset.title')}>
         <SidebarCardRow
           icon="bot"
