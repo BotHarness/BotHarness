@@ -436,6 +436,10 @@ _避免使用_：default folder、inbox、fixed bottom bucket
 从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
 _避免使用_：integration、adapter、裸用 connector
 
+**Conversation ingest**：
+外部会话接入。由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 PersonaBot 默认只获得「仅作上下文」的 Admission；接入的唤醒设置可改为攒够条数后唤醒或逐条唤醒，成员在该 Channel 中的唤醒策略优先。它列在「外部连接器」中，显示为外部会话；它不给任何 PersonaBot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
+_避免使用_：sync、mirror、用 Bridge 指代这条记录
+
 **App**：
 UI 上叫「应用」：一个已认证 Provider account 的名称，例如 Lark 应用、Slack 应用、Discord bot 或已配对的微信 Bot。一个应用最多绑定到一个 PersonaBot；一个 PersonaBot 可以绑定多个应用，包括同一平台的多个应用。「设置 → IM 应用」列出每个应用及使用它的 Bot。
 _避免使用_：UI 文案里的「IM账号」、connector、integration

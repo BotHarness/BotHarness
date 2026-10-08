@@ -130,3 +130,7 @@ Pre-execution refusal can leave an application-owned Session ID without a DSH Se
 - `references/debugging-playbook.md` — boot verification, status-code semantics, WS mux probe, bisect recipes, headless puppeteer probe.
 - `references/probe-web.mjs` — headless browser probe (console errors, failed requests, WS, internal fetch); run from the repo.
 - `dsh-ui` skill — in-harness UI rules; `docs/client-bridge.md` §7 — dev loop; ADR-0023 / #50 — bridge transport contract.
+
+## Additional verified pitfall — #1138
+
+A new root overlay must budget its long-lived Connection Fetch streams with existing pages. In official DSH 0.2.0 RC1 Windows Web, adding a separate companion SSE alongside the Bot-mode Activity, Channel and roster consumers left real DM sending pending until Bot mode exited. Reusing the companion's full Activity snapshot for the shared Client Activity store and closing the redundant Activity SSE restored three genuine DM submissions within Bot mode. The symptom is consistent with the per-origin HTTP/1 connection limit; an exact wire connection count was not measured. Validate an actual DM reply while both the overlay and owning page remain visible. On removal, restore ordinary Activity demand; keep listener/frame/heartbeat disposal bounded and never weaken authentication to work around the symptom.

@@ -294,6 +294,7 @@ export function createOutboundMessaging(options: {
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
+  onIngested?(channelId: string, messageId: string): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -560,6 +561,7 @@ export function createOutboundMessaging(options: {
     ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.onShared ? { onShared: options.onShared } : {}),
+    ...(options.onIngested ? { onIngested: options.onIngested } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const sourceForReply = (botSlug: string, sourceEventId: string, value: MessagingGrant) => {

@@ -52,6 +52,10 @@ import type { GroupReceptionInput } from '../../../core/src/messaging/group-poli
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
@@ -1429,6 +1433,16 @@ export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[
 
 export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<BotSummary[]> {
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
+}
+
+export async function botExists(call: BridgeCall, slug: string): Promise<boolean> {
+  const bots = asRecord(await unwrap(call, 'list', {}))?.['bots'];
+  if (!Array.isArray(bots))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  const identities = bots.map((entry) => asRecord(entry)?.['slug']);
+  if (!identities.every((identity) => typeof identity === 'string' && identity.length > 0))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  return identities.includes(slug);
 }
 
 export type SshFailureReason =
@@ -3475,6 +3489,56 @@ export async function loadChannelBridges(
   )
     throw new BridgeCallError('invalid-response', 'Invalid Channel Bridge snapshot');
   return value as unknown as ChannelBridgeSnapshot;
+}
+export async function loadChannelIngests(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ConversationIngestSnapshot> {
+  const value = asRecord(await unwrap(call, 'channelIngests', { channelId }));
+  if (
+    !value ||
+    value['channelId'] !== channelId ||
+    !Array.isArray(value['ingests']) ||
+    !value['ingests'].every((item) => {
+      const row = asRecord(item);
+      const conversation = asRecord(row?.['conversation']);
+      const wake = asRecord(row?.['wake']);
+      return (
+        row &&
+        conversation &&
+        wake &&
+        ['id', 'channelId', 'platform', 'accountName', 'intakeAfter'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        typeof conversation['id'] === 'string' &&
+        typeof conversation['name'] === 'string' &&
+        typeof row['enabled'] === 'boolean' &&
+        Number.isInteger(row['revision']) &&
+        ['mentions', 'digest', 'all'].includes(String(wake['mode'])) &&
+        ['waiting', 'receiving', 'paused', 'unavailable'].includes(String(row['state']))
+      );
+    }) ||
+    !Array.isArray(value['candidates']) ||
+    !value['candidates'].every((item) => {
+      const row = asRecord(item);
+      return (
+        row &&
+        ['bindingId', 'botSlug', 'platform', 'accountName'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        Array.isArray(row['conversations'])
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid external conversation snapshot');
+  return value as unknown as ConversationIngestSnapshot;
+}
+export async function manageChannelIngest(
+  call: BridgeCall,
+  channelId: string,
+  input: ConversationIngestInput,
+): Promise<void> {
+  await unwrap(call, 'channelIngest', { channelId, input });
 }
 export async function manageChannelBridge(
   call: BridgeCall,
