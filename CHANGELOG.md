@@ -16,7 +16,10 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 
+- Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).
+
 - Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).
+
 - Supported pixel Window Companions open and close their mouths as committed message text appears, pause at punctuation, and restore the saved face after completion, cancellation or backgrounding; roster portraits and image fallbacks keep their existing identity ([#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)).
 
 - Window Companions follow archive and deletion independently of Bot mode, preserve image/unknown-version snapshot fallbacks, and support keyboard reading and controls. Keyboard menus receive focus after placement and return it to the invoking control when dismissed. Motion preference changes settle immediately; offscreen presentation and obsolete animations stop without restarting old messages ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).
