@@ -13,6 +13,7 @@ const ENTRY_SHAPE = {
   tags: expect.any(Array),
   roles: expect.any(Array),
   bio: expect.any(String),
+  banner: null,
   description: expect.any(String),
   topics: expect.any(Array),
   stars: expect.any(Number),
