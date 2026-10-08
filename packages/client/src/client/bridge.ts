@@ -1317,6 +1317,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
+      ? { contentPurged: true as const }
+      : {}),
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(mentions === undefined
       ? {}

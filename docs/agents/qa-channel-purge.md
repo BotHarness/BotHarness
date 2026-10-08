@@ -32,6 +32,10 @@ The same assertions must pass even though the restored operational snapshot cont
 
 The E2E records actual light/dark screens at 1440 × 900, a 390 × 620 compact screen, measured wide-dialog bounds, tooltip disclosure and Escape dismissal. Images and scene identifiers stay in the ignored task directory. The `before` mode runs against a separately built main checkout on port 31991 with `qa-base`; it demonstrates main's file-bearing-source refusal. Its attachment is a valid synthetic managed-file receipt supplied to the actual Channel API because unchanged main's read-only record fsync fails on Windows. The after path exercises actual Client upload and fixes that cross-platform fsync mode.
 
+## Shared source and live cache
+
+Before purge, open the other active Channel containing the same Source Event, switch away to populate its conversation cache, and verify its sidebar still shows the source body. Review the ended Channel source with a recorded Memory derivative. Cancel preserves source and Memory bytes; confirm purges both placements while the independently owned Memory file/commit remains. The active conversation, cached conversation after switching back, quoted previews and sidebar must show no selected text or attachment. Reconnect or reload and check the tombstone again. Owning-module tests additionally deliver a delayed pre-purge response and verify that it cannot refill the cache; a late subscriber on the shared roster connection receives already-observed purge selectors. No provider or native DSH Session copy is claimed to be recalled.
+
 ## Owning-module checks
 
 ```sh

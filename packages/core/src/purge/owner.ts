@@ -369,6 +369,19 @@ export function mountContentPurge(options: {
     });
   const sign = (value: string): string => createHmac('sha256', secret).update(value).digest('hex');
   return {
+    redactions: () =>
+      port.read((db) =>
+        db
+          .prepare(
+            'SELECT p.source_event_id, p.channel_id, p.message_id FROM channel_placements p JOIN messaging_purge_facts f ON f.source_event_id = p.source_event_id',
+          )
+          .all()
+          .map((row) => ({
+            sourceEventId: String(row.source_event_id),
+            channelId: String(row.channel_id),
+            messageId: String(row.message_id),
+          })),
+      ),
     history: () =>
       exclusive(() =>
         port.read((db) =>

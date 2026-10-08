@@ -69,8 +69,19 @@ it('removes exclusive actual files after acceptance and reapplies destination un
   cpSync(join(core.home, 'botharness', 'attachments'), archive, { recursive: true });
   const current = mount(core.home);
   const preview = current.purge.preview(core.channel.id, [core.source.sourceEventId]);
+  let published: ReturnType<typeof current.purge.redactions> = [];
+  current.database.subscribe(({ topics }) => {
+    if (topics.includes('content-purge')) published = current.purge.redactions();
+  });
   expect(preview.files).toMatchObject([{ identity: core.file.fileId, disposition: 'remove' }]);
   current.purge.confirm(core.channel.id, preview.sourceEventIds, preview.token);
+  expect(published).toEqual([
+    {
+      sourceEventId: core.source.sourceEventId,
+      channelId: core.channel.id,
+      messageId: core.source.messageId,
+    },
+  ]);
   const checkpoint = current.purge.checkpoint();
   expect(checkpoint.version).toBe(2);
   expect(checkpoint.facts[0]?.managedFiles).toContain(core.file.fileId);

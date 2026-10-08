@@ -85,6 +85,7 @@ export interface PurgePreview {
 }
 
 export interface ContentPurge {
+  redactions(): PurgedPlacement[];
   history(): ChannelHistoryItem[];
   sources(channelId: string, before?: string): { sources: PurgeSource[]; before?: string };
   preview(channelId: string, sourceEventIds: readonly string[]): PurgePreview;
@@ -96,6 +97,12 @@ export interface ContentPurge {
   checkpoint(): PurgeCheckpoint;
   withCheckpoint<T>(exportSnapshot: (checkpoint: PurgeCheckpoint) => T): T;
   close(): void;
+}
+
+export interface PurgedPlacement {
+  sourceEventId: string;
+  channelId: string;
+  messageId: string;
 }
 
 export class ContentPurgeError extends Error {

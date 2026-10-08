@@ -1,4 +1,5 @@
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
+import { parseContentRedactions } from './content-redactions.js';
 import { parseChannelMessage } from './bridge.js';
 import type { BridgeActions } from './actions.js';
 import type { ChannelDraft, ClientStore } from './store.js';
@@ -482,8 +483,16 @@ export function mountRosterLive(
         const source = makeSource('/api/botharness/stream?scope=roster');
         source.onopen = schedule;
         source.addEventListener('roster/changed', schedule);
+        source.addEventListener('content/purged', (event) => {
+          store.purgeContent(parseContentRedactions(event));
+          schedule();
+        });
         stopSource = () => source.close();
-      } else stopSource = subscribeMessagingDefaults(schedule);
+      } else
+        stopSource = subscribeMessagingDefaults(schedule, (placements) => {
+          store.purgeContent(placements);
+          schedule();
+        });
       return;
     }
     stopSource?.();
