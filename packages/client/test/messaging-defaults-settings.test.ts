@@ -80,6 +80,7 @@ it('keeps a dirty draft at its captured revision, refuses a stale save, and refr
         input: {
           platform: 'feishu',
           expectedRevision: 1,
+          newConversations: 'auto',
           collection: 'all',
           wake: 'digest',
           count: 5,
@@ -188,6 +189,7 @@ it.each(['slack', 'discord'] as const)(
           input: {
             platform: targetPlatform,
             expectedRevision: 1,
+            newConversations: 'auto',
             collection: 'mentions',
             wake: 'digest',
             count: 3,
