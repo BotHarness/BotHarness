@@ -287,6 +287,12 @@ export function HumanInboxReply({
                             message.author.kind === 'bot' && bot.slug === message.author.slug,
                         )?.appearance
                       }
+                      avatarSeed={
+                        bots.find(
+                          (bot) =>
+                            message.author.kind === 'bot' && bot.slug === message.author.slug,
+                        )?.avatarSeed
+                      }
                       size={28}
                       indicator={false}
                       t={t}

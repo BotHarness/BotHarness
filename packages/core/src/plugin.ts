@@ -1,4 +1,7 @@
+import { onboardingNewsAvailable } from './onboarding/search.js';
+import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
+import { createPartLibrary, type PartLibrary } from './bots/part-library.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
 import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
@@ -55,13 +58,18 @@ import { readDailyUsageCounts, startDailyUsage } from './telemetry/daily-usage.j
 import { deliverPendingExceptions, installExceptionCapture } from './telemetry/exceptions.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/deletion.js';
-import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
+import {
+  backfillBotBanners,
+  backfillBotDescriptors,
+  syncBotDescriptor,
+} from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createCredentialReadiness } from './models/credential-readiness.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
+import { BOT_BANNER_PATH, createBotBannerHttp } from './bots/banner-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -222,6 +230,7 @@ export interface BotHarnessCore {
   profileRecovery: ProfileRecovery;
   rootDir: string;
   onboarding: BotOnboarding;
+  partLibrary: PartLibrary;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
@@ -371,6 +380,7 @@ export function createCore(
     throw error;
   }
   if (operationalDatabase.mode === 'ready') {
+    backfillBotBanners(registry, options.warn);
     backfillBotDescriptors(registry, options.warn);
     migrateLegacySouls(registry, options.warn);
   }
@@ -549,6 +559,7 @@ export function createCore(
             name: bot.displayName,
             paused: bot.paused === true,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {
@@ -712,12 +723,16 @@ export function createCore(
     registry,
     channels,
   });
+  const partLibrary = createPartLibrary({
+    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
+  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
     profileRecovery,
     contentPurge,
     onboarding,
+    partLibrary,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -1026,6 +1041,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     (agent) => ctx.agents.get(agent.id) === agent,
     (message) => ctx.logger.warn(message),
     (slug, count) => core.states.setQuestionCount(slug, count),
+    nativeTimedQuestions(ctx, core.runtime),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
   ctx.on(
@@ -1260,6 +1276,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     modelCatalog,
     modelReadiness,
     onboarding: core.onboarding,
+    partLibrary: core.partLibrary,
+    onboardingNews: (slug) =>
+      onboardingNewsAvailable(
+        ctx,
+        (slug === undefined ? undefined : core.registry.get(slug)?.preset) ??
+          config.agentPreset ??
+          DEFAULT_AGENT_PRESET,
+      ),
     defaultModel: defaultModel as DshDefaultModelHost & {
       saveSelection(route: import('./models/presets.js').ModelRoute): Promise<void>;
     },
@@ -1457,6 +1481,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: Channel attachment download',
     );
+    const botBannerHttp = createBotBannerHttp(core.registry);
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_BANNER_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botBannerHttp,
+        }),
+      'botharness: Bot banner',
+    );
     const botAvatarHttp = createBotAvatarHttp(core.registry);
     connectionCtx.effect(
       () =>
@@ -1572,6 +1607,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.on(
     'session/event',
     (session, event) => {
+      queueMicrotask(() => {
+        void userQuestions
+          .reconcileSession(session.id)
+          .catch(() => ctx.logger.warn('user-question-reconciliation-failed'));
+      });
       activity.handleSessionEvent(session.id, event);
       try {
         core.externalMessaging.approvals.result(session.id, event);
@@ -1616,6 +1656,22 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
   activity.rebuild(dshSessions.list());
+  ctx.on(
+    'agent/inbox/discarded',
+    ({ agent, message }) => {
+      const source: unknown = message.source;
+      if (
+        typeof source === 'object' &&
+        source !== null &&
+        'kind' in source &&
+        source.kind === 'user-question-reply' &&
+        'callId' in source &&
+        typeof source.callId === 'string'
+      )
+        userQuestions.discardReply(agent.session.id, source.callId);
+    },
+    { global: true },
+  );
   for (const session of dshSessions.list())
     core.usage?.primeSession(session.id, session.snapshotEvents());
   if (core.usage !== undefined) {

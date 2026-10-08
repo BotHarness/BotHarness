@@ -1,3 +1,4 @@
+import { seededBannerRecipe } from '@botharness/pixel-banner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -8,6 +9,7 @@ import {
   canonicalAvatarRecipe,
   DEFAULT_ILLUSTRATED_RECIPE,
   seededAvatarRecipe,
+  seededAvatarRecipeV2,
 } from '../src/bots/avatar-appearance.js';
 import {
   backfillBotDescriptors,
@@ -74,11 +76,13 @@ describe('Bot descriptor sync', () => {
       name: '旅行规划师',
       tags: ['行程规划', '酒店比价'],
       bio: '帮你排行程、比酒店',
-      avatar: { recipe: canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')) },
+      avatar: { recipe: canonicalAvatarRecipe(seededAvatarRecipeV2('旅行规划师')) },
+      banner: { recipe: seededBannerRecipe('旅行规划师') },
     });
+    expect(existsSync(join(memoryDir, '.botharness/banner.png'))).toBe(true);
     expect(parseBotDescriptor(JSON.stringify(descriptor))).toBeDefined();
     expect(readSharedPresentation(memoryDir)?.appearance?.recipe).toEqual(
-      canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')),
+      canonicalAvatarRecipe(seededAvatarRecipeV2('旅行规划师')),
     );
     expect(git(memoryDir, 'status', '--porcelain')).toBe('');
     expect(git(memoryDir, 'log', '-1', '--format=%B')).toBe(`${BOT_DESCRIPTOR_COMMIT_MESSAGE}\n`);
@@ -111,7 +115,7 @@ describe('Bot descriptor sync', () => {
     registry.update('scribe', { avatar: '' });
     expect(existsSync(join(memoryDir, '.botharness/avatar.png'))).toBe(false);
     expect(descriptorOf(memoryDir)['avatar']).toEqual({
-      recipe: canonicalAvatarRecipe(seededAvatarRecipe('Meeting Scribe')),
+      recipe: canonicalAvatarRecipe(seededAvatarRecipeV2('Meeting Scribe')),
     });
     expect(git(memoryDir, 'status', '--porcelain')).toBe('');
 
@@ -164,6 +168,7 @@ describe('Bot descriptor sync', () => {
     expect(descriptorOf(memoryDir)).toEqual({
       name: 'Shared',
       avatar: { image: 'assets/avatar.png' },
+      banner: { recipe: seededBannerRecipe('Shared') },
     });
     expect(existsSync(join(memoryDir, '.botharness/avatar.png'))).toBe(false);
   });
@@ -193,6 +198,13 @@ describe('Bot descriptor sync', () => {
     expect(messages).toEqual([
       expect.stringMatching(/^bot-descriptor-backfill initiator=host-startup written=1 failed=0 /u),
     ]);
+    const legacy = registry.memoryDirFor('edited')!;
+    rmSync(join(legacy, '.botharness/bot.json'));
+    const { avatarSeed: _, ...record } = registry.get('edited')!;
+    expect(syncBotDescriptor(legacy, record)).toBe('written');
+    expect(descriptorOf(legacy)['avatar']).toEqual({
+      recipe: canonicalAvatarRecipe(seededAvatarRecipe('Edited')),
+    });
   });
 
   it('clips a long name, too many tags and a long bio to the descriptor limits', () => {

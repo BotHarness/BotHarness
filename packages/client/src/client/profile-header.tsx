@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type ReactElement } from 'react';
+import { BANNER_SCENES, seededBannerRecipe } from '@botharness/pixel-banner';
 import {
   Button,
   IconEllipsisOutlineRegular,
@@ -10,12 +11,13 @@ import {
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { AvatarAppearanceEditor } from './avatar-appearance-editor.js';
+import { bannerOf, BotBannerArt } from './bot-banner.js';
 import { BotZipShareButton } from './bot-zip.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
-import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
-import type { BotSummary, ChannelSummary } from './store.js';
+import { BannerCropModal, PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
+import type { BotBannerView, BotSummary, ChannelSummary } from './store.js';
 import {
   MAX_BOT_BIO_LENGTH,
   MAX_BOT_TAG_LENGTH,
@@ -187,7 +189,10 @@ function AvatarModal({
 }: {
   bot: BotSummary;
   channel: ChannelSummary;
-  actions: Pick<BridgeActions, 'setBotAppearance' | 'setBotAvatar'>;
+  actions: Pick<
+    BridgeActions,
+    'setBotAppearance' | 'setBotAvatar' | 'loadPartLibrary' | 'addLibraryPart'
+  >;
   t: BotHarnessTranslate;
   onClose(): void;
 }): ReactElement {
@@ -214,6 +219,7 @@ function AvatarModal({
         bot={bot}
         channelId={channel.id}
         onSave={actions.setBotAppearance}
+        library={{ load: actions.loadPartLibrary, add: actions.addLibraryPart }}
         onUpload={() => input.current?.click()}
         onRemoveImage={() => void removeImage()}
         imageBusy={busy}
@@ -251,6 +257,144 @@ function AvatarModal({
   );
 }
 
+function randomSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0]!;
+}
+
+function BannerModal({
+  bot,
+  channel,
+  actions,
+  t,
+  onClose,
+}: {
+  bot: BotSummary;
+  channel: ChannelSummary;
+  actions: Pick<BridgeActions, 'setBotBanner'>;
+  t: BotHarnessTranslate;
+  onClose(): void;
+}): ReactElement {
+  const initial = bannerOf(bot.banner, bot.displayName);
+  const [draft, setDraft] = useState<BotBannerView>(initial);
+  const [file, setFile] = useState<File>();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const input = useRef<HTMLInputElement | null>(null);
+  const seed = 'recipe' in draft ? draft.recipe.seed : seededBannerRecipe(bot.displayName).seed;
+  const scene = 'recipe' in draft ? draft.recipe.scene : undefined;
+  const save = async (): Promise<void> => {
+    if (JSON.stringify(draft) === JSON.stringify(initial)) {
+      onClose();
+      return;
+    }
+    setBusy(true);
+    setFailed(false);
+    const saved = await actions.setBotBanner(channel.id, draft);
+    setBusy(false);
+    if (saved) onClose();
+    else setFailed(true);
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t('profile.banner.title')}
+      closeLabel={t('common.close')}
+      className="bh-sidebar-modal bh-banner-modal"
+      footer={
+        <div className="bh-modal-footer">
+          <Button variant="outline" disabled={busy} onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={() => void save()}>
+            {t('profile.save')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="bh-banner-editor">
+        <div className="bh-banner-preview">
+          <BotBannerArt banner={draft} />
+        </div>
+        <div className="bh-banner-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy || scene === undefined}
+            onClick={() =>
+              scene !== undefined && setDraft({ recipe: { scene, seed: randomSeed() } })
+            }
+          >
+            {t('profile.banner.reroll')}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
+            {t('profile.banner.upload')}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setDraft({ recipe: seededBannerRecipe(bot.displayName) })}
+          >
+            {t('profile.banner.reset')}
+          </Button>
+        </div>
+        {scene === undefined ? (
+          <span className="bh-personabot-hint">{t('profile.banner.uploaded')}</span>
+        ) : null}
+        <div className="bh-banner-scenes" role="radiogroup" aria-label={t('profile.banner.scene')}>
+          {BANNER_SCENES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={scene === option}
+              className="bh-banner-scene"
+              disabled={busy}
+              onClick={() => setDraft({ recipe: { scene: option, seed } })}
+            >
+              <BotBannerArt banner={{ recipe: { scene: option, seed } }} />
+              <span>{t(`profile.banner.scene.${option}`)}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          ref={input}
+          className="bh-profile-avatar-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(event) => {
+            const chosen = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (chosen !== undefined) setFile(chosen);
+          }}
+        />
+        {failed ? (
+          <div className="bh-error" role="alert">
+            {t('profile.banner.failed')}
+          </div>
+        ) : null}
+      </div>
+      {file === undefined ? null : (
+        <BannerCropModal
+          file={file}
+          t={t}
+          onClose={() => setFile(undefined)}
+          onSave={async (image) => {
+            setDraft({ image });
+            return true;
+          }}
+        />
+      )}
+    </Modal>
+  );
+}
+
 export function ProfileHeader({
   bot,
   channel,
@@ -264,12 +408,23 @@ export function ProfileHeader({
   t: BotHarnessTranslate;
   onDelete(): void;
 }): ReactElement {
-  const [panel, setPanel] = useState<'edit' | 'avatar'>();
+  const [panel, setPanel] = useState<'edit' | 'avatar' | 'banner'>();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuItems: readonly MenuEntry[] = [{ id: 'delete', label: t('deletion.title') }];
   return (
     <header className="bh-profile-header">
-      <div className="bh-profile-banner" aria-hidden="true" />
+      <div className="bh-profile-banner">
+        <BotBannerArt banner={bannerOf(bot.banner, bot.displayName)} />
+        {bot.deleted ? null : (
+          <button
+            type="button"
+            className="bh-profile-banner-edit"
+            onClick={() => setPanel('banner')}
+          >
+            {t('profile.banner.edit')}
+          </button>
+        )}
+      </div>
       <div className="bh-profile-header-body">
         <div className="bh-profile-header-top">
           <button
@@ -285,6 +440,7 @@ export function ProfileHeader({
               name={bot.displayName}
               src={bot.avatar}
               appearance={bot.appearance}
+              avatarSeed={bot.avatarSeed}
               size={80}
               indicator={false}
             />
@@ -326,6 +482,15 @@ export function ProfileHeader({
       </div>
       {panel === 'edit' ? (
         <EditProfileModal
+          bot={bot}
+          channel={channel}
+          actions={actions}
+          t={t}
+          onClose={() => setPanel(undefined)}
+        />
+      ) : null}
+      {panel === 'banner' ? (
+        <BannerModal
           bot={bot}
           channel={channel}
           actions={actions}

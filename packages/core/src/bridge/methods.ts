@@ -88,6 +88,10 @@ import {
   type ChannelReference,
 } from '../channels/channel.js';
 import { botAvatarUrl } from '../bots/avatar-http.js';
+import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
+import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
+import { isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -213,6 +217,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     appearance?: AvatarAppearance | RetainedAvatarAppearance;
+    avatarSeed?: 2;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -234,6 +239,8 @@ export interface PersonaBotSummary {
   description?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  banner?: BotBannerSummary;
+  avatarSeed?: 2;
   paused?: boolean;
   deleted?: boolean;
   standingLimits: StandingLimits;
@@ -322,6 +329,7 @@ export interface OwnedSessionBot {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  avatarSeed?: 2;
   role: SessionRootRole;
 }
 
@@ -455,7 +463,9 @@ export interface BridgeMethods {
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
   toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
-  userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  userQuestionStatus(
+    payload: unknown,
+  ): BridgeResult<{ status: 'pending' | 'submitted' | 'answered' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
@@ -500,7 +510,10 @@ export interface BridgeMethods {
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   standingLimitsSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  botBannerSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  partLibraryList(): BridgeResult<{ parts: PartLibraryEntry[] }>;
+  partLibraryAdd(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -534,6 +547,8 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   onboarding?: BotOnboarding;
+  partLibrary?: PartLibrary;
+  onboardingNews?: (slug?: string) => Promise<boolean>;
   defaultModel?: {
     currentSelection(): ModelRoute;
     saveSelection(route: ModelRoute): Promise<void>;
@@ -831,6 +846,10 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
             ? botAvatarUrl(record.slug, record.avatar)
             : record.avatar,
         }),
+    ...(record.banner === undefined
+      ? {}
+      : { banner: botBannerSummary(record.slug, record.banner) }),
+    ...(record.avatarSeed === undefined ? {} : { avatarSeed: record.avatarSeed }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
@@ -1356,10 +1375,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       )
         return invalidInput('Invalid tutorial action');
       try {
-        return {
-          ok: true,
-          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
-        };
+        const value = await deps.onboarding.enter(
+          asSlug(payload),
+          action as TutorialAction | undefined,
+        );
+        const newsAvailable =
+          (await deps
+            .onboardingNews?.(asSlug(payload) ?? value.defaultBotSlug)
+            .catch(() => false)) ?? false;
+        return { ok: true, value: { ...value, newsAvailable } };
       } catch (error) {
         return {
           ok: false,
@@ -1828,6 +1852,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug: bot.slug,
           displayName: bot.displayName,
           ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+          ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
           ...(bot.avatar === undefined
             ? {}
             : {
@@ -2167,6 +2192,53 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return result.reason === 'not-found'
           ? unknownBot(scope.botSlug)
           : invalidInput('invalid Avatar Appearance');
+      return { ok: true, value: detailOf(result.record) };
+    },
+    partLibraryList() {
+      if (!deps.partLibrary) return unavailable();
+      try {
+        return { ok: true, value: { parts: deps.partLibrary.list() } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryAdd(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const part = input['part'];
+      const name = input['name'] ?? '';
+      const parent = input['parent'];
+      if (!isPixelCustomPart(part)) return invalidInput('part must be a valid Custom Part');
+      if (typeof name !== 'string' || name.length > MAX_PART_NAME)
+        return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
+      if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
+        return invalidInput('parent must be a Custom Part id');
+      try {
+        const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+        return { ok: true, value: { entry } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    botBannerSet(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const record = deps.registry.get(scope.botSlug);
+      if (record === undefined) return unknownBot(scope.botSlug);
+      const banner = asObject(payload)['banner'];
+      const next = banner === null ? seededBotBanner(record.displayName || record.slug) : banner;
+      if (!isBotBanner(next)) {
+        return invalidInput(
+          'banner must be null, { recipe: { scene, seed } } or { image } as a 3:1 PNG data URL',
+        );
+      }
+      const result = deps.registry.setBanner(scope.botSlug, next);
+      if (!result.ok)
+        return result.reason === 'not-found'
+          ? unknownBot(scope.botSlug)
+          : invalidInput('invalid banner');
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {
@@ -3777,6 +3849,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             botSlug: bot.slug,
             displayName: bot.displayName,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {

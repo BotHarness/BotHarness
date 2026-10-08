@@ -1,3 +1,4 @@
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { onboardingFor } from './onboarding.js';
 import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
@@ -90,8 +91,11 @@ import {
   setGroupAvatar as setGroupAvatarViaBridge,
   setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
+  setBotBanner as setBotBannerViaBridge,
   updateBotProfile as updateBotProfileViaBridge,
   setBotAppearance as setBotAppearanceViaBridge,
+  loadPartLibrary as loadPartLibraryViaBridge,
+  addLibraryPart as addLibraryPartViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -532,7 +536,10 @@ export interface BridgeActions {
     messageId: string,
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<void>;
-  userQuestionStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): Promise<'pending' | 'submitted' | 'answered' | 'expired'>;
   answerUserQuestion(
     channelId: string,
     messageId: string,
@@ -565,6 +572,10 @@ export interface BridgeActions {
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotBanner(
+    channelId: string,
+    banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+  ): Promise<boolean>;
   updateBotProfile(
     slug: string,
     patch: { roles?: string[]; description?: string },
@@ -573,6 +584,14 @@ export interface BridgeActions {
     channelId: string,
     recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
+  loadPartLibrary(): Promise<
+    import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
+  >;
+  addLibraryPart(
+    part: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+    name: string,
+    parent?: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | undefined>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -1075,7 +1094,7 @@ export function createActions(
     channelId: string,
     messageId: string,
     submit: () => Promise<void>,
-    loadStatus: () => Promise<'pending' | 'expired'>,
+    loadStatus: () => Promise<'pending' | 'submitted' | 'answered' | 'expired'>,
   ): Promise<void> => {
     let resolved = false;
     try {
@@ -1084,7 +1103,8 @@ export function createActions(
     } finally {
       if (!resolved) {
         try {
-          resolved = (await loadStatus()) === 'expired';
+          const status = await loadStatus();
+          resolved = status === 'expired' || status === 'answered';
         } catch {}
       }
       if (resolved)
@@ -2245,6 +2265,20 @@ export function createActions(
         return false;
       }
     },
+    async loadPartLibrary() {
+      try {
+        return await loadPartLibraryViaBridge(call);
+      } catch {
+        return undefined;
+      }
+    },
+    async addLibraryPart(part, name, parent) {
+      try {
+        return await addLibraryPartViaBridge(call, part, name, parent);
+      } catch {
+        return undefined;
+      }
+    },
     async updateBotProfile(slug, patch) {
       try {
         const bot = await updateBotProfileViaBridge(call, slug, patch);
@@ -2262,6 +2296,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: PersonaBot avatar update failed', error);
+        return false;
+      }
+    },
+    async setBotBanner(channelId, banner) {
+      try {
+        const bot = await setBotBannerViaBridge(call, channelId, banner);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: Bot banner update failed', error);
         return false;
       }
     },

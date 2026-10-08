@@ -6,7 +6,11 @@ import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { solveChallenge } from '../src/marketplace/altcha.js';
-import { createMarketplaceClient, type MarketplaceClient } from '../src/marketplace/client.js';
+import {
+  createMarketplaceClient,
+  parseMarketplacePage,
+  type MarketplaceClient,
+} from '../src/marketplace/client.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 import { createTestRegistry } from './registry-fixture.js';
@@ -242,5 +246,37 @@ describe('Bot Marketplace bridge', () => {
       ok: false,
       error: { code: 'invalid-input' },
     });
+  });
+});
+
+describe('Marketplace banner', () => {
+  it('reads a known scene or a raw GitHub image and drops anything else', () => {
+    const base = {
+      id: 'R_1',
+      owner: 'alice',
+      name: 'bot',
+      fullName: 'alice/bot',
+      pushedAt: '2026-10-01T00:00:00Z',
+      htmlUrl: 'https://github.com/alice/bot',
+      cloneUrl: 'https://github.com/alice/bot.git',
+      defaultBranch: 'main',
+      description: null,
+      stars: 0,
+      topics: [],
+    };
+    const banners = [
+      { recipe: { scene: 'sea', seed: 3 } },
+      { image: 'https://raw.githubusercontent.com/alice/bot/abc/.botharness/banner.png' },
+      { recipe: { scene: 'mars', seed: 3 } },
+      { image: 'https://tracker.example/pixel.png' },
+      undefined,
+    ].map((banner) => parseMarketplacePage({ bots: [{ ...base, banner }] })?.bots[0]?.banner);
+    expect(banners).toEqual([
+      { recipe: { scene: 'sea', seed: 3 } },
+      { image: 'https://raw.githubusercontent.com/alice/bot/abc/.botharness/banner.png' },
+      null,
+      null,
+      null,
+    ]);
   });
 });

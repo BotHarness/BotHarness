@@ -19,6 +19,8 @@ Pinned RC1 has two distinct root guards: `SlotRegistry.renderSlot` refuses assem
 
 A browser tool's mouse/evaluation/screenshot timeout, connection reset or navigation refusal is control-plane evidence. Inspect the current page before retrying and keep those failures separate from product exceptions. Chrome may defer frame callbacks in background tabs; a foreground observation deadline must not treat that as a white-screen crash. An authenticated API 200 alone is only Host transport evidence.
 
+For displayed local-origin permissions, occupied-port checks and bounded browser-control retries, follow the [AX browser qualification loop](../../../../docs/agents/ax-browser.md). Its #1225 evidence records allowed-origin refusals separately from Host health and earlier successful Client actions.
+
 ## Temporary SSE refusal versus network reconnect
 
 In the pinned DSH 0.2.0 RC1 installed Profile, a loopback transport fixture severed one application SSE while leaving canonical model commits and the Host alive. Returning temporary HTTP 503 on reconnection made Chrome's EventSource terminally CLOSED; restoring the endpoint alone did not create another request. Distinguish this from a network interruption, where the browser keeps its EventSource reconnect machinery. Check terminal readyState explicitly and replace the application-owned closed transport with one bounded-backoff timer; preserve only its process-local resume identity and cancel the timer on removal/disposal. A replacement EventSource cannot set Last-Event-ID itself: an authenticated application-defined resume parameter may carry the lease, while native Last-Event-ID must take precedence on subsequent automatic reconnects. Keep normal authentication, canonical qualification and lease expiry unchanged. Preserve failed real-Profile evidence and re-run that exact refusal/restore path after the fix ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
@@ -169,3 +171,62 @@ Preserve pnpm's supply-chain policy when repairing that installation. An earlier
 The pinned Windows composition enables `pwsh-sandbox`; a Tool named `bash` does not by itself identify its Shell Provider. A real approved `printf` invocation reached Git/MSYS and failed with a Win32 signal-pipe error and `[exit code: 1]`, while its native result had `isError: false`. Inspect the actual output and exit evidence as well as the canonical decision. A fresh bounded `node -e` print invocation verified successful execution on Windows; a separate rejected request returned the native rejection error with no replacement call. Keep failed evidence, and do not retry a denied operation under a different command. Authenticated Web approval qualification remains separate from real IM button-to-native-result qualification.
 
 Preserve the instant when comparing an owned Host's process start time. PowerShell's `ConvertFrom-Json` can turn an ISO timestamp into `DateTime`; converting that object back to a culture-specific string and parsing it as `DateTimeOffset` can lose the original UTC offset. This made an exact-PID cleanup guard refuse the correct process. Cast the typed value directly, or retain the original ISO string, and compare UTC instants before stopping the process. The corrected manual check matched with zero time difference. Keep the original refusal as evidence; correcting the helper does not prove its independent automatic cutoff ran successfully. Server-owned restoration and explicit local cleanup must have separate evidence.
+
+## RC1 native Human waits hold their current Agent step
+
+For same-PersonaBot wait experiments, distinguish durable Inbox Admission and
+accepted `steer` from actual native input claim/model processing. Pinned DSH
+`0.2.0-rc.1` keeps the current Agent step inside awaited tool preparation/body;
+its driver cannot claim next-step input until approval/question resolves.
+An independent Assignment approval can leave its Orchestrator available when
+that Orchestrator ends its dispatch turn. This does not release the Assignment
+running permit or qualify an Orchestrator's own wait. Test native approval and
+formal question separately through existing Web controls, retain exact original
+Session/call/arguments, native decision/result and the unrelated `channel_send`
+receipt. Recheck scope changes/revocation. Cancellation/cold resume are not
+preserved-call suspension. See the [bounded #1036 experiment](../../../../docs/research/1036-native-wait-experiment.md)
+and [local capability blocker #1220](https://github.com/BotHarness/DeepSeekBot/issues/1220).
+
+## RC2 timed questions outlive their foreground wait
+
+In isolated DSH `0.2.0-rc.2`, configure the native `tool-ask-user` Plugin inside
+the selected Agent Preset's `config.plugins` for timed mode. The Tool can truthfully
+return pending while the original question's native Projection remains continued.
+The foreground signal abort is not necessarily parent Agent cancellation: an
+application answerer that treats every abort as final cancellation can expire its
+card even though the native question remains answerable. Do not keep the expired
+Promise as a second authority; qualify the native Projection and late-reply seam.
+
+Service parameter names do not necessarily equal named HTTP gateway arguments.
+The running RC2 `userQuestions/answer` descriptor expects `agentId` carrying the
+Session ID, not `agent`; invalid fields are rejected before execution. Verify the
+actual descriptor/Client and Host. Acceptance means queued input: retain original
+call correlation, qualified reply enqueue and admission, settled Projection,
+actual model processing and canonical Channel send receipt. A native control
+probe does not establish downstream Channel actor or disclosure authority.
+
+The [bounded RC2 experiment](../../../../docs/research/1220-native-timed-question-experiment.md)
+verified the same-Session question path and retained the original incompatible application
+card as negative evidence. The subsequent [DM card tracer](../../../../docs/research/1220-timed-question-card-e2e.md)
+uses the native Projection and Service through the owning Orchestrator runtime. It did not upgrade production RC1, qualify permission
+approval, or prove cold recovery/capacity release. Preserve native pending-result
+explanatory fields; do not mistake an extra field or harmless answer punctuation
+for a runtime failure. Keep earlier probe and Client startup failures separately.
+
+## Timed-question cards need the application run lifecycle
+
+For an application adapter whose tools require a live application run, qualify a late answer
+after the ordinary native Turn has completely ended. Native `userQuestions.answer` can admit
+the answer and start model work outside that application run; native settlement alone then
+does not prove a Channel reply. In the RC2 card tracer this produced `channel_send: Orchestrator
+run is unavailable`. Bind original source/Session/DM context while the question is asked,
+serialize delivery through the owning runtime, recheck current authority, and keep that run
+through native idle. The native Service still owns answer admission; the adapter supplies no
+extra ordinary input, executor or decision. Capture native Tool results and actual Channel
+receipts, including the failed run, before reporting success.
+
+In real Web automation, a Channel composer can transition from textarea to rich contenteditable
+after Channel metadata loads. Select the existing `.bh-composer-input`, click it, and type through
+the browser; verify the actual send response. A cached textarea selector can disappear during
+that transition. Retain the first failure and current DOM/console, then use the established
+composer interaction path rather than bypassing it through RPC.

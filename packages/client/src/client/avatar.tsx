@@ -13,7 +13,7 @@ import { blobatar } from 'blobatar';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import {
   isAvatarAppearance,
-  seededAvatarRecipe,
+  seededAvatarFor,
   type AvatarAppearance,
   type PixelMouthState,
   type RetainedAvatarAppearance,
@@ -44,6 +44,7 @@ export interface PersonaBotAvatarProps {
   size: number;
   src?: string | undefined;
   appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
+  avatarSeed?: 2 | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -62,6 +63,7 @@ export interface PersonaBotFacepileItem {
   name: string;
   src?: string | undefined;
   appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
+  avatarSeed?: 2 | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -337,6 +339,7 @@ export function PersonaBotAvatar({
   size,
   src,
   appearance,
+  avatarSeed,
   state = 'idle',
   effect,
   activity,
@@ -354,8 +357,8 @@ export function PersonaBotAvatar({
   const composed = isAvatarAppearance(appearance);
   const seeded = !composed && (src === undefined || src.length === 0);
   const seededRecipe = useMemo(
-    () => (seeded ? seededAvatarRecipe(name || personaBotId) : undefined),
-    [seeded, name, personaBotId],
+    () => (seeded ? seededAvatarFor(name || personaBotId, avatarSeed) : undefined),
+    [seeded, name, personaBotId, avatarSeed],
   );
   const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
   const active = !still && (state === 'thinking' || state === 'working');

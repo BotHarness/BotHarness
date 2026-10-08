@@ -271,6 +271,7 @@ function MessageGroupView({
         name={authorBot?.displayName ?? author.slug}
         src={authorBot?.avatar}
         appearance={authorBot?.appearance}
+        avatarSeed={authorBot?.avatarSeed}
         size={28}
         indicator={false}
       />
@@ -491,6 +492,7 @@ function EmptyConversation({
           name={bot.displayName}
           src={bot.avatar}
           appearance={bot.appearance}
+          avatarSeed={bot.avatarSeed}
           size={56}
           indicator={false}
         />
@@ -634,6 +636,7 @@ function ConversationView({
     name: member.displayName,
     src: member.avatar,
     appearance: member.appearance,
+    avatarSeed: member.avatarSeed,
     state: personaBotActivity(state, member),
     activity: member.activity,
     attention: member.attention,
@@ -653,6 +656,7 @@ function ConversationView({
               name: bot.displayName,
               src: bot.avatar,
               appearance: bot.appearance,
+              avatarSeed: bot.avatarSeed,
               state: botActivity,
               activity: bot.activity,
               attention: bot.attention,
@@ -1150,6 +1154,7 @@ function ConversationView({
                       name={bot.displayName}
                       src={bot.avatar}
                       appearance={bot.appearance}
+                      avatarSeed={bot.avatarSeed}
                       state={botActivity}
                       size={22}
                       indicator={false}
@@ -1197,6 +1202,7 @@ function ConversationView({
                     name={profileBot.displayName}
                     src={profileBot.avatar}
                     appearance={profileBot.appearance}
+                    avatarSeed={profileBot.avatarSeed}
                     state={profileBotActivity}
                     size={22}
                     indicator={false}

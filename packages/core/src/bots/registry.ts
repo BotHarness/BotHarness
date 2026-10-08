@@ -24,7 +24,8 @@ import {
   type RemovePersonaBotOptions,
   type UpdatePersonaBotResult,
 } from './persona-bot.js';
-import { readSharedPresentation } from './shared-presentation.js';
+import { isBotBanner, seededBotBanner } from './bot-banner.js';
+import { readSharedBanner, readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import { recordMemoryOwnership } from './deletion.js';
 import type { HttpsFallback, MemoryCloneResult } from '../memory/clone.js';
@@ -90,6 +91,7 @@ export interface PersonaBotRegistry {
   memoryDirFor(slug: string): string | undefined;
   update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
   setAppearance(slug: string, recipe: unknown): UpdatePersonaBotResult;
+  setBanner(slug: string, banner: unknown): UpdatePersonaBotResult;
   setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
@@ -168,6 +170,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       'description',
       'avatar',
       'appearance',
+      'banner',
+      'avatarSeed',
       'model',
       'modelPlanRevision',
       'preset',
@@ -220,6 +224,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       !isUsableAvatarAppearance(parsed.appearance, (parsed as { avatar?: unknown }).avatar)
     )
       delete (parsed as { appearance?: unknown }).appearance;
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'banner' in parsed &&
+      !isBotBanner(parsed.banner)
+    )
+      delete (parsed as { banner?: unknown }).banner;
     if (!isPersonaBotRecord(parsed, slug)) throw new Error('Invalid PersonaBot Registry record');
     return recordSnapshot(parsed);
   };
@@ -378,6 +389,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       ...(roles.length > 0 ? { roles } : {}),
       ...(description ? { description } : {}),
       ...(avatar ? { avatar } : {}),
+      banner: seededBotBanner(displayName.length > 0 ? displayName : input.slug),
+      avatarSeed: 2,
       ...(model ? { model } : {}),
       ...(preset ? { preset } : {}),
       ...(memoryDir ? { memoryDir } : {}),
@@ -443,7 +456,12 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       created = result.ok;
       if (!result.ok) return result;
       capture('bot_created');
-      const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
+      const shared = readSharedPresentation(defaultMemoryDir(input.slug));
+      const banner = readSharedBanner(defaultMemoryDir(input.slug));
+      const presentation =
+        shared === undefined && banner === undefined
+          ? undefined
+          : { ...shared, ...(banner === undefined ? {} : { banner }) };
       if (presentation === undefined) {
         syncDescriptor(result.record, true);
         return result;
@@ -584,6 +602,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       write(updated);
       syncDescriptor(updated);
       capture('avatar_edited');
+      return { ok: true, record: updated };
+    },
+    setBanner(slug, banner) {
+      const record = active(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (!isBotBanner(banner)) return { ok: false, reason: 'invalid-input' };
+      const updated = { ...record, banner };
+      write(updated);
+      syncDescriptor(updated);
+      capture('banner_edited');
       return { ok: true, record: updated };
     },
     setPaused(slug, paused) {

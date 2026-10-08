@@ -114,6 +114,39 @@ Assignment Sessions do not communicate directly in v1. An Assignment Session rep
 - Only the Orchestrator controls top-level Assignments; internal DSH Subagents remain owned and addressed by their Assignment Session parent and appear only as aggregate diagnostics.
 - All v1 Assignment-to-Assignment coordination is mediated and correlated by the Orchestrator.
 
+## Native Human-wait qualification (2026-10-09)
+
+[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036) qualifies the
+existing independent-root ownership from ADR-0035 on DSH `0.2.0-rc.1`: an
+Assignment awaiting native approval can leave its Orchestrator available, but
+does not release the Assignment running permit. An Orchestrator's own native
+approval or formal question blocks its current step; accepted steering waits for
+the next step and does not establish actual model processing. The
+[bounded experiment](../research/1036-native-wait-experiment.md) retains exact
+Session/call decisions, actual results, unrelated replies and changed/revoked
+scope refusals. Cancellation and cold resume remain distinct from preserving
+an in-flight operation. No accepted lifecycle or ownership rule is replaced.
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) tracks the missing
+supported mechanism; #1036–#1038 production continuation gates stay blocked.
+
+The subsequent [isolated RC2 experiment](../research/1220-native-timed-question-experiment.md)
+qualifies the native experimental timed-question contract: the original Tool finishes
+with pending while its question remains answerable; a real unrelated model reply and a
+qualified original-call late answer occur in the same Session. This deliberately differs
+from preserving an open Tool Promise. The original baseline's application card cancellation
+is retained as negative evidence. The subsequent [DM card tracer](../research/1220-timed-question-card-e2e.md)
+correlates the original live Agent/Session/call, distinguishes the native foreground deadline
+from cancellation, and routes late answers through the native Service. The native Projection
+remains authority; a queued submission is not a settled answer. A Channel answer record is
+published only after native settlement. Late delivery enters the existing per-Bot runtime
+queue as a fresh application run for the same live Session, retaining the original Source
+Event context and rechecking current ownership, DM and source-content fences; that run remains
+available until native idle so the model can use its Channel tools. It adds no ordinary input
+or Inbox Admission. The process-local correlation does not recover a
+cold Agent or add a second executor, Inbox or decision store.
+Permission approval and bounded running-capacity qualification remain unresolved. The
+production runtime stays on RC1 and all downstream gates remain blocked.
+
 ## Native live-turn cancellation
 
 When a Human cancels a live Assignment through native DSH Session control, the adapter observes the committed `turn/end` with reason `aborted` and passes the trusted Turn number and end sequence to Assignment Runtime. Runtime atomically projects execution as error, releases its Continuity Key and records one Host/system Lifecycle Notice plus its Inbox Admission, deduplicated by owned Session, Turn and native-aborted cause. The safe summary states cancellation without copying tool input or provider text. It does not fabricate or replace a semantic Report, and it does not claim the continuing Assignment was stopped by its Orchestrator. Existing failed-session admission refuses resuming that errored Session; explicit new work remains possible.

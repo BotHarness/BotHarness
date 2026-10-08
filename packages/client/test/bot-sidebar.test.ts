@@ -295,8 +295,11 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    setBotBanner: vi.fn(async () => true),
     updateBotProfile: vi.fn(async () => true),
     setBotAppearance: vi.fn(async () => true),
+    loadPartLibrary: vi.fn(async () => []),
+    addLibraryPart: vi.fn(async () => undefined),
     profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({
       slug: '',

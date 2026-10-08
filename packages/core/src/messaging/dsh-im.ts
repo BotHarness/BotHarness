@@ -25,6 +25,13 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  reactionVersion?: 1;
+  reactionChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    reaction: 'received' | 'answered',
+    options: { expectedFingerprint: string; signal: AbortSignal; beforeSend(): boolean },
+  ): Promise<{ accepted: true }>;
   approvalCardVersion?: 1;
   approvalCardChecked?(
     botId: string,
@@ -306,6 +313,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'private-context-unavailable',
     'private-context-rejected',
     'send-permission-denied',
+    'reaction-permission-denied',
+    'reaction-provider-rejected',
   ].includes(code);
   return new MessagingProviderError(
     definite ? code : 'provider-result-unknown',
@@ -352,6 +361,14 @@ export function createDshImProvider(
       name: info.account.name ?? ref,
       fingerprint: info.account.fingerprint,
       connected: info.connected,
+      ...(platform === 'feishu'
+        ? {
+            reactionSupported:
+              host.reactionVersion === 1 &&
+              typeof host.reactionChecked === 'function' &&
+              info.capabilities.includes('reaction-write-checked'),
+          }
+        : {}),
       ...(platform === 'weixin' &&
       host.typingVersion === 1 &&
       typeof host.beginTypingChecked === 'function' &&
@@ -411,6 +428,37 @@ export function createDshImProvider(
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
+    ...(platform === 'feishu' &&
+    host.reactionVersion === 1 &&
+    typeof host.reactionChecked === 'function'
+      ? {
+          async react(input: Parameters<NonNullable<MessagingProvider['react']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingProviderError('account-changed', 'not-started');
+            if (!info.connected || !info.capabilities.includes('reaction-write-checked'))
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
+            try {
+              const result = await host.reactionChecked!(
+                input.accountRef,
+                input.route,
+                input.reaction,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                  beforeSend: input.beforeSend,
+                },
+              );
+              if (result?.accepted !== true)
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return { accepted: true as const };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
     ...(platform === 'weixin' &&
     host.typingVersion === 1 &&
     typeof host.beginTypingChecked === 'function'

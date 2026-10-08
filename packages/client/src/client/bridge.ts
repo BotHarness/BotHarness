@@ -1,3 +1,4 @@
+import { isPixelBannerRecipe, type PixelBannerRecipe } from '@botharness/pixel-banner';
 import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
@@ -50,6 +51,8 @@ import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
+import { isPartLibraryEntry, type PartLibraryEntry } from '../../../core/src/bots/part-library.js';
+import type { PixelCustomPart } from '../../../core/src/bots/avatar-appearance.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -78,6 +81,7 @@ import type {
   HumanAttentionPage,
   HumanInboxCategory,
   HumanInboxFilters,
+  BotBannerView,
   BotSummary,
   ChannelAuthor,
   ChannelAttachmentRef,
@@ -604,10 +608,20 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
       : isRetainedAvatarAppearance(record['appearance'])
         ? { appearanceUnsupported: true as const }
         : {}),
+    ...(parseBanner(record['banner']) ?? {}),
+    ...(record['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
     ...(record['deleted'] === true ? { deleted: true } : {}),
     ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseBanner(value: unknown): { banner: BotBannerView } | undefined {
+  const banner = asRecord(value);
+  if (banner === undefined) return undefined;
+  if (isPixelBannerRecipe(banner['recipe'])) return { banner: { recipe: banner['recipe'] } };
+  const image = banner['image'];
+  return typeof image === 'string' && image.length > 0 ? { banner: { image } } : undefined;
 }
 
 function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
@@ -989,6 +1003,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     if (parsed.some((item) => item === undefined)) return undefined;
     userQuestionRequest = {
       sessionId: request['sessionId'],
+      ...(typeof request['callId'] === 'string' ? { callId: request['callId'] } : {}),
       questions: parsed as NonNullable<ChannelMessage['userQuestionRequest']>['questions'],
     };
   }
@@ -1380,6 +1395,7 @@ export interface SessionBotOwner {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance;
+  avatarSeed?: 2;
   role: 'orchestrator' | 'assignment';
 }
 
@@ -1398,6 +1414,7 @@ export function parseSessionBotOwner(value: unknown): SessionBotOwner | undefine
     displayName,
     ...(typeof avatar === 'string' && avatar.length > 0 ? { avatar } : {}),
     ...(isAvatarAppearance(owner['appearance']) ? { appearance: owner['appearance'] } : {}),
+    ...(owner['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     role,
   };
 }
@@ -1906,6 +1923,17 @@ export async function setBotAvatar(
   return bot;
 }
 
+export async function setBotBanner(
+  call: BridgeCall,
+  channelId: string,
+  banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botBannerSet', { channelId, banner }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botBannerSet response');
+  return bot;
+}
+
 export async function updateBotProfile(
   call: BridgeCall,
   slug: string,
@@ -1926,6 +1954,25 @@ export async function setBotAppearance(
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAppearanceSet response');
   return bot;
+}
+
+export async function loadPartLibrary(call: BridgeCall): Promise<PartLibraryEntry[]> {
+  const parts = asRecord(await unwrap(call, 'partLibraryList', {}))?.['parts'];
+  if (!Array.isArray(parts)) throw new Error('invalid partLibraryList response');
+  return parts.filter(isPartLibraryEntry);
+}
+
+export async function addLibraryPart(
+  call: BridgeCall,
+  part: PixelCustomPart,
+  name: string,
+  parent?: string,
+): Promise<PartLibraryEntry> {
+  const entry = asRecord(
+    await unwrap(call, 'partLibraryAdd', { part, name, ...(parent ? { parent } : {}) }),
+  )?.['entry'];
+  if (!isPartLibraryEntry(entry)) throw new Error('invalid partLibraryAdd response');
+  return entry;
 }
 
 export async function inviteGroupBot(
@@ -2347,10 +2394,15 @@ export async function loadUserQuestionStatus(
   call: BridgeCall,
   channelId: string,
   messageId: string,
-): Promise<'pending' | 'expired'> {
+): Promise<'pending' | 'submitted' | 'answered' | 'expired'> {
   const response = asRecord(await unwrap(call, 'userQuestionStatus', { channelId, messageId }));
   const status = response?.['status'];
-  if (status !== 'pending' && status !== 'expired')
+  if (
+    status !== 'pending' &&
+    status !== 'submitted' &&
+    status !== 'answered' &&
+    status !== 'expired'
+  )
     throw new Error('invalid userQuestionStatus response');
   return status;
 }

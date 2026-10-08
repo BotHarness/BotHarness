@@ -1,3 +1,4 @@
+import type { PartLibraryEntry } from '../bots/part-library.js';
 import type { OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
@@ -487,6 +488,18 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
+  partLibraryList(): { parts: PartLibraryEntry[] } {
+    return unwrap(this.methods.partLibraryList());
+  }
+
+  partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryAdd({ part, name, parent }));
+  }
+
+  botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botBannerSet({ channelId, banner }));
+  }
+
   botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAppearanceSet({ channelId, recipe }));
   }
@@ -828,7 +841,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
   }
 
-  userQuestionStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): { status: 'pending' | 'submitted' | 'answered' | 'expired' } {
     return unwrap(this.methods.userQuestionStatus({ channelId, messageId }));
   }
 
@@ -1221,6 +1237,9 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'partLibraryList',
+  'partLibraryAdd',
+  'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',

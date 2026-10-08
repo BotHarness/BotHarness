@@ -8,7 +8,7 @@ BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产
 
 Bot 模式首次体验（#1175，[ADR-0147](../adr/0147-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）由 application-defined Onboarding owner 在现有 operational database 的 Schema Generation 71 保存 Profile receipt；只有主动进入模式才准备身份。空 Profile 记录稳定 Bot ID 后通过 Registry/Memory owner 创建 DeepSeek Bot，保存官网固定 Appearance，并经 Channel owner 幂等创建真实 Human DM 与 system welcome。已有 Bot 可复用／选择；归档和删除不会自动恢复。真实 Human 请求与同一 DM 的 Bot 回复，由 Channel 提交事务保留可信 Session ownership／原请求 Source Event 关联，作为完成证据；欢迎卡、失败通知、发送接受、Memory 初始化均不算成功。教程开始／暂停／跳过与历史成功独立；刷新、重启和多 Client 重读 Host 事实，后台核对不改变当前 Channel。未发出的请求只留在当前 Client，恢复后须再次明确确认。窗口伙伴初始化一次并尊重后续本地移除等偏好。完成后的欢迎消息提供可选 Memory 入口（#1200）：Client 复用既有 Memory 查询、文件树及正常阅读／差异视图，自由偏好经原 Human DM 发送链路提交；不新增写入 authority 或完成条件，初始化模板和回复本身均不证明偏好已保存。可选绑定入口（#1203）直接复用 Sidebar 的 Bind app Modal、当前 PersonaBot 的 Messaging snapshot 与原绑定命令；平台目录、凭据设置、官网教程和实际接收状态仍由既有 owner 提供，暂时不绑定不改变完成事实，也不保存第二份绑定进度。
 
-欢迎消息提供能力介绍、今日新闻、每日摘要与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
+欢迎消息提供能力介绍、每日晚间问候与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。新闻选项由 Host 在 onboarding 查询中投影当前 native 搜索配置和所选 Bot preset 的 `web_search` 可见性，只返回就绪布尔值，不保存第二份配置或凭据。固定 RC1 的已知 DeepSeek 搜索 Provider 与其独立凭据已配置时提供带真实来源链接的今日 AI 新闻；未配置、无法确认或不支持的搜索组合显示通用工作规划示例。配置就绪不保证网络请求成功，实际搜索失败、空结果和不可用必须如实说明。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
 
 当前 Client UI 由独立 `@botharness/ui` Bundle 挂载，源码仍在 `packages/client`；RC2 的插件图把结尾 `/client` 解释为导出子路径，因此包身份依 [ADR-0066](../adr/0066-rc2-client-bundle-identity.md) 避开该后缀。Client HMR 只暂存当前 Bot/Channel 选择以恢复视图，不复制 Host 中的 PersonaBot、Channel 或消息权威。
 
@@ -33,6 +33,32 @@ Channel 的消息引用（#145）只保存同 Channel 的已提交目标 ID；Hu
 拥有该 Session 的 Orchestrator 可复制 `channel_read`（含通过 `message_id` / `content_cursor` 完整读取的内容）或旧版授权读取结果中的最多 10 个可信附件引用，四个字段原样保留：`{fileId,name,mime,size}`。#577 后旧消息投影迁移后的文件身份；过期 `{hash,name,mime,size}` 结果必须先重新读取所属消息再转发，旧 hash 图片读取仍须带所属消息以解析当前字节。Orchestrator 还可通过 `channel_attachment_import` 明确选择并导入已授权的本地结果文件；不能猜测身份与元数据。DSH schema 将 `size` 声明为整数；Host 继续校验 0–9007199254740991 的安全非负字节范围。固定版本的 DSH schema 不支持 `maxItems` 或数值上下界，因此数组上限由描述与运行时校验共同表达。Group 最多接受 20 个提及 ID，每个都必须是其他活跃现成员。`channel_send` 只有在 Messaging 权威接受写入后才返回紧凑的 `{channelId,messageId}` JSON；省略目标时使用入站 Channel。该结果取代原文本确认；附件身份、profile 归属、当前文件语义、回复目标、delivery-key 重试与因果循环边界继续沿用（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
 
 应用定义的 `group_leave` Tool 只在规范成员移除提交后返回 `{channelId,left:true,outcome:"changed"}`；Bot 当前不是该群成员时返回 `{channelId,left:false,outcome:"unchanged",reason:"not-member"}`。无变更既包括重复退出，也包括从未加入的群；不推断历史成员身份，不返回未加入群的名称或名单。缺失 Channel 抛出 `group_leave: channel-unavailable`，非群聊目标抛出 `group_leave: group-required`，替代旧的含糊 `left:false` 成功结果；Tool 异常保持为失败。既有 `{channelId,left}` 字段及 Core 返回结构保持兼容，调用方须处理新的无效目标失败。ADR-0073 的同一事务仍承担创建者移交 Human、待处理 Admission 撤销、单条持久离群通知及剩余成员注意力策略；提交后的实时通知警告不否定已提交变更。读写权限立即撤销，因此 Bot 应通过仍可访问的 Channel 向 Human 报告（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
+
+## 原生 Human 等待的验证边界
+
+[#1036 的有界实验](../research/1036-native-wait-experiment.md) 在固定 DSH
+`0.2.0-rc.1` 上证明：独立 Assignment 等待原生工具审批时，Orchestrator
+可真实处理并回复无关 Inbox 消息，但没有释放 Assignment 运行许可。
+Orchestrator 自己的原生审批或正式提问仍占有当前 Step；Admission 已接收、
+`steer` 已排入下一 Step 不等于模型已处理，原调用决定并返回后才处理无关输入。
+准确 Session／call 归属及当前 Grant 校验仍由既有 authority 承担，变更／撤销
+范围拒绝原操作。[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#native-human-wait-qualification-2026-10-09)
+记录本次资格边界，不改变 ADR-0035 的单一 Orchestrator root 约束。
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 追踪缺失的受支持原生
+continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交付。
+
+后续[隔离 RC2 实验](../research/1220-native-timed-question-experiment.md) 验证原生 timed
+question 可先真实返回 pending，问题保持可回答；同一 Session 可回复无关消息，再通过
+带原 call 身份的 qualified Inbox 输入处理稍后答案。这是 Tool 已结束、问题仍持续的机制，
+不是挂起未结束调用。[DM 卡片适配](../research/1220-timed-question-card-e2e.md) 以原 Session／call
+关联卡片：只有 `ASK_TIMED_OUT` 结束前台等待，卡片仍查询原生 Projection；稍后答案通过
+原生 `userQuestions.answer` 提交，显示已提交，直到原生接收后才写入 Channel 回答记录。
+稍后提交进入既有 per-Bot Runtime 队列，为同一 live Session 建立新的 application run，保留
+原 Source Event 上下文并重验当前归属、DM 与源内容 fence；run 持续到原生 idle，让模型能使用
+既有 Channel 工具，不追加普通输入或 Inbox Admission。
+进程内映射仅关联已存在的 live Agent／卡片，不是第二个问题权威，也不实现冷恢复。
+生产依赖仍为 RC1，timed 模式仅在显式配置的隔离 RC2 Profile 验证。权限审批、容量释放／重获和同群隐私验收
+继续阻塞，不从这次 DM 能力实验推断完成。
 
 ## 1 · 系统上下文
 
@@ -234,6 +260,14 @@ sequenceDiagram
 Source Event 是内容唯一权威；Channel 和 Inbox 都只保存关系。Reply 使用可信 Reply Route 自动选择来源 provider；主动发布属于 Service Action，需要 Provider Capability，以及该 Bot 对应用可触达会话的会话条目，或作为后备的 Human 保存目标 Service Grant。SQLite 事务只覆盖本地事实；外部副作用使用 Outbox Intent、幂等标识和有界 reconciliation，不宣称 exactly-once。不可证明的结果进入 `unknown-outcome`，由 Human 处理。
 
 Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完成后的安全边界、当前 turn 结束后，或 idle 时启动新 turn。普通外部消息不打断正在执行的 model/tool step；只有 DSH 明确支持且策略授权的控制路径才能 steer。就绪的 attention 按回合收割：忙碌期间新到的事件只把就绪集合置脏，当前回合结束（即空闲）时由一次 harvest turn 消费全部就绪项；主动 steer 只用于直接 @ 与 DM（ADR-0077）。
+
+### Lark 接收与回答反馈（ADR-0149）
+
+新会话首条消息的 Admission 通知异步等待受校验的回复连接就绪，避免连接建立期间丢失接收反馈；不阻塞收件确认或模型唤醒。SDK HTTP 异常中的明确权限拒绝归为失败；修复不重写或补发既有未知尝试。
+
+Messaging 在 Source Event 与 Inbox Admission 提交后异步尝试原消息的 `GLANCE`，只在该来源的 canonical Reply Outbox 成为 `provider-accepted` 后尝试 `DONE`。两个状态由应用定义；原内容、Admission、Outbox 继续是各自唯一权威。可选的 checked Provider Service Capability 重查账户指纹、Registration、独占 Consumer、来源会话／Thread／发送者及当前授权。旧 Provider 缺少能力时保持正常收发。
+
+反馈 attempt 元数据保存在既有 Source Event payload，完成记录引用原 Outbox；管理 snapshot 暴露最近状态，不复制消息内容。写入前持久化 attempt，超时／未知／重连／重启均不自动重试；有界异步调用不阻塞接收、模型或回复。静音仍可产生 silent Admission，屏蔽阻止新 Admission；静默结束、委派完成、待确认问题及无关输出不表示已回答。平台接受不表示 Human 已读或样式已经验证。详见 [ADR-0149](../adr/0149-lark-feedback-follows-admission-and-accepted-reply.md)。
 
 ### 绑定的应用接收默认流量（ADR-0142）
 
@@ -471,6 +505,16 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 首次选择/Client 或 Host 重启建立 Host 一致的新消息基线，不重播旧输出，直接查询当前 Activity；短暂后台/断线仅有界恢复本轮基线后尚未播出的消息，canonical identity 去重并拒绝旧 generation 响应。关闭来源清卡片与待播，重新开启或新合格 Channel 从当前基线继续。进程内 output-committed 只是通知，不能充当持久 cursor；查询成本与队列都必须有界。气泡到期/移除不更新 Channel read position。独立 Human attention 即使所有播放关闭仍保留并导航到 owning 活动/Human Inbox，不从计数编造正文或审批控件。
 
 每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
+
+### 5.4 · 形象物种与自绘部件（部分已实现）
+
+[ADR-0148](../adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md) 在不新增 rig 的前提下扩展像素 Avatar Family。Avatar Species（人类、精灵、哥布林、矮人、兽人、猫、狗、狐狸、兔子、熊、花）是像素胸像骨架上的基底：轮廓、耳朵、鼻子或吻部、建议身体色与可接受部件；动作、锚点、说话嘴型与伙伴透明轮廓保持共享。头发拆为可分别上色的分片，新增穿过头发的头饰槽（前后两层）。当前物种无法显示的选择保存并隐藏，不被替换。
+
+Custom Part 是有界像素网格，每格引用外形颜色或固定色并带明度档位，因此随外形换色。BotPixel 负责其类型、校验、渲染与纯函数绘制算法；PersonaBot 所属模块把副本嵌入 Avatar Appearance，DSH Profile 中由 Host 管理的 Part Library 以内容哈希身份和来源保存可复用部件。导出的 PersonaBot 携带其部件；单个部件以内嵌数据的 PNG 流转。眼睛、眉毛和嘴不可自绘，眨眼与说话帧仍由 rig 负责。
+
+新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
+
+目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），以及第一条 Custom Part 路径（#1211）。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList` 和 `partLibraryAdd` 两个桥接方法使用它；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、导入部件、PNG 部件文件和更多绘制工具尚未实现。
 
 ## 6 · 持久化、导出与恢复边界
 

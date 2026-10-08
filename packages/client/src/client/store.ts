@@ -10,6 +10,7 @@ import type { GitAvailability } from './bridge.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
 import type { PurgedPlacement } from '../../../core/src/purge/contracts.js';
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { createContentRedactions } from './content-redactions.js';
 
 export type ClientMode = 'dsh' | 'bot';
@@ -21,6 +22,8 @@ export interface StandingLimitsView {
   coreMemory: number;
 }
 
+export type BotBannerView = { recipe: PixelBannerRecipe } | { image: string };
+
 export interface BotSummary {
   slug: string;
   displayName: string;
@@ -29,6 +32,8 @@ export interface BotSummary {
   avatar?: string;
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
+  banner?: BotBannerView;
+  avatarSeed?: 2;
   paused?: boolean;
   deleted?: boolean;
   standingLimits?: StandingLimitsView;
@@ -137,6 +142,7 @@ export interface UserQuestionAnswerItem {
 }
 
 export interface UserQuestionRequestCard {
+  callId?: string;
   sessionId: string;
   questions: UserQuestionItem[];
 }
