@@ -67,7 +67,7 @@ _避免使用_：Soul、pose、mood、skin
 _避免使用_：sticker、skin、upload、custom SVG
 
 **Part Library**：
-部件库：当前 DSH Profile 中 Human 可复用的 Custom Part 集合，可单独导出和导入。编辑库中部件不会改变已嵌入其副本的外形。
+部件库：当前 DSH Profile 中 Human 可复用的 Custom Part 集合，每个部件标明来源：本地绘制、导入的 PersonaBot，或导入的部件文件。两种导入都会把部件加入部件库；编辑库中部件不会改变已嵌入其副本的外形。
 _避免使用_：asset store、marketplace、catalog
 
 **Window Companion**：

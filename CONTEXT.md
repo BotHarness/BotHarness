@@ -67,7 +67,7 @@ A bounded pixel part a Human draws for one Avatar Appearance slot, whose cells r
 _Avoid_: sticker, skin, upload, custom SVG
 
 **Part Library**:
-A Human's reusable collection of Custom Parts in the current DSH Profile, which can be exported and imported on its own. Editing a library part never changes appearances that already embed a copy.
+A Human's reusable collection of Custom Parts in the current DSH Profile, each marked by its origin: drawn here, from an imported PersonaBot, or from an imported part file. Importing either adds its parts; editing a library part never changes appearances that already embed a copy.
 _Avoid_: asset store, marketplace, catalog
 
 **Window Companion**:
