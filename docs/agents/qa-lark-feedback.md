@@ -101,3 +101,19 @@ After the window, a read-only official Event Log Search for the exact retained R
 ![Official delivery record for the exact R3 group QA event](../evidence/issue-1040/lark-group-event-log.jpg)
 
 窗口结束后，只读查询官方 Event Log Search 中与 R3 群来源一致的精确事件 ID：`im.message.receive_v1` 显示 SUCCESS、HTTP 200，界面推送时间为 03:52:00.845。此记录佐证该群事件投递，不证明迟发的屏蔽消息或表情显示；截图仅保留记录行，排除详情中的租户信息。
+
+## R4 live Host restart and in-window block: 2026-10-09 / 现场重启与窗口内屏蔽
+
+A new Human-approved window armed at **04:52:50.784 JST**, with the original **05:00:50.784** local cutoff and **05:01:50.784** independent server fallback. It reused the exact paired sources and verified Provider runtime digest above. The prior isolated QA DM block was allowed through its owning command; no production conversation policy or app permission changed. See [sanitized R4 facts](../evidence/issue-1040/lark-r4-qualification-2026-10-09.json).
+
+`BH1040-R4-BEFORE` committed one Admission and the exact accepted reply `BH1040-R4-BEFORE OK`. The agent then disabled IM, stopped the exact owned Host and restarted the same Profile. The new Host was registered with the existing cutoff guard before IM was enabled; the deadline did not change. The same identity and all historical feedback were retained unchanged. A fresh `BH1040-R4-AFTER` committed one Admission and the exact accepted reply `BH1040-R4-AFTER OK`, with accepted receipt and answer attempts. This qualifies a real live receiver Host restart followed by a new reply. The post-restart Web reload reached the actual QA composer with no new console errors; it does not explain or fix the earlier scope failure.
+
+After the isolated DM was blocked, the Human reported sending `BH1040-R4-BLOCKED` at **04:56 JST**, inside the window, with no reply or reaction. Canonical inspection found no matching Source Event and no new Outbox or feedback. Official Event Log Search for 04:56:00–04:57:00 showed exactly one `im.message.receive_v1` **SUCCESS**, at **04:56:44.857**, with event ID `65f6012937855fd6ee313e16b7f3529a`. The row corroborates a delivery in the reported minute, but exposes neither the message ID nor body, so exact blocked-marker arrival remains independently unproven; the negative case is not fully qualified.
+
+![Official event in the Human-reported R4 blocked-message minute; exact marker correlation unavailable](../evidence/issue-1040/lark-r4-block-event-log.jpg)
+
+QA was disabled/unbound, temporary account and credentials removed, and the restarted Host stopped. Production was verified running at **04:57:55.239 JST**, before the original cutoff; the independent restoration timer and local guard were stopped after recovery. The Human confirmed normal replies in **both production Lark and Discord**. Remaining qualification includes exact blocked-source delivery correlation, source-specific group reaction rendering, the earlier Web failure's trigger, and unexercised cases in the matrix. The Provider pin remains unchanged.
+
+本轮由 Human 新授权，04:52:50.784 开始，原定 05:00:50.784 本地截止和 05:01:50.784 服务器恢复不变，复用上方精确版本及已核对运行文件。通过所属命令仅解除隔离 QA 私聊的旧屏蔽。重启前后两条新消息各只有一次 Admission、一次准确的已接受回复，以及 accepted 接收／回答尝试。实际停止原 Host、重启同一 Profile 后，先把新 PID 纳入原截止保护再启用 IM；同一身份和全部历史反馈保持不变，完成了现场重启后的真实新回复验证。网页刷新后实际编辑框就绪且无新增控制台错误，但不解释或修复此前 scope 故障。
+
+QA 私聊重新屏蔽后，Human 确认 04:56 在窗口内发送屏蔽 marker，未出现回复或表情；权威记录没有对应 Source Event，也无新 Outbox 或反馈。官方事件日志在该分钟内仅有一条 04:56:44.857 的成功投递，但不显示消息 ID 或正文，无法独立精确关联该 marker，因此屏蔽现场用例仍保留这一验收缺口。QA 身份、账号和临时凭据均清理，重启后的 Host 已停止，04:57:55.239 核验生产运行后停止恢复计时器和本地保护；Human 确认生产 Lark／Discord 两边正常回复。群原消息图证、此前 Web 故障触发条件及其他未执行项仍待验证，Provider pin 不变。
