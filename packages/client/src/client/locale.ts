@@ -20,7 +20,16 @@ export const zh = {
   'purge.expiry': '预览有效至 {at}；范围变动后须重新预览。',
   'purge.placements': '受影响的全部会话位置',
   'purge.admissions': '受影响的 Bot Inbox Admission',
-  'purge.noFiles': '本次选择不含托管附件或迁移文件绑定。',
+  'purge.noFiles':
+    '独占托管附件会清理；仍被其他来源或投递引用的文件保留。文件清理中断后会在重启时继续。',
+  'purge.files': '托管附件',
+  'purge.fileShared': '共享，保留',
+  'purge.fileRemove': '独占，清除',
+  'purge.cleanupPending': '正文已清除，{count} 个附件待清理；重启后继续。',
+  'purge.effects': '{count} 项投递或衍生记录',
+  'purge.effectsTitle': '投递与衍生记录',
+  'purge.effectsHint':
+    '未发出的内容依赖投递会取消；已发出请求按实际结果结算，无法确定时保留结果未知。已有 Assignment、其他来源正文和 DSH Session 副本保留，旧来源不能启动新效果。',
   'purge.derivatives':
     '不会扫描或修改用户管理的 Memory、Workspace 和导出文件；其中可能留有衍生副本。',
   'purge.disclosure':
@@ -29,7 +38,7 @@ export const zh = {
   'purge.back': '返回已结束会话',
   'purge.endedAt': '已结束于 {at}',
   'purge.slice':
-    '首条路径支持已结束本地群聊的纯文本。外部来源、文件、运行中的投递和复杂内容衍生暂不可清除。',
+    '从已结束群聊选择来源；清除影响该来源的全部共享位置和收件记录。全部位置均须仍在你的可读范围。',
   'purge.tombstone': '正文已清除 · Human · {at} · human-request',
   'purge.unsupported': '此来源超出当前可清除范围，正文保留。',
   'purge.empty': '此页没有历史来源。',
@@ -2220,7 +2229,16 @@ export const en = {
   'purge.expiry': 'Preview expires at {at}; changed scope requires a new preview.',
   'purge.placements': 'All affected Channel placements',
   'purge.admissions': 'Affected Bot Inbox Admissions',
-  'purge.noFiles': 'This selection has no managed attachments or migrated file bindings.',
+  'purge.noFiles':
+    'Exclusively referenced managed files are removed; files still referenced by other sources or deliveries are retained. Interrupted cleanup resumes on restart.',
+  'purge.files': 'Managed attachments',
+  'purge.fileShared': 'Shared, retained',
+  'purge.fileRemove': 'Exclusive, removed',
+  'purge.cleanupPending': 'Bodies cleared; {count} attachments await cleanup on restart.',
+  'purge.effects': '{count} delivery or derivative records',
+  'purge.effectsTitle': 'Deliveries and derivatives',
+  'purge.effectsHint':
+    'Pending content-dependent deliveries are cancelled. Issued requests settle with actual evidence or remain unknown. Existing Assignments, other Source Event bodies and DSH Session copies survive; stale sources cannot start new effects.',
   'purge.derivatives':
     'Human-managed Memory, Workspace and export files are not scanned or modified; derivative copies may survive there.',
   'purge.disclosure':
@@ -2230,7 +2248,7 @@ export const en = {
   'purge.back': 'Back to ended Channels',
   'purge.endedAt': 'Ended at {at}',
   'purge.slice':
-    'This first path supports text in ended local Groups. External sources, files, running delivery and complex content derivatives are not yet eligible.',
+    'Select sources from an ended Group. Purge affects every shared placement and Inbox Admission of that source; all placements must remain within your read access.',
   'purge.tombstone': 'Content purged · Human · {at} · human-request',
   'purge.unsupported': 'This source is outside the current purge scope; its content is retained.',
   'purge.empty': 'No historical sources on this page.',

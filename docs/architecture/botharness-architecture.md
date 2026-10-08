@@ -517,15 +517,15 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
 
-### Channel 纯文本清除首条运行路径（#897，部分交付）
+### Channel 内容清除运行路径（#897）
 
-Generation 68 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API Gateway 提供已结束 Group 的只读历史、所选 Source Event 预览和单独确认；不注册模型 Tool。已结束 Group 的身份保持占用，同名新群聊不覆盖旧历史。首条路径只接收 Human 自创建起持续可读、全部共享位置均已结束的本地纯文本来源。外部来源、附件／文件绑定、运行中 Admission、Assignment 依赖与内容相关 Outbox 明确拒绝，后续 #897 仍需验证这些边界，不能据此宣称 #886 前置已经全部完成。
+Generation 69 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API Gateway 提供已结束 Group 的只读历史、所选 Source Event 预览和单独确认；不注册模型 Tool。已结束 Group 的身份保持占用，同名新群聊不覆盖旧历史。本地和外部来源可以共享到仍活跃的会话，但全部位置在对应 revision 上均须仍在 Human 当前可读范围内。普通删除只结束所选 Channel 的路由／摄入，保留其他 Channel／Inbox 目标及外部会话。[ADR-0146](../adr/0146-content-purge-retains-file-selectors-and-settles-issued-effects.md) 记录文件、效果与恢复边界。
 
-独立 `botharness/purge/ledger.db` 由同一 Host 生命周期拥有，SQLite FULL 同步事务接受无正文的事件身份、作者／时间／因果引用与 Human 清除审计；该文件不属于 `botharness.db` 运行快照。接受先于正文移除。清除使用 secure-delete 并截断 WAL；应用失败立即关闭运行数据库进入 recovery，冷启动在创建 Messaging Consumers 前幂等应用全部 ledger facts。数据库触发器禁止已接受来源正文回填、重复身份插入、重新 Admission 与关联 Outbox 插入。最小墓碑及全部共享 placement 保留。
+独立 `botharness/purge/ledger.db` 由同一 Host 生命周期拥有，SQLite FULL 同步事务先接受无正文的事件身份、作者／时间／因果、Human 审计及托管文件选择器，再移除运行正文；该文件不属于 `botharness.db` 快照。最小墓碑及 placement 保留，secure-delete 后截断 WAL；应用失败关闭运行数据库进入 recovery，启动先应用事实再创建 Messaging Consumers。Attachment owner 重查全部保留来源、迁移／获取绑定和 Outbox 引用后，仅移除已审阅的独占当前文件和 legacy CAS；共享文件保留，受阻清理可见且重启继续。待投递意图脱敏并取消，已发出请求在活跃 Host 中按真实证据结算，冷中断保持结果未知。持久栅栏和原生 Tool Guard 拒绝重复回填、旧命令与新的内容依赖效果。
 
-owner 的 `checkpoint()` 导出实际已验证事实；同步 `withCheckpoint` 序列化清除与当前快照回调。冷启动 `restoring` 必须提供完整有效的 v1 checkpoint，先验证并单调 union package／destination 事实，再应用，最后开放 Messaging；目标既有事实与审计不被包替换。缺失／损坏／不支持的账本和检查点均拒绝，运行快照引用的清除事实若不在账本也拒绝。未来异步 Profile Backup Barrier 仍须协调更广的 Profile 写入与文件／Session，不可将同步回调当作完整备份实现。
+`checkpoint()` 导出已验证事实；`withCheckpoint` 在同步或异步快照回调完整结束前持有清除屏障，未来 Profile Backup 在其更广的 Backup Barrier 内调用。冷 `restoring` 验证 v1／v2 包检查点，单调 union package／destination 事实并保留目标审计，再应用、开放 Messaging。新目标只可从已验证包初始化；已建立账本缺失、损坏／不支持的数据或 union 中缺少运行快照引用事实均关闭入口。v2 包含托管文件身份及外部／系统作者。此合同不提供完整备份 UI。
 
-预览和完成提示披露未扫描、未改写的 Human Memory／Workspace／导出衍生、DSH Session 提示／结果、外部副本、Git 远程及人工离线备份；旧独立文件只执行其包含的检查点。完整文件共享引用清理、外部 callback／started Outbox 资格与真实恢复 E2E 仍归 #897 后续验收。
+预览列出所选来源、全部 placement／Admission、文件移除／保留及依赖效果；info 控件披露仍保留的 Assignment／其他因果来源正文、未改写的 Human Memory／Workspace／导出、原生 DSH Session 提示／结果、外部副本、Git 远程及离线备份。旧独立文件只执行其包含的检查点。[验收指南](../agents/qa-channel-purge.md) 覆盖真实 SQLite／文件恢复及 DSH 共享文件／中断清理。
 
 ### PersonaBot 删除运行路径（#896）
 

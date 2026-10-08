@@ -368,16 +368,17 @@ export function createCore(
     migrateLegacySouls(registry, options.warn);
   }
   const states = createBotStateTracker();
+  const attachments = createAttachmentStore({
+    rootDir: join(dshHome, 'botharness', 'attachments'),
+  });
   const contentPurge = mountContentPurge({
     dshHome,
     database: operationalDatabase,
+    attachments,
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   let runtime: BotRuntime | undefined;
   let companions: CompanionFeed | undefined;
-  const attachments = createAttachmentStore({
-    rootDir: join(dshHome, 'botharness', 'attachments'),
-  });
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );

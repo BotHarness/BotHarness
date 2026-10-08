@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ATTACHMENT_FILE_ID_PATTERN, ATTACHMENT_HASH_PATTERN } from '../attachments/ref.js';
 
 const identity = z.string().min(1).max(200);
 export const purgeFactSchema = z
@@ -10,6 +11,8 @@ export const purgeFactSchema = z
     author: z.discriminatedUnion('kind', [
       z.object({ kind: z.literal('human') }).strict(),
       z.object({ kind: z.literal('bot'), slug: identity }).strict(),
+      z.object({ kind: z.literal('bridged'), source: identity }).strict(),
+      z.object({ kind: z.literal('system') }).strict(),
     ]),
     replyTo: identity.optional(),
     causation: z
@@ -23,6 +26,17 @@ export const purgeFactSchema = z
     acceptedAt: z.iso.datetime(),
     actor: z.literal('local-human'),
     reason: z.literal('human-request'),
+    managedFiles: z
+      .array(
+        z
+          .string()
+          .refine(
+            (value) =>
+              ATTACHMENT_FILE_ID_PATTERN.test(value) || ATTACHMENT_HASH_PATTERN.test(value),
+          ),
+      )
+      .max(1000)
+      .optional(),
   })
   .strict();
 export type PurgeFact = z.infer<typeof purgeFactSchema>;
@@ -30,7 +44,7 @@ export type PurgeFact = z.infer<typeof purgeFactSchema>;
 export const purgeCheckpointSchema = z
   .object({
     format: z.literal('botharness-purge'),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     facts: z.array(purgeFactSchema).max(1_000_000),
   })
   .strict();
@@ -49,6 +63,7 @@ export interface PurgeSource {
   body: string;
   purgedAt?: string;
   refusal?: string;
+  cleanupPending?: number;
 }
 
 export interface PurgePreview {
@@ -58,6 +73,8 @@ export interface PurgePreview {
   sourceEventIds: string[];
   placements: { channelId: string; name: string; messageId: string }[];
   admissions: { botSlug: string; state: string }[];
+  files: { identity: string; name: string; disposition: 'remove' | 'shared' }[];
+  effects: { id: string; kind: 'outbox' | 'assignment' | 'causal-source'; state: string }[];
 }
 
 export interface ContentPurge {
@@ -68,7 +85,7 @@ export interface ContentPurge {
     channelId: string,
     sourceEventIds: readonly string[],
     token: string,
-  ): { accepted: number };
+  ): { accepted: number; cleanupPending?: number };
   checkpoint(): PurgeCheckpoint;
   withCheckpoint<T>(exportSnapshot: (checkpoint: PurgeCheckpoint) => T): T;
   close(): void;

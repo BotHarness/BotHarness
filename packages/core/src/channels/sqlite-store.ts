@@ -1768,10 +1768,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           );
           db.prepare(`
             UPDATE inbox_admissions SET attempt_state = 'needs-repair',
-              last_error = 'Group Channel deleted by Human'
+              last_error = 'channel-ended'
              WHERE source_event_id IN (
-               SELECT source_event_id FROM source_events WHERE channel_id = ?
-             ) AND attempt_state IN ('pending', 'retryable')
+               SELECT source_event_id FROM source_events WHERE channel_id = ? AND source_kind != 'bridge-message'
+             ) AND attempt_state IN ('pending', 'retryable', 'running') AND NOT EXISTS (
+               SELECT 1 FROM channel_placements p JOIN channel_records c ON c.channel_id = p.channel_id
+               JOIN json_each(json_extract(c.record_json, '$.members')) m ON m.value = inbox_admissions.bot_slug
+               WHERE p.source_event_id = inbox_admissions.source_event_id
+                 AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             )
           `).run(channelId);
           for (const invitation of channel.invitations ?? [])
             db.prepare(`

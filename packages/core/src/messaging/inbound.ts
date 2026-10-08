@@ -1,3 +1,4 @@
+import { sourceContentPurged } from '../purge/fence.js';
 import {
   admissionBound,
   conversationName,
@@ -205,6 +206,7 @@ export interface InboundMessaging {
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   startEntry(grantId: string): void;
+  endChannel(channelId: string): void;
   close(): void;
 }
 
@@ -305,6 +307,7 @@ export function createInboundMessaging(options: {
     event: MessagingInboundEvent,
   ): string => {
     const id = sourceId('ingest' in value ? value.ingest : value, event);
+    if (sourceContentPurged(db, id)) throw new MessagingError('content-purged');
     const existing = db
       .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
       .get(id) as { body: string; payload_json: string } | undefined;
@@ -1033,6 +1036,8 @@ export function createInboundMessaging(options: {
     includeQuote = true,
     includeContext = true,
   ): ExternalSource => {
+    if (database.read((db) => sourceContentPurged(db, id)))
+      throw new MessagingError('content-purged');
     const row = database.read((db) =>
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
@@ -1067,7 +1072,7 @@ export function createInboundMessaging(options: {
           .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
           .get(sourceEventId),
       ) as { body: string; payload_json: string } | undefined;
-      if (!context) continue;
+      if (!context || database.read((db) => sourceContentPurged(db, sourceEventId))) continue;
       if (latest?.coverage === 'retained-local-sources') {
         try {
           read(botSlug, sourceEventId, false, false);
@@ -1127,6 +1132,8 @@ export function createInboundMessaging(options: {
     };
   };
   const readShared = (botSlug: string, id: string): ExternalSource => {
+    if (database.read((db) => sourceContentPurged(db, id)))
+      throw new MessagingError('content-purged');
     const row = database.read((db) =>
       db
         .prepare(
@@ -2232,6 +2239,59 @@ export function createInboundMessaging(options: {
     },
     pendingPaths(botSlug, now, context = false) {
       return database.read((db) => pendingReceptionPaths(db, botSlug, now, valid, context));
+    },
+    endChannel(channelId) {
+      transaction(
+        (db) => {
+          for (const row of db.prepare('SELECT id, body FROM messaging_grants').all()) {
+            const value = JSON.parse(String(row.body)) as MessagingGrant;
+            const routes = channelBridgeRoutes(value);
+            if (!routes.some((route) => route.channelId === channelId)) continue;
+            const next = {
+              ...value,
+              bridgeRoutes: routes.filter((route) => route.channelId !== channelId),
+            };
+            delete next.receiveTargetChannelId;
+            db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+              JSON.stringify(next),
+              String(row.id),
+            );
+          }
+          for (const row of db
+            .prepare('SELECT id, body FROM messaging_conversation_ingests WHERE channel_id = ?')
+            .all(channelId)) {
+            const value = JSON.parse(String(row.body));
+            db.prepare(
+              'UPDATE messaging_conversation_ingests SET body = ?, revision = revision + 1 WHERE id = ?',
+            ).run(
+              JSON.stringify({ ...value, enabled: false, revision: Number(value.revision) + 1 }),
+              String(row.id),
+            );
+          }
+          for (const row of db
+            .prepare(`SELECT a.source_event_id, a.bot_slug FROM inbox_admissions a
+          WHERE a.attempt_state IN ('pending', 'retryable', 'running') AND EXISTS
+            (SELECT 1 FROM messaging_source_paths p WHERE p.source_event_id = a.source_event_id
+              AND p.bot_slug = a.bot_slug AND p.channel_id = ?)`)
+            .all(channelId)) {
+            if (
+              currentReceptionPaths(
+                db,
+                String(row.bot_slug),
+                String(row.source_event_id),
+                undefined,
+                'reply',
+              ).length
+            )
+              continue;
+            db.prepare(
+              "UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = 'channel-ended' WHERE source_event_id = ? AND bot_slug = ?",
+            ).run(String(row.source_event_id), String(row.bot_slug));
+          }
+        },
+        ['channel', 'bot-inbox', 'messaging'],
+      );
+      options.onReceptionChanged?.();
     },
     available(botSlug, id) {
       try {
