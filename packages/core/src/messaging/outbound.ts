@@ -831,7 +831,7 @@ export function createOutboundMessaging(options: {
             .prepare(
               'SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL',
             )
-            .all(value.id);
+            .all(value.id) as { body: string }[];
           if (enabled && JSON.stringify(currentScopes) !== JSON.stringify(scopes))
             throw new MessagingError('identity-stale');
           const at = now();
