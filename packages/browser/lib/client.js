@@ -1165,8 +1165,8 @@ window.__ModuleLoader__.load({
 				children
 			});
 		}
-		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state, anchor }) {
-			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+		function SidebarCardRow({ icon, iconLabel, selection, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state, anchor }) {
+			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [icon === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 				className: "bh-card-icon",
 				role: iconLabel === void 0 ? void 0 : "img",
 				"aria-label": iconLabel,
@@ -1197,10 +1197,21 @@ window.__ModuleLoader__.load({
 				className: "bh-card-row",
 				"data-muted": muted === true ? "true" : void 0,
 				"data-state": state,
+				"data-selected": selection?.checked === true ? "true" : void 0,
 				"data-anchor": anchor,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: "bh-card-line",
-					children: [onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					children: [selection?.multiple === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+						className,
+						title: hint,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+							className: "bh-card-checkbox",
+							type: "checkbox",
+							checked: selection.checked,
+							disabled,
+							onChange: onClick
+						}), body]
+					}) : onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className,
 						title: hint,
 						children: body
@@ -1209,6 +1220,7 @@ window.__ModuleLoader__.load({
 						className,
 						title: hint,
 						disabled,
+						"aria-pressed": selection?.checked,
 						"aria-haspopup": dialog === true ? "dialog" : void 0,
 						"aria-expanded": expanded,
 						"aria-controls": controls,

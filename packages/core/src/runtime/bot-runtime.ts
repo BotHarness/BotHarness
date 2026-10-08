@@ -445,6 +445,7 @@ export interface BotRuntime {
     shell?: boolean,
   ): string | undefined;
   reconcileMemoryChangesOnStartup?(): void;
+  retryDmMessage?(channelId: string, messageId: string): Promise<void>;
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
 
   admitGroupMessage(channelId: string, messageId: string): void;
@@ -469,6 +470,7 @@ export interface BotRuntime {
 }
 
 export interface BotRuntimeOptions {
+  requireExecution?: (botSlug: string) => void;
   beginAssignmentWait?: (botSlug: string, orchestratorSessionId: string) => () => void;
   externalMessaging?: OutboundMessaging;
   database: OperationalDatabaseOwner;
@@ -863,6 +865,7 @@ function sessionFailureDetails(error: unknown): { code?: string; status?: number
 }
 
 class BotRuntimeImplementation implements BotRuntime {
+  readonly #requireExecution: BotRuntimeOptions['requireExecution'];
   readonly #externalMessaging: OutboundMessaging | undefined;
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
@@ -922,6 +925,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#workspaceRoot = options.workspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
+    this.#requireExecution = options.requireExecution;
     this.#channels = options.channels;
     this.#sourcePolicy =
       options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
@@ -947,6 +951,28 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#recoverPendingDigests();
       this.#recoverPendingAssignmentReports();
     }
+  }
+
+  async retryDmMessage(channelId: string, messageId: string): Promise<void> {
+    const channel = this.#channels.get(channelId);
+    const message = this.#channels.message(channelId, messageId);
+    if (channel?.type !== 'dm' || !channel.botSlug || message?.author.kind !== 'human')
+      throw new Error('Retry requires the original Human DM message');
+    const safe = this.#database.read((database) =>
+      database
+        .prepare(`
+      SELECT 1 FROM source_events e JOIN inbox_admissions a ON a.source_event_id = e.source_event_id
+      WHERE e.channel_id = ? AND e.message_id = ? AND a.bot_slug = ?
+        AND e.attempt_state = 'retryable' AND a.attempt_state = 'retryable'
+        AND e.side_effect_started_at IS NULL AND a.side_effect_started_at IS NULL
+    `)
+        .get(channelId, messageId, channel.botSlug!),
+    );
+    if (!safe)
+      throw new Error('This message cannot be safely retried; inspect its original Session');
+    const admission = this.admitDmMessage({ channelId, messageId, body: message.body });
+    if (!admission.admitted) throw new Error(admission.reason);
+    void admission.settled.catch(() => undefined);
   }
 
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission {
@@ -2684,6 +2710,7 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#markSourceEventFailed(claim.sourceEventId);
       await this.#publishSessionFailure({
         channelId,
+        requestMessageId: messageId,
         botSlug: bot.slug,
         sessionId: orchestrator.sessionId,
         role: 'orchestrator',
@@ -2736,6 +2763,7 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    this.#requireExecution?.(bot.slug);
     const turnSources = new Set([sourceEventId, ...wakeEventIds, ...reportEventIds]);
     this.#turnSources.set(bot.slug, turnSources);
     const typingSources = [sourceEventId, ...inboxUnits.map((unit) => unit.sourceEventId)];
@@ -3134,6 +3162,7 @@ class BotRuntimeImplementation implements BotRuntime {
 
   async #publishSessionFailure(input: {
     channelId: string;
+    requestMessageId?: string;
     botSlug: string;
     sessionId: string;
     role: 'orchestrator' | 'assignment';
@@ -3169,7 +3198,12 @@ class BotRuntimeImplementation implements BotRuntime {
       author: { kind: 'bot', slug: input.botSlug },
       body: `Session failed: ${details.code === undefined ? '' : details.code + ': '}${details.detail}`,
       format: 'text',
-      sessionFailure: failure,
+      sessionFailure: {
+        ...failure,
+        ...(input.requestMessageId === undefined
+          ? {}
+          : { requestMessageId: input.requestMessageId }),
+      },
     });
     if (result === undefined) {
       throw new Error('Could not publish Session failure: Channel is missing');
@@ -4550,7 +4584,9 @@ class BotRuntimeImplementation implements BotRuntime {
   }
 
   #ensureOrchestrator(bot: PersonaBotRecord, at: string): { sessionId: string; resume: boolean } {
-    const existing = this.#ownership.rootsFor(bot.slug, 'orchestrator')[0];
+    const existing = this.#ownership
+      .rootsFor(bot.slug, 'orchestrator')
+      .find((root) => this.#ownership.contentAvailable(root.sessionId));
     if (existing !== undefined) return { sessionId: existing.sessionId, resume: true };
     const sessionId = this.#createSessionId();
     const cwdReference = this.#orchestratorCwdReference(bot);

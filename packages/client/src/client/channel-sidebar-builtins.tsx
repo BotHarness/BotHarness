@@ -805,7 +805,7 @@ function ModelBadge({ botSlug, actions }: ChannelSidebarEntryProps): ReactElemen
     return () => {
       active = false;
     };
-  }, [actions, botSlug]);
+  }, [actions, botSlug, plan === undefined]);
   const route = plan?.orchestrator;
   return (
     <span ref={mount} className="bh-channel-sidebar-summary">

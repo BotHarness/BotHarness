@@ -10,6 +10,7 @@ import type { GitAvailability } from './bridge.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
 import type { PurgedPlacement } from '../../../core/src/purge/contracts.js';
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { createContentRedactions } from './content-redactions.js';
 
 export type ClientMode = 'dsh' | 'bot';
@@ -21,6 +22,8 @@ export interface StandingLimitsView {
   coreMemory: number;
 }
 
+export type BotBannerView = { recipe: PixelBannerRecipe } | { image: string };
+
 export interface BotSummary {
   slug: string;
   displayName: string;
@@ -29,6 +32,7 @@ export interface BotSummary {
   avatar?: string;
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
+  banner?: BotBannerView;
   paused?: boolean;
   deleted?: boolean;
   standingLimits?: StandingLimitsView;
@@ -148,6 +152,7 @@ export interface UserQuestionResolution {
 }
 
 export interface SessionFailureCard {
+  requestMessageId?: string;
   role: 'orchestrator' | 'assignment';
   sessionId: string;
   code?: string;
@@ -157,6 +162,7 @@ export interface SessionFailureCard {
 }
 
 export interface ChannelMessage {
+  onboardingWelcome?: { version: 1 };
   contentPurged?: true;
   bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
   bridgeMedia?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeMedia'];

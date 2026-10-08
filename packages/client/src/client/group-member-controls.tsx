@@ -16,6 +16,7 @@ import { PersonaBotAvatar } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { useDelayedSearch } from './delayed-search.js';
+import { humanLabel } from './actor-names.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -474,10 +475,12 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
           data-human-id={member.humanId}
         >
           <span className="bh-delivery-human-avatar" aria-hidden="true">
-            {member.displayName.slice(0, 1)}
+            {humanLabel(member.displayName, t).slice(0, 1)}
           </span>
-          <span className="bh-name">{member.displayName}</span>
-          <Tag tone="neutral">{t('message.mention.humanType')}</Tag>
+          <span className="bh-name">{humanLabel(member.displayName, t)}</span>
+          {member.displayName === 'Human' ? null : (
+            <Tag tone="neutral">{t('message.mention.humanType')}</Tag>
+          )}
         </div>
       ))}
       {members.map((slug) => {

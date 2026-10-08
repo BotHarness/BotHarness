@@ -9,6 +9,7 @@ export interface ModelRouteRepair {
 }
 
 export interface ModelPlanState {
+  revision?: number;
   plan?: PersonaBotModelPlan;
   repair?: ModelRouteRepair;
 }

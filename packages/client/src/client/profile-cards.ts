@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { UsageFilter, UsageQueryResult } from './bridge.js';
+import type { ProfileActivityWindow, UsageFilter, UsageQueryResult } from './bridge.js';
 
 import type { GroupProfileActivity, ProfileActivity } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -14,6 +14,7 @@ export interface ProfileCardProps {
 export interface ProfileCardViewProps extends ProfileCardProps {
   compact: boolean;
   loadUsage?: (filter: UsageFilter) => Promise<UsageQueryResult>;
+  loadActivity?: (window: ProfileActivityWindow) => Promise<ProfileActivity>;
 }
 
 export interface ProfileCardDescriptor {
@@ -52,6 +53,7 @@ const PROFILE_CARDS_STORAGE_KEY = 'botharness.profile-cards';
 const GROUP_PROFILE_CARDS_STORAGE_KEY = 'botharness.group-profile-cards';
 
 export const DEFAULT_PINNED_PROFILE_CARDS: readonly string[] = ['token-usage', 'event-activity'];
+const RETIRED_PROFILE_CARDS: readonly string[] = ['totals'];
 export const DEFAULT_PINNED_GROUP_PROFILE_CARDS: readonly string[] = ['group-messages'];
 
 export function createProfileCardRegistry(): ProfileCardRegistry {
@@ -121,7 +123,7 @@ export function loadPinnedProfileCards(): string[] {
     if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== 'string')) {
       return [...DEFAULT_PINNED_PROFILE_CARDS];
     }
-    return parsed as string[];
+    return (parsed as string[]).filter((id) => !RETIRED_PROFILE_CARDS.includes(id));
   } catch {
     return [...DEFAULT_PINNED_PROFILE_CARDS];
   }

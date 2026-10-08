@@ -108,6 +108,7 @@ export class WindowCompanions {
   private generation: string | undefined;
   private recovering = false;
   private profileId: string | undefined;
+  private hadSavedPreferences = false;
   private revision = 0;
   private scheduled = false;
   private sending = false;
@@ -143,11 +144,13 @@ export class WindowCompanions {
       try {
         const raw = this.deps.storage?.getItem(this.key);
         const data = raw ? record(JSON.parse(raw)) : undefined;
+        this.hadSavedPreferences = raw !== null && raw !== undefined;
         if (data) {
           selections = Array.isArray(data['selections']) ? data['selections'] : [];
           this.state = { ...this.state, capacity: capacity(data['capacity']) };
         } else {
           const legacy = this.deps.storage?.getItem(`botharness/companions/v1/${profileId}`);
+          this.hadSavedPreferences ||= Boolean(legacy);
           selections = legacy ? [JSON.parse(legacy)] : [];
         }
       } catch {}
@@ -164,6 +167,17 @@ export class WindowCompanions {
         this.notify();
       }
     }
+  }
+  initializeDefault(botId: string): void {
+    if (!this.state.ready || this.disposed || !this.profileId) return;
+    const key = `botharness/companions/default-initialized/${this.profileId}`;
+    try {
+      if (this.deps.storage?.getItem(key)) return;
+      this.deps.storage?.setItem(key, '1');
+    } catch {
+      return;
+    }
+    if (!this.hadSavedPreferences && this.children.size === 0) this.select(botId);
   }
   select(botId: string): void {
     if (!this.state.ready || this.disposed || !botId || this.children.has(botId)) return;

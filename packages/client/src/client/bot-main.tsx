@@ -1,9 +1,11 @@
+import { OnboardingMemoryNavigation } from './onboarding-memory.js';
+import { OnboardingSurface } from './onboarding-view.js';
 import { GroupChannelHeader } from './group-channel-header.js';
 import { CompanionPin } from './window-companions-view.js';
 import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
-import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -28,6 +30,7 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
 import {
   ChannelComposer,
   type ChannelComposerActivity,
@@ -35,10 +38,14 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
-import { channelHumanName } from './actor-names.js';
+import { channelHumanName, humanLabel } from './actor-names.js';
 import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
-import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import {
+  ChannelMessageBody,
+  MessageDeveloperMode,
+  type NativeChatFailureText,
+} from './channel-message-body.js';
 import { BridgeSourceAuthor } from './bridge-source-author.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
@@ -121,7 +128,7 @@ function authorLabel(
 ): string {
   switch (message.author.kind) {
     case 'human':
-      return humanName;
+      return humanLabel(humanName, t);
     case 'system':
       return t('main.author.system');
     case 'bot':
@@ -1370,78 +1377,86 @@ function ConversationView({
                           />
                         </div>
                       ) : first.botDmAction === undefined ? (
-                        <MessageGroupView
-                          humanMembers={channel?.humanMembers ?? []}
-                          group={group}
-                          channelId={channelId}
-                          actions={actions}
-                          nativeChatT={nativeChatT}
-                          resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
-                          toolApprovalDecisions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.toolApprovalDecision !== undefined)
-                                .map((item) => [
-                                  item.toolApprovalDecision!.requestMessageId,
-                                  item.toolApprovalDecision!.outcome,
-                                ]),
-                            )
-                          }
-                          userQuestionResolutions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.userQuestionResolution !== undefined)
-                                .map((item) => [
-                                  item.userQuestionResolution!.requestMessageId,
-                                  item.userQuestionResolution!.state,
-                                ]),
-                            )
-                          }
-                          focusMessageId={conversation.focusMessageId}
-                          currentDmBotSlug={
-                            channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
-                          }
-                          bots={state.bots}
-                          onContextMenu={(message, x, y) => {
-                            setMessageMenu({ message, x, y });
+                        <OnboardingMemoryNavigation.Provider
+                          value={{
+                            file: (path) => openMemoryView({ kind: 'file', path }),
+                            commit: (sha) => openMemoryView({ kind: 'commit', sha }),
+                            working: (change) => openMemoryView({ kind: 'working', change }),
                           }}
-                          onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
-                          onJumpReply={(messageId) => {
-                            if (channelId !== undefined)
-                              void actions.openAround(channelId, messageId);
-                          }}
-                          onRestoreFailed={(message) => {
-                            if (channelId === undefined) return;
-                            if (
-                              draft.length > 0 ||
-                              uploadItems.length > 0 ||
-                              conversation.sending
-                            ) {
-                              setRestoreBlocked(true);
-                              return;
+                        >
+                          <MessageGroupView
+                            humanMembers={channel?.humanMembers ?? []}
+                            group={group}
+                            channelId={channelId}
+                            actions={actions}
+                            nativeChatT={nativeChatT}
+                            resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
+                            toolApprovalDecisions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.toolApprovalDecision !== undefined)
+                                  .map((item) => [
+                                    item.toolApprovalDecision!.requestMessageId,
+                                    item.toolApprovalDecision!.outcome,
+                                  ]),
+                              )
                             }
-                            if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                            setDraft(message.body);
-                            setMentionTokens(message.mentions ?? []);
-                            setChannelRefTokens(message.channelRefs ?? []);
-                            setUploadItems(
-                              (message.attachments ?? []).map((ref) => ({
-                                id: crypto.randomUUID(),
-                                file: new File([], ref.name, { type: ref.mime }),
-                                ref,
-                                status: 'ready' as const,
-                              })),
-                            );
-                            setReplyTarget(
-                              message.replyTo === undefined
-                                ? undefined
-                                : messages.find((candidate) => candidate.id === message.replyTo),
-                            );
-                            setRestoreBlocked(false);
-                            setRestoreFocusSignal((value) => value + 1);
-                          }}
-                          t={t}
-                        />
+                            userQuestionResolutions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.userQuestionResolution !== undefined)
+                                  .map((item) => [
+                                    item.userQuestionResolution!.requestMessageId,
+                                    item.userQuestionResolution!.state,
+                                  ]),
+                              )
+                            }
+                            focusMessageId={conversation.focusMessageId}
+                            currentDmBotSlug={
+                              channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
+                            }
+                            bots={state.bots}
+                            onContextMenu={(message, x, y) => {
+                              setMessageMenu({ message, x, y });
+                            }}
+                            onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
+                            onJumpReply={(messageId) => {
+                              if (channelId !== undefined)
+                                void actions.openAround(channelId, messageId);
+                            }}
+                            onRestoreFailed={(message) => {
+                              if (channelId === undefined) return;
+                              if (
+                                draft.length > 0 ||
+                                uploadItems.length > 0 ||
+                                conversation.sending
+                              ) {
+                                setRestoreBlocked(true);
+                                return;
+                              }
+                              if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                              setDraft(message.body);
+                              setMentionTokens(message.mentions ?? []);
+                              setChannelRefTokens(message.channelRefs ?? []);
+                              setUploadItems(
+                                (message.attachments ?? []).map((ref) => ({
+                                  id: crypto.randomUUID(),
+                                  file: new File([], ref.name, { type: ref.mime }),
+                                  ref,
+                                  status: 'ready' as const,
+                                })),
+                              );
+                              setReplyTarget(
+                                message.replyTo === undefined
+                                  ? undefined
+                                  : messages.find((candidate) => candidate.id === message.replyTo),
+                              );
+                              setRestoreBlocked(false);
+                              setRestoreFocusSignal((value) => value + 1);
+                            }}
+                            t={t}
+                          />
+                        </OnboardingMemoryNavigation.Provider>
                       ) : (
                         <button
                           type="button"
@@ -1616,7 +1631,7 @@ function ConversationView({
   );
 }
 
-export function BotMain({
+function BotMainContent({
   actions,
   companion,
   nativeSessions,
@@ -1655,7 +1670,28 @@ export function BotMain({
   );
 }
 
+const subscribeWithoutPrefs = (): (() => void) => () => {};
+
+export function BotMain({
+  prefs,
+  ...props
+}: Parameters<typeof BotMainContent>[0] & {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
+}): ReactElement {
+  const developerMode = useSyncExternalStore(
+    prefs?.source.subscribe ?? subscribeWithoutPrefs,
+    () => prefs?.source.getSnapshot().developerMode ?? false,
+    () => false,
+  );
+  return (
+    <MessageDeveloperMode.Provider value={developerMode}>
+      <BotMainContent {...props} />
+    </MessageDeveloperMode.Provider>
+  );
+}
+
 export function BotPanel({
+  prefs,
   actions,
   companion,
   nativeSessions,
@@ -1666,6 +1702,7 @@ export function BotPanel({
   telemetryNotice,
   t,
 }: {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
   actions: BridgeActions;
   companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
@@ -1685,6 +1722,7 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
+      <OnboardingSurface actions={actions} companion={companion} t={t} />
       {releaseNotes === undefined ? null : (
         <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
       )}
@@ -1692,6 +1730,7 @@ export function BotPanel({
         <TelemetryNotice controller={telemetryNotice} releaseNotes={releaseNotes} t={t} />
       )}
       <BotMain
+        prefs={prefs}
         actions={actions}
         companion={companion}
         nativeSessions={nativeSessions}

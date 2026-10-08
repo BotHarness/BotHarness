@@ -580,3 +580,24 @@ it('renders current names for historical typed IDs without changing plain text o
   expect(fallback).toContain('@Human');
   expect(fallback).toContain('Ada');
 });
+
+it('renders a purged welcome as a tombstone before considering onboarding actions', () => {
+  const html = renderToStaticMarkup(
+    createElement(ChannelMessageBody, {
+      message: {
+        id: 'welcome-purged',
+        at: '2026-10-08T00:00:00Z',
+        author: { kind: 'system' },
+        body: '',
+        onboardingWelcome: { version: 1 },
+        contentPurged: true,
+      },
+      channelId: 'dm-ada',
+      actions: {} as BridgeActions,
+      t: zhTranslate,
+    }),
+  );
+  expect(html).toContain(zhTranslate('purge.purged'));
+  expect(html).not.toContain('data-onboarding-welcome');
+  expect(html).not.toContain('<button');
+});

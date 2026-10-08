@@ -6,11 +6,15 @@ BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产
 
 本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、Assignment Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-10-03。
 
+Bot 模式首次体验（#1175，[ADR-0147](../adr/0147-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）由 application-defined Onboarding owner 在现有 operational database 的 Schema Generation 71 保存 Profile receipt；只有主动进入模式才准备身份。空 Profile 记录稳定 Bot ID 后通过 Registry/Memory owner 创建 DeepSeek Bot，保存官网固定 Appearance，并经 Channel owner 幂等创建真实 Human DM 与 system welcome。已有 Bot 可复用／选择；归档和删除不会自动恢复。真实 Human 请求与同一 DM 的 Bot 回复，由 Channel 提交事务保留可信 Session ownership／原请求 Source Event 关联，作为完成证据；欢迎卡、失败通知、发送接受、Memory 初始化均不算成功。教程开始／暂停／跳过与历史成功独立；刷新、重启和多 Client 重读 Host 事实，后台核对不改变当前 Channel。未发出的请求只留在当前 Client，恢复后须再次明确确认。窗口伙伴初始化一次并尊重后续本地移除等偏好。完成后的欢迎消息提供可选 Memory 入口（#1200）：Client 复用既有 Memory 查询、文件树及正常阅读／差异视图，自由偏好经原 Human DM 发送链路提交；不新增写入 authority 或完成条件，初始化模板和回复本身均不证明偏好已保存。可选绑定入口（#1203）直接复用 Sidebar 的 Bind app Modal、当前 PersonaBot 的 Messaging snapshot 与原绑定命令；平台目录、凭据设置、官网教程和实际接收状态仍由既有 owner 提供，暂时不绑定不改变完成事实，也不保存第二份绑定进度。
+
+欢迎消息提供能力介绍、今日新闻、每日摘要与十分钟定时测试示例，点击后沿用正常 Human DM 请求与现有执行能力。模型保存和问题发送是两次独立操作：单独选择模型不创建问题；因配置受阻的请求保存模型后进入单独的发送确认，关闭或恢复均不自动发送。引导模型配置复用 native model／credential Services，经 Typert/API Gateway 保存并读回 Profile 默认模型；默认勾选后当前 Bot 继承全局，取消勾选则写独立 Model Plan。新 Bot 无独立 plan 时继承全局；保留 model-plan revision 以校验返回继承的编辑。全局修改只影响之后的继承请求，不覆盖固定计划或运行中的 Assignment。模型失败后的“重试这条消息”沿用原 Human 消息与 Admission，经既有 retryability／side-effect gate 拒绝不安全重放，不再追加 Human 消息。
+
 当前 Client UI 由独立 `@botharness/ui` Bundle 挂载，源码仍在 `packages/client`；RC2 的插件图把结尾 `/client` 解释为导出子路径，因此包身份依 [ADR-0066](../adr/0066-rc2-client-bundle-identity.md) 避开该后缀。Client HMR 只暂存当前 Bot/Channel 选择以恢复视图，不复制 Host 中的 PersonaBot、Channel 或消息权威。
 
 产品术语以根目录 [`CONTEXT.md`](/zh/dev/design/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/design/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Assignment 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
 
-迁移阶段保持可验证：#79 建立 `botharness.db` owner；#885 的 Schema Generation 56 已将 #66 的 roster arrangement 单向迁入 owning SQLite module。旧 `botharness_roster` Storage Domain 仅作一次性输入，校验失败时 roster 只读且返回 `storage-unavailable`，不会当成空排列；成功后排列与 import marker 同一事务提交，旧源保留供恢复参考，正常运行不再打开或读写该 domain。Session ownership 保持既有数据库权威，完整 Profile Backup 跟踪 #886。
+迁移阶段保持可验证：#79 建立 `botharness.db` owner；#885 的 Schema Generation 56 已将 #66 的 roster arrangement 单向迁入 owning SQLite module。旧 `botharness_roster` Storage Domain 仅作一次性输入，校验失败时 roster 只读且返回 `storage-unavailable`，不会当成空排列；成功后排列与 import marker 同一事务提交，旧源保留供恢复参考，正常运行不再打开或读写该 domain。Session ownership 保持既有数据库权威；#886 的 Schema Generation 72 增加恢复收据、逐 Bot 模型授权／激活记录与 Session 内容可用性。
 
 #56 and #137 extend the current roster global slot to `{ pins, hidden?, sectionOrder, topOrder? }`: `pins` canonically orders Channel IDs for both group Channels and PersonaBot DMs, `hidden` omits Channels only from roster navigation while retaining their placement, and `topOrder` mixes section blocks with loose Channels while membership remains owned only by section records. The unary client bridge now has ten arrangement methods, including `topReorder`, `hiddenSet`, and bounded `rosterBatch` (one Host completion notice and one final Client snapshot for multi-select); #885 preserves this order, hidden presentation state, and single-membership invariant in the owning `roster_arrangement` singleton; each command mutates a transient draft and commits the complete arrangement atomically before publication, without dual writes. A missing import marker refuses edits until a valid source is imported; an already populated target without a marker is never overwritten. Sorting remains native DSH Settings, and collapse remains per-Client. 已提交的 roster mutation 会在 Host commit 后发送 `roster/changed` live invalidation；其他窗口只重读权威 roster，不接收也不复制拖拽中的预览状态。
 
@@ -29,6 +33,19 @@ Channel 的消息引用（#145）只保存同 Channel 的已提交目标 ID；Hu
 拥有该 Session 的 Orchestrator 可复制 `channel_read`（含通过 `message_id` / `content_cursor` 完整读取的内容）或旧版授权读取结果中的最多 10 个可信附件引用，四个字段原样保留：`{fileId,name,mime,size}`。#577 后旧消息投影迁移后的文件身份；过期 `{hash,name,mime,size}` 结果必须先重新读取所属消息再转发，旧 hash 图片读取仍须带所属消息以解析当前字节。Orchestrator 还可通过 `channel_attachment_import` 明确选择并导入已授权的本地结果文件；不能猜测身份与元数据。DSH schema 将 `size` 声明为整数；Host 继续校验 0–9007199254740991 的安全非负字节范围。固定版本的 DSH schema 不支持 `maxItems` 或数值上下界，因此数组上限由描述与运行时校验共同表达。Group 最多接受 20 个提及 ID，每个都必须是其他活跃现成员。`channel_send` 只有在 Messaging 权威接受写入后才返回紧凑的 `{channelId,messageId}` JSON；省略目标时使用入站 Channel。该结果取代原文本确认；附件身份、profile 归属、当前文件语义、回复目标、delivery-key 重试与因果循环边界继续沿用（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
 
 应用定义的 `group_leave` Tool 只在规范成员移除提交后返回 `{channelId,left:true,outcome:"changed"}`；Bot 当前不是该群成员时返回 `{channelId,left:false,outcome:"unchanged",reason:"not-member"}`。无变更既包括重复退出，也包括从未加入的群；不推断历史成员身份，不返回未加入群的名称或名单。缺失 Channel 抛出 `group_leave: channel-unavailable`，非群聊目标抛出 `group_leave: group-required`，替代旧的含糊 `left:false` 成功结果；Tool 异常保持为失败。既有 `{channelId,left}` 字段及 Core 返回结构保持兼容，调用方须处理新的无效目标失败。ADR-0073 的同一事务仍承担创建者移交 Human、待处理 Admission 撤销、单条持久离群通知及剩余成员注意力策略；提交后的实时通知警告不否定已提交变更。读写权限立即撤销，因此 Bot 应通过仍可访问的 Channel 向 Human 报告（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
+
+## 原生 Human 等待的验证边界
+
+[#1036 的有界实验](../research/1036-native-wait-experiment.md) 在固定 DSH
+`0.2.0-rc.1` 上证明：独立 Assignment 等待原生工具审批时，Orchestrator
+可真实处理并回复无关 Inbox 消息，但没有释放 Assignment 运行许可。
+Orchestrator 自己的原生审批或正式提问仍占有当前 Step；Admission 已接收、
+`steer` 已排入下一 Step 不等于模型已处理，原调用决定并返回后才处理无关输入。
+准确 Session／call 归属及当前 Grant 校验仍由既有 authority 承担，变更／撤销
+范围拒绝原操作。[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#native-human-wait-qualification-2026-10-09)
+记录本次资格边界，不改变 ADR-0035 的单一 Orchestrator root 约束。
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 追踪缺失的受支持原生
+continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交付。
 
 ## 1 · 系统上下文
 
@@ -147,7 +164,7 @@ Usage generation 40 在同一 Operational Database 事务中写入匿名 HMAC �
 
 筛选查询 `profileUsage`（#507）由 Usage 深模块拥有，经 Typert/API Gateway 提供：真实且非未来的日期最多覆盖 182 天；模型／提供商与执行类别条件同时作用于每日记录与累计汇总，累计值仅忽略日期。Profile 默认近七天，执行类别筛选位于折叠详细信息中；首次打开、改变筛选或手动刷新时查询，不轮询或按时间自动过期，同条件刷新失败明确标为过期，旧条件迟到的响应不会覆盖新筛选。响应包含查询／核对时间、正常／核对中／降级状态、可空未知用量，以及显式明细／选项上限（2,000 行／每维度 1,000 个实际选项）；总量完整，截断图表隐藏。Session 来源是否可用不决定保留统计是否存在（#502）。
 
-Model Preset 的当前模板存储由 Profile SQLite 的 owning module 管理，Schema Generation 54 将旧 JSON 模板一次性校验迁入，保留 ID／revision，并写入包含空源的切换标记；成功切换后旧文件仅保留为恢复参考，不再读写（#883）。Schema Generation 55 将 PersonaBot Registry 的身份、外观快照、访问开关与独立 Model Plan 一次性校验迁入 `persona_bots`，导入标记与记录同一事务提交；旧 `bot.json` 与 Soul 文件保留，但正常读写仅使用 owning Registry module／Profile Writer Lease（#884）。无效登记使 Core 启动失败并释放 lease，不会把坏数据当成空名单；修复保留的旧源后重试。Schema Generation 56 的 roster ownership 交付跟踪 #885，完整备份仍跟踪 #886；这些迁移不等于 Profile Backup 已交付。
+Model Preset 的当前模板存储由 Profile SQLite 的 owning module 管理，Schema Generation 54 将旧 JSON 模板一次性校验迁入，保留 ID／revision，并写入包含空源的切换标记；成功切换后旧文件仅保留为恢复参考，不再读写（#883）。Schema Generation 55 将 PersonaBot Registry 的身份、外观快照、访问开关与独立 Model Plan 一次性校验迁入 `persona_bots`，导入标记与记录同一事务提交；旧 `bot.json` 与 Soul 文件保留，但正常读写仅使用 owning Registry module／Profile Writer Lease（#884）。无效登记使 Core 启动失败并释放 lease，不会把坏数据当成空名单；修复保留的旧源后重试。Generation 72 的完整 Profile Backup 保存可复用模板与独立 Model Plan 的现值和 revision，恢复不会重新套用模板（#886）。
 
 Model Preset 是部署本地可复用模板；Human 在 Profile 应用时，PersonaBot 保存独立 Model Plan 快照，后续模板编辑不传播到已应用的 Bot。Plan 固定 Orchestrator 的 provider／model／reasoning effort，并定义 Assignment 可用的精确模型、各模型允许及默认的 effort 和默认模型。Host 在每个执行入口按当前 Plan 验证选择，而 DSH SessionEvent 记录实际调用：Orchestrator 的变更在当前 Turn 结束后生效，已有 Assignment 保留当前路由，之后的显式切换按最新 Plan 校验；新建 DSH Subagent 默认继承仍获允许的父路由，否则选当前 Assignment 默认并告知父 Agent。不可用或有歧义的路由停止请求，交由 Human 修复，不静默回退。Model Preset 与 Model Plan 可进入保持身份的 Profile Backup，不进入 SoulSnapshot 或 PersonaBot Export（ADR-0027、ADR-0093，#488）。
 
@@ -468,6 +485,14 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
 
+### 5.4 · 形象物种与自绘部件（已接受设计，待实现）
+
+[ADR-0148](../adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md) 在不新增 rig 的前提下扩展像素 Avatar Family。Avatar Species（人类、精灵、哥布林、矮人、兽人、猫、狗、狐狸、兔子、熊、花）是像素胸像骨架上的基底：轮廓、耳朵、鼻子或吻部、建议身体色与可接受部件；动作、锚点、说话嘴型与伙伴透明轮廓保持共享。头发拆为可分别上色的分片，新增穿过头发的头饰槽（前后两层）。当前物种无法显示的选择保存并隐藏，不被替换。
+
+Custom Part 是有界像素网格，每格引用外形颜色或固定色并带明度档位，因此随外形换色。BotPixel 负责其类型、校验、渲染与纯函数绘制算法；PersonaBot 所属模块把副本嵌入 Avatar Appearance，DSH Profile 中由 Host 管理的 Part Library 以内容哈希身份和来源保存可复用部件。导出的 PersonaBot 携带其部件；单个部件以内嵌数据的 PNG 流转。眼睛、眉毛和嘴不可自绘，眨眼与说话帧仍由 rig 负责。
+
+新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
+
 ## 6 · 持久化、导出与恢复边界
 
 ```mermaid
@@ -484,7 +509,7 @@ flowchart TB
   Barrier["Manual Export Profile<br/>backup barrier + consistent snapshots"]
   Package["one compressed<br/>.botharness-backup"]
   Stage["Import Profile staging<br/>validate · migrate · dependency check"]
-  Target["Restore As New / Replace Existing<br/>cold + suspended authorities"]
+  Target["v1: new stopped environment only<br/>cold + suspended authorities"]
 
   DB --> Barrier
   Files --> Barrier
@@ -509,6 +534,12 @@ flowchart TB
 
 v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botharness-backup`，Import Profile 选择一个文件。没有自动备份、scheduler、catalog、retention 或 incremental chain。Restore 总是在隔离 staging 中验证；成功后 PersonaBot 仍为 cold，provider authority suspended，Workspace/model/plugin dependencies 必须在目标机重新解析并由 Human 明确激活。
 
+#886 的 v1 实现使用 application-defined Portability coordinator；各 owning module 提供历史 Memory 定位、当前附件引用闭包与恢复时的挂起转换。Database owner 在现有 Profile Writer Lease 下阻止事务写入并执行 `VACUUM INTO`；`ContentPurge.withCheckpoint` 覆盖同步快照与受管文件捕获。文件在捕获前后核对身份、时间、大小和 SHA-256，集合变化、缺失引用、超出资源／屏障时限均拒绝发布；屏障释放后压缩并完整校验。包保留 deleted identity 的 retained Memory，只有 canonical erasure proof 才允许省略；源 Git 授权配置替换为安全默认值，恢复后 hooks 隔离。当前界限为 DSH `0.2.0-rc.1`、60,000 entries 与 512 MiB；底层 Session 内容无已验证 adapter，明确标为 unsupported。
+
+Settings 只经现有 Connection Fetch seam 预览、下载、检查文件与操作目标就绪度，不接收目标路径或替换正在运行的数据。受信任本地 `botharness-profile restore` 命令仅接受不存在的新目标；在 sibling staging 中校验路径／hash／SQLite／Generation、取得 Writer Lease、应用真实 Purge checkpoint、重定位 Memory，再一次提交。可执行 Bundle／Profile 配置、credentials、Workspace 文件和 debug logs 不导入；目标由固定版本 DSH 与已安装 Bundle 启动。Replace Existing 和 Managed Transfer 不属于此版本的运行入口。
+
+Disaster Restore 将全部原生 Session 引用设为内容不可用，保留历史归属；中断 Assignment／Inbox／Outbox 均不重放。Bot、触发器、外部绑定、Service Grant、Workspace 与持久工具授权挂起，Browser／Computer access 关闭。目标 Human 配置明确 Model Plan、本地凭证并授权该 Plan revision，再确认同身份双活风险后显式激活；新 Orchestrator ownership 与恢复收据同一事务建立，执行使用新原生 Session。后续 Plan 变化再次阻止执行，所有实际模型调用仍经当前 catalog 验证，不能静默回退。激活仅开放本地 Bot 执行，外部 authority 与 Workspace 仍须独立重新授权。[操作与限制](../settings.md#complete-environment-backup-and-restore)。
+
 图中的 Attachment files 表示新附件真实文件及记录，Messaging 绑定将已转换旧引用解析到当前真实文件，legacy CAS 仅服务未转换依赖。hash 相同不恢复共享，缺少归属或含糊的旧调用明确失败。后续 Backup／Export 要包含当前被引用的文件与身份映射，引用感知清理及显式 Purge 也必须涵盖这些真实文件；一次明确导出保存当前字节，不建立持续附件版本归档。
 
 ### 删除与清除（已接受设计，待实现）
@@ -525,7 +556,7 @@ Generation 70 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API 
 
 独立 `botharness/purge/ledger.db` 由同一 Host 生命周期拥有，SQLite FULL 同步事务先接受无正文的事件身份、作者／时间／因果、Human 审计及托管文件选择器，再移除运行正文；该文件不属于 `botharness.db` 快照。最小墓碑及 placement 保留，secure-delete 后截断 WAL；应用失败关闭运行数据库进入 recovery，启动先应用事实再创建 Messaging Consumers。Attachment owner 重查全部保留来源、迁移／获取绑定和 Outbox 引用后，仅移除已审阅的独占当前文件和 legacy CAS；共享文件保留，受阻清理可见且重启继续。待投递意图脱敏并取消，已发出请求在活跃 Host 中按真实证据结算，冷中断保持结果未知。持久栅栏和原生 Tool Guard 拒绝重复回填、旧命令与新的内容依赖效果。
 
-`checkpoint()` 导出已验证事实；`withCheckpoint` 在同步或异步快照回调完整结束前持有清除屏障，未来 Profile Backup 在其更广的 Backup Barrier 内调用。冷 `restoring` 验证 v1／v2 包检查点，单调 union package／destination 事实并保留目标审计，再应用、开放 Messaging。新目标只可从已验证包初始化；已建立账本缺失、损坏／不支持的数据或 union 中缺少运行快照引用事实均关闭入口。v2 包含托管文件身份及外部／系统作者。此合同不提供完整备份 UI。
+`checkpoint()` 导出已验证事实；`withCheckpoint` 在同步或异步快照回调完整结束前持有清除屏障，Profile Backup 在其更广的 Backup Barrier 内调用。冷 `restoring` 验证 v1／v2 包检查点，单调 union package／destination 事实并保留目标审计，再应用、开放 Messaging。新目标只可从已验证包初始化；已建立账本缺失、损坏／不支持的数据或 union 中缺少运行快照引用事实均关闭入口。v2 包含托管文件身份及外部／系统作者。备份 Settings 与本地恢复入口由 Portability module 提供。
 
 预览列出所选来源、全部 placement／Admission、文件移除／保留及依赖效果；info 控件披露仍保留的 Assignment／其他因果来源正文、未改写的 Human Memory／Workspace／导出、原生 DSH Session 提示／结果、外部副本、Git 远程及离线备份。旧独立文件只执行其包含的检查点。[验收指南](../agents/qa-channel-purge.md) 覆盖真实 SQLite／文件恢复及 DSH 共享文件／中断清理。
 

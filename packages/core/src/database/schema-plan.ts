@@ -1871,6 +1871,51 @@ const COMPLETE_CONTENT_PURGE_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_ONBOARDING_MIGRATION: SchemaMigration = {
+  generation: 71,
+  module: 'bot-onboarding',
+  description: 'Persist Profile onboarding receipts and trusted Channel output provenance',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_onboarding (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        profile_id TEXT NOT NULL,
+        entered_at TEXT NOT NULL,
+        default_bot_slug TEXT,
+        preparation TEXT NOT NULL CHECK (preparation IN ('requested', 'ready')),
+        tutorial TEXT NOT NULL DEFAULT 'not-started'
+          CHECK (tutorial IN ('not-started', 'active', 'paused', 'skipped')),
+        completed_channel_id TEXT,
+        completed_message_id TEXT
+      );
+      CREATE TABLE channel_output_origins (
+        source_event_id TEXT PRIMARY KEY REFERENCES source_events(source_event_id),
+        session_id TEXT NOT NULL REFERENCES session_ownership(session_id),
+        request_source_event_id TEXT REFERENCES source_events(source_event_id)
+      );
+    `);
+  },
+};
+
+const PROFILE_RECOVERY_MIGRATION: SchemaMigration = {
+  generation: 72,
+  module: 'profile-portability',
+  description: 'Persist Disaster Restore receipt and explicit target-local activation',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE profile_recovery (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), body TEXT NOT NULL
+      );
+      CREATE TABLE profile_recovery_bots (
+        bot_slug TEXT PRIMARY KEY, desired_json TEXT NOT NULL,
+        authorized_plan_revision INTEGER, activated_session_id TEXT
+      );
+      ALTER TABLE session_ownership ADD COLUMN content_available INTEGER NOT NULL DEFAULT 1
+        CHECK (content_available IN (0, 1));
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1941,4 +1986,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CONTENT_PURGE_MIGRATION,
   WECHAT_PLATFORM_DEFAULTS_MIGRATION,
   COMPLETE_CONTENT_PURGE_MIGRATION,
+  BOT_ONBOARDING_MIGRATION,
+  PROFILE_RECOVERY_MIGRATION,
 ]);

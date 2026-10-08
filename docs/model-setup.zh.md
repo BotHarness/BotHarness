@@ -68,7 +68,7 @@
 
 ## 5. 验证实际使用的模型
 
-返回聊天，发送一句简短消息。收到回复后，在 Bot 的 Profile（聊天顶部名称 / 头像 → 查看详细）的 **Token 用量** 按模型或提供商查看新用量；需要核对具体会话时，从右侧 **会话** 打开对应的 DSH Session，检查其模型选择器和下一轮的用量记录。
+返回聊天，发送一句简短消息。收到回复后，在 Bot 的 Profile（聊天顶部名称 / 头像 → 查看详细）的 **Token 用量** 里切到 **按模型** 查看新用量；需要核对具体会话时，从右侧 **会话** 打开对应的 DSH Session，检查其模型选择器和下一轮的用量记录。
 
 ![实际 Session 中的 DeepSeek Flash / High 选择器与应用预设后的回复](/guides/settings/model-session-verification-zh.webp)
 

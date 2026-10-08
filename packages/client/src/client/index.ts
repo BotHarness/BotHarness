@@ -1,3 +1,4 @@
+import { DefaultModelSettings } from './onboarding-view.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
@@ -23,6 +24,7 @@ import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
 import { TelemetrySettings } from './telemetry-settings.js';
 import { GitSettings } from './git-settings.js';
+import { ProfileBackupSettings } from './profile-backup.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { ReleaseNotesController } from './release-notes.js';
 import { ReleaseSettings } from './release-notes-view.js';
@@ -363,6 +365,18 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.item',
+          id: 'default-model',
+          order: -5,
+          locale: LOCALE_NS,
+          inject: () => ({ actions }),
+        },
+        DefaultModelSettings,
+      ),
+    );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
           id: 'companions',
           order: 15,
           locale: LOCALE_NS,
@@ -431,6 +445,12 @@ export function apply(ctx: ClientContext): void {
         GitSettings,
       ),
     );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        { name: 'botharness.settings.item', id: 'profile-backup', order: 35, locale: LOCALE_NS },
+        ProfileBackupSettings,
+      ),
+    );
     settingsCtx.slots.inject('settings.section', () =>
       settingsCtx.slots.register(
         {
@@ -492,6 +512,7 @@ export function apply(ctx: ClientContext): void {
           profileCards,
           nativeChatT,
           nativeSessions,
+          prefs,
           releaseNotes,
           telemetryNotice,
         }),
@@ -592,6 +613,7 @@ export function apply(ctx: ClientContext): void {
             profileCards,
             nativeChatT,
             nativeSessions,
+            prefs,
           }),
         },
         BotMain,

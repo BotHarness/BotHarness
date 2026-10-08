@@ -16,6 +16,59 @@ This guide covers non-IM settings in the public **deepseekbot** package on DSH *
 | One Bot's work folders and task permissions                   | Workspace grants in the right sidebar.                                      |
 | An existing DSH Session's model and permissions               | Open it from Sessions in the right sidebar and inspect its native controls. |
 
+## Complete environment backup and restore
+
+Open **Bot settings → Complete environment backup and restore → Manage backups**.
+**Preview export** lists all historical Bot identities, managed-file count, estimated bytes and
+omitted native Sessions. **Download verified backup** captures the full BotHarness database,
+retained Memory repositories (including custom paths and deleted identities), current referenced
+attachment bytes and identity bindings, reachable legacy CAS, model presets and independent Bot
+plans, runtime dependencies, hashes and the canonical Content Purge checkpoint. The completed
+download shows its actual compressed size.
+
+The file contains sensitive chats, source content, account descriptors, grants/triggers and
+Outbox/audit history. Keep it private. Credentials, executable Plugins, Workspace contents and
+native DSH Session transcripts are excluded. Session ownership remains visible as unavailable
+historical references. Source-local Git configuration is replaced with safe defaults and hooks
+are quarantined on restore. A missing retained repository or referenced file fails export;
+intentional Memory erasure remains distinct. This is a Profile backup, separate from a Bot's
+Profile details and from single-Bot Zip/Git sharing, which creates a new identity.
+
+Select a `.botharness-backup` file to inspect its manifest, database integrity, count, final size
+and SHA-256. Hashes establish integrity rather than source authenticity. Restore through the
+trusted installed local command, substituting your file and a directory that does not exist:
+
+```text
+botharness-profile restore --file "environment.botharness-backup" --new-home "new-environment"
+```
+
+For a source checkout, use `node scripts/profile-restore.mjs` with the same arguments. No Host is
+started by restore. Launch the new home using trusted DSH **0.2.0-rc.1** and the matching BotHarness
+Bundle; development checkouts use `node scripts/dev-instance.mjs --home <new-home> --port <port>`.
+The launcher creates native Profile composition from the trusted pinned CLI rather than loading
+executable configuration from the backup. Live Settings cannot choose a destination or replace
+its own environment. Existing targets are refused, and the staging database uses the existing
+Profile Writer Lease before validation/migration and publication.
+
+The restored environment starts in **Disaster Restore** posture: Bots paused; account bindings,
+provider triggers, Service Grants, saved tool approvals and schedules suspended; Workspaces need
+new mapping; Browser/Computer access is off. Old Session, Inbox and Outbox work never replays.
+Cold Channel history and Memory remain readable. In Settings → Models, configure target-local
+credentials, and save an explicit model plan in the Bot's Profile. Return to Manage backups,
+review readiness, **Authorize this target model**, acknowledge possible simultaneous operation
+of the old device, and **Activate this Bot**. Send a new DM; it uses a fresh Orchestrator Session
+under the preserved identity. Missing models or changed plan revisions gate new requests instead
+of silently falling back. External account repair is a separate explicit authorization flow.
+
+The package applies its own real Purge checkpoint before Messaging opens. An older offline file
+cannot know deletions accepted after its export. Limits are 512 MiB of unpacked bytes and 60,000
+entries; export refuses insufficient staging space, changed files, an overlong capture or an
+existing output. Close/cancel an operation to abort before publication; after a lost download,
+preview and export again. Supported forward schema migrations happen only in staging; a newer
+unsupported schema, damaged file, unsafe path/link or missing closure refuses the restore and
+leaves no committed destination. Planned transfer and replacement of existing homes are later
+capabilities.
+
 ## DSH general settings
 
 These are native DSH settings. Initial values below were observed in a clean RC1 Profile; existing Profiles may retain different choices. Selectors and switches save directly. Fields with a Save button require that button.
@@ -89,7 +142,7 @@ After creation, open **View details**:
 
 - **Change avatar**: choose PNG, JPEG, or WebP; adjust the crop and save. An uploaded avatar can be removed.
 - **Design avatar**: choose illustrated/line style, presets, parts, shape sliders, and colors. Save applies the preview; cancel discards the draft. An uploaded image takes display precedence.
-- **Activity overview**: pins select cards in the Profile popover. Token usage time range, model/provider grouping, filters, and custom dates change the statistics view, not the model. Unavailable usage is unknown rather than zero.
+- **Activity overview**: pins select cards in the Profile popover. Token usage switches between **Daily total** and **By model**, with a 7 / 30 / 90 days / All range and a custom range in the **⋯** menu; hover a bar for the cached, uncached input and output split. These only change the statistics view, not the model. Unavailable usage is unknown rather than zero.
 - **Persona / memory files**: use Memory files in the right sidebar to inspect files and their available edit/preview actions. The Profile does not repeat every creation field as an editing form.
 - **Standing memory limits** now live in the Channel sidebar: **Bot DM → Memory files → Standing memory limits** sets the character limits for `SOUL.md` and `MEMORY.md`, applied from the next Session or the next compaction of the current Session; see [Bot Soul and Core Memory](/docs/soul-and-core-memory).
 - **External identities and connectors** also moved out of the Profile, into the Bot DM's Channel sidebar: see [External identities](/docs/channel-sidebar/external-identities) and [External connectors](/docs/channel-sidebar/external-connectors).

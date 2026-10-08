@@ -24,7 +24,7 @@ Open **Bot DM → Channel sidebar → Bot Inbox**. This is the selected Bot’s 
 
 The header count excludes handled and ignored records in the loaded view. It is not a count of unread messages for the Human. Opening a source to inspect it is not a manual instruction to mark it handled, and a delivery badge is not proof that the Bot completed your request.
 
-Assignment report labels such as **Progress**, **Completed**, **Blocked**, **Waiting for Human** and **Failed** describe the report. A Memory-change item is informational and is not a link to a Channel message. **Source unavailable** means the original source cannot currently be opened.
+Assignment report labels such as **Progress**, **Completed**, **Blocked**, **Waiting for you** and **Failed** describe the report. A Memory-change item is informational and is not a link to a Channel message. **Source unavailable** means the original source cannot currently be opened.
 
 ## When the Inbox is quiet
 

@@ -8,6 +8,7 @@ import {
   type AvatarAppearance,
   type RetainedAvatarAppearance,
 } from './avatar-appearance.js';
+import { isBotBanner, type BotBanner } from './bot-banner.js';
 
 export interface PersonaBotRecord {
   slug: string;
@@ -18,8 +19,10 @@ export interface PersonaBotRecord {
   description?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  banner?: BotBanner;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
+  modelPlanRevision?: number;
   preset?: string;
   memoryDir?: string;
   workspaces: string[];
@@ -133,6 +136,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     !isUsableAvatarAppearance(record['appearance'], record['avatar'])
   )
     return false;
+  if (record['banner'] !== undefined && !isBotBanner(record['banner'])) return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
   if (record['roles'] !== undefined) {
@@ -143,6 +147,12 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     const optional = record[key];
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
+  if (
+    record['modelPlanRevision'] !== undefined &&
+    (!Number.isSafeInteger(record['modelPlanRevision']) ||
+      (record['modelPlanRevision'] as number) < 0)
+  )
+    return false;
   if (record['modelPlan'] !== undefined && !isPersonaBotModelPlan(record['modelPlan']))
     return false;
   if (record['standingLimits'] !== undefined && !isStandingLimits(record['standingLimits']))

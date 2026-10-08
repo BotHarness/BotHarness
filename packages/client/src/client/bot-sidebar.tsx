@@ -75,7 +75,7 @@ import { needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
-import { ImportBotZipModal } from './bot-zip.js';
+import { BotZipShareDialog, ImportBotZipModal } from './bot-zip.js';
 import { GitUnavailableNotice, gitReady } from './git-unavailable-notice.js';
 import { MarketplaceModal } from './marketplace.js';
 import {
@@ -764,6 +764,7 @@ export function BotSidebar({
   const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
+  const [sharing, setSharing] = useState<BotSummary | undefined>(undefined);
   const [channelSelection, setChannelSelection] = useState<ChannelSelection>({
     ids: [],
     anchorId: undefined,
@@ -783,6 +784,11 @@ export function BotSidebar({
   const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
   const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
+  const createFromWelcome = useMountedResource<HTMLSpanElement>(() => {
+    const create = (): void => setCreateRequest({ kind: 'bot', source: 'empty' });
+    document.addEventListener('botharness/create-bot', create);
+    return () => document.removeEventListener('botharness/create-bot', create);
+  }, []);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
   const searchInput = useRef<HTMLInputElement | null>(null);
@@ -1560,6 +1566,7 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      <span ref={createFromWelcome} hidden aria-hidden="true" />
       {state.activitySync === 'stale' ? (
         <div className="bh-activity-stale" role="status" data-activity-stale>
           {t('roster.activityStale')}
@@ -2408,6 +2415,20 @@ export function BotSidebar({
           currentSectionId={sectionOfChannel(channelMenu.channelId)}
           pinned={channelMenu.pinnedView === true}
           t={t}
+          shareAction={(() => {
+            const botId = state.channels.find(
+              (channel) => channel.id === channelMenu.channelId && channel.type === 'dm',
+            )?.botSlug;
+            const bot = state.bots.find((item) => item.slug === botId);
+            if (bot === undefined || bot.deleted === true) return undefined;
+            return {
+              label: t('profile.share'),
+              run: () => {
+                setSharing(bot);
+                setChannelMenu(undefined);
+              },
+            };
+          })()}
           companionAction={(() => {
             const botId = state.channels.find(
               (channel) => channel.id === channelMenu.channelId,
@@ -2458,6 +2479,15 @@ export function BotSidebar({
           }}
         />
       ) : null}
+      {sharing === undefined ? null : (
+        <BotZipShareDialog
+          key={sharing.slug}
+          bot={sharing}
+          actions={actions}
+          t={t}
+          onClose={() => setSharing(undefined)}
+        />
+      )}
     </div>
   );
 }
@@ -2577,6 +2607,7 @@ export function BulkChannelMenu({
 
 export function ChannelMoveMenu({
   companionAction,
+  shareAction,
   menu,
   sections,
   currentSectionId,
@@ -2590,6 +2621,7 @@ export function ChannelMoveMenu({
   onClose,
 }: {
   companionAction?: { label: string; run(): void } | undefined;
+  shareAction?: { label: string; run(): void } | undefined;
   menu: ChannelMenuRequest;
   sections: readonly RosterSection[];
   currentSectionId: string | undefined;
@@ -2624,6 +2656,7 @@ export function ChannelMoveMenu({
   ];
   const items: readonly MenuEntry[] = [
     ...(companionAction === undefined ? [] : [{ id: 'companion', label: companionAction.label }]),
+    ...(shareAction === undefined ? [] : [{ id: 'share', label: shareAction.label }]),
     ...pinItems,
     { type: 'separator', id: 'pin-separator' },
     ...channelMoveMenuItems(t, sections, currentSectionId),
@@ -2644,6 +2677,10 @@ export function ChannelMoveMenu({
         onSelect={(id) => {
           if (id === 'companion') {
             companionAction?.run();
+            return;
+          }
+          if (id === 'share') {
+            shareAction?.run();
             return;
           }
           if (id === 'pin' || id === 'unpin') {

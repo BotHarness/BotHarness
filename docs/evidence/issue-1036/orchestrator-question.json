@@ -1,0 +1,1289 @@
+{
+  "issue": 1036,
+  "dsh": "0.2.0-rc.1",
+  "upstream": "4878cdabd87d4041bdaff61d04c966883b9fd07a",
+  "applicationBaseline": "fe08fd925f9bf4644b4634ef464ce83e758bfdae",
+  "mode": "question",
+  "startedAt": "2026-10-08T15:43:24.120Z",
+  "finishedAt": "2026-10-08T15:44:09.708Z",
+  "botSlug": "bot-18a0d4407414480481af3cf67a2b0178",
+  "channelId": "dm-bot-18a0d4407414480481af3cf67a2b0178",
+  "request": {
+    "id": "3132d318-0136-4bae-a06d-f5b38c047759",
+    "at": "2026-10-08T15:43:38.769Z",
+    "author": {
+      "kind": "bot",
+      "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+    },
+    "userQuestionRequest": {
+      "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+      "questions": [
+        {
+          "id": "wait-route",
+          "question": "Which test route?",
+          "options": [
+            {
+              "label": "Canary",
+              "description": "Test route"
+            },
+            {
+              "label": "Stable",
+              "description": "Other route"
+            }
+          ]
+        }
+      ]
+    },
+    "body": "Which test route?",
+    "channelRevision": 5
+  },
+  "scope": {
+    "id": "d9fb97d5-4e5e-4b9a-9ba1-5334c948738f",
+    "botSlug": "bot-18a0d4407414480481af3cf67a2b0178",
+    "workspaceId": "e81dfd83-8de1-46af-9a34-9a0d64bbffad",
+    "workspacePath": "[user-home]\\.codex\\worktrees\\367f\\BotHarness\\.humanlayer\\tasks\\1036\\runs4\\question\\workspace",
+    "workspaceTitle": "workspace",
+    "createdAt": "2026-10-08T15:43:36.173Z",
+    "orchestratorWrite": false,
+    "writeRevision": 0
+  },
+  "decision": {
+    "type": "server-response",
+    "rpcId": "c23a3ade-b3b5-4597-851a-db97092c9ad4",
+    "result": {
+      "ok": true,
+      "value": {
+        "accepted": true
+      }
+    }
+  },
+  "unrelated": {
+    "messageId": "human-c40a082d-82f4-4028-af23-d2e65b8124a9",
+    "submittedAt": "2026-10-08T15:43:39.565Z",
+    "observedThrough": "2026-10-08T15:44:01.642Z",
+    "replyDuringWait": null,
+    "admission": {
+      "id": "68763658-bee1-401e-aa61-7709a4f85c0f",
+      "botSlug": "bot-18a0d4407414480481af3cf67a2b0178",
+      "reason": "human-dm",
+      "state": "processing",
+      "createdAt": "2026-10-08T15:43:39.565Z",
+      "observedAt": "2026-10-08T15:43:40.572Z",
+      "sourceKind": "human-message",
+      "sourceChannelId": "dm-bot-18a0d4407414480481af3cf67a2b0178",
+      "sourceChannelName": "bot-18a0d4407414480481af3cf67a2b0178",
+      "sourceMessageId": "human-c40a082d-82f4-4028-af23-d2e65b8124a9",
+      "sourceAvailable": true,
+      "authorKind": "human",
+      "summary": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+    }
+  },
+  "verdict": {
+    "owner": "orchestrator",
+    "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+    "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+    "tool": "ask_user_question",
+    "callAt": 1791474218757,
+    "resultAt": 1791474241702,
+    "isError": false,
+    "nativeResult": "{\"answers\":[{\"id\":\"wait-route\",\"selected\":[\"Canary\"]}]}",
+    "unrelated": {
+      "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+      "callId": "call_00_hfVyYSuD0MJmw4gpTl6d4874",
+      "callAt": 1791474243139,
+      "replyId": "225d2399-9470-4715-9b9c-56007e494c93",
+      "replyAt": "2026-10-08T15:44:03.155Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "repliedWhileWaiting": false,
+    "rejected": false
+  },
+  "before": {
+    "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474213274,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474213958,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474213960,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474215324,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19058,
+            "outputTokens": 56,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20266
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474215329,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474215347,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"c854bd9c-a32b-40aa-a99b-90abecccea1d\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474215350,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474215374,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474217484,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 234,
+            "outputTokens": 16,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20346
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474217489,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474217526,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474217527,
+        "data": {
+          "text": "Call native ask_user_question exactly once: one question id wait-route, question \"Which test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. Wait for Human decision. After actual tool result, channel_send ORIGINAL_RESULT_1036 plus the actual answer. Do not create Assignments."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474218752,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 110,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20538
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474218757,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}]}"
+        }
+      }
+    ]
+  },
+  "during": {
+    "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474213274,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474213958,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474213960,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474215324,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19058,
+            "outputTokens": 56,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20266
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474215329,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474215347,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"c854bd9c-a32b-40aa-a99b-90abecccea1d\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474215350,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474215374,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474217484,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 234,
+            "outputTokens": 16,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20346
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474217489,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474217526,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474217527,
+        "data": {
+          "text": "Call native ask_user_question exactly once: one question id wait-route, question \"Which test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. Wait for Human decision. After actual tool result, channel_send ORIGINAL_RESULT_1036 plus the actual answer. Do not create Assignments."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474218752,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 110,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20538
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474218757,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}]}"
+        }
+      }
+    ]
+  },
+  "after": {
+    "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474213274,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474213958,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474213960,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474215324,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19058,
+            "outputTokens": 56,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20266
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474215329,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474215347,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"c854bd9c-a32b-40aa-a99b-90abecccea1d\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474215350,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474215374,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474217484,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 234,
+            "outputTokens": 16,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20346
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474217489,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474217526,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474217527,
+        "data": {
+          "text": "Call native ask_user_question exactly once: one question id wait-route, question \"Which test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. Wait for Human decision. After actual tool result, channel_send ORIGINAL_RESULT_1036 plus the actual answer. Do not create Assignments."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474218752,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 110,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20538
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474218757,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}]}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 34,
+        "time": 1791474241702,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "isError": false,
+          "text": "{\"answers\":[{\"id\":\"wait-route\",\"selected\":[\"Canary\"]}]}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 35,
+        "time": 1791474241704,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 37,
+        "time": 1791474241730,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 38,
+        "time": 1791474241731,
+        "data": {
+          "text": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 40,
+        "time": 1791474243130,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 254,
+            "outputTokens": 124,
+            "cacheReadTokens": 20352,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20730
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 41,
+        "time": 1791474243139,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_hfVyYSuD0MJmw4gpTl6d4874",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 42,
+        "time": 1791474243164,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_hfVyYSuD0MJmw4gpTl6d4874",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"225d2399-9470-4715-9b9c-56007e494c93\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 43,
+        "time": 1791474243167,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 44,
+        "time": 1791474243263,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 46,
+        "time": 1791474247716,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 187,
+            "outputTokens": 95,
+            "cacheReadTokens": 20608,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20890
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 47,
+        "time": 1791474247726,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "callId": "call_00_0uLJxAbFhxWge3ZB2YgH1730",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"ORIGINAL_RESULT_1036 — Canary\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 48,
+        "time": 1791474247844,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "callId": "call_00_0uLJxAbFhxWge3ZB2YgH1730",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"ff83caaf-a7fc-4e8a-91a4-231429cabc58\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 49,
+        "time": 1791474247847,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 50,
+        "time": 1791474247972,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 52,
+        "time": 1791474249380,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 219,
+            "outputTokens": 99,
+            "cacheReadTokens": 20736,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21054
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 53,
+        "time": 1791474249387,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      }
+    ]
+  },
+  "orchestrator": {
+    "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+    "events": [
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791474213274,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 6,
+        "time": 1791474213958,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791474213960,
+        "data": {
+          "text": "Reply through channel_send with exactly BASELINE_1036. Do not use other tools."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791474215324,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 19058,
+            "outputTokens": 56,
+            "cacheReadTokens": 1152,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20266
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791474215329,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791474215347,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_oGCet3YvLOMGfDns0Qmi8614",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"c854bd9c-a32b-40aa-a99b-90abecccea1d\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 21,
+        "time": 1791474215350,
+        "data": {
+          "turn": 1,
+          "step": 1
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 22,
+        "time": 1791474215374,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791474217484,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 234,
+            "outputTokens": 16,
+            "cacheReadTokens": 20096,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20346
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 26,
+        "time": 1791474217489,
+        "data": {
+          "turn": 1,
+          "step": 2
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 28,
+        "time": 1791474217526,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791474217527,
+        "data": {
+          "text": "Call native ask_user_question exactly once: one question id wait-route, question \"Which test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. Wait for Human decision. After actual tool result, channel_send ORIGINAL_RESULT_1036 plus the actual answer. Do not create Assignments."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791474218752,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 110,
+            "cacheReadTokens": 20224,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20538
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791474218757,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}]}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 34,
+        "time": 1791474241702,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_kS68MxhSeUgBpuPnVUvI3177",
+          "isError": false,
+          "text": "{\"answers\":[{\"id\":\"wait-route\",\"selected\":[\"Canary\"]}]}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 35,
+        "time": 1791474241704,
+        "data": {
+          "turn": 1,
+          "step": 3
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 37,
+        "time": 1791474241730,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 38,
+        "time": 1791474241731,
+        "data": {
+          "text": "This is unrelated Inbox work. Use channel_send now to reply with exactly UNRELATED_REPLY_1036. Do not approve, answer, cancel or replace any pending operation."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 40,
+        "time": 1791474243130,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 254,
+            "outputTokens": 124,
+            "cacheReadTokens": 20352,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20730
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 41,
+        "time": 1791474243139,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_hfVyYSuD0MJmw4gpTl6d4874",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1036\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 42,
+        "time": 1791474243164,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_hfVyYSuD0MJmw4gpTl6d4874",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"225d2399-9470-4715-9b9c-56007e494c93\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 43,
+        "time": 1791474243167,
+        "data": {
+          "turn": 1,
+          "step": 4
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 44,
+        "time": 1791474243263,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 46,
+        "time": 1791474247716,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 187,
+            "outputTokens": 95,
+            "cacheReadTokens": 20608,
+            "cacheWriteTokens": 0,
+            "totalTokens": 20890
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 47,
+        "time": 1791474247726,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "callId": "call_00_0uLJxAbFhxWge3ZB2YgH1730",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"ORIGINAL_RESULT_1036 — Canary\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 48,
+        "time": 1791474247844,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "callId": "call_00_0uLJxAbFhxWge3ZB2YgH1730",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-18a0d4407414480481af3cf67a2b0178\",\"messageId\":\"ff83caaf-a7fc-4e8a-91a4-231429cabc58\"}"
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 49,
+        "time": 1791474247847,
+        "data": {
+          "turn": 1,
+          "step": 5
+        }
+      },
+      {
+        "type": "step/start",
+        "seq": 50,
+        "time": 1791474247972,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 52,
+        "time": 1791474249380,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "usage": {
+            "inputTokens": 219,
+            "outputTokens": 99,
+            "cacheReadTokens": 20736,
+            "cacheWriteTokens": 0,
+            "totalTokens": 21054
+          }
+        }
+      },
+      {
+        "type": "step/end",
+        "seq": 53,
+        "time": 1791474249387,
+        "data": {
+          "turn": 1,
+          "step": 6
+        }
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "ff83caaf-a7fc-4e8a-91a4-231429cabc58",
+      "at": "2026-10-08T15:44:07.836Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+      },
+      "body": "ORIGINAL_RESULT_1036 — Canary",
+      "channelRevision": 9
+    },
+    {
+      "id": "225d2399-9470-4715-9b9c-56007e494c93",
+      "at": "2026-10-08T15:44:03.155Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+      },
+      "body": "UNRELATED_REPLY_1036",
+      "channelRevision": 8
+    },
+    {
+      "id": "f17c9e6c-90c2-4a5c-bc3f-b930458c1d8d",
+      "at": "2026-10-08T15:44:01.689Z",
+      "author": {
+        "kind": "human"
+      },
+      "replyTo": "3132d318-0136-4bae-a06d-f5b38c047759",
+      "userQuestionResolution": {
+        "requestMessageId": "3132d318-0136-4bae-a06d-f5b38c047759",
+        "state": "answered",
+        "answers": [
+          {
+            "id": "wait-route",
+            "selected": ["Canary"]
+          }
+        ]
+      },
+      "body": "Canary",
+      "channelRevision": 7,
+      "deliveries": [
+        {
+          "botSlug": "bot-18a0d4407414480481af3cf67a2b0178",
+          "state": "pending"
+        }
+      ],
+      "replyToPreview": {
+        "author": {
+          "kind": "bot",
+          "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+        },
+        "body": "Which test route?"
+      }
+    },
+    {
+      "id": "3132d318-0136-4bae-a06d-f5b38c047759",
+      "at": "2026-10-08T15:43:38.769Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+      },
+      "userQuestionRequest": {
+        "sessionId": "botharness-4b3f7e0c-7062-4bb5-ad27-613c1d3e9378",
+        "questions": [
+          {
+            "id": "wait-route",
+            "question": "Which test route?",
+            "options": [
+              {
+                "label": "Canary",
+                "description": "Test route"
+              },
+              {
+                "label": "Stable",
+                "description": "Other route"
+              }
+            ]
+          }
+        ]
+      },
+      "body": "Which test route?",
+      "channelRevision": 5
+    },
+    {
+      "id": "c854bd9c-a32b-40aa-a99b-90abecccea1d",
+      "at": "2026-10-08T15:43:35.342Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-18a0d4407414480481af3cf67a2b0178"
+      },
+      "body": "BASELINE_1036",
+      "channelRevision": 3
+    }
+  ],
+  "client": [
+    {
+      "at": "2026-10-08T15:43:31.201Z",
+      "consoleErrors": []
+    },
+    {
+      "at": "2026-10-08T15:44:09.697Z",
+      "consoleErrors": []
+    }
+  ]
+}
