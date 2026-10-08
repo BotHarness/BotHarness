@@ -18,6 +18,14 @@ All8PNG files are real current-head screenshots. They are interaction states, no
 
 Official MCP silent screencasts, normal WebM container remux without re-encoding, dubbing or screenshot interpolation. These are not performance traces.
 
-## Limits
+## Earlier keyboard-capture limits
 
 Mouse click returned an unstructured tool error, so keyboard replay does not qualify mouse interaction. Initial scripted pause tried focusing a hidden toolbar button and did not disable walking; a separate postflight check first focused the character, then the now-visible toolbar and verified actual paused state. Initial pending captures show question-mark presentations; later original-reply captures show pixel Avatars. These screenshots do not establish the cause of that change or qualify mouth animation. Lifecycle/reconnect/reduced-motion edge scenes remain partial. See qualification.json for sanitized results and test failures.
+
+## Additional mouse and lifecycle qualification
+
+At the same runtime code a5193b36, a new actual native question was answered entirely through native mouse clicks: single choice, both checkbox choices and submit. The canonical owner records one answer, the unrelated observer Channel stays selected, character focus restores, and the original Bot commits a reply containing all selections. Walking pause was verified through the actual toolbar setting. mouse-answer.webm records this separate flow; mouse-selected-light.png and mouse-settled-light.png show its actual interaction states.
+
+A second new native question stays pending when the header unpins its companion, then reappears when the header repins it. A real document reload recovers the same pending request while retaining the observer Channel. Native mouse submission then records one answer and resumes the original Bot. lifecycle-answer.webm records the complete sequence; lifecycle-repinned-light.png and lifecycle-reloaded-light.png show the same request before/after reload. These are lifecycle states, not base/PR implementation comparisons.
+
+The earlier mouse-tool failure remains historical; this supplement qualifies new actual mouse actions rather than attributing that old failure to a product cause. One first harness precondition incorrectly checked the archived Bot flag instead of the walking setting, and was corrected without application changes. Console captures show no error messages and retain two form-field id/name advisories. Automatic interrupted-SSE recovery, Host restart, cancellation, archive/deletion, reduced motion and mouth animation remain outside this supplement. See mouse-lifecycle-qualification.json.
