@@ -17,7 +17,7 @@ import {
   AVATAR_SWATCHES,
   withAvatarSpecies,
   avatarSvg,
-  seededAvatarRecipe,
+  seededAvatarFor,
   type AvatarFamily,
   type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
@@ -46,7 +46,7 @@ interface FamilySpec {
   categories: readonly string[];
   presets: readonly AvatarRecipe[];
   option(part: string, value: string): Key;
-  seeded(name: string): AvatarRecipe;
+  seeded(name: string, seed: 2 | undefined): AvatarRecipe;
 }
 
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
@@ -85,7 +85,7 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     ],
     option: (part, value) =>
       `profile.avatar.option.${part === 'rightSideHair' ? 'sideHair' : part}.${value}` as Key,
-    seeded: seededAvatarRecipe,
+    seeded: seededAvatarFor,
   },
   line: {
     parts: LINE_PARTS,
@@ -260,7 +260,7 @@ export function AvatarAppearanceEditor({
   const spec = FAMILIES[family];
   const seed = bot.displayName || bot.slug;
   const start = () => {
-    const saved = bot.appearance?.recipe ?? seededAvatarRecipe(seed);
+    const saved = bot.appearance?.recipe ?? seededAvatarFor(seed, bot.avatarSeed);
     setDrafts({ [saved.family]: { ...saved } });
     setFamily(saved.family);
     setCategory(saved.family === 'line' ? 'eyes' : 'hair');
@@ -277,7 +277,7 @@ export function AvatarAppearanceEditor({
         current?.[next] ??
         (bot.appearance?.recipe.family === next
           ? bot.appearance.recipe
-          : FAMILIES[next].seeded(seed)),
+          : FAMILIES[next].seeded(seed, bot.avatarSeed)),
     }));
   };
   const save = async () => {
@@ -313,6 +313,7 @@ export function AvatarAppearanceEditor({
             appearance={
               recipe ? { recipe, revision: bot.appearance?.revision ?? '0'.repeat(64) } : undefined
             }
+            avatarSeed={bot.avatarSeed}
             size={160}
             state={state}
             activity={bot.activity}

@@ -9,6 +9,8 @@ import {
   isPixelAvatarRecipe as isIllustratedAvatarRecipe,
   pixelAvatarSvg,
   pixelFigure,
+  seededRecipe,
+  seededRecipeV2,
   type PixelAvatarRecipe,
 } from '@botharness/pixel-avatar';
 export { LINE_TOOL_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
@@ -36,6 +38,7 @@ export {
   pixelAvatarSvg as illustratedAvatarSvg,
   pixelSymbolCells,
   seededRecipe as seededAvatarRecipe,
+  seededRecipeV2 as seededAvatarRecipeV2,
   withSpecies as withAvatarSpecies,
   type AvatarColor,
   type AvatarHairPart,
@@ -50,6 +53,10 @@ export {
 } from '@botharness/pixel-avatar';
 
 export type AvatarRecipe = PixelAvatarRecipe | LineAvatarRecipe;
+
+export function seededAvatarFor(name: string, seed: 2 | undefined): PixelAvatarRecipe {
+  return seed === 2 ? seededRecipeV2(name) : seededRecipe(name);
+}
 export type AvatarFamily = AvatarRecipe['family'];
 export const AVATAR_FAMILIES = ['illustrated', 'line'] as const satisfies readonly AvatarFamily[];
 

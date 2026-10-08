@@ -19,6 +19,7 @@ export interface CompanionBot {
   lifecycle?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  avatarSeed?: 2;
 }
 export interface CompanionSnapshot {
   profileId: string;

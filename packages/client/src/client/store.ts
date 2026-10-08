@@ -33,6 +33,7 @@ export interface BotSummary {
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
   banner?: BotBannerView;
+  avatarSeed?: 2;
   paused?: boolean;
   deleted?: boolean;
   standingLimits?: StandingLimitsView;

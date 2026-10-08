@@ -215,6 +215,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     appearance?: AvatarAppearance | RetainedAvatarAppearance;
+    avatarSeed?: 2;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -237,6 +238,7 @@ export interface PersonaBotSummary {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   banner?: BotBannerSummary;
+  avatarSeed?: 2;
   paused?: boolean;
   deleted?: boolean;
   standingLimits: StandingLimits;
@@ -325,6 +327,7 @@ export interface OwnedSessionBot {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  avatarSeed?: 2;
   role: SessionRootRole;
 }
 
@@ -838,6 +841,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     ...(record.banner === undefined
       ? {}
       : { banner: botBannerSummary(record.slug, record.banner) }),
+    ...(record.avatarSeed === undefined ? {} : { avatarSeed: record.avatarSeed }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
@@ -1835,6 +1839,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug: bot.slug,
           displayName: bot.displayName,
           ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+          ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
           ...(bot.avatar === undefined
             ? {}
             : {
@@ -3803,6 +3808,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             botSlug: bot.slug,
             displayName: bot.displayName,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {

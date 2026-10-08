@@ -7,6 +7,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
 }));
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
+import { PersonaBotAvatar } from '../src/client/avatar.js';
 import { parseBotSummaries } from '../src/client/bridge.js';
 import {
   AVATAR_HAIR_PARTS,
@@ -16,6 +17,7 @@ import {
   AVATAR_SPECIES_SWATCHES,
   isIllustratedAvatarRecipe,
   seededAvatarRecipe,
+  seededAvatarRecipeV2,
 } from '../../core/src/bots/avatar-appearance.js';
 import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
@@ -356,6 +358,61 @@ describe('Profile Avatar Appearance editing', () => {
       });
       expect(flower).not.toHaveProperty('beard');
       expect(isIllustratedAvatarRecipe(flower)).toBe(true);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('starts a new Bot from its full-domain seed and keeps older Bots on their original face', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'gimli',
+      displayName: 'Gimli',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+      avatarSeed: 2 as const,
+    };
+    const face = async (avatarSeed: 2 | undefined) => {
+      const frame = document.createElement('div');
+      const avatar = createRoot(frame);
+      await act(() =>
+        avatar.render(
+          createElement(PersonaBotAvatar, {
+            personaBotId: 'gimli',
+            name: 'Gimli',
+            avatarSeed,
+            size: 32,
+            still: true,
+          }),
+        ),
+      );
+      const markup = frame.innerHTML;
+      await act(() => avatar.unmount());
+      return markup;
+    };
+    try {
+      expect(seededAvatarRecipeV2('Gimli')).not.toEqual(seededAvatarRecipe('Gimli'));
+      expect(await face(2)).not.toBe(await face(undefined));
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-gimli',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-edit]')!.click());
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-save]')!.click());
+      expect(save).toHaveBeenCalledWith('dm-gimli', seededAvatarRecipeV2('Gimli'));
     } finally {
       await act(() => root.unmount());
       container.remove();

@@ -357,6 +357,7 @@ export class WindowCompanion {
           ...(typeof bot['lifecycle'] === 'string' ? { lifecycle: bot['lifecycle'] } : {}),
           ...(typeof bot['avatar'] === 'string' ? { avatar: bot['avatar'] } : {}),
           ...(appearance === undefined ? {} : { appearance }),
+          ...(bot['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
         },
         activity: activity.bots.find((bot) => bot.slug === selection.botId),
       });
