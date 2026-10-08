@@ -113,7 +113,7 @@
 
 ### Documentation
 
-- 记录固定版本的原生 Human 等待验证：独立 Assignment 审批期间 Orchestrator 可继续处理，但其自身审批／提问仍阻塞无关模型处理；生产 continuation 仍保持 gate（[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。
+- 记录固定版本的原生 Human 等待验证，以及提问／权限待决期间群聊仍可互动的后续要求：独立 Assignment 审批期间 Orchestrator 可继续处理，但其自身审批／提问仍阻塞无关模型处理；生产 continuation 仍保持 gate（[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)）。
 
 - 记录已确认的窗口内透明半身像素伙伴设计：本地伙伴选择、三档 Bot 输出范围、独立播放开关及不重播历史的有界消息消费；本次不改变运行行为（[#1132](https://github.com/BotHarness/BotHarness/issues/1132)、[规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135)、[ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)）。
 

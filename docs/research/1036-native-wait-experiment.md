@@ -30,6 +30,36 @@ has been made. An upstream proposal needs contribution-rule review and Human
 authorization. Clearing the gate requires a supported mechanism and fresh real
 native/model qualification, not just a later version or a negative report.
 
+## Required product behavior and follow-up
+
+[#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038) owns the production
+requirement: an unanswered Orchestrator question or pending permission decision
+holds only the original operation that requires that answer or permission. The
+same PersonaBot must remain able to interact through its Orchestrator, including
+in the same Group Channel, while that request stays pending.
+
+The concrete acceptance case is a group member asking for private content that
+requires approval under the existing authority. Before any decision, that member
+and another eligible member send ordinary, permitted messages in the same group;
+the Bot must produce real model replies without resolving the original request,
+reading or disclosing protected content, or exposing private approval details.
+Harmless conversation cannot inherit permission from the pending request or
+count as an answer/approval. Apply the same availability check to an unanswered
+formal question. Existing Channel admission, visibility and reply policies still
+apply; this does not authorize replies to every group message.
+
+A rejection settles only the original operation as refused and leaves dialogue
+available. An accepted decision may continue only its exact original qualified
+operation after current actor, ownership, scope and destination checks; a question
+answer does not itself grant permission. Group participation alone cannot grant
+approval or authorize public disclosure of private content.
+
+These are explicit follow-up acceptance requirements, not results demonstrated
+by this experiment. The retained runs use synthetic DM traffic, not a qualified
+group privacy scenario. #1220 must first provide a supported mechanism; the
+existing #1036 → #1037 → #1038 implementation gates remain unchanged. This PR
+does not deliver the required conversation availability.
+
 ## Retained native evidence
 
 Times below are on 2026-10-09, Asia/Tokyo. JSON event times are Unix milliseconds;

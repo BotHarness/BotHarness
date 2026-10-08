@@ -113,7 +113,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Documentation
 
-- Documented the pinned native Human-wait qualification: independent Assignment approvals leave the Orchestrator available, while its own approval/question still blocks unrelated model processing; production continuation remains gated ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
+- Documented the pinned native Human-wait qualification and the follow-up requirement to keep group conversation available during pending questions/permissions: independent Assignment approvals leave the Orchestrator available, while its own approval/question still blocks unrelated model processing; production continuation remains gated ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)).
 
 - Documented the accepted in-window transparent pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
 
