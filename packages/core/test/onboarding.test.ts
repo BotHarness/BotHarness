@@ -312,3 +312,27 @@ it('upgrades main generation 70 without changing qualified defaults or purge fen
     upgraded.close();
   }
 });
+
+it('projects current search readiness through onboarding without persisting it as completion', async () => {
+  await withCore(async (core) => {
+    let available = false;
+    const bridge = createBridgeMethods({ ...core, onboardingNews: async () => available });
+    const first = await bridge.onboarding({});
+    expect(first).toMatchObject({ ok: true, value: { newsAvailable: false, completed: false } });
+    available = true;
+    expect(await bridge.onboarding({})).toMatchObject({
+      ok: true,
+      value: { newsAvailable: true, completed: false },
+    });
+    const failed = createBridgeMethods({
+      ...core,
+      onboardingNews: async () => {
+        throw Error('query unavailable');
+      },
+    });
+    expect(await failed.onboarding({})).toMatchObject({
+      ok: true,
+      value: { newsAvailable: false, completed: false },
+    });
+  });
+});
