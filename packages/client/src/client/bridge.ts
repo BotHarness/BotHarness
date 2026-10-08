@@ -1107,7 +1107,11 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
         !/^[a-f0-9]{64}$/.test(item['id']) ||
         typeof item['name'] !== 'string' ||
         ids.has(item['id']) ||
-        Object.keys(item).some((key) => !['id', 'kind', 'name'].includes(key))
+        (item['sizeBytes'] !== undefined &&
+          (typeof item['sizeBytes'] !== 'number' ||
+            !Number.isSafeInteger(item['sizeBytes']) ||
+            item['sizeBytes'] < 0)) ||
+        Object.keys(item).some((key) => !['id', 'kind', 'name', 'sizeBytes'].includes(key))
       )
         return;
       ids.add(item['id']);

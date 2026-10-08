@@ -7,12 +7,14 @@ export function BridgeFile({
   sourceEventId,
   attachmentId,
   name,
+  sizeBytes,
   t,
 }: {
   channelId: string;
   sourceEventId: string;
   attachmentId: string;
   name: string;
+  sizeBytes?: number | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const url =
@@ -32,7 +34,12 @@ export function BridgeFile({
           <span className="bh-message-file-name" title={name}>
             {name}
           </span>
-          <span className="bh-message-file-size">{t('fileAction.download')}</span>
+          <span className="bh-message-file-size">
+            {t('bridgeMedia.file')}
+            {sizeBytes === undefined
+              ? ''
+              : ' · ' + Math.max(1, Math.round(sizeBytes / 1024)) + ' KB'}
+          </span>
         </span>
       </a>
     </div>

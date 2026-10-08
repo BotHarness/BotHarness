@@ -85,6 +85,9 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
                 id: item.id,
                 kind: item.mediaType?.startsWith('image/') ? ('image' as const) : ('file' as const),
                 name: item.name,
+                ...(item.mediaType === 'application/octet-stream' && item.sizeBytes !== undefined
+                  ? { sizeBytes: item.sizeBytes }
+                  : {}),
               })),
             ...(source.event.contentParts ? { parts: source.event.contentParts } : {}),
           },

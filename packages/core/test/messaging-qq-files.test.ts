@@ -118,10 +118,11 @@ it.each(['qualified', 'no-generic', 'no-fence'])(
         resourceKey: 'private-selector',
         name: 'input.csv',
         mediaType: 'application/octet-stream',
+        sizeBytes: bytes.length,
       };
       const receive = async (messageId: string) => {
         if (!receiver) throw new Error('QQ receiver unavailable');
-        const image = { ...attachment, messageId };
+        const file = { ...attachment, messageId };
         await receiver.onEvent(
           {
             version: 1,
@@ -136,10 +137,10 @@ it.each(['qualified', 'no-generic', 'no-fence'])(
             mentionedAccount: true,
             at: new Date(Date.now() + 100).toISOString(),
             text: 'Sum the quantities',
-            attachments: [image],
+            attachments: [file],
             contentParts: [
               { kind: 'text', text: 'Sum the quantities' },
-              { kind: 'attachment', id: image.id },
+              { kind: 'attachment', id: file.id },
             ],
             reply: { messageId, conversationId: 'qq-group', actorId: 'human' },
             replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
