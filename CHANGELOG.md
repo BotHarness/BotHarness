@@ -53,6 +53,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Changed
 
+- **Bind app** links directly to the website connection tutorials for Lark / Feishu, Slack and WeChat, with a more-platforms overview; the standalone Lark setup card is removed so platform instructions stay in one place ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
+
 - **New conversations** is now a platform default too: Lark, Slack and Discord each have a **New conversations** choice in their global IM defaults (**Admit automatically** unless changed), and every bound app follows it until you pick a value for that app. Apps already set to **Ask me first** keep it ([#1134](https://github.com/BotHarness/BotHarness/issues/1134), [External identities guide](docs/channel-sidebar/external-identities.md)).
 - The External connectors entry no longer offers **Add connector** or **Authorize a conversation** while syncing is redesigned around connecting any app's conversation; it lists existing syncs and keeps **Save a send target (advanced)** for apps that can't post to conversations directly. A conversation row shows where it is synced, and its actions (**Mute**, **Rules**, **Block**) sit on their own row with a tooltip each. The Lark setup guide shrinks to three steps (connect the app, bind it, send a test message), and the Lark, Slack and WeChat guides are rewritten around **Bind app** ([#1113](https://github.com/BotHarness/BotHarness/issues/1113), [Lark guide](docs/lark-connection.md), [External connectors guide](docs/channel-sidebar/external-connectors.md)).
 

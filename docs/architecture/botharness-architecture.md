@@ -235,7 +235,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 接收以外部身份 Binding 为键，而不是保存的目标。启用的 Binding 把应用的默认流量（私聊和合格的群 @）接收进绑定 Bot 的 Inbox。会话的第一条被接收的消息，会与其 Source Event、Inbox Admission 在同一事务中提交一个隐式会话条目（`messaging_grants` 中 `origin: 'implicit'` 的行），使 Outbox fence、群策略、Channel Bridge 路由和撤销仍挂在同一个锚点上。Binding 的新会话模式（`auto` 或 `ask`）及其上限（每小时 20 个新条目、500 个活跃、200 个等待）决定新会话被接收还是等待处理。屏蔽按 Bot、应用指纹、会话类型和 ID 持久保存；静音只推进 `preferenceRevision`，不改动条目的 Outbox revision。一个 Bot 可以绑定同一平台的多个应用，每个应用仍只属于一个 Bot。Client 中，应用的会话列表管理这些条目并显示已有的 Channel Bridge 路由（新建同步正在围绕外部连接器重新设计），「外部连接器」列出这些路由并保留保存目标的 Service Grant，作为 Provider 无法列出或直接发往会话时的高级后备。
 
-[#824](https://github.com/BotHarness/BotHarness/issues/824) 在 PersonaBot Profile 增加可恢复的配置引导，本地打包的 Driver.js 定位既有原生 IM 设置、身份与群授权控件。进度只投影当前兼容 Provider、账号、Binding／Grant、已收测试 Source Event 和沿原来源回复的 Outbox 回执；可选的认证自身回传仍单独呈现。平台接受、外部可见投递和已读回执明确区分。不建立新手引导数据库、额外凭据存储或消息权威；打开和关闭引导不产生授权或发送。
+外部应用的准备步骤由官网教程维护，既有 **绑定应用** 弹窗提供对应语言的教程链接，不再显示独立 Lark 配置引导卡片。Driver.js 保留为应用内部控件定位工具，不承载平台配置说明。绑定、接收与回复结果仍来自既有 Provider／Host 权威；打开教程不产生授权或发送，也不新增引导存储。
 
 ### 首条外部出站路径（ADR-0101）
 

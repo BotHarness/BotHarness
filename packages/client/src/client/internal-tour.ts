@@ -1,6 +1,6 @@
 import { driver } from 'driver.js';
 
-export function highlightLarkSetup(
+export function highlightInternalControl(
   element: Element,
   title: string,
   description: string,
@@ -13,7 +13,7 @@ export function highlightLarkSetup(
     smoothScroll: false,
     allowKeyboardControl: false,
     showButtons: ['close'],
-    popoverClass: 'bh-lark-tour',
+    popoverClass: 'bh-internal-tour',
     overlayColor: 'var(--dsw-alias-bg-mask-1)',
     overlayOpacity: 1,
     onPopoverRender: (popover) => {
