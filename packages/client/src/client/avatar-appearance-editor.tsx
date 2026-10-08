@@ -98,7 +98,6 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
 type Fields = Record<string, string | number>;
 
 const DETAIL = new Set<string>([...Object.keys(AVATAR_HAIR_PARTS), ...Object.keys(AVATAR_RANGES)]);
-// Choices that need an asset version 2 recipe: a species, or a side piece edited on its own.
 const SPLIT = new Set<string>(['species', 'sideHair', 'rightSideHair', ...AVATAR_PIECE_COLORS]);
 
 function withPart(recipe: AvatarRecipe, key: string, value: string | number): AvatarRecipe {
@@ -119,7 +118,6 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
   const next = { ...recipe, [key]: value } as IllustratedAvatarRecipe;
   if (key !== 'hair' || recipe.bangs === undefined) return next;
   const { bangs: _b, sideHair: _s, backHair: _h, ...plain } = next;
-  // The bare style is re-split; a version 2 recipe keeps its species and mirrors the new side.
   const split = detailedAvatarRecipe(plain as unknown as IllustratedAvatarRecipe);
   return {
     ...split,
@@ -142,7 +140,6 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   for (const [key, [min, max]] of Object.entries(spec.ranges))
     next[key] = min + Math.floor(Math.random() * (max - min + 1));
   if (recipe.family !== 'illustrated') return next as unknown as AvatarRecipe;
-  // Every species is in reach; the body color comes from that species' suggestions.
   const species = pick(AVATAR_SPECIES);
   const random = withAvatarSpecies(next as unknown as IllustratedAvatarRecipe, species);
   for (const color of AVATAR_PIECE_COLORS) delete random[color];
