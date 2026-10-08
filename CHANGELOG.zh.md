@@ -74,6 +74,8 @@
 
 ### Documentation
 
+- 记录已确认的窗口内透明半身像素伙伴设计：本地伙伴选择、三档 Bot 输出范围、独立播放开关及不重播历史的有界消息消费；本次不改变运行行为（[#1132](https://github.com/BotHarness/BotHarness/issues/1132)、[规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135)、[ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)）。
+
 - 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括 AppData 物理路径、隔离 Profile 的包管理器版本锁定、真实 Shell 退出证据及进程时间戳保护。双语 [Lark 指南](docs/lark-connection.md)记录准确候选源码经 Human 点击允许一次／拒绝的真实核验；此次文档更新不改变运行行为（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 - 记录开发来源 Discord 共享 Channel 在一个绑定成员、Message Content OFF 下的资格验证，包含原 thread 模型回复、重叠去重及暂停／重启／恢复证据（[#1054](https://github.com/BotHarness/BotHarness/issues/1054)，[英文验证](docs/dev/verification/discord-1054-shared-channel.md)、[中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)）。

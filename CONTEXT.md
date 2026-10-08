@@ -62,6 +62,14 @@ _Avoid_: Soul, Bot type, mode, skin
 A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
 _Avoid_: Soul, pose, mood, skin
 
+**Window Companion**:
+A Human-selected Binding that keeps one PersonaBot's Avatar present across pages within the Harness window and presents selected activity and messages. It retains the existing PersonaBot identity and is independent of Channel pinning and the active conversation.
+_Avoid_: desktop pet, Channel pin, separate bot
+
+**Companion Visibility**:
+The Human-selected Channel scope for a Window Companion's PersonaBot-authored messages: the Human–PersonaBot DM, Channels shared by both, or every Channel the PersonaBot has joined. It is separate from message-kind playback choices and does not change Channel membership or execution authority.
+_Avoid_: Channel pin, Channel membership, Agent Scope
+
 **Model Preset**:
 A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
 _Avoid_: DSH Agent preset, SoulSnapshot
