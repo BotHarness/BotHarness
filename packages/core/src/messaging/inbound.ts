@@ -1240,9 +1240,13 @@ export function createInboundMessaging(options: {
     for (const commit of placed) {
       try {
         options.onPlaced?.(commit);
-        options.onIngested?.(commit.channelId, commit.message.id);
       } catch {
         options.warn?.('ingest-channel-publication-failed');
+      }
+      try {
+        options.onIngested?.(commit.channelId, commit.message.id);
+      } catch {
+        options.warn?.('ingest-admission-wake-failed');
       }
     }
     try {
