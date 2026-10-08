@@ -1730,6 +1730,25 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   gap: 12px;
   min-width: 0;
 }
+.bh-market-banner,
+.bh-market-banner-thumb {
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 3 / 1;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-market-banner {
+  width: 100%;
+  max-height: 160px;
+  border-radius: 10px;
+}
+.bh-market-banner-thumb {
+  width: 84px;
+  border-radius: 6px;
+}
+@media (max-width: 520px) { .bh-market-banner-thumb { display: none; } }
 .bh-market-github {
   flex: none;
   color: var(--bh-accent);

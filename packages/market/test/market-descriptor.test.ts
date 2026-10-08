@@ -73,6 +73,33 @@ describe('Marketplace Worker presentation', () => {
     });
   });
 
+  it('serves a banner recipe as is and an uploaded banner as a raw URL at the indexed commit', async () => {
+    const market = createMarket();
+    const scene = fakeRepository({
+      name: 'scene',
+      descriptor: JSON.stringify({ banner: { recipe: { scene: 'sea', seed: 7 } } }),
+    });
+    const upload = fakeRepository({
+      name: 'upload',
+      descriptor: JSON.stringify({ banner: { image: '.botharness/banner.png' } }),
+    });
+    const none = fakeRepository({ name: 'none' });
+    for (const repository of [scene, upload, none]) market.publish(repository);
+
+    const banners = [];
+    for (const repository of [scene, upload, none]) {
+      const body = (await (await submit(market, repository.htmlUrl)).json()) as {
+        bot: { banner: unknown; headCommit: { sha: string } | null };
+      };
+      banners.push(body.bot);
+    }
+    expect(banners[0]?.banner).toEqual({ recipe: { scene: 'sea', seed: 7 } });
+    expect(banners[1]?.banner).toEqual({
+      image: `https://raw.githubusercontent.com/${upload.owner}/upload/${banners[1]?.headCommit?.sha}/.botharness/banner.png`,
+    });
+    expect(banners[2]?.banner).toBeNull();
+  });
+
   it('falls back to legacy roles and the GitHub description', async () => {
     const market = createMarket();
     const repository = fakeRepository({
