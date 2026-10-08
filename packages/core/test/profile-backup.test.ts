@@ -16,8 +16,10 @@ import {
   restoreProfileBackup,
   type ProfileBackupSource,
 } from '../src/portability/package.js';
-import { readZip, writeZip } from '../src/bots/zip-archive.js';
+import { writeZip } from '../src/bots/zip-archive.js';
 import type { ModelCatalog } from '../src/models/catalog.js';
+import { selectAssignmentRoute, type ModelRoute } from '../src/models/presets.js';
+import { createModelRouteReadiness } from '../src/models/readiness.js';
 import type { MessagingProvider } from '../src/messaging/provider.js';
 import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from '../src/portability/http.js';
 
@@ -183,6 +185,128 @@ it('round trips the complete core, custom/deleted Memory, editable attachment id
   expect((await restored.profileRecovery.status(catalog)).bots.map((bot) => bot.slug)).toEqual([
     'keeper',
   ]);
+});
+
+it('preserves independent model snapshots, Assignment choices and template revisions without importing credentials or falling back after restore', async () => {
+  const home = root();
+  const core = mount(home);
+  for (const slug of ['customized', 'applied'])
+    expect(core.registry.create({ slug, displayName: slug }).ok).toBe(true);
+  const reasoning = { ...route, model: 'reasoner', reasoningEffort: 'high' };
+  const choices = [
+    { ...route, allowedEfforts: [''], defaultEffort: '' },
+    {
+      provider: reasoning.provider,
+      model: reasoning.model,
+      allowedEfforts: ['low', 'high'],
+      defaultEffort: 'high',
+    },
+  ];
+  const template = core.modelPresets.create({
+    name: 'Shared template',
+    orchestrator: route,
+    assignmentDefault: reasoning,
+    assignmentModels: choices,
+  });
+  for (const slug of ['customized', 'applied'])
+    expect(core.registry.applyModelPreset(slug, template).ok).toBe(true);
+  expect(core.registry.customizeModelPlan('customized', reasoning, 1).ok).toBe(true);
+  expect(core.registry.setAssignmentModels('customized', route, choices, 2).ok).toBe(true);
+  const editedTemplate = core.modelPresets.update(template.id, {
+    expectedRevision: template.revision,
+    name: 'Edited after applying',
+    orchestrator: { ...route, model: 'template-only-model' },
+    assignmentDefault: route,
+    assignmentModels: [choices[0]!],
+  });
+  expect(editedTemplate?.revision).toBe(2);
+  const customized = core.registry.get('customized')!.modelPlan!;
+  const applied = core.registry.get('applied')!.modelPlan!;
+  expect(customized).toMatchObject({ revision: 3, sourcePresetId: '', assignmentDefault: route });
+  expect(applied).toMatchObject({
+    revision: 1,
+    sourcePresetId: template.id,
+    sourcePresetName: template.name,
+    assignmentDefault: reasoning,
+  });
+  const credential = 'SYNTHETIC-EXCLUDED-PROFILE-CREDENTIAL';
+  writeFileSync(join(home, '.credentials.yaml'), 'deepseek: ' + credential);
+  const path = join(root(), 'model-plans.botharness-backup');
+  await exportProfileBackup(source(core), path);
+  const archive = readFileSync(path);
+  const inspected = inspectProfileBackup(archive);
+  expect(inspected.entries.some((entry) => entry.data.includes(Buffer.from(credential)))).toBe(
+    false,
+  );
+  expect(inspected.manifest.dependencies).toContainEqual({
+    kind: 'model',
+    scope: 'customized/assignment-option',
+    reference: JSON.stringify(choices[1]),
+    required: false,
+    contract: 'assignment-model-option/1',
+  });
+  const destination = join(root(), 'restored');
+  await restoreProfileBackup(archive, destination);
+  expect(existsSync(join(destination, '.credentials.yaml'))).toBe(false);
+  let restored = mount(destination);
+  expect(restored.modelPresets.list()).toEqual([editedTemplate]);
+  const restoredCustomized = restored.registry.get('customized')!.modelPlan!;
+  const restoredApplied = restored.registry.get('applied')!.modelPlan!;
+  expect(restoredCustomized).toEqual(customized);
+  expect(restoredApplied).toEqual(applied);
+  const validated: ModelRoute[] = [];
+  let available = false;
+  const targetCatalog: ModelCatalog = {
+    list: async () => [],
+    validate: async (selected) => {
+      validated.push(selected);
+      if (!available) throw new Error('Target provider, model or credential is unavailable');
+    },
+  };
+  await expect(
+    restored.profileRecovery.authorizeModel('customized', targetCatalog),
+  ).rejects.toThrow('unavailable');
+  expect(() => restored.profileRecovery.activate('customized', true)).toThrow();
+  available = true;
+  await restored.profileRecovery.authorizeModel('customized', targetCatalog);
+  restored.profileRecovery.activate('customized', true);
+  const readiness = createModelRouteReadiness(restored.registry, targetCatalog);
+  expect(selectAssignmentRoute(restoredCustomized)).toEqual(route);
+  expect(selectAssignmentRoute(restoredApplied)).toEqual(reasoning);
+  const selected = selectAssignmentRoute(restoredCustomized, {
+    provider: reasoning.provider,
+    model: reasoning.model,
+  });
+  await readiness.prepare('customized', 'assignment', selected);
+  expect(validated.at(-1)).toEqual(reasoning);
+  expect(() =>
+    selectAssignmentRoute(restoredCustomized, { ...route, model: 'outside-allowlist' }),
+  ).toThrow('not allowed');
+  expect(() =>
+    selectAssignmentRoute(restoredCustomized, { ...reasoning, reasoningEffort: 'medium' }),
+  ).toThrow('not allowed');
+  available = false;
+  const attempts = validated.length;
+  await expect(readiness.prepare('customized', 'assignment', selected)).rejects.toThrow(
+    'unavailable',
+  );
+  expect(validated.slice(attempts)).toEqual([reasoning]);
+  restored.modelPresets.update(template.id, {
+    expectedRevision: editedTemplate!.revision,
+    name: 'Target-local template edit',
+    orchestrator: route,
+    assignmentDefault: route,
+    assignmentModels: [choices[0]!],
+  });
+  restored.schedules.close();
+  await restored.runtime.close();
+  restored.operationalDatabase.close();
+  restored = mount(destination);
+  expect(restored.modelPresets.get(template.id)?.revision).toBe(3);
+  expect(restored.registry.get('customized')?.modelPlan).toEqual(customized);
+  expect(restored.registry.get('applied')?.modelPlan).toEqual(applied);
+  expect(() => restored.profileRecovery.requireExecution('customized')).not.toThrow();
+  expect(() => restored.profileRecovery.requireExecution('applied')).toThrow();
 });
 
 it('suspends a real provider grant and preserves issued Outbox uncertainty without replay across restore', async () => {
