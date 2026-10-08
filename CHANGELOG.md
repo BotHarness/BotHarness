@@ -17,6 +17,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- The welcome’s ten-minute reminder now shows the browser time zone and requests a single delivery to the current DM; the Host computes relative deadlines without rounding them early, and the Bot receives concise one-time scheduling and destination guidance ([#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)).
+
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
 
 - After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
