@@ -69,9 +69,9 @@ When listing fails, the Bot Marketplace says why:
 | This repository was just listed                    | One repository is fetched at most once per 5 minutes; retry later. |
 | This repository is blocked or hidden after reports | Open an Issue on the BotHarness repository to contact us.          |
 
-## Name, tags, bio and avatar: `.botharness/bot.json`
+## Name, tags, bio, avatar and banner: `.botharness/bot.json`
 
-DeepSeekBot writes `.botharness/bot.json` into every Bot's Memory and keeps it up to date: when you create a Bot, and each time you change its name, tags, bio or avatar in **Edit profile**. Bots created before this get the file the next time DeepSeekBot starts. The Marketplace and the installed Bot read it, so they show the same name, tags, bio and avatar as your sidebar. An uploaded avatar image is saved next to it as `.botharness/avatar.png` (or `.jpg`, `.webp`).
+DeepSeekBot writes `.botharness/bot.json` into every Bot's Memory and keeps it up to date: when you create a Bot, and each time you change its name, tags, bio or avatar in **Edit profile**. Bots created before this get the file the next time DeepSeekBot starts. The Marketplace and the installed Bot read it, so they show the same name, tags, bio and avatar as your sidebar. An uploaded avatar image is saved next to it as `.botharness/avatar.png` (or `.jpg`, `.webp`). The Profile banner is always saved as `.botharness/banner.png` (1500 × 500), whether it is a generated pixel scene or an uploaded image.
 
 You can also edit the file by hand. DeepSeekBot keeps any other keys you add, and keeps your edits until you next change the name, tags, bio or avatar in DeepSeekBot:
 
@@ -80,17 +80,34 @@ You can also edit the file by hand. DeepSeekBot keeps any other keys you add, an
   "name": "BotPixel",
   "tags": ["Pixel art", "Avatar design"],
   "bio": "Turns a one-line description into a pixel avatar.",
-  "avatar": { "image": "assets/avatar.png" }
+  "avatar": { "image": "assets/avatar.png" },
+  "banner": { "recipe": { "scene": "sea", "seed": 2786543041 } }
 }
 ```
 
-| Field    | Meaning                                                                                                            |
-| -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `name`   | Name shown in the Marketplace, up to 60 characters.                                                                |
-| `tags`   | Tags, up to 8, each up to 32 characters. Older files that use `roles` are still read as tags.                      |
-| `bio`    | A short introduction, up to 160 characters. Without it the Marketplace shows the GitHub repository description.    |
-| `avatar` | `{ "image": "path in the repository" }` (PNG, JPEG or WebP, at most 128 KiB), or a pixel avatar `{ "recipe": … }`. |
+| Field    | Meaning                                                                                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | Name shown in the Marketplace, up to 60 characters.                                                                                                                                                                                             |
+| `tags`   | Tags, up to 8, each up to 32 characters. Older files that use `roles` are still read as tags.                                                                                                                                                   |
+| `bio`    | A short introduction, up to 160 characters. Without it the Marketplace shows the GitHub repository description.                                                                                                                                 |
+| `avatar` | `{ "image": "path in the repository" }` (PNG, JPEG or WebP, at most 128 KiB), or a pixel avatar `{ "recipe": … }`.                                                                                                                              |
+| `banner` | A generated pixel scene `{ "recipe": { "scene", "seed" } }`, or `{ "image": ".botharness/banner.png" }` (a 3:1 PNG, at most 2 MB). Scenes: `spring`, `summer`, `autumn`, `winter`, `sea`, `mountain`, `desert`, `forest`, `night-sky`, `space`. |
 
 Every field is optional. An invalid file is ignored as a whole, and the Marketplace falls back to the repository name and a generated pixel avatar.
+
+## Profile banner
+
+Every Bot has a banner at the top of its Profile and of the popover you get from the name at the top of a DM. A new Bot gets a pixel scene picked from its name, and renaming the Bot doesn't change it; Bots created before banners existed get one the next time DeepSeekBot starts.
+
+Hover the banner and click **Change banner** to:
+
+- pick one of ten scenes: spring, summer, autumn, winter, sea, mountain, desert, forest, night sky or space;
+- **Reroll** for another picture of the same scene;
+- **Upload** your own image and crop it to 3:1;
+- **Reset** to the scene picked from the Bot's current name.
+
+![Change banner: a preview, Reroll, Upload, Reset and the ten scenes](/guides/share-bot/05-banner-en.webp)
+
+The banner travels with the Bot: Bot Zip export and import, and installing from GitHub, keep it.
 
 Related: [Memory files](/docs/channel-sidebar/memory-files), [Memory evolution](/docs/channel-sidebar/memory-evolution).

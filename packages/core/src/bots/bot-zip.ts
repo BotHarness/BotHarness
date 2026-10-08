@@ -8,6 +8,7 @@ import {
   parseBotDescriptor,
   type BotDescriptor,
 } from '../marketplace/descriptor.js';
+import { BOT_BANNER_FILE } from './bot-banner.js';
 import {
   readZip,
   writeZip,
@@ -64,6 +65,7 @@ export function alwaysIncludedFiles(memoryDir: string, files: readonly string[])
       always.push(avatar.image);
     }
   } catch {}
+  if (files.includes(BOT_BANNER_FILE)) always.push(BOT_BANNER_FILE);
   return always;
 }
 

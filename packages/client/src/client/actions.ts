@@ -1,3 +1,4 @@
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { onboardingFor } from './onboarding.js';
 import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
@@ -90,6 +91,7 @@ import {
   setGroupAvatar as setGroupAvatarViaBridge,
   setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
+  setBotBanner as setBotBannerViaBridge,
   updateBotProfile as updateBotProfileViaBridge,
   setBotAppearance as setBotAppearanceViaBridge,
   cancelGroupInvitation,
@@ -218,6 +220,7 @@ import {
   type MemoryRecoveryCheckpoint,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type ProfileActivityWindow,
   type GroupProfileActivity,
   type BotSourcePolicyView,
   type BotScheduleView,
@@ -460,7 +463,7 @@ export interface BridgeActions {
   memoryDiff(channelId: string, sha: string): Promise<string>;
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
-  profileActivity(channelId: string): Promise<ProfileActivity>;
+  profileActivity(channelId: string, window?: ProfileActivityWindow): Promise<ProfileActivity>;
   overviewMemory(
     after?: string,
   ): Promise<import('../../../core/src/memory/overview.js').OverviewMemory>;
@@ -564,6 +567,10 @@ export interface BridgeActions {
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotBanner(
+    channelId: string,
+    banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+  ): Promise<boolean>;
   updateBotProfile(
     slug: string,
     patch: { roles?: string[]; description?: string },
@@ -1900,7 +1907,7 @@ export function createActions(
     memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
-    profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    profileActivity: (channelId, window) => loadProfileActivity(call, channelId, window),
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     marketplaceList: (query) => loadMarketplacePage(call, query),
@@ -2261,6 +2268,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: PersonaBot avatar update failed', error);
+        return false;
+      }
+    },
+    async setBotBanner(channelId, banner) {
+      try {
+        const bot = await setBotBannerViaBridge(call, channelId, banner);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: Bot banner update failed', error);
         return false;
       }
     },

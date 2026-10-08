@@ -23,16 +23,23 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   StateDot: () => null,
 }));
 
-it.each(['allowed-once', 'rejected', 'allowed-always-all'] as const)(
-  'keeps all requests outside speech retention and submits %s from an unrelated page',
-  async (outcome) => {
+it.each([
+  ['allowed-once', 2, false, false],
+  ['rejected', 2, false, false],
+  ['allowed-always-all', 2, false, false],
+  ['rejected', 1, true, false],
+  ['rejected', 2, true, true],
+] as const)(
+  'submits %s across pages with %i requests, decision before projection %s, and moved focus %s',
+  async (outcome, requestCount, decisionBeforeProjection, movedFocus) => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', () => undefined);
     const old = store.getSnapshot();
     const events = new EventTarget();
     let revision = 0;
-    const pending = new Set(['one', 'two']);
+    const pending = new Set(['one', 'two'].slice(0, requestCount));
+    let releaseDecision: (() => void) | undefined;
     const decisions: unknown[] = [];
     const call: BridgeCall = async (endpoint, payload) => {
       if (endpoint === 'toolApprovalStatus')
@@ -41,9 +48,13 @@ it.each(['allowed-once', 'rejected', 'allowed-always-all'] as const)(
           value: { status: pending.has(payload['messageId'] as string) ? 'pending' : 'expired' },
         };
       if (endpoint === 'toolApprovalDecide') {
+        if (decisionBeforeProjection)
+          await new Promise<void>((resolve) => {
+            releaseDecision = resolve;
+          });
         decisions.push(payload);
         pending.delete(payload['messageId'] as string);
-        snapshot();
+        if (!decisionBeforeProjection) snapshot();
         return { ok: true, value: { accepted: true } };
       }
       if (endpoint === 'humanAttentionStatus')
@@ -126,12 +137,12 @@ it.each(['allowed-once', 'rejected', 'allowed-always-all'] as const)(
           }),
         ),
       );
-      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(2);
+      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(requestCount);
       expect(node.querySelector('.bh-companion-cards')).toBeNull();
       expect(node.textContent).toContain('/qa/release');
       expect(node.textContent).toContain('滚动查看全部');
       await act(() => companion.get('ada')!.advance(30_000));
-      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(2);
+      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(requestCount);
       await act(() => events.dispatchEvent(new Event('error')));
       expect(
         [...node.querySelectorAll<HTMLButtonElement>('.bh-tool-approval-card button')].every(
@@ -165,12 +176,23 @@ it.each(['allowed-once', 'rejected', 'allowed-always-all'] as const)(
         await act(async () => button('确认始终允许').click());
       } else
         await act(async () => button(outcome === 'rejected' ? '拒绝' : '仅批准这一次').click());
+      if (decisionBeforeProjection) {
+        expect(button('拒绝').disabled).toBe(true);
+        button('拒绝').blur();
+        if (movedFocus) node.querySelector<HTMLButtonElement>('.bh-companion-character')!.focus();
+        await act(async () => releaseDecision!());
+        if (!movedFocus) expect(document.activeElement).toBe(document.body);
+        await act(() => snapshot());
+      }
       expect(decisions).toEqual([{ channelId: 'dm-ada', messageId: 'one', outcome }]);
       expect(store.getSnapshot().selection).toEqual({ kind: 'channel', channelId: 'unrelated' });
-      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(1);
-      expect(node.querySelector('.bh-companion-pending')?.contains(document.activeElement)).toBe(
-        true,
-      );
+      expect(node.querySelectorAll('.bh-companion-pending li')).toHaveLength(requestCount - 1);
+      if (requestCount === 1 || movedFocus)
+        expect(document.activeElement).toBe(node.querySelector('.bh-companion-character'));
+      else
+        expect(node.querySelector('.bh-companion-pending')?.contains(document.activeElement)).toBe(
+          true,
+        );
       await act(() => companion.remove('ada'));
       expect(decisions).toHaveLength(1);
     } finally {

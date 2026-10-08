@@ -136,6 +136,7 @@ interface MutableMetrics {
 }
 
 interface InternalOwner {
+  backupBarrier?: boolean;
   closeEffects: Set<() => void>;
   owner: OwnerImplementation;
   database: DatabaseSync | undefined;
@@ -316,6 +317,8 @@ export function attachOperationalModule(
       command: (database: DatabaseSync) => T,
       notificationTopics: readonly string[] = [],
     ): T {
+      if (internal.backupBarrier)
+        throw new OperationalDatabaseError('transaction-failed', 'Profile Backup Barrier is held');
       const database = readyDatabase(internal);
       if (database.isTransaction) {
         throw new OperationalDatabaseError(
@@ -420,6 +423,35 @@ export function failOperationalDatabase(owner: OperationalDatabaseOwner, message
     requireInternal(owner),
     new OperationalDatabaseError('recovery-mode', message),
   );
+}
+export function withOperationalBackup<T>(
+  owner: OperationalDatabaseOwner,
+  snapshotPath: string,
+  capture: () => T,
+): T {
+  const internal = requireInternal(owner);
+  const database = readyDatabase(internal);
+  if (internal.backupBarrier || database.isTransaction || existsSync(snapshotPath))
+    throw new OperationalDatabaseError('transaction-failed', 'Profile snapshot is busy');
+  internal.backupBarrier = true;
+  try {
+    database.prepare('VACUUM INTO ?').run(snapshotPath);
+    const result = capture();
+    if (isThenable(result)) throw new TypeError('Backup Barrier capture must be synchronous');
+    return result;
+  } finally {
+    internal.backupBarrier = false;
+  }
+}
+
+export function validateOperationalSnapshot(path: string): number {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    assertIntegrity(database);
+    return readSchemaGeneration(database);
+  } finally {
+    database.close();
+  }
 }
 
 export function onOperationalDatabaseClose(

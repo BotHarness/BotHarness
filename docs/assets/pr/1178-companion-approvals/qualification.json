@@ -1,0 +1,185 @@
+{
+  "runtimeCode": "1b11da0c6e374c8e8911428611e035dd6594fa7e",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "source": "Actual isolated DSH; native Session Persistence reader plus canonical Channel decisions and authenticated original download",
+  "rejection": {
+    "runtimeCode": "6c95cd414398c19e309b887904b156b4e884a199",
+    "checks": [
+      "Broad-rule confirmation cancelled without decision or persistent rule creation",
+      "Keyboard Enter committed exactly one canonical rejection",
+      "Request removed; character focus restored while unrelated conversation remained selected",
+      "Original native Session resumed and actual Bot committed denial reply"
+    ],
+    "afterDecision": {
+      "pending": 0,
+      "focused": "拖动 授权验收 Ada；点击打开私聊",
+      "unrelatedSelected": true
+    },
+    "actualBotDenialReply": true
+  },
+  "approval": {
+    "checks": [
+      "Actual companion UI accepted exactly one one-time approval while unrelated conversation remained open",
+      "Authenticated original download changed from exact BEFORE bytes to exact AFTER bytes",
+      "Original Bot continued and committed actual result to its DM"
+    ],
+    "approvalAskedSeq": 92,
+    "approvalDecidedSeq": 93,
+    "outcome": "allowed-once",
+    "toolCalls": [
+      {
+        "name": "channel_read",
+        "callSeq": 85,
+        "resultSeq": 86,
+        "isError": false
+      },
+      {
+        "name": "channel_attachment_open",
+        "callSeq": 91,
+        "resultSeq": 94,
+        "isError": false
+      },
+      {
+        "name": "read",
+        "callSeq": 99,
+        "resultSeq": 100,
+        "isError": false
+      },
+      {
+        "name": "edit",
+        "callSeq": 105,
+        "resultSeq": 106,
+        "isError": false
+      },
+      {
+        "name": "read",
+        "callSeq": 111,
+        "resultSeq": 112,
+        "isError": false
+      },
+      {
+        "name": "channel_send",
+        "callSeq": 117,
+        "resultSeq": 118,
+        "isError": false
+      }
+    ],
+    "originalBytesBefore": "BH_ATTACHMENT_1791483439328_BEFORE\n",
+    "originalBytesAfter": "BH_ATTACHMENT_1791483439328_AFTER\n",
+    "actualResultMessage": true
+  },
+  "limitations": [
+    "Successful native Shell execution remains unqualified after the prior Windows ACL refusal.",
+    "Silent screen recordings do not qualify audio or frame performance.",
+    "Broad rule confirmation was cancelled; no saved broad authorization was created."
+  ],
+  "unpinRepin": {
+    "runtimeCode": "1b11da0c",
+    "checks": [
+      "Unpin removed only the view; canonical native request stayed pending",
+      "Repinning rediscovered the same existing owner request while an unrelated conversation stayed open"
+    ]
+  },
+  "offline": {
+    "runtimeCode": "1b11da0c",
+    "checks": [
+      "Offline click could not complete fresh owner status; no canonical decision was committed"
+    ],
+    "note": "Existing SSE stayed live during browser Offline emulation. Fresh owner status failed and no decision was committed. Explicit online revalidation restored pending controls; this is not an automatic SSE reconnect claim."
+  },
+  "layout": {
+    "beforeCode": "1b11da0c",
+    "afterCode": "6c95cd414398c19e309b887904b156b4e884a199",
+    "before": {
+      "cardWidth": 295,
+      "gridColumns": "324.688px",
+      "listClientWidth": 311,
+      "listScrollWidth": 333,
+      "children": [
+        {
+          "className": "bh-grant-request-title",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-note",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-note",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-tool-approval-input",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-note",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-note",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "_button_1rv3m_2 _outline_1rv3m_54 _md_1rv3m_23",
+          "width": 324.6875,
+          "right": 29.6875
+        },
+        {
+          "className": "bh-error",
+          "width": 316.6875,
+          "right": 25.6875
+        }
+      ]
+    },
+    "after": {
+      "cardWidth": 295,
+      "gridColumns": "295px",
+      "listClientWidth": 311,
+      "listScrollWidth": 311,
+      "children": [
+        {
+          "className": "bh-grant-request-title",
+          "width": 295,
+          "right": 0
+        },
+        {
+          "className": "bh-note",
+          "width": 295,
+          "right": 0
+        },
+        {
+          "className": "bh-note",
+          "width": 295,
+          "right": 0
+        },
+        {
+          "className": "bh-tool-approval-input",
+          "width": 295,
+          "right": 0
+        },
+        {
+          "className": "bh-note",
+          "width": 295,
+          "right": 0
+        },
+        {
+          "className": "bh-tool-approval-actions",
+          "width": 295,
+          "right": 0
+        }
+      ]
+    },
+    "matchedScreenshotPair": true,
+    "sameCanonicalPendingRequestAcrossPair": true
+  }
+}

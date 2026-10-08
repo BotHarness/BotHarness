@@ -213,6 +213,7 @@ describe('bridge typert service', () => {
       'standingLimitsSet',
       'botAvatarSet',
       'botAppearanceSet',
+      'botBannerSet',
       'marketplaceList',
       'marketplaceSubmit',
       'marketplaceTopics',

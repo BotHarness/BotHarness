@@ -1,5 +1,7 @@
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
+import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
+import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
 import { mountContentPurge } from './purge/owner.js';
 import type { ContentPurge } from './purge/contracts.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
@@ -53,13 +55,18 @@ import { readDailyUsageCounts, startDailyUsage } from './telemetry/daily-usage.j
 import { deliverPendingExceptions, installExceptionCapture } from './telemetry/exceptions.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/deletion.js';
-import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
+import {
+  backfillBotBanners,
+  backfillBotDescriptors,
+  syncBotDescriptor,
+} from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createCredentialReadiness } from './models/credential-readiness.js';
 import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
 import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
+import { BOT_BANNER_PATH, createBotBannerHttp } from './bots/banner-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -217,6 +224,7 @@ export const Config = Schema.object({
 });
 
 export interface BotHarnessCore {
+  profileRecovery: ProfileRecovery;
   rootDir: string;
   onboarding: BotOnboarding;
   operationalDatabase: OperationalDatabaseOwner;
@@ -368,6 +376,7 @@ export function createCore(
     throw error;
   }
   if (operationalDatabase.mode === 'ready') {
+    backfillBotBanners(registry, options.warn);
     backfillBotDescriptors(registry, options.warn);
     migrateLegacySouls(registry, options.warn);
   }
@@ -592,6 +601,7 @@ export function createCore(
   const assignmentAccess = createAssignmentAccessStore(
     attachOperationalModule(operationalDatabase, 'assignment-access'),
   );
+  const profileRecovery = createProfileRecovery(operationalDatabase, registry, ownership);
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   const hostTools = new Set<string>();
@@ -620,6 +630,7 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   runtime = createBotRuntime({
+    requireExecution: (slug) => profileRecovery.requireExecution(slug),
     schedules,
     assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
     beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
@@ -710,6 +721,7 @@ export function createCore(
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
+    profileRecovery,
     contentPurge,
     onboarding,
     rootDir,
@@ -862,8 +874,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (persistence === undefined) throw new Error('DSH Session Persistence is unavailable');
       return (await persistence.stat(sessionId)) !== undefined;
     },
-    prepareModelRoute: (slug, role, retainedRoute) =>
-      modelReadiness.prepare(slug, role, retainedRoute),
+    prepareModelRoute: (slug, role, retainedRoute) => {
+      core.profileRecovery.requireExecution(slug);
+      return modelReadiness.prepare(slug, role, retainedRoute);
+    },
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
@@ -1457,6 +1471,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: Channel attachment download',
     );
+    const botBannerHttp = createBotBannerHttp(core.registry);
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_BANNER_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botBannerHttp,
+        }),
+      'botharness: Bot banner',
+    );
     const botAvatarHttp = createBotAvatarHttp(core.registry);
     connectionCtx.effect(
       () =>
@@ -1473,6 +1498,33 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       detail: (slug) => bridgeMethods.get({ slug }),
       log: (message) => ctx.logger.info(message),
     });
+    const profileBackupHttp = createProfileBackupHttp(
+      {
+        database: core.operationalDatabase,
+        registry: core.registry,
+        deletions: core.deletions,
+        attachments: core.attachments,
+        purge: core.contentPurge,
+        version: runningRelease.version,
+        sessionCount: () => core.ownership.list().length,
+        dshVersion: installedDshVersion(),
+        log: (message) => ctx.logger.info(message),
+      },
+      join(dshHome, 'botharness', 'backup-staging'),
+      core.profileRecovery,
+      modelCatalog,
+    );
+    for (const suffix of ['', '/inspect', '/recovery', '/authorize', '/activate'])
+      connectionCtx.effect(
+        () =>
+          connection.fetch.register({
+            path: PROFILE_BACKUP_PATH + suffix,
+            methods: ['GET', 'POST'],
+            requestBody: suffix === '/inspect' ? 'streaming' : 'buffered',
+            fetch: profileBackupHttp,
+          }),
+        'botharness: complete environment backup ' + suffix,
+      );
     connectionCtx.effect(
       () =>
         connection.fetch.register({

@@ -42,6 +42,7 @@ export function ExternalIdentityList({
   refresh,
   channels,
   botName = (slug) => slug,
+  bindDialog,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
@@ -51,8 +52,11 @@ export function ExternalIdentityList({
   refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
   botName?(slug: string): string;
+  bindDialog?: { onClose(): void; dismissLabel: string; description: string };
 }): ReactElement {
-  const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
+  const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind' | undefined>(
+    bindDialog ? 'bind' : undefined,
+  );
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
@@ -66,8 +70,9 @@ export function ExternalIdentityList({
   const active = useRef(false);
   const refreshSequence = useRef(0);
   const settingsCleanup = useRef<(() => void) | undefined>(undefined);
-  const mount = useMountedResource<HTMLUListElement>(() => {
+  const mount = useMountedResource<HTMLSpanElement>(() => {
     active.current = true;
+    if (bindDialog) void refreshApps();
     return () => {
       active.current = false;
       refreshSequence.current++;
@@ -121,6 +126,7 @@ export function ExternalIdentityList({
       setRefreshing(false);
       settingsCleanup.current?.();
       setMode(undefined);
+      bindDialog?.onClose();
     }
   };
   const openAppSettings = () => {
@@ -198,88 +204,91 @@ export function ExternalIdentityList({
   };
   return (
     <>
+      <span hidden ref={mount} />
       {error && !mode ? (
         <p role="alert" className="bh-error">
           {error}
         </p>
       ) : null}
-      <SidebarCardList label={t('identity.title')} listRef={mount}>
-        {[...identities]
-          .sort(
-            (a, b) =>
-              platform(a.platform).localeCompare(platform(b.platform)) ||
-              a.createdAt.localeCompare(b.createdAt),
-          )
-          .map((row) => (
-            <SidebarCardRow
-              key={row.id}
-              icon="id-card"
-              title={row.name}
-              meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
-                count: conversations(row).length,
-              })}`}
-              chips={
-                <>
-                  <Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>
-                  {row.platform === 'weixin' ? (
-                    <span className="bh-bridge-secondary" role="status">
-                      {t(
-                        !row.typing?.supported
-                          ? 'identity.typing.unavailable'
-                          : !row.typingEnabled
-                            ? 'identity.typing.off'
-                            : row.typing.phase === 'cleanup-unconfirmed'
-                              ? 'identity.typing.cleanup'
-                              : row.typing.phase === 'unavailable'
-                                ? 'identity.typing.refused'
-                                : row.typing.phase === 'accepted'
-                                  ? 'identity.typing.accepted'
-                                  : row.typing.phase === 'requesting'
-                                    ? 'identity.typing.requesting'
-                                    : 'identity.typing.ready',
-                      )}
-                    </span>
-                  ) : null}
-                </>
-              }
-              muted={!row.enabled}
-              hint={t('identity.editFor', { name: row.name })}
-              dialog
-              disabled={busy}
-              onClick={() => open('edit', row)}
-              trailing={
-                <Switch
-                  label={t('identity.enableFor', { name: row.name })}
-                  checked={row.enabled}
-                  disabled={busy}
-                  onChange={(enabled) =>
-                    void operate(() =>
-                      mutate({
-                        kind: 'update',
-                        id: row.id,
-                        expectedRevision: row.revision,
-                        name: row.name,
-                        enabled,
-                      }),
-                    )
-                  }
-                />
-              }
-            />
-          ))}
-        <SidebarCardRow
-          anchor="lark-bind"
-          icon="plus"
-          title={t('identity.bind')}
-          meta={
-            !snapshot ? t('im.loading') : identities.length ? undefined : t('identity.emptyShort')
-          }
-          muted
-          dialog
-          disabled={busy || !snapshot}
-          onClick={() => open('bind')}
-        />
-      </SidebarCardList>
+      {bindDialog ? null : (
+        <SidebarCardList label={t('identity.title')}>
+          {[...identities]
+            .sort(
+              (a, b) =>
+                platform(a.platform).localeCompare(platform(b.platform)) ||
+                a.createdAt.localeCompare(b.createdAt),
+            )
+            .map((row) => (
+              <SidebarCardRow
+                key={row.id}
+                icon="id-card"
+                title={row.name}
+                meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
+                  count: conversations(row).length,
+                })}`}
+                chips={
+                  <>
+                    <Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>
+                    {row.platform === 'weixin' ? (
+                      <span className="bh-bridge-secondary" role="status">
+                        {t(
+                          !row.typing?.supported
+                            ? 'identity.typing.unavailable'
+                            : !row.typingEnabled
+                              ? 'identity.typing.off'
+                              : row.typing.phase === 'cleanup-unconfirmed'
+                                ? 'identity.typing.cleanup'
+                                : row.typing.phase === 'unavailable'
+                                  ? 'identity.typing.refused'
+                                  : row.typing.phase === 'accepted'
+                                    ? 'identity.typing.accepted'
+                                    : row.typing.phase === 'requesting'
+                                      ? 'identity.typing.requesting'
+                                      : 'identity.typing.ready',
+                        )}
+                      </span>
+                    ) : null}
+                  </>
+                }
+                muted={!row.enabled}
+                hint={t('identity.editFor', { name: row.name })}
+                dialog
+                disabled={busy}
+                onClick={() => open('edit', row)}
+                trailing={
+                  <Switch
+                    label={t('identity.enableFor', { name: row.name })}
+                    checked={row.enabled}
+                    disabled={busy}
+                    onChange={(enabled) =>
+                      void operate(() =>
+                        mutate({
+                          kind: 'update',
+                          id: row.id,
+                          expectedRevision: row.revision,
+                          name: row.name,
+                          enabled,
+                        }),
+                      )
+                    }
+                  />
+                }
+              />
+            ))}
+          <SidebarCardRow
+            anchor="lark-bind"
+            icon="plus"
+            title={t('identity.bind')}
+            meta={
+              !snapshot ? t('im.loading') : identities.length ? undefined : t('identity.emptyShort')
+            }
+            muted
+            dialog
+            disabled={busy || !snapshot}
+            onClick={() => open('bind')}
+          />
+        </SidebarCardList>
+      )}
       <Modal
         className="bh-sidebar-modal"
         open={mode !== undefined}
@@ -319,7 +328,7 @@ export function ExternalIdentityList({
               </>
             ) : mode === 'bound' ? null : (
               <Button variant="outline" disabled={busy} onClick={close}>
-                {t('common.cancel')}
+                {bindDialog?.dismissLabel ?? t('common.cancel')}
               </Button>
             )}
             {mode === 'bound' ? (
@@ -359,6 +368,7 @@ export function ExternalIdentityList({
         }
       >
         <div className="bh-sidebar-modal-form">
+          {bindDialog ? <p className="bh-note">{bindDialog.description}</p> : null}
           {error ? (
             <p role="alert" className="bh-error">
               {error}
@@ -491,6 +501,39 @@ export function ExternalIdentityList({
               </p>
               {mode === 'edit' ? (
                 <>
+                  {selected.platform === 'feishu' ? (
+                    <div className="bh-im-field" role="status">
+                      <span>{t('identity.feedback.title')}</span>
+                      <p className="bh-bridge-secondary">
+                        {t(
+                          accounts.some(
+                            (account) =>
+                              account.providerId === selected.providerId &&
+                              account.ref === selected.accountRef &&
+                              account.fingerprint === selected.fingerprint &&
+                              account.reactionSupported === true,
+                          )
+                            ? 'identity.feedback.supported'
+                            : 'identity.feedback.capabilityUnavailable',
+                        )}
+                      </p>
+                      {(snapshot?.feedback ?? [])
+                        .filter((item) => item.bindingId === selected.id)
+                        .slice(0, 5)
+                        .map((item) => (
+                          <p
+                            key={item.sourceEventId}
+                            className="bh-bridge-secondary"
+                            title={item.sourceEventId}
+                          >
+                            {item.sourceEventId.slice(-8)} · {t('identity.feedback.received')}:{' '}
+                            {t(`identity.feedback.${item.attempts.received?.state ?? 'none'}`)} ·{' '}
+                            {t('identity.feedback.answered')}:{' '}
+                            {t(`identity.feedback.${item.attempts.answered?.state ?? 'none'}`)}
+                          </p>
+                        ))}
+                    </div>
+                  ) : null}
                   <label className="bh-im-field">
                     <span>{t('identity.displayName')}</span>
                     <Input

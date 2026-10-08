@@ -8,6 +8,7 @@ import {
   type AvatarAppearance,
   type RetainedAvatarAppearance,
 } from './avatar-appearance.js';
+import { isBotBanner, type BotBanner } from './bot-banner.js';
 
 export interface PersonaBotRecord {
   slug: string;
@@ -18,6 +19,7 @@ export interface PersonaBotRecord {
   description?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  banner?: BotBanner;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
   modelPlanRevision?: number;
@@ -134,6 +136,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     !isUsableAvatarAppearance(record['appearance'], record['avatar'])
   )
     return false;
+  if (record['banner'] !== undefined && !isBotBanner(record['banner'])) return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
   if (record['roles'] !== undefined) {

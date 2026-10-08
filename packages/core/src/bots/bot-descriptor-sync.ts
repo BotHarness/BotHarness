@@ -13,6 +13,7 @@ import {
 } from '../marketplace/descriptor.js';
 import { createMemoryGit } from '../memory/git.js';
 import { canonicalRecipe, isAvatarRecipe, seededAvatarRecipe } from './avatar-appearance.js';
+import { BOT_BANNER_FILE, botBannerPng, seededBotBanner } from './bot-banner.js';
 import type { PersonaBotRecord } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
 
@@ -91,6 +92,7 @@ export function syncBotDescriptor(
   delete descriptor['tags'];
   delete descriptor['bio'];
   delete descriptor['avatar'];
+  delete descriptor['banner'];
 
   const name = clip(record.displayName, MAX_DESCRIPTOR_NAME_LENGTH);
   if (name.length > 0) descriptor['name'] = name;
@@ -114,6 +116,9 @@ export function syncBotDescriptor(
     if (isAvatarRecipe(seeded)) avatar = { recipe: { ...canonicalRecipe(seeded) } };
   }
   if (avatar !== undefined) descriptor['avatar'] = avatar;
+  const banner = record.banner ?? seededBotBanner(record.displayName || record.slug);
+  descriptor['banner'] =
+    'recipe' in banner ? { recipe: banner.recipe } : { image: BOT_BANNER_FILE };
 
   const text = `${JSON.stringify(descriptor, null, 2)}\n`;
   if (
@@ -143,6 +148,16 @@ export function syncBotDescriptor(
       writeFileSync(target, image.bytes);
       changed = true;
     }
+  }
+  const bannerBytes = botBannerPng(banner);
+  const bannerTarget = join(memoryDir, BOT_BANNER_FILE);
+  let currentBanner: Buffer | undefined;
+  try {
+    currentBanner = readFileSync(bannerTarget);
+  } catch {}
+  if (currentBanner === undefined || !currentBanner.equals(bannerBytes)) {
+    writeFileSync(bannerTarget, bannerBytes);
+    changed = true;
   }
   if (!keepAvatar) {
     for (const managed of MANAGED_AVATARS) {
@@ -189,5 +204,35 @@ export function backfillBotDescriptors(
     warn?.(
       `bot-descriptor-backfill initiator=host-startup written=${written} failed=${failed} durationMs=${Math.round(performance.now() - startedAt)}`,
     );
+  }
+}
+
+export function backfillBotBanners(
+  registry: {
+    list(): PersonaBotRecord[];
+    setBanner(slug: string, banner: unknown): { ok: boolean };
+  },
+  warn?: (message: string) => void,
+): void {
+  let written = 0;
+  let failed = 0;
+  let records: PersonaBotRecord[];
+  try {
+    records = registry.list();
+  } catch {
+    return;
+  }
+  for (const record of records) {
+    if (record.banner !== undefined) continue;
+    try {
+      if (registry.setBanner(record.slug, seededBotBanner(record.displayName || record.slug)).ok)
+        written += 1;
+      else failed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  if (written > 0 || failed > 0) {
+    warn?.(`bot-banner-backfill initiator=host-startup written=${written} failed=${failed}`);
   }
 }

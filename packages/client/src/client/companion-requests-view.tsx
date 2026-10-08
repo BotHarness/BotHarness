@@ -26,15 +26,35 @@ function PendingRequest({
     live,
   };
   const release = useRef(onReleaseFocus);
+  const ownedFocus = useRef(false);
   release.current = onReleaseFocus;
   const mounted = useMountedResource<HTMLLIElement>(
     (node) => () => {
-      if (node.contains(document.activeElement)) queueMicrotask(() => release.current());
+      if (
+        node.contains(document.activeElement) ||
+        (ownedFocus.current && document.activeElement === document.body)
+      )
+        queueMicrotask(() => {
+          if (document.activeElement === document.body || node.contains(document.activeElement))
+            release.current();
+        });
     },
     [request.messageId],
   );
   return (
-    <li ref={mounted}>
+    <li
+      ref={mounted}
+      onFocusCapture={() => {
+        ownedFocus.current = true;
+      }}
+      onBlurCapture={(event) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          ownedFocus.current = false;
+      }}
+    >
       <div className="bh-companion-request-source">
         {t('companion.source', { name: request.channelName })}
       </div>

@@ -308,7 +308,7 @@ describe('DM Bot Inbox sidebar entry', () => {
         ),
       );
       expect(container.textContent).toContain('Investigate the issue');
-      expect(container.textContent).toContain('等待 Human');
+      expect(container.textContent).toContain('等你处理');
       const button = container.querySelector<HTMLButtonElement>('.bh-inbox-item');
       expect(button?.disabled).toBe(false);
       await act(async () => {
@@ -446,9 +446,9 @@ it('clears previous source content and ignores older requests after reopening', 
     expect(container.textContent).toContain('ONLY RETURNED CONTEXT');
     expect(container.textContent).toContain('context-one');
     expect(container.textContent).toContain('Alex (external-human)');
-    expect(container.textContent).toContain('消息 remote-one [Source Event context-one]');
+    expect(container.textContent).toContain('消息 remote-one [事件 context-one]');
     expect(container.textContent).toContain('@_user_1 → QA Bot (bot-one)');
-    expect(container.textContent).toContain('消息 om [Source Event source-1]');
+    expect(container.textContent).toContain('消息 om [事件 source-1]');
     expect(container.querySelector('[role="alert"]')).toBeNull();
     await close();
     await open();

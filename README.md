@@ -52,7 +52,7 @@ dsh plugin --profile web add deepseekbot
 dsh web
 ```
 
-打开后进入 **Bot mode**，创建 PersonaBot，先私聊，再建 Group 邀请成员。要接入飞书、Slack、Discord 或微信，到「设置 → IM bots」连接应用，再在 Bot 的 Profile 里绑定应用。飞书应用绑定后，私聊和 @ 它的消息直接进入 Bot 收件箱。安装后账号默认不连接，由你逐个开启。想先试试又不想动现有配置，可以换一个新的 Profile 名字。参见 [DSH 官方文档：打包与安装插件](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)。
+打开后进入 **Bot mode**，创建 Bot，先私聊，再建 Group 邀请成员。要接入飞书、Slack、Discord 或微信，到「设置 → IM bots」连接应用，再在 Bot 的 Profile 里绑定应用。飞书应用绑定后，私聊和 @ 它的消息直接进入 Bot 收件箱。安装后账号默认不连接，由你逐个开启。想先试试又不想动现有配置，可以换一个新的 Profile 名字。参见 [DSH 官方文档：打包与安装插件](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)。
 
 <a id="features"></a>
 
@@ -218,7 +218,7 @@ pnpm build
 node scripts/dev-instance.mjs --home /tmp/botharness-demo --port 31967
 ```
 
-选择一个全新的 `--home` 目录作为隔离 DSH Profile。helper 使用工作树固定的 CLI、链接本地 Bundles（包括可选的 Computer 与 Browser），验证已认证 API，并打印本地登录 URL。打开后进入 **Bot mode**，创建 PersonaBots、发送私聊，再建 Group 邀请成员。在 Bot 私聊的侧栏打开 **Memory files** 或 **Memory evolution**。
+选择一个全新的 `--home` 目录作为隔离 DSH Profile。helper 使用工作树固定的 CLI、链接本地 Bundles（包括可选的 Computer 与 Browser），验证已认证 API，并打印本地登录 URL。打开后进入 **Bot mode**，创建 Bot、发送私聊，再建 Group 邀请成员。在 Bot 私聊的侧栏打开 **Memory files** 或 **Memory evolution**。
 
 helper 可注入机器本地的 DeepSeek key，也可使用隔离 Profile 的凭据；密钥始终留在仓库外。模型配置、可选 IM 安装和 Client/Host 开发循环见 [本地实例指南](docs/client-bridge.md#7-本地开发环路dsh-020-rc1)。
 

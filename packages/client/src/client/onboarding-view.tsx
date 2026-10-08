@@ -6,6 +6,8 @@ import { errorMessage } from './bridge.js';
 import { ModelPicker } from './model-picker.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { Modal } from './modal.js';
+import { OnboardingMemory } from './onboarding-memory.js';
+import { OnboardingAppBinding } from './onboarding-binding.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -180,6 +182,13 @@ export function OnboardingWelcome({
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [modelLabel, setModelLabel] = useState('');
+  const [timeZone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     const slug = store.getSnapshot().conversation.channel?.botSlug;
@@ -219,14 +228,34 @@ export function OnboardingWelcome({
             'onboarding.dailyRequest',
             'onboarding.testRequest',
           ] as const
-        ).map((key) => (
-          <SidebarCardRow
-            key={key}
-            title={t(key)}
-            disabled={state.busy || store.getSnapshot().conversation.sending}
-            onClick={() => void controller.request(channelId, t(key))}
-          />
-        ))}
+        ).map((key) => {
+          const scheduled = key === 'onboarding.testRequest' || key === 'onboarding.dailyRequest';
+          const prefix = key === 'onboarding.dailyRequest' ? 'daily' : 'reminder';
+          return (
+            <SidebarCardRow
+              key={key}
+              title={t(key)}
+              meta={
+                scheduled
+                  ? timeZone
+                    ? t(`onboarding.${prefix}Hint`, { timeZone })
+                    : t('onboarding.reminderUnknownHint')
+                  : undefined
+              }
+              disabled={state.busy || store.getSnapshot().conversation.sending}
+              onClick={() =>
+                void controller.request(
+                  channelId,
+                  scheduled
+                    ? timeZone
+                      ? t(`onboarding.${prefix}Body`, { timeZone })
+                      : t(`onboarding.${prefix}UnknownBody`)
+                    : t(key),
+                )
+              }
+            />
+          );
+        })}
       </SidebarCardList>
       <p className="bh-note">{t('onboarding.freeform')}</p>
       <SidebarCardList className="bh-message-card-list" label={t('onboarding.model')}>
@@ -242,9 +271,18 @@ export function OnboardingWelcome({
           }}
         />
       </SidebarCardList>
-      <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
-        {t('roster.menu.createBot')}
-      </Button>
+      <div className="bh-onboarding-actions">
+        <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
+          {t('roster.menu.createBot')}
+        </Button>
+        <OnboardingMemory key={channelId} actions={actions} channelId={channelId} t={t} />
+        <OnboardingAppBinding
+          key={`binding-${channelId}`}
+          actions={actions}
+          channelId={channelId}
+          t={t}
+        />
+      </div>
     </div>
   );
 }
@@ -290,7 +328,6 @@ export function OnboardingSurface({
     if (
       !state.guideOpen ||
       state.receipt?.tutorial !== 'active' ||
-      state.receipt.completed ||
       state.modelOpen ||
       state.sendOpen
     )
@@ -354,7 +391,7 @@ export function OnboardingSurface({
               {t('onboarding.skip')}
             </Button>
           ) : null}
-          {receipt.tutorial !== 'not-started' ? (
+          {receipt.completed || receipt.tutorial !== 'not-started' ? (
             <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'restart')}>
               {t('onboarding.restart')}
             </Button>

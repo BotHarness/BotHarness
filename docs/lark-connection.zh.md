@@ -174,13 +174,13 @@ Lark 会话默认进入 Bot 收件箱。从应用新建同步的方式正在重�
 先做小测试：在测试群中 **@ 应用机器人**，发送「请在这里回复 LARK-OK」。不要同时测试多个 Bot。
 
 1. 消息出现在 Bot 私聊右侧的 **Bot 收件箱**，来源群、原发送者和内容正确；这个群出现在应用会话列表的 **活跃** 中。
-2. 来源详情显示外部消息 ID、Source Event ID，以及存在时的话题信息。
+2. 来源详情显示外部消息 ID、事件 ID，以及存在时的话题信息。
 3. Lark 原会话收到这个 Bot 自己的应用发出的 `LARK-OK`。话题测试应在同一话题回复。
 4. 发一条不 @ 的普通消息，确认除非该群的 **规则** 允许普通消息，否则它不会进入这个 Bot。
 
 **Lark 的绿色或灰色已读圆圈不能说明 Bot 是否收到消息。** 以本地收件箱的来源记录和真实回复为准。
 
-![真实来源详情、原生消息 ID 与 Source Event ID](/guides/lark/08-source.webp)
+![真实来源详情、原生消息 ID 与 事件 ID](/guides/lark/08-source.webp)
 
 _在 Bot 私聊侧栏展开 Bot 收件箱 → 群；消息已处理时，再展开已处理 / 已忽略。点击消息打开详情，展开来源详情与消息详情。_
 
@@ -342,6 +342,18 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 ![真实恢复状态：自动通知已关闭，旧请求已失效](/guides/lark/approvals/recovery-dark.jpg)
 
 [查看浅色恢复截图](/guides/lark/approvals/recovery-light.jpg)。测试授权撤销后，本机 Host 在禁用 IM Provider 的状态下重启：目的地为「关闭自动通知」，旧请求「已失效」，本机身份暂不可用。这张截图不证明生产连接状态；恢复后的生产 Discord／Lark 连接已另行核验。新测试不能使用旧卡片。
+
+## 接收与回答反馈（候选）
+
+[#1040](https://github.com/BotHarness/BotHarness/issues/1040) 候选在**原始入站消息**上增加可选反馈：Source Event 与 Inbox Admission 持久提交后尝试原生 `GLANCE`；只有该来源的明确回复获外部 Provider 接受后才尝试 `DONE`。Human 已选择这两个官方类型，授权复测已确认私聊原消息实际显示两者。表情不表示 Human 已读。
+
+未提及 Bot 的普通群消息、待允许请求及被屏蔽会话没有 Admission 反馈。静音仍会静默接收，因此可能出现 `GLANCE`；明确回复获接受后可以出现 `DONE`。静默结束、等待澄清、委派完成、失败或结果未知的发送，以及无关主动输出均不表示已回答。
+
+此功能需要可选 checked Provider 的 `reactionVersion: 1`／`reaction-write-checked` 能力；旧 Provider 仍可正常收发，反馈能力显示不可用。已验证 Provider pin 保持原样。[官方添加表情 API](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/create) 要求表情写入权限或既有更广消息权限，并要求应用可访问来源会话。权限不足需维护者审查；候选不会自行扩大应用权限或订阅 reaction 事件。[官方表情类型](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/emojis-introduce)可供核对。
+
+反馈独立运行，限时四秒并限制并发。权限失败、来源删除或传输不可用不会阻塞 Inbox 接收、模型工作或回复。attempt 持久保留且不自动重试，包括重启／重连；后来启用权限也不会补发历史表情。已认证的 `messagingSnapshot` 管理 API 暴露 `reactionSupported` 和近期 `feedback` 状态：`attempted`、`accepted`、`unavailable`、`failed`、`unknown`。Web 的现有 Lark 身份编辑窗口显示反馈能力与最近五条来源的尝试状态；刷新外部身份可更新。中断的 `attempted` 或 `unknown` 不是成功。
+
+准备、精确测试版本及恢复见[候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/codex/1040-lark-feedback/docs/agents/qa-lark-feedback.md)。首次窗口发现权限缺失后，Human 明确授权并添加 `im:message.reactions:write_only`。2026-10-09 有自动恢复保障的复测通过已登录的 Codex 内置浏览器完成：两条不同私聊各有对应回复，原消息显示 `GLANCE`／`DONE`；静默私聊仅有 `GLANCE`。生产已恢复，Lark／Discord 正常回复已确认。Human 已批准审阅后合并源码；群聊、静音／屏蔽、重连／重启及 Web 明暗对照截图仍待验证，作为扩大资格范围和提升 Provider pin 的门槛；上方旧引导截图不是反馈证据。
 
 ## Channel 历史中的图片
 

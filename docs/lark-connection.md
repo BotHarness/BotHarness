@@ -174,13 +174,13 @@ Adjust behaviour after the first successful test:
 Start small: **mention the application bot** in a test group and send “Please reply here with LARK-OK.” Avoid testing several Bots at once.
 
 1. The message appears in the Bot DM’s right-hand **Bot Inbox** with the correct Lark group, sender and content, and the group appears under **Active** in the app’s conversation list.
-2. Source details show the external message ID, Source Event ID and topic information when present.
+2. Source details show the external message ID, Event ID and topic information when present.
 3. Lark receives `LARK-OK` from this Bot’s own app in the original conversation. A topic test replies in the same topic.
 4. Send an ordinary unmentioned message and confirm it does not reach this Bot unless the group’s **Rules** allow ordinary messages.
 
 **Lark’s green or gray read circle does not show whether a Bot received a message.** Use the local Inbox source record and the actual reply.
 
-![Real source details, native message ID and Source Event ID](/guides/lark/08-source.webp)
+![Real source details, native message ID and Event ID](/guides/lark/08-source.webp)
 
 _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details._
 
@@ -342,6 +342,18 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 ![Actual recovery: notifications off and the old request expired](/guides/lark/approvals/recovery-dark.jpg)
 
 [Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
+
+## Receipt and answer feedback (candidate)
+
+The [#1040](https://github.com/BotHarness/BotHarness/issues/1040) candidate adds optional feedback on the **original incoming message**. After its Source Event and Inbox Admission are durably committed, BotHarness attempts native `GLANCE`. Only after that source's explicit reply is accepted by the external Provider does it attempt native `DONE`. The Human selected these two official types; both rendered on original DM messages in the authorized retest. Neither reaction proves that a Human read the message.
+
+Ordinary unmentioned group traffic, held requests and blocked conversations receive no Admission feedback. Mute still admits silently and may show `GLANCE`; an explicit accepted reply may later show `DONE`. Silence, waiting for clarification, delegation completion, failed or unknown sends and unrelated proactive output do not qualify as an answer.
+
+This requires the optional checked `reactionVersion: 1` / `reaction-write-checked` Provider capability. An older Provider remains usable for normal messaging and reports feedback unavailable. The qualified Provider pin is unchanged. The [official create-reaction API](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/create) requires reaction write permission or an existing broader message permission, plus access to the source conversation. A maintainer must review any missing permission; this candidate does not expand app scopes or subscribe to reaction events automatically. See the [official reaction types](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/emojis-introduce).
+
+Feedback runs separately with a four-second deadline and bounded concurrency. Permission failures, missing/deleted sources and unavailable transport do not block Inbox receipt, model work or replies. Attempts are retained without automatic retry, including after restart or reconnect; enabling a permission later does not replay historical messages. The authenticated `messagingSnapshot` management API exposes `reactionSupported` and recent `feedback` attempt states: `attempted`, `accepted`, `unavailable`, `failed` or `unknown`. In Web, open the existing Lark identity editor to inspect feedback capability and the five most recent source attempts; refresh external identities to update them. An interrupted `attempted` or `unknown` record is not success.
+
+Use the [candidate QA runbook](https://github.com/BotHarness/DeepSeekBot/blob/codex/1040-lark-feedback/docs/agents/qa-lark-feedback.md) for preparation, exact tested sources and recovery. After the first window exposed missing permission, the Human authorized and added `im:message.reactions:write_only`. The guarded 2026-10-09 retest verified two distinct DM replies with original-source `GLANCE` / `DONE`, and a silent DM with `GLANCE` only, using the signed-in Codex in-app browser. Production was restored and normal Lark and Discord replies confirmed. Group, mute/block, reconnect/restart and matched Web screenshots remain pending. The Human approved merging the reviewed source; remaining cases gate broader qualification and Provider pin promotion. Older guide screenshots above are not feedback evidence.
 
 ## Images in Channel history
 

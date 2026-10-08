@@ -1,0 +1,117 @@
+{
+  "issue": 1040,
+  "task": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "date": "2026-10-09",
+  "timezone": "Asia/Tokyo",
+  "status": "dm-receipt-answer-silence-qualified",
+  "tested": {
+    "botharness": "9871fd20ef4dbbafa9801d681d1e9acb96677ee2",
+    "provider": "26e6d66d2ac3c3658d3a0faabdc154ff75af441e",
+    "providerRuntime": {
+      "runtimeFiles": 400,
+      "runtimeSha256": "bf8474466374e0ea2d385cccd1cf43a2452bae9253070e5adfafb7fe74b46bca"
+    },
+    "ci": "https://github.com/BotHarness/DeepSeekBot/actions/runs/37807962434"
+  },
+  "permission": {
+    "scope": "im:message.reactions:write_only",
+    "type": "tenant-token",
+    "humanAuthorized": true,
+    "consoleState": "Added; current changes published"
+  },
+  "window": {
+    "maximumSeconds": 600,
+    "armedAt": "2026-10-08T16:42:58.233Z",
+    "localCutoffAt": "2026-10-08T16:50:58.233Z",
+    "serverFallbackAt": "2026-10-08T16:51:58.233Z",
+    "qaHostStoppedAt": "2026-10-08T16:46:45.1617964+00:00",
+    "productionRestored": true,
+    "restoreTimerStopped": true,
+    "temporaryAccountAndCredentialsRemoved": true,
+    "originalCredentialRetained": true
+  },
+  "sources": [
+    {
+      "marker": "BH1040-R2-A",
+      "sourceEventId": "im-a3071790da2738edb52f18eb1925970d5267c53e0fe2c228ed7d91ddcfe9c8af",
+      "admissionCount": 1,
+      "replies": [
+        {
+          "id": "a254a648-d780-4fa3-aa4b-bc043e491aec",
+          "state": "provider-accepted"
+        }
+      ],
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T16:43:53.299Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T16:44:00.615Z",
+          "outboxId": "a254a648-d780-4fa3-aa4b-bc043e491aec"
+        }
+      },
+      "visibleEmoji": ["Glance", "Done"],
+      "emojiImagesLoaded": true
+    },
+    {
+      "marker": "BH1040-R2-B",
+      "sourceEventId": "im-494238ad40029d8d2a5f1a9b61f9e5da4ac6bacf04767af94e20c5524f08b734",
+      "admissionCount": 1,
+      "replies": [
+        {
+          "id": "50a21045-f4f8-4826-b319-aed663dca0f4",
+          "state": "provider-accepted"
+        }
+      ],
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T16:44:01.709Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T16:44:07.695Z",
+          "outboxId": "50a21045-f4f8-4826-b319-aed663dca0f4"
+        }
+      },
+      "visibleEmoji": ["Glance", "Done"],
+      "emojiImagesLoaded": true
+    },
+    {
+      "marker": "BH1040-SILENT-R2",
+      "sourceEventId": "im-b9c5959bd7d0b1c01f4bcf4643a7a0faeb3777cb1362792175d57a3b283a3eda",
+      "admissionCount": 1,
+      "replies": [],
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T16:44:52.297Z"
+        }
+      },
+      "visibleEmoji": ["Glance"],
+      "emojiImagesLoaded": true
+    }
+  ],
+  "productionVerification": {
+    "lark": "matching BH1040-PRODUCTION-R2 OK observed in signed-in browser",
+    "discord": "Human confirmed normal reply"
+  },
+  "capture": {
+    "file": "lark-qa-reactions-accepted.png",
+    "kind": "three original-message browser crops assembled vertically",
+    "dimensions": {
+      "width": 291,
+      "height": 243
+    }
+  },
+  "historicalUnknownAttempts": "retained unchanged; not replayed",
+  "pending": [
+    "qualifying group mention",
+    "mute/block live cases",
+    "reconnect/restart live cases",
+    "matched Web identity-editor light/dark before/after screenshots"
+  ],
+  "mergeDeployPublishPinPromotion": false
+}

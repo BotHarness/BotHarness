@@ -114,6 +114,21 @@ Assignment Sessions do not communicate directly in v1. An Assignment Session rep
 - Only the Orchestrator controls top-level Assignments; internal DSH Subagents remain owned and addressed by their Assignment Session parent and appear only as aggregate diagnostics.
 - All v1 Assignment-to-Assignment coordination is mediated and correlated by the Orchestrator.
 
+## Native Human-wait qualification (2026-10-09)
+
+[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036) qualifies the
+existing independent-root ownership from ADR-0035 on DSH `0.2.0-rc.1`: an
+Assignment awaiting native approval can leave its Orchestrator available, but
+does not release the Assignment running permit. An Orchestrator's own native
+approval or formal question blocks its current step; accepted steering waits for
+the next step and does not establish actual model processing. The
+[bounded experiment](../research/1036-native-wait-experiment.md) retains exact
+Session/call decisions, actual results, unrelated replies and changed/revoked
+scope refusals. Cancellation and cold resume remain distinct from preserving
+an in-flight operation. No accepted lifecycle or ownership rule is replaced.
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) tracks the missing
+supported mechanism; #1036–#1038 production continuation gates stay blocked.
+
 ## Native live-turn cancellation
 
 When a Human cancels a live Assignment through native DSH Session control, the adapter observes the committed `turn/end` with reason `aborted` and passes the trusted Turn number and end sequence to Assignment Runtime. Runtime atomically projects execution as error, releases its Continuity Key and records one Host/system Lifecycle Notice plus its Inbox Admission, deduplicated by owned Session, Turn and native-aborted cause. The safe summary states cancellation without copying tool input or provider text. It does not fabricate or replace a semantic Report, and it does not claim the continuing Assignment was stopped by its Orchestrator. Existing failed-session admission refuses resuming that errored Session; explicit new work remains possible.
