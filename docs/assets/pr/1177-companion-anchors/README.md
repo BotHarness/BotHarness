@@ -23,3 +23,23 @@ At `c946a749` (evidence head `5c16fab9`), three new native Bot replies are verif
 The actual Bot Settings menu then selects reduced motion; native drag/release leaves both companions settled at bottom865 in every observed post-release sample (`reduced-released-dark.png`). Message cards have expired by that later screenshot; it does not show reduced-motion message reading or the first release frame. All sampled connector origins match their displayed bust anchors, maximum0px in this stationary/settled workload; sampling every80ms is not performance measurement or a guarantee about unsampled motion. Sanitized details: `reading-reduced-qualification.json`.
 
 `reading-reduced.webm` is continuous silent official MCP output, container-remuxed only. Earlier failed attempts are retained privately and excluded: native hover could not stabilize a roaming character; a paused attempt lost its messages to TTL during capture latency. No fake reply/event, replay or card/store injection was used. Console contained no JavaScript error; the existing native form-field issue remained. Held/reversal, image/tool-cover and background scenarios remain separate.
+
+## Latest-main image fallback and real tool cover
+
+Runtime `d1dde91edc4fd01dab9cbaa12a43ed504be68434` integrates main `04da609342f31b613b4102aa716228f00cb3d171` with the formal pixel-avatar `0.6.0`. Both themes use Chinese and 1559 × 865. These are after-state qualification scenes, not new matched before/after comparisons.
+
+The native avatar editor saves Grace's own current seeded appearance. The owning avatar API then uses its identical PNG bytes without an Appearance, exercising actual image fallback. A newly generated canonical DM supplies the bubble; native drag/release is recorded. The owning reset restores the original absent avatar/appearance/seed fields, independently verified against the immutable original detail snapshot.
+
+Ada first sends a new canonical explanation, then calls actual `ask_user_question`. The owning Activity snapshot and pending question confirm the real tool cover. Light and dark captures retain the bubble above the tool symbol, using the head point sampled before the cover and projected through the displayed SVG root. The native question form is then answered, an actual Bot continuation is verified, and the original bust returns. Both QA requests created during setup/capture were completed; the Host status query after completion returns expired, while actual canonical Bot continuations independently prove the submitted selected labels.
+
+Across the five stationary/post-release phases, every 80ms geometry sample with a connector measures 0px origin error. Native movement is in the two continuous silent official MCP videos, remuxed only. This does not qualify held/reversing motion, first-release-frame timing, moving-hover/grace, background, reduced-motion reading or performance. Normal public character focus retains real cards before capture latency exhausts TTL; walking was paused with native buttons. No synthetic replies, SSE, cards or store mutations were injected. Console has no JavaScript errors. All owned test pages and the isolated browser were closed. `variants-qualification.json` records scope and limitations.
+
+| Image fallback: light         | Image fallback: dark         |
+| ----------------------------- | ---------------------------- |
+| ![](image-fallback-light.png) | ![](image-fallback-dark.png) |
+
+| Native tool cover: light  | Native tool cover: dark  |
+| ------------------------- | ------------------------ |
+| ![](tool-cover-light.png) | ![](tool-cover-dark.png) |
+
+[Image fallback recording](image-fallback.webm) · [Tool-cover recording](tool-cover.webm)
