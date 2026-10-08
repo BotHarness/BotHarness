@@ -35,7 +35,6 @@ const record = (value: unknown): Record<string, unknown> | undefined =>
     : undefined;
 const failure = () => new Error('app-setup-unavailable');
 
-/** Browser-owned handles only. Credential inputs are sent directly to Provider settings. */
 export class ProviderAppSetup {
   #sessions = new Map<string, SetupSession>();
   #pending = new Map<string, Promise<AppSetupAttempt>>();
