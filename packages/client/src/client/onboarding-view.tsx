@@ -224,7 +224,9 @@ export function OnboardingWelcome({
         {(
           [
             'onboarding.firstRequest',
-            'onboarding.newsRequest',
+            state.receipt?.newsAvailable === true
+              ? 'onboarding.newsRequest'
+              : 'onboarding.exampleRequest',
             'onboarding.dailyRequest',
             'onboarding.testRequest',
           ] as const
@@ -250,7 +252,9 @@ export function OnboardingWelcome({
                     ? timeZone
                       ? t(`onboarding.${prefix}Body`, { timeZone })
                       : t(`onboarding.${prefix}UnknownBody`)
-                    : t(key),
+                    : key === 'onboarding.newsRequest'
+                      ? t('onboarding.newsBody')
+                      : t(key),
                 )
               }
             />

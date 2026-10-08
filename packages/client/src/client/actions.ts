@@ -536,7 +536,10 @@ export interface BridgeActions {
     messageId: string,
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<void>;
-  userQuestionStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): Promise<'pending' | 'submitted' | 'answered' | 'expired'>;
   answerUserQuestion(
     channelId: string,
     messageId: string,
@@ -1083,7 +1086,7 @@ export function createActions(
     channelId: string,
     messageId: string,
     submit: () => Promise<void>,
-    loadStatus: () => Promise<'pending' | 'expired'>,
+    loadStatus: () => Promise<'pending' | 'submitted' | 'answered' | 'expired'>,
   ): Promise<void> => {
     let resolved = false;
     try {
@@ -1092,7 +1095,8 @@ export function createActions(
     } finally {
       if (!resolved) {
         try {
-          resolved = (await loadStatus()) === 'expired';
+          const status = await loadStatus();
+          resolved = status === 'expired' || status === 'answered';
         } catch {}
       }
       if (resolved)

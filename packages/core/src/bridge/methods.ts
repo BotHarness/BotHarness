@@ -458,7 +458,9 @@ export interface BridgeMethods {
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
   toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
-  userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  userQuestionStatus(
+    payload: unknown,
+  ): BridgeResult<{ status: 'pending' | 'submitted' | 'answered' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
@@ -538,6 +540,7 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   onboarding?: BotOnboarding;
+  onboardingNews?: (slug?: string) => Promise<boolean>;
   defaultModel?: {
     currentSelection(): ModelRoute;
     saveSelection(route: ModelRoute): Promise<void>;
@@ -1363,10 +1366,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       )
         return invalidInput('Invalid tutorial action');
       try {
-        return {
-          ok: true,
-          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
-        };
+        const value = await deps.onboarding.enter(
+          asSlug(payload),
+          action as TutorialAction | undefined,
+        );
+        const newsAvailable =
+          (await deps
+            .onboardingNews?.(asSlug(payload) ?? value.defaultBotSlug)
+            .catch(() => false)) ?? false;
+        return { ok: true, value: { ...value, newsAvailable } };
       } catch (error) {
         return {
           ok: false,

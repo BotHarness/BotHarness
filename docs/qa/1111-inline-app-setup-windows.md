@@ -56,6 +56,19 @@ and WeChat typing refusal codes are retained. The compiled Host was rebuilt.
   disabled. Expired handles permit a fresh setup. A created identity remains
   available for explicit binding after the dialog closes.
 
+## Later main integration
+
+After the native qualification, main `271e056a` was merged into the PR branch.
+The only conflicts were the bilingual Release Ledgers: main's complete `1.2.0`
+release record is preserved, and the unmerged `#1111` entry remains in Unreleased.
+Both incremental review axes found no actionable integration regression.
+TypeScript, lint, format, bilingual ledgers and build passed. Nine focused files
+ran 73 tests: 72 passed and one message-feedback test hit its original 15-second
+timeout while checks were concurrent. With the build finished, that entire file
+passed all 11 tests with one worker and the unchanged timeout. The original
+failure is retained; this is not a new full-suite pass. Native evidence below
+still belongs to installed runtime `9889ada5`, not the later main integration.
+
 ## Installed candidate evidence
 
 The packaged `0.0.0-test.1111.2` candidate was installed into the same isolated
