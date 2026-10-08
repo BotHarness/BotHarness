@@ -224,7 +224,7 @@ _图片为旧版 Profile 布局；保存的发送目标现在位于右侧侧栏�
 
 ## 13. Bot 工作时请求微信原生输入状态
 
-#911 源码预览候选把原生输入状态接到 canonical Bot 处理生命周期。Human 观察真实客户端显示和打包产品验证仍待完成；之前的文字／媒体截图不能证明输入状态已支持。
+#911 预览候选把原生输入状态接到 canonical Bot 处理生命周期。在 Windows 打包候选中，Human 已确认私聊、关联 Assignment 及后续消息处理期间显示原生输入提示，关闭偏好后实际工作期间不显示。真实原生 pwsh 等待命令和最终回复已验证。Human 亦确认失败、原生 Session 停止、Binding 关闭、Grant 撤销、Provider disposal 及 Windows Host 中断／重启后提示消失；撤销和重启后的新消息完整收发恢复通过。证据及限制参见 [Windows 验证记录](qa/wechat-911-windows-handoff.md)；当前仍是 Draft 候选，等待最终 Human QA 和产物晋级。
 
 在绑定微信身份的 **PersonaBot 私聊 → Channel sidebar → 外部身份 → 编辑** 中找到 **微信原生输入状态**。默认开启，关闭后不再为该身份请求输入状态；偏好重启后保留。Provider 未提供受检能力时，即使偏好开启也明确显示不可用。全局默认与 Profile 继承属于 #912。
 
