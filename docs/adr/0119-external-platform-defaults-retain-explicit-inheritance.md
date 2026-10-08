@@ -44,3 +44,24 @@ Slack collection, harvest and identity preferences retain all existing authoriza
 ordinary-delivery verification, policy snapshot and resume-boundary gates. The qualified
 event remains fresh public-channel Human text; changing its default does not qualify
 private/DM, ordinary file events or autonomous thread following.
+
+## Qualified WeChat owner-DM extension (#912)
+
+WeChat uses the same immutable platform-default owner for identity enablement and the
+native typing preference qualified by #911. New WeChat Bindings inherit each preference
+independently. Generation 69 extends the platform constraint and adds `typing_inherited`
+with a legacy default of zero, retaining every existing enabled/typing choice as custom.
+An explicit restore resolves the current global revision; changing typing alone does
+not change identity enablement inheritance. A global typing change invalidates only
+inherited live leases through the existing process-local owner. Nothing restores active
+typing on restart.
+
+Current WeChat intake remains the QR-paired owner DM, collected in full and admitted
+directly. Group mentions, ordinary-group harvest, Threads and new-contact admission
+are not qualified settings and are absent from its editor. Global saves reject those
+unsupported combinations. Channel connectors retain their own destinations, switches
+and member policies. Defaults neither add a Binding/Grant nor authorize another target.
+The existing receive-after fence excludes delayed pre-resume events, while explicit
+custom identities retain their behavior. Schema rollback requires a compatible Host
+or the existing pre-upgrade backup procedure; never downgrade a generation-69 database
+into an older binary. Native fresh-message and typing observations remain Human QA.

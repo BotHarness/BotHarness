@@ -14,6 +14,8 @@
 
 ### Added
 
+- 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
+
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
 - 支持的像素窗口伙伴会随着已提交消息逐字呈现而开合嘴，在标点处闭嘴，播放结束、取消或切到后台后恢复保存的表情；名册头像与图片降级保留原有形象（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。
 

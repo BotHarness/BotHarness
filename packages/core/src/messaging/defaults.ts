@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { DatabaseSync } from 'node:sqlite';
 import { MessagingError } from './provider.js';
 
-export const messagingDefaultsPlatform = z.enum(['feishu', 'slack', 'discord']);
+export const messagingDefaultsPlatform = z.enum(['feishu', 'slack', 'discord', 'weixin']);
 export type MessagingDefaultsPlatform = z.infer<typeof messagingDefaultsPlatform>;
 
 export const messagingDefaultsInput = z
@@ -16,9 +16,19 @@ export const messagingDefaultsInput = z
     count: z.number().int().min(1).max(100),
     intervalSeconds: z.number().int().min(1).max(86400),
     identityEnabled: z.boolean(),
+    typingEnabled: z.boolean().optional(),
     newConversations: z.enum(['auto', 'ask']).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (value) =>
+      value.platform === 'weixin'
+        ? value.collection === 'all' &&
+          value.wake === 'immediate' &&
+          (value.newConversations === undefined || value.newConversations === 'auto')
+        : value.typingEnabled === undefined,
+    { message: 'Defaults must match the qualified platform capabilities' },
+  );
 export type MessagingDefaultsInput = z.infer<typeof messagingDefaultsInput>;
 export type MessagingDefaults<Platform extends string = MessagingDefaultsPlatform> = Omit<
   MessagingDefaultsInput,
@@ -42,11 +52,12 @@ export function messagingDefaults<Platform extends string = 'feishu'>(
     ? (JSON.parse(row.body) as MessagingDefaults<Platform>)
     : {
         platform: key as Platform,
-        collection: 'mentions',
-        wake: 'digest',
+        collection: key === 'weixin' ? 'all' : 'mentions',
+        wake: key === 'weixin' ? 'immediate' : 'digest',
         count: 5,
         intervalSeconds: 30,
         identityEnabled: true,
+        ...(key === 'weixin' ? { typingEnabled: true } : {}),
         newConversations: 'auto',
         revision: 0,
         changedAt: '',
@@ -63,6 +74,9 @@ export function commitMessagingDefaults(
   const value = {
     ...preferences,
     newConversations: preferences.newConversations ?? prior.newConversations ?? 'auto',
+    ...(parsed.platform === 'weixin'
+      ? { typingEnabled: preferences.typingEnabled ?? prior.typingEnabled ?? true }
+      : {}),
     revision: prior.revision + 1,
     changedAt: new Date().toISOString(),
   };
@@ -81,7 +95,11 @@ export function commitMessagingDefaults(
         row.id,
       );
   }
-  if (prior.identityEnabled !== value.identityEnabled)
+  if (prior.typingEnabled !== value.typingEnabled)
+    db.prepare(
+      'UPDATE messaging_bindings SET revision = revision + 1 WHERE platform = ? AND revoked_at IS NULL AND ((enabled_inherited = 1 AND ? = 1) OR (typing_inherited = 1 AND ? = 1))',
+    ).run(value.platform, Number(prior.identityEnabled !== value.identityEnabled), 1);
+  else if (prior.identityEnabled !== value.identityEnabled)
     db.prepare(
       'UPDATE messaging_bindings SET revision = revision + 1 WHERE platform = ? AND enabled_inherited = 1 AND revoked_at IS NULL',
     ).run(value.platform);

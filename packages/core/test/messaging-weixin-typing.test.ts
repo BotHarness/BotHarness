@@ -183,6 +183,45 @@ async function fixture({
   };
 }
 
+it.each([true, false])(
+  'global typing changes cancel only inherited work (inherit=%s)',
+  async (inheritTyping) => {
+    const f = await fixture();
+    const identity = (await f.core.externalMessaging.snapshot('ada')).identities![0]!;
+    await f.core.externalMessaging.identity('ada', {
+      kind: 'update',
+      id: identity.id,
+      expectedRevision: identity.revision,
+      name: identity.name,
+      enabled: true,
+      inheritEnabled: true,
+      typingEnabled: true,
+      inheritTyping,
+    });
+    await f.receive();
+    await vi.waitFor(() => expect(f.typingInputs).toHaveLength(1));
+    const {
+      revision,
+      changedAt: _at,
+      ...preferences
+    } = f.core.externalMessaging.defaults('weixin');
+    await f.core.externalMessaging.setDefaults({
+      ...preferences,
+      expectedRevision: revision,
+      typingEnabled: false,
+    });
+    await tick();
+    expect(f.stops).toHaveBeenCalledTimes(inheritTyping ? 1 : 0);
+    expect(f.typingInputs[0]!.beforeSend()).toBe(!inheritTyping);
+    expect((await f.core.externalMessaging.snapshot('ada')).identities![0]).toMatchObject({
+      typingEnabled: !inheritTyping,
+      typingInheritance: inheritTyping ? 'inherit' : 'custom',
+    });
+    f.release();
+    await f.core.runtime.whenIdle();
+  },
+);
+
 it('keeps one native lease alive for related Assignment work after the Inbox turn ends', async () => {
   const f = await fixture({ deferAssignment: true });
   await f.receive();

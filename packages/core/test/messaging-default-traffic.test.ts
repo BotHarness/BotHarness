@@ -5,6 +5,7 @@ import { attachOperationalModule } from '../src/database/owner.js';
 import { createDshImProvider, type DshImOutboundService } from '../src/messaging/dsh-im.js';
 import type { MessagingInboundEvent, MessagingReplyRoute } from '../src/messaging/provider.js';
 import type { OrchestratorAgentRun, BotAgentAdapter } from '../src/runtime/bot-runtime.js';
+import type { MessagingIdentityInput } from '../src/messaging/identity.js';
 import { createTempRoot } from './helpers.js';
 
 const fingerprint = 'c'.repeat(64);
@@ -179,7 +180,7 @@ async function fixture(
         )[0] as { source_event_id: string }
       ).source_event_id;
     },
-    async update(input: { enabled?: boolean; newConversations?: 'auto' | 'ask' }) {
+    async update(input: Partial<Extract<MessagingIdentityInput, { kind: 'update' }>>) {
       const current = (await core.externalMessaging.snapshot('ada')).identities![0]!;
       await core.externalMessaging.identity('ada', {
         kind: 'update',
@@ -188,6 +189,9 @@ async function fixture(
         name: current.name,
         enabled: input.enabled ?? current.enabled,
         ...(input.newConversations ? { newConversations: input.newConversations } : {}),
+        ...(input.inheritEnabled === undefined ? {} : { inheritEnabled: input.inheritEnabled }),
+        ...(input.typingEnabled === undefined ? {} : { typingEnabled: input.typingEnabled }),
+        ...(input.inheritTyping === undefined ? {} : { inheritTyping: input.inheritTyping }),
       });
       await settle();
     },
@@ -356,6 +360,93 @@ it.each(['slack', 'discord'] as const)(
     ]);
   },
 );
+
+it('WeChat inherits future defaults, preserves overrides and authority, and restores inheritance across restart', async () => {
+  const fx = await fixture('weixin', [
+    { targetId: 'owner', name: 'QR paired owner', kind: 'user', route: { toUserId: 'oc_owner' } },
+  ]);
+  const identity = async () => (await fx.core.externalMessaging.snapshot('ada')).identities![0]!;
+  const defaults = async (identityEnabled: boolean, typingEnabled: boolean) => {
+    const {
+      revision,
+      changedAt: _at,
+      ...preferences
+    } = fx.core.externalMessaging.defaults('weixin');
+    await fx.core.externalMessaging.setDefaults({
+      ...preferences,
+      expectedRevision: revision,
+      identityEnabled,
+      typingEnabled,
+    });
+    await fx.settle();
+  };
+  const fresh = (id: string) => dm(id, { at: new Date(Date.now() + 1000).toISOString() });
+  expect(await identity()).toMatchObject({
+    enabledInheritance: 'inherit',
+    typingInheritance: 'inherit',
+    typingEnabled: true,
+  });
+  await fx.receive(fresh('inherited'));
+  expect(fx.admissions()).toHaveLength(1);
+  const entries = fx.entries();
+  await defaults(false, false);
+  expect(await identity()).toMatchObject({ enabled: false, typingEnabled: false });
+  expect(fx.entries()).toEqual(entries);
+  await fx.update({ enabled: true, typingEnabled: true });
+  expect(await identity()).toMatchObject({
+    enabled: true,
+    enabledInheritance: 'custom',
+    typingEnabled: true,
+    typingInheritance: 'custom',
+  });
+  await fx.receive(fresh('custom'));
+  await defaults(true, false);
+  expect(await identity()).toMatchObject({
+    enabled: true,
+    typingEnabled: true,
+    typingInheritance: 'custom',
+  });
+  await fx.update({ inheritEnabled: true, inheritTyping: true });
+  expect(await identity()).toMatchObject({
+    enabled: true,
+    typingEnabled: false,
+    enabledInheritance: 'inherit',
+    typingInheritance: 'inherit',
+  });
+  await defaults(false, false);
+  await defaults(true, true);
+  await fx.restart();
+  expect(await identity()).toMatchObject({
+    enabled: true,
+    typingEnabled: true,
+    enabledInheritance: 'inherit',
+    typingInheritance: 'inherit',
+  });
+  await fx.receive(dm('old-disabled-time'));
+  await fx.receive(fresh('restored'));
+  await fx.receive(
+    dm('stranger-after-defaults', {
+      conversation: { kind: 'dm', id: 'oc_stranger' },
+      reply: {
+        messageId: 'om-stranger-after-defaults',
+        conversationId: 'oc_stranger',
+        actorId: 'ou_owner',
+      },
+    }),
+  );
+  await fx.receive(mention('unsupported-group'));
+  expect(fx.admissions()).toEqual([
+    { reason: 'human-dm', messageId: 'om-inherited' },
+    { reason: 'human-dm', messageId: 'om-custom' },
+    { reason: 'human-dm', messageId: 'om-restored' },
+  ]);
+  expect(fx.entries()).toEqual(entries);
+  await fx.core.externalMessaging.reply('ada', fx.sourceId('om-restored'), '912 restored owner');
+  expect(fx.replies.at(-1)?.route).toMatchObject({
+    conversationId: 'oc_owner',
+    messageId: 'om-restored',
+  });
+});
 
 it('a bound WeChat app admits only its paired owner DM', async () => {
   const fx = await fixture('weixin', [

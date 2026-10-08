@@ -1167,6 +1167,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
                 typingEnabled: z.boolean().optional(),
+                inheritTyping: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
                 newConversations: z.enum(['auto', 'ask', 'inherit']).optional(),
               })
@@ -2274,17 +2275,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
               ...(deps.externalMessaging
                 ? {
-                    externals: messagingDefaultsPlatform.options.map((platform) => ({
-                      platform,
-                      ...externalMemberWake(
-                        channel,
-                        botSlug,
-                        deps.sourcePolicy
-                          ?.list(botSlug)
-                          .find((p) => p.sourceClass === 'group-ordinary'),
-                        deps.externalMessaging!.defaults(platform),
-                      ),
-                    })),
+                    externals: messagingDefaultsPlatform.options
+                      .filter((platform) => platform !== 'weixin')
+                      .map((platform) => ({
+                        platform,
+                        ...externalMemberWake(
+                          channel,
+                          botSlug,
+                          deps.sourcePolicy
+                            ?.list(botSlug)
+                            .find((p) => p.sourceClass === 'group-ordinary'),
+                          deps.externalMessaging!.defaults(platform),
+                        ),
+                      })),
                     external: {
                       platform: 'feishu' as const,
                       ...externalMemberWake(

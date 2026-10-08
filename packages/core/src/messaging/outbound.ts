@@ -703,6 +703,17 @@ export function createOutboundMessaging(options: {
       ) as { id: string }[];
       if (prior.identityEnabled !== value.identityEnabled)
         await Promise.allSettled(identities.map(({ id }) => bounded(inbound.reconcileBinding(id))));
+      if (prior.typingEnabled !== value.typingEnabled) {
+        const inherited = database.read((db) =>
+          db
+            .prepare(
+              'SELECT id FROM messaging_bindings WHERE platform = ? AND typing_inherited = 1 AND revoked_at IS NULL',
+            )
+            .all(value.platform),
+        ) as { id: string }[];
+        const ids = new Set(inherited.map(({ id }) => id));
+        typing.invalidate((candidate) => ids.has(candidate.bindingId));
+      }
       options.onDefaultsChanged?.();
       options.warn?.(
         JSON.stringify({
@@ -731,7 +742,7 @@ export function createOutboundMessaging(options: {
             if (prior) throw new MessagingError('binding-conflict');
             const id = randomUUID();
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited, typing_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               id,
               botSlug,
@@ -742,6 +753,7 @@ export function createOutboundMessaging(options: {
               now(),
               account.name,
               messagingDefaultsPlatform.safeParse(account.platform).success ? 1 : 0,
+              account.platform === 'weixin' ? 1 : 0,
             );
             return readMessagingIdentity(db, id);
           },
@@ -759,7 +771,7 @@ export function createOutboundMessaging(options: {
         throw new MessagingError('invalid-input');
       if (
         input.kind === 'update' &&
-        input.typingEnabled !== undefined &&
+        (input.typingEnabled !== undefined || input.inheritTyping !== undefined) &&
         value.platform !== 'weixin'
       )
         throw new MessagingError('invalid-input');
@@ -824,7 +836,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, typing_inherited = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -841,6 +853,15 @@ export function createOutboundMessaging(options: {
               : latest.typingEnabled) === false
               ? 0
               : 1,
+            input.kind === 'update' && input.inheritTyping !== undefined
+              ? input.inheritTyping
+                ? 1
+                : 0
+              : input.kind === 'update' && input.typingEnabled !== undefined
+                ? 0
+                : latest.typingInheritance === 'inherit'
+                  ? 1
+                  : 0,
             input.kind === 'update' &&
               input.newConversations !== undefined &&
               input.newConversations !== 'inherit'
@@ -1604,7 +1625,7 @@ export function createOutboundMessaging(options: {
           };
           if (!reusable)
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited, typing_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               bindingId,
               input.botSlug,
@@ -1615,6 +1636,7 @@ export function createOutboundMessaging(options: {
               at,
               inspected.account.name,
               messagingDefaultsPlatform.safeParse(value.platform).success ? 1 : 0,
+              value.platform === 'weixin' ? 1 : 0,
             );
           if (!reusable && readMessagingIdentity(db, bindingId).enabled)
             createdBinding = value.platform;

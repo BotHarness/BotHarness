@@ -12,6 +12,7 @@ export interface MessagingIdentity {
   name: string;
   enabled: boolean;
   typingEnabled?: boolean;
+  typingInheritance?: 'inherit' | 'custom';
   enabledInheritance?: 'inherit' | 'custom';
   newConversations: MessagingNewConversations;
   newConversationsInheritance?: 'inherit' | 'custom';
@@ -30,6 +31,7 @@ export type MessagingIdentityInput =
       name: string;
       enabled: boolean;
       typingEnabled?: boolean | undefined;
+      inheritTyping?: boolean | undefined;
       inheritEnabled?: boolean | undefined;
       expectedDefaultRevision?: number | undefined;
       newConversations?: MessagingNewConversations | 'inherit' | undefined;
@@ -58,6 +60,7 @@ interface BindingRow {
   enabled: number;
   enabled_inherited: number;
   typing_enabled: number;
+  typing_inherited: number;
   new_conversations: MessagingNewConversations;
   new_conversations_inherited: number;
   revision: number;
@@ -82,7 +85,15 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
         ? messagingDefaults(db, r.platform).identityEnabled
         : r.enabled === 1,
     enabledInheritance: r.enabled_inherited === 1 ? 'inherit' : 'custom',
-    ...(r.platform === 'weixin' ? { typingEnabled: r.typing_enabled === 1 } : {}),
+    ...(r.platform === 'weixin'
+      ? {
+          typingEnabled:
+            r.typing_inherited === 1
+              ? (messagingDefaults(db, r.platform).typingEnabled ?? true)
+              : r.typing_enabled === 1,
+          typingInheritance: r.typing_inherited === 1 ? ('inherit' as const) : ('custom' as const),
+        }
+      : {}),
     newConversations:
       r.new_conversations_inherited === 1
         ? (messagingDefaults(db, r.platform).newConversations ?? 'auto')

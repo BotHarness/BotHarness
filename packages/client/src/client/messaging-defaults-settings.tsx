@@ -9,7 +9,12 @@ import type { HumanNameSettingsProps } from './human-name-settings.js';
 import { loadMessagingDefaults, saveMessagingDefaults } from './bridge.js';
 import { useMountedResource } from './mounted-resource.js';
 
-const platformLabels = { feishu: 'Lark / 飞书', slack: 'Slack', discord: 'Discord' } as const;
+const platformLabels = {
+  feishu: 'Lark / 飞书',
+  slack: 'Slack',
+  discord: 'Discord',
+  weixin: 'WeChat / 微信',
+} as const;
 
 export function MessagingDefaultsSettings({
   call,
@@ -27,20 +32,23 @@ export function MessagingDefaultsSettings({
           value={selected}
           onChange={(e) =>
             setSelected(
-              e.target.value === 'discord'
-                ? 'discord'
-                : e.target.value === 'slack'
-                  ? 'slack'
-                  : 'feishu',
+              e.target.value === 'weixin'
+                ? 'weixin'
+                : e.target.value === 'discord'
+                  ? 'discord'
+                  : e.target.value === 'slack'
+                    ? 'slack'
+                    : 'feishu',
             )
           }
         >
           <option value="feishu">Lark / 飞书</option>
           <option value="slack">Slack</option>
           <option value="discord">Discord</option>
+          <option value="weixin">WeChat / 微信</option>
         </select>
       </label>
-      {(['feishu', 'slack', 'discord'] as const).map((platform) => (
+      {(['feishu', 'slack', 'discord', 'weixin'] as const).map((platform) => (
         <div
           key={platform}
           hidden={selected !== platform}
@@ -115,6 +123,7 @@ function PlatformDefaultsSettings({
         count: draft.count,
         intervalSeconds: draft.intervalSeconds,
         identityEnabled: draft.identityEnabled,
+        ...(platform === 'weixin' ? { typingEnabled: draft.typingEnabled ?? true } : {}),
         newConversations: draft.newConversations ?? 'auto',
       };
       const value = await saveMessagingDefaults(call, input);
@@ -156,85 +165,91 @@ function PlatformDefaultsSettings({
         <p>{t('im.loading')}</p>
       ) : (
         <>
-          <div className="bh-bridge-table-wrap">
-            <table className="bh-source-policy-table" aria-label={t('defaults.intake')}>
-              <thead>
-                <tr>
-                  <th>{t('identity.platform')}</th>
-                  <th>{t('bridge.condition')}</th>
-                  <th>{t('im.ordinaryWake')}</th>
-                  <th>{t('defaults.threshold')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">{platformLabels[platform]}</th>
-                  <td>
-                    <select
-                      aria-label={t('defaults.collection')}
-                      value={draft.collection}
-                      disabled={busy}
-                      onChange={(e) =>
-                        change({ collection: e.target.value === 'all' ? 'all' : 'mentions' })
-                      }
-                    >
-                      <option value="mentions">{t('bridge.mentions')}</option>
-                      <option value="all">{t('bridge.all')}</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      aria-label={t('defaults.wake')}
-                      value={draft.wake}
-                      disabled={busy}
-                      onChange={(e) =>
-                        change({ wake: e.target.value as MessagingDefaults['wake'] })
-                      }
-                    >
-                      {(['digest', 'immediate', 'mentions', 'silent'] as const).map((mode) => (
-                        <option value={mode} key={mode}>
-                          {t(`im.wake.${mode}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <label className="bh-default-threshold">
-                      <span>{t('im.digestCount')}</span>
-                      <input
-                        aria-label={t('defaults.count')}
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={draft.count}
-                        disabled={busy || draft.wake !== 'digest'}
-                        onChange={(e) => change({ count: Number(e.target.value) })}
-                      />
-                    </label>
-                    <label className="bh-default-threshold">
-                      <span>{t('im.digestSeconds')}</span>
-                      <input
-                        aria-label={t('defaults.seconds')}
-                        type="number"
-                        min={1}
-                        max={86400}
-                        value={draft.intervalSeconds}
-                        disabled={busy || draft.wake !== 'digest'}
-                        onChange={(e) => change({ intervalSeconds: Number(e.target.value) })}
-                      />
-                    </label>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {platform === 'weixin' ? (
+            <p className="bh-bridge-secondary">{t('defaults.weixinScope')}</p>
+          ) : (
+            <div className="bh-bridge-table-wrap">
+              <table className="bh-source-policy-table" aria-label={t('defaults.intake')}>
+                <thead>
+                  <tr>
+                    <th>{t('identity.platform')}</th>
+                    <th>{t('bridge.condition')}</th>
+                    <th>{t('im.ordinaryWake')}</th>
+                    <th>{t('defaults.threshold')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">{platformLabels[platform]}</th>
+                    <td>
+                      <select
+                        aria-label={t('defaults.collection')}
+                        value={draft.collection}
+                        disabled={busy}
+                        onChange={(e) =>
+                          change({ collection: e.target.value === 'all' ? 'all' : 'mentions' })
+                        }
+                      >
+                        <option value="mentions">{t('bridge.mentions')}</option>
+                        <option value="all">{t('bridge.all')}</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        aria-label={t('defaults.wake')}
+                        value={draft.wake}
+                        disabled={busy}
+                        onChange={(e) =>
+                          change({ wake: e.target.value as MessagingDefaults['wake'] })
+                        }
+                      >
+                        {(['digest', 'immediate', 'mentions', 'silent'] as const).map((mode) => (
+                          <option value={mode} key={mode}>
+                            {t(`im.wake.${mode}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <label className="bh-default-threshold">
+                        <span>{t('im.digestCount')}</span>
+                        <input
+                          aria-label={t('defaults.count')}
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={draft.count}
+                          disabled={busy || draft.wake !== 'digest'}
+                          onChange={(e) => change({ count: Number(e.target.value) })}
+                        />
+                      </label>
+                      <label className="bh-default-threshold">
+                        <span>{t('im.digestSeconds')}</span>
+                        <input
+                          aria-label={t('defaults.seconds')}
+                          type="number"
+                          min={1}
+                          max={86400}
+                          value={draft.intervalSeconds}
+                          disabled={busy || draft.wake !== 'digest'}
+                          onChange={(e) => change({ intervalSeconds: Number(e.target.value) })}
+                        />
+                      </label>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
           <p className="bh-bridge-secondary">{t('defaults.authorization')}</p>
           <table className="bh-source-policy-table" aria-label={t('defaults.identity')}>
             <thead>
               <tr>
                 <th>{t('identity.platform')}</th>
                 <th>{t('defaults.identity')}</th>
-                <th>{t('identity.newConversations')}</th>
+                <th>
+                  {t(platform === 'weixin' ? 'identity.typing.label' : 'identity.newConversations')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -249,17 +264,26 @@ function PlatformDefaultsSettings({
                   />
                 </td>
                 <td>
-                  <select
-                    aria-label={t('identity.newConversations')}
-                    value={draft.newConversations ?? 'auto'}
-                    disabled={busy}
-                    onChange={(e) =>
-                      change({ newConversations: e.target.value === 'ask' ? 'ask' : 'auto' })
-                    }
-                  >
-                    <option value="auto">{t('identity.newConversations.auto')}</option>
-                    <option value="ask">{t('identity.newConversations.ask')}</option>
-                  </select>
+                  {platform === 'weixin' ? (
+                    <Switch
+                      checked={draft.typingEnabled ?? true}
+                      disabled={busy}
+                      label={t('defaults.enableTyping')}
+                      onChange={(typingEnabled) => change({ typingEnabled })}
+                    />
+                  ) : (
+                    <select
+                      aria-label={t('identity.newConversations')}
+                      value={draft.newConversations ?? 'auto'}
+                      disabled={busy}
+                      onChange={(e) =>
+                        change({ newConversations: e.target.value === 'ask' ? 'ask' : 'auto' })
+                      }
+                    >
+                      <option value="auto">{t('identity.newConversations.auto')}</option>
+                      <option value="ask">{t('identity.newConversations.ask')}</option>
+                    </select>
+                  )}
                 </td>
               </tr>
             </tbody>
