@@ -13,15 +13,21 @@ export interface OnboardingViewState {
   receipt?: OnboardingSnapshot | undefined;
   pending?: PendingWelcomeRequest | undefined;
   modelOpen: boolean;
+  modelTarget?: { channelId: string; slug: string } | undefined;
+  sendOpen: boolean;
   guideOpen: boolean;
   busy: boolean;
   error?: string | undefined;
 }
 export class OnboardingController {
-  private state: OnboardingViewState = { modelOpen: false, guideOpen: false, busy: false };
+  private state: OnboardingViewState = {
+    modelOpen: false,
+    sendOpen: false,
+    guideOpen: false,
+    busy: false,
+  };
   private listeners = new Set<() => void>();
   private entering: Promise<void> | undefined;
-  private confirmed: PendingWelcomeRequest | undefined;
   constructor(readonly actions: BridgeActions) {}
   getSnapshot = (): OnboardingViewState => this.state;
   subscribe = (listener: () => void): (() => void) => {
@@ -106,10 +112,6 @@ export class OnboardingController {
   }
   prepareSend(channelId: string, slug: string, body: string): boolean | Promise<boolean> {
     this.pauseGuide();
-    if (this.confirmed?.channelId === channelId && this.confirmed.body === body) {
-      this.confirmed = undefined;
-      return true;
-    }
     if (!this.state.receipt || this.state.receipt.completed) return true;
     return this.inspectSend(channelId, slug, body).catch((error: unknown) => {
       this.savePending({ channelId, slug, body });
@@ -135,7 +137,12 @@ export class OnboardingController {
     )
       return true;
     this.savePending({ channelId, slug, body });
-    this.update({ modelOpen: true, error: undefined });
+    this.update({
+      modelOpen: true,
+      modelTarget: { channelId, slug },
+      sendOpen: false,
+      error: undefined,
+    });
     return false;
   }
   async request(channelId: string, body: string): Promise<void> {
@@ -151,42 +158,63 @@ export class OnboardingController {
       this.update({ busy: false });
     }
   }
-  chooseModel(channelId: string, slug: string, body: string): void {
+  chooseModel(channelId: string, slug: string, body?: string): void {
     if (this.state.busy || store.getSnapshot().conversation.sending) return;
     this.pauseGuide();
-    this.savePending({ channelId, slug, body });
-    this.update({ modelOpen: true, error: undefined });
+    if (body !== undefined) this.savePending({ channelId, slug, body });
+    this.update({
+      modelOpen: true,
+      modelTarget: { channelId, slug },
+      sendOpen: false,
+      error: undefined,
+    });
   }
   reviewPending(): void {
     if (this.state.pending) {
       this.pauseGuide();
-      this.update({ modelOpen: true });
+      this.update({ sendOpen: true, modelOpen: false, error: undefined });
     }
   }
   closeModel(): void {
-    this.update({ modelOpen: false });
+    this.update({ modelOpen: false, modelTarget: undefined });
   }
-  async confirm(
+  closeSend(): void {
+    this.update({ sendOpen: false });
+  }
+  async saveModel(
     route: ModelRouteView,
     globalDefault: boolean,
     expectedRevision: number,
   ): Promise<void> {
-    const pending = this.state.pending;
-    if (!pending || this.state.busy) return;
+    const target = this.state.modelTarget;
+    if (!target || this.state.busy) return;
     this.update({ busy: true, error: undefined });
     try {
-      await this.actions.onboardingModel(pending.slug, expectedRevision, route, globalDefault);
-      this.update({ modelOpen: false });
-      if (store.getSnapshot().conversation.channel?.id !== pending.channelId)
-        await this.actions.openChannel(pending.channelId);
-      this.confirmed = pending;
-      if (await this.actions.send(pending.body)) this.savePending(undefined);
+      await this.actions.onboardingModel(target.slug, expectedRevision, route, globalDefault);
+      this.update({
+        modelOpen: false,
+        modelTarget: undefined,
+        sendOpen: this.state.pending?.channelId === target.channelId,
+      });
     } catch (error) {
       this.update({ error: errorMessage(error) });
       throw error;
     } finally {
-      this.confirmed = undefined;
       this.update({ busy: false });
+    }
+  }
+  async sendPending(): Promise<void> {
+    const pending = this.state.pending;
+    if (!pending || this.state.busy) return;
+    this.update({ busy: true, error: undefined, sendOpen: false });
+    try {
+      if (store.getSnapshot().conversation.channel?.id !== pending.channelId)
+        await this.actions.openChannel(pending.channelId);
+      if (await this.actions.send(pending.body)) this.savePending(undefined);
+    } catch (error) {
+      this.update({ error: errorMessage(error) });
+    } finally {
+      this.update({ busy: false, sendOpen: Boolean(this.state.pending) && !this.state.modelOpen });
     }
   }
 }

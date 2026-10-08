@@ -1527,14 +1527,15 @@ describe('bridge actions', () => {
     await actions.openBot('ada');
     const controller = onboardingFor(actions);
     controller.chooseModel('dm-ada', 'ada', 'Only one question');
-    await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+    await controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
+    await controller.sendPending();
     expect(clientStore.getSnapshot().conversation.messages).toEqual([
       expect.objectContaining({ id: accepted[0]!.id, failed: 'response lost' }),
     ]);
     expect(controller.getSnapshot().pending).toBeUndefined();
     await actions.refreshChannelMessages('dm-ada');
     controller.reviewPending();
-    await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+    await controller.sendPending();
     expect(accepted).toHaveLength(1);
     expect(clientStore.getSnapshot().conversation.messages).toEqual([accepted[0]]);
     expect(controller.getSnapshot().modelOpen).toBe(false);

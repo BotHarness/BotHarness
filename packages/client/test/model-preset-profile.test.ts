@@ -95,7 +95,7 @@ import type { BridgeActions } from '../src/client/actions.js';
 import type { ModelPlanView, ModelPresetView } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
 import { ModelPresetProfile } from '../src/client/model-preset-profile.js';
-import { OnboardingModelDialog } from '../src/client/onboarding-view.js';
+import { OnboardingModelDialog, OnboardingWelcome } from '../src/client/onboarding-view.js';
 
 function translate(key: string, params?: Record<string, unknown>): string {
   let text = (en as Record<string, string>)[key] ?? key;
@@ -512,7 +512,7 @@ describe('Model entry', () => {
   });
 });
 
-it('uses the shared model picker for onboarding and waits for final confirmation after route and effort changes', async () => {
+it('uses the shared model picker for onboarding and waits for an explicit model save after route and effort changes', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   container = document.createElement('div');
   document.body.append(container);
@@ -550,10 +550,37 @@ it('uses the shared model picker for onboarding and waits for final confirmation
     document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click(),
   );
   expect(onConfirm).not.toHaveBeenCalled();
-  await act(async () => button('Use this model and send').click());
+  await act(async () => button('Save model').click());
   expect(onConfirm).toHaveBeenCalledExactlyOnceWith(
     { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
     false,
     7,
   );
+});
+
+it('offers news, daily-summary and timed-test requests through the normal welcome send path', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  const send = vi.fn(async () => true);
+  const actions = {
+    modelCatalog: vi.fn(async () => ({ models: catalog })),
+    openChannel: vi.fn(async () => {}),
+    send,
+  } as unknown as BridgeActions;
+  await act(async () =>
+    root!.render(createElement(OnboardingWelcome, { actions, channelId: 'dm-ada', t: translate })),
+  );
+  const prompts = [
+    en['onboarding.firstRequest'],
+    en['onboarding.newsRequest'],
+    en['onboarding.dailyRequest'],
+    en['onboarding.testRequest'],
+  ];
+  for (const prompt of prompts) {
+    await act(async () => button(prompt).click());
+    expect(send).toHaveBeenLastCalledWith(prompt);
+  }
+  expect(send).toHaveBeenCalledTimes(4);
 });

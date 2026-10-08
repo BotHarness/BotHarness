@@ -96,6 +96,8 @@ export const CSS =
 .bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .bh-onboarding-actions > span { flex: 1; }
 .bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; }
+.bh-onboarding-choices { display: grid; gap: 8px; min-width: 0; }
+.bh-onboarding-choices > button { justify-content: flex-start; white-space: normal; text-align: left; }
 .bh-onboarding-welcome-heading { display: grid; gap: 4px; }
 .bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
 .bh-onboarding-welcome > button { justify-self: start; }

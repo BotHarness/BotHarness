@@ -2,7 +2,7 @@
 
 Issue: [#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175). Parent: [#1174](https://github.com/BotHarness/DeepSeekBot/issues/1174). Verified 2026-10-08 with the pinned DSH 0.2.0-rc.1, Windows, Node 24.14.0 and pnpm 12.4.2.
 
-## Observed runtime behavior
+## Original runtime behavior before the separate model/send revision
 
 - Fresh Profile, before deliberate Bot-mode entry: no PersonaBot. Entry prepares one enabled DeepSeek Bot, its real Git Memory Repository, a Human DM, one product-authored system welcome and the local companion. No model call is needed for this state.
 - With no usable credential reference, the welcome choice opens model confirmation. The selected question is retained locally; the Profile-default checkbox is checked, and final submission is disabled until configuration is available.
@@ -17,7 +17,7 @@ The integrated generation-69 Host was also started with a new isolated Profile. 
 
 ## Automated checks
 
-- After integration with main, final Client suite: **947 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
+- After integration with main, final Client suite: **950 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
 - Before integration with main, related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output. After integration, the combined run including Content Purge was **37 passed, 5 failed**: four onboarding timeouts and one Content Purge filesystem `fsync` EPERM. The isolated final core rerun then passed **23/23** with one worker and a 60-second per-test limit; this does not make the default-limit combined run green.
 - The final recovery regression commits a Human message before losing the transport response, refreshes canonical history and tries to continue the old draft: only the original message remains. Draft ownership transfers to the normal message chain when its message ID is allocated. A send stopped before allocation preserves the draft; a failed readiness lookup preserves text and displays an error.
 - Typecheck, lint (existing warnings), format check, build, bilingual release-ledger checks, ADR uniqueness and `git diff --check` passed.
@@ -62,15 +62,35 @@ New images are unmodified Chinese Client captures at **1559 × 920**. Each pair 
 
 Additional current captures: [native provider settings](provider-settings-after.jpg), [global default model](global-model-after.jpg). These resolve the Settings capture limitation above for model/provider presentation; fixed/inherited Bot controls, cross-client/skip walkthrough and actual OS reduced-motion switching remain Human review items.
 
+## Welcome choices and separate model/send verification
+
+After further Human feedback, the welcome offers capability introduction, today’s news, a daily 9am news summary and a ten-minute reminder to test scheduled tasks. They remain ordinary Human DM requests handled by the existing execution capabilities; no news subsystem or scheduler store was added.
+
+The model card and dialog now say Choose a model, with Save model as the only final action. Standalone model setup invents no question. A pending question reaches a separate Send question dialog after saving, with its own Send action; closing it preserves the local question. Review unsent question reopens that send step and allows returning to model selection. The final send rechecks current model readiness through the normal send path.
+
+Real Chrome verification used the existing completed QA Profile for the same-conversation welcome comparison and a separate fresh Profile for the blocked first-request path. In the fresh Profile, the native provider reference temporarily pointed to an unset QA environment variable. Selecting the introduction retained the question and opened model setup without a Human message. Restoring only the reference, refreshing models and clicking Save model opened the separate send step; canonical history still contained just one system welcome. Escape closed the send step, Review restored it, and Choose a model returned to the first step. Only the later explicit Send submitted the introduction: canonical history then contained one welcome, exactly one Human request and a genuine Bot reply, and onboarding completed. No scheduled request was executed during these checks.
+
+Final Client regression: **950 passed**, including four welcome requests through the regular send action, standalone model save without an invented draft, separate save/send, close/restore, failed-save preservation and response-loss deduplication. Focused controller/bridge/view run: **90 passed**. Typecheck, lint, formatting, build and release-ledger checks passed. Previous revision `d48793fd` full Linux CI passed ([run](https://github.com/BotHarness/DeepSeekBot/actions/runs/37763411866)).
+
+Current unmodified Chinese captures use **1559 × 920**:
+
+| View                              | Light                               | Dark                              |
+| --------------------------------- | ----------------------------------- | --------------------------------- |
+| Four welcome choices              | [Light](choices-after-light.jpg)    | [Dark](choices-after-dark.jpg)    |
+| Save model step, pending question | [Light](model-step-after-light.jpg) | [Dark](model-step-after-dark.jpg) |
+| Separate send step                | [Light](send-step-after-light.jpg)  | [Dark](send-step-after-dark.jpg)  |
+
+The previous revision’s `card-after-*` and `model-after-*` images are retained as before evidence for this feedback. Model/send-step captures use the fresh first-time Profile, whereas the welcome comparison uses the earlier completed conversation; they are not presented as an identical message-history state.
+
 ## Runnable review
 
 Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-home> --port <free-port> --build` and open the printed local login URL. Never reuse a production Profile for schema verification. To reproduce missing configuration, point the native provider's `apiKeyEnv` at an unset QA reference through native Settings; do not remove shared credentials.
 
 1. Enter Bot mode. Confirm the default identity, welcome, composer and companion before configuring a Key.
-2. Click the welcome question; check the selected request, default-on global option and explicit final send. Close and refresh, then deliberately continue the retained question.
-3. Configure a usable model through native Models/Credentials and confirm. Check a real reply, completion and reusable welcome. Open Bot Profile: the model should show Inherit global.
+2. Check all four welcome choices. Open Choose a model alone and save: no question or message should appear. With missing configuration, select a welcome question; check the retained request and default-on global option. Restore configuration and save the model: a separate Send question dialog opens without a Human message. Close and refresh, then deliberately review the retained question.
+3. In the separate send step, explicitly click Send. Check a real reply, completion and reusable welcome. Open Bot Profile: the model should show Inherit global.
 4. Save an individual choice for a second Bot. Change the global default in Bot settings; verify the inheritor follows and the fixed Bot retains its plan. Return the fixed Bot to inheritance with the current revision.
 5. Start, close/Escape, continue and skip the guide; re-enter from another Client and verify no automatic highlight. Check keyboard focus and the OS reduced-motion preference.
 6. With a QA-only invalid credential, send once, repair it and explicitly retry the original failure card. Verify one Human message. Replay after a completed or side-effecting request must be refused.
 
-Schema generation 69 is forward-only. Keep a pre-upgrade backup; a generation-68 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery, retaining the independent Purge Ledger and enforcing its monotonic facts. Do not expand news/schedules/optional Memory/IM guidance until Human feedback on this slice.
+Schema generation 69 is forward-only. Keep a pre-upgrade backup; a generation-68 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery, retaining the independent Purge Ledger and enforcing its monotonic facts. Optional Memory/IM guided breadth remains deferred pending further Human feedback.

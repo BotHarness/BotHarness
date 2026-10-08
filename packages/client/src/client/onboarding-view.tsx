@@ -31,7 +31,7 @@ export function OnboardingModelDialog({
   onConfirm(route: ModelRouteView, globalDefault: boolean, revision: number): Promise<void>;
   t: BotHarnessTranslate;
   globalOnly?: boolean;
-  request?: string;
+  request?: string | undefined;
 }): ReactElement {
   const [models, setModels] = useState<ModelCatalogEntryView[]>([]);
   const [route, setRoute] = useState<ModelRouteView>();
@@ -96,7 +96,7 @@ export function OnboardingModelDialog({
           disabled={busy || !selected || selected.credential !== undefined}
           onClick={() => void confirm()}
         >
-          {t(globalOnly ? 'onboarding.saveDefault' : 'onboarding.confirmSend')}
+          {t(globalOnly ? 'onboarding.saveDefault' : 'onboarding.saveModel')}
         </Button>
       }
     >
@@ -211,13 +211,25 @@ export function OnboardingWelcome({
         <strong>{t('onboarding.welcome')}</strong>
         <p>{t('onboarding.prompt')}</p>
       </div>
-      <Button
-        variant="outline"
-        disabled={state.busy || store.getSnapshot().conversation.sending}
-        onClick={() => void controller.request(channelId, t('onboarding.firstRequest'))}
-      >
-        {t('onboarding.firstRequest')}
-      </Button>
+      <div className="bh-onboarding-choices" role="group" aria-label={t('onboarding.prompt')}>
+        {(
+          [
+            'onboarding.firstRequest',
+            'onboarding.newsRequest',
+            'onboarding.dailyRequest',
+            'onboarding.testRequest',
+          ] as const
+        ).map((key) => (
+          <Button
+            key={key}
+            variant="outline"
+            disabled={state.busy || store.getSnapshot().conversation.sending}
+            onClick={() => void controller.request(channelId, t(key))}
+          >
+            {t(key)}
+          </Button>
+        ))}
+      </div>
       <p className="bh-note">{t('onboarding.freeform')}</p>
       <SidebarCardList label={t('onboarding.model')}>
         <SidebarCardRow
@@ -228,7 +240,7 @@ export function OnboardingWelcome({
           dialog
           onClick={() => {
             const slug = store.getSnapshot().conversation.channel?.botSlug;
-            if (slug) controller.chooseModel(channelId, slug, t('onboarding.firstRequest'));
+            if (slug) controller.chooseModel(channelId, slug);
           }}
         />
       </SidebarCardList>
@@ -281,7 +293,8 @@ export function OnboardingSurface({
       !state.guideOpen ||
       state.receipt?.tutorial !== 'active' ||
       state.receipt.completed ||
-      state.modelOpen
+      state.modelOpen ||
+      state.sendOpen
     )
       return;
     const welcome = document.querySelector('[data-onboarding-welcome]');
@@ -295,7 +308,13 @@ export function OnboardingSurface({
         controller.pauseGuide();
       },
     );
-  }, [state.guideOpen, state.receipt?.tutorial, state.receipt?.completed, state.modelOpen]);
+  }, [
+    state.guideOpen,
+    state.receipt?.tutorial,
+    state.receipt?.completed,
+    state.modelOpen,
+    state.sendOpen,
+  ]);
   const receipt = state.receipt;
   return (
     <div
@@ -370,18 +389,59 @@ export function OnboardingSurface({
       ) : !state.error ? (
         <span role="status">{t('onboarding.preparing')}</span>
       ) : null}
-      {state.modelOpen && state.pending ? (
+      {state.modelOpen && state.modelTarget ? (
         <OnboardingModelDialog
           actions={actions}
-          slug={state.pending.slug}
-          request={state.pending.body}
+          slug={state.modelTarget.slug}
+          request={
+            state.pending?.channelId === state.modelTarget.channelId
+              ? state.pending.body
+              : undefined
+          }
           title={t('onboarding.modelTitle')}
           t={t}
           onClose={() => controller.closeModel()}
           onConfirm={(route, globalDefault, revision) =>
-            controller.confirm(route, globalDefault, revision)
+            controller.saveModel(route, globalDefault, revision)
           }
         />
+      ) : null}
+      {state.sendOpen && state.pending ? (
+        <Modal
+          open
+          title={t('onboarding.sendTitle')}
+          closeLabel={t('common.close')}
+          onClose={() => controller.closeSend()}
+          footer={
+            <Button
+              variant="primary"
+              disabled={state.busy}
+              onClick={() => void controller.sendPending()}
+            >
+              {t('onboarding.confirmSend')}
+            </Button>
+          }
+        >
+          <div className="bh-root bh-onboarding-model-form">
+            <p className="bh-note">{t('onboarding.sendHint')}</p>
+            <div className="bh-onboarding-request">
+              <span className="bh-note">{t('onboarding.requestLabel')}</span>
+              <p>{state.pending.body}</p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={state.busy}
+              onClick={() => controller.chooseModel(state.pending!.channelId, state.pending!.slug)}
+            >
+              {t('onboarding.chooseModel')}
+            </Button>
+            {state.error ? (
+              <p role="alert" className="bh-error">
+                {state.error}
+              </p>
+            ) : null}
+          </div>
+        </Modal>
       ) : null}
     </div>
   );

@@ -46,14 +46,22 @@ it('preserves missing-key intent locally across refresh and only sends on explic
   });
   expect(restored.actions.send).not.toHaveBeenCalled();
   restored.controller.reviewPending();
-  expect(restored.controller.getSnapshot().modelOpen).toBe(true);
-  await restored.controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
+  expect(restored.controller.getSnapshot().sendOpen).toBe(true);
+  restored.controller.chooseModel('dm-ada', 'ada');
+  await restored.controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
   expect(restored.actions.onboardingModel).toHaveBeenCalledWith(
     'ada',
     0,
     { provider: 'deepseek', model: 'chat' },
     true,
   );
+  expect(restored.actions.send).not.toHaveBeenCalled();
+  expect(restored.controller.getSnapshot()).toMatchObject({
+    modelOpen: false,
+    sendOpen: true,
+    pending: { body: 'My own request' },
+  });
+  await restored.controller.sendPending();
   expect(restored.actions.send).toHaveBeenCalledExactlyOnceWith('My own request');
   expect(restored.controller.getSnapshot().pending).toBeUndefined();
   expect(sessionStorage.length).toBe(0);
@@ -75,7 +83,7 @@ it('retains unsent content and surfaces a failed global save without submitting'
   await controller.prepareSend('dm-ada', 'ada', 'Hello');
   actions.onboardingModel.mockRejectedValueOnce(new Error('default-model-not-saved'));
   await expect(
-    controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0),
+    controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0),
   ).rejects.toThrow('default-model-not-saved');
   expect(actions.send).not.toHaveBeenCalled();
   expect(controller.getSnapshot()).toMatchObject({
@@ -174,6 +182,38 @@ it('keeps a confirmed draft when sending stops before allocating a message', asy
   await controller.enter();
   controller.chooseModel('dm-ada', 'ada', 'Keep this question');
   actions.send.mockResolvedValueOnce(false);
-  await controller.confirm({ provider: 'deepseek', model: 'chat' }, true, 0);
-  expect(controller.getSnapshot().pending?.body).toBe('Keep this question');
+  await controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
+  await controller.sendPending();
+  expect(controller.getSnapshot()).toMatchObject({
+    sendOpen: true,
+    pending: { body: 'Keep this question' },
+  });
+});
+
+it('saves a model without inventing a question or sending a message from the standalone model entry', async () => {
+  const { actions, controller } = harness();
+  await controller.enter();
+  controller.chooseModel('dm-ada', 'ada');
+  expect(controller.getSnapshot().pending).toBeUndefined();
+  await controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
+  expect(actions.onboardingModel).toHaveBeenCalledOnce();
+  expect(actions.send).not.toHaveBeenCalled();
+  expect(controller.getSnapshot()).toMatchObject({ modelOpen: false, sendOpen: false });
+  expect(sessionStorage.length).toBe(0);
+});
+it('retains the question when the separate send step is closed after saving the model', async () => {
+  const { actions, controller } = harness();
+  await controller.enter();
+  await controller.prepareSend('dm-ada', 'ada', 'Review before sending');
+  await controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
+  controller.closeSend();
+  expect(actions.send).not.toHaveBeenCalled();
+  const restored = harness();
+  await restored.controller.enter();
+  restored.controller.reviewPending();
+  expect(restored.controller.getSnapshot()).toMatchObject({
+    sendOpen: true,
+    modelOpen: false,
+    pending: { body: 'Review before sending' },
+  });
 });
