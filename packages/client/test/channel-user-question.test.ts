@@ -27,7 +27,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 }));
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { ChannelMessageBody } from '../src/client/channel-message-body.js';
+import { ChannelMessageBody, MessageDeveloperMode } from '../src/client/channel-message-body.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
 
@@ -76,14 +76,23 @@ afterEach(async () => {
   store.setConversation(previous);
 });
 
-function render(actions: BridgeActions, resolution?: 'answered' | 'cancelled') {
+function render(
+  actions: BridgeActions,
+  resolution?: 'answered' | 'cancelled',
+  card: ChannelMessage = message,
+  developerMode = false,
+) {
   root.render(
-    createElement(ChannelMessageBody, {
-      message,
-      actions,
-      t: zhTranslate,
-      userQuestionResolution: resolution,
-    }),
+    createElement(
+      MessageDeveloperMode.Provider,
+      { value: developerMode },
+      createElement(ChannelMessageBody, {
+        message: card,
+        actions,
+        t: zhTranslate,
+        userQuestionResolution: resolution,
+      }),
+    ),
   );
 }
 
@@ -101,7 +110,10 @@ describe('native question card interaction', () => {
     } as unknown as BridgeActions;
     await act(async () => render(actions));
     expect(actions.userQuestionStatus).toHaveBeenCalledWith('dm-ada', 'question-1');
+    expect(container.querySelector('input[type=checkbox]')).toBeNull();
+    await act(async () => button('main')?.click());
     await act(async () => button('history-qa')?.click());
+    expect(button('main')?.getAttribute('aria-pressed')).toBe('false');
     expect(button('history-qa')?.getAttribute('aria-pressed')).toBe('true');
     await act(async () => button('回答并继续')?.click());
     expect(actions.answerUserQuestion).toHaveBeenCalledWith('dm-ada', 'question-1', [
@@ -111,6 +123,73 @@ describe('native question card interaction', () => {
     await act(async () => render(actions, 'answered'));
     expect(button('回答并继续')).toBeUndefined();
     expect(button('history-qa')?.disabled).toBe(true);
+  });
+
+  it('toggles multiple choices from the full label and submits only the checked answers', async () => {
+    const actions = {
+      userQuestionStatus: vi.fn().mockResolvedValue('pending'),
+      answerUserQuestion: vi.fn().mockResolvedValue(undefined),
+    } as unknown as BridgeActions;
+    const card: ChannelMessage = {
+      ...message,
+      userQuestionRequest: {
+        sessionId: 'orchestrator-1',
+        questions: [
+          {
+            id: 'topics',
+            header: 'Digest',
+            question: 'Which topics?',
+            detail: 'Choose the topics you want to follow.',
+            multiSelect: true,
+            options: [
+              { label: 'Science', description: 'Research and technology' },
+              { label: 'Business', description: 'Companies and markets' },
+              { label: 'Life' },
+            ],
+          },
+        ],
+      },
+    };
+    await act(async () => render(actions, undefined, card));
+    const choices = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type=checkbox]'),
+    );
+    const labels = Array.from(container.querySelectorAll<HTMLLabelElement>('label.bh-card-main'));
+    expect(choices).toHaveLength(3);
+    expect(container.querySelector('button input')).toBeNull();
+    await act(async () => labels[0]?.click());
+    await act(async () => labels[1]?.click());
+    expect(choices.map((choice) => choice.checked)).toEqual([true, true, false]);
+    await act(async () => labels[0]?.click());
+    expect(choices.map((choice) => choice.checked)).toEqual([false, true, false]);
+    const customInput = container.querySelector<HTMLInputElement>('input:not([type=checkbox])');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+        customInput,
+        'Design',
+      );
+      customInput?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelector('.bh-question-source')).toBeNull();
+    expect(container.textContent).not.toContain('Digest');
+    expect(container.textContent).toContain('Choose the topics you want to follow.');
+    expect(container.querySelector('.bh-question-custom')).toBeNull();
+    expect(customInput?.getAttribute('aria-label')).toBe('其他回答');
+    expect(customInput?.placeholder).toBe('其他回答（可选）');
+    await act(async () => render(actions, undefined, card, true));
+    expect(container.querySelector('.bh-question-source code')?.textContent).toBe('orchestrator-1');
+    expect(container.textContent).toContain('Digest');
+    await act(async () => render(actions, undefined, card, false));
+    expect(container.querySelector('.bh-question-source')).toBeNull();
+    expect(container.textContent).not.toContain('Digest');
+    expect(customInput?.value).toBe('Design');
+    expect(actions.userQuestionStatus).toHaveBeenCalledTimes(1);
+    expect(choices[1]?.checked).toBe(true);
+    await act(async () => button('回答并继续')?.click());
+    expect(actions.answerUserQuestion).toHaveBeenCalledWith('dm-ada', 'question-1', [
+      { id: 'topics', selected: ['Business'], custom: 'Design' },
+    ]);
+    expect(choices.every((choice) => choice.disabled)).toBe(true);
   });
 
   it('retries a failed status read without expiring a pending question', async () => {

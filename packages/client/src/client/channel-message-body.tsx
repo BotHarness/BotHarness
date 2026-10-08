@@ -1,7 +1,9 @@
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { OnboardingWelcome } from './onboarding-view.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
 import { MessageAttachment } from './message-attachment.js';
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { createContext, useContext, useMemo, useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
@@ -59,14 +61,20 @@ function failureSummary(
 
 function SessionFailureNotice({
   message,
+  channelId,
+  actions,
   t,
   nativeChatT,
 }: {
   message: ChannelMessage;
+  channelId?: string | undefined;
+  actions?: BridgeActions | undefined;
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const failure = message.sessionFailure!;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const title = nativeChatT?.('message.turnError') ?? t('failure.title');
   const needsModels = ['AUTH', 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL', 'QUOTA'].includes(
     failure.code ?? '',
@@ -93,6 +101,23 @@ function SessionFailureNotice({
           {t('failure.openModels')}
         </Button>
       ) : null}
+      {failure.requestMessageId && actions && channelId ? (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setError(undefined);
+            void actions
+              .retryMessage(channelId, failure.requestMessageId!)
+              .catch((cause) => setError(errorMessage(cause)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          {t('onboarding.retryMessage')}
+        </Button>
+      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
       <details className="bh-session-failure-details">
         <summary>{t('failure.details')}</summary>
         <div>
@@ -268,6 +293,8 @@ function ToolApprovalCard({
   );
 }
 
+export const MessageDeveloperMode = createContext(false);
+
 function UserQuestionCard({
   message,
   actions,
@@ -279,6 +306,7 @@ function UserQuestionCard({
   resolution?: 'answered' | 'cancelled' | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
+  const developerMode = useContext(MessageDeveloperMode);
   const request = message.userQuestionRequest!;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
   const [status, setStatus] = useState<
@@ -365,41 +393,53 @@ function UserQuestionCard({
   return (
     <div ref={questionMount} className="bh-question-card">
       <div className="bh-grant-request-title">{t('question.title')}</div>
-      <details className="bh-question-source">
-        <summary>{t('question.source')}</summary>
-        <code>{request.sessionId}</code>
-      </details>
+      {developerMode ? (
+        <details className="bh-question-source">
+          <summary>{t('question.source')}</summary>
+          <code>{request.sessionId}</code>
+        </details>
+      ) : null}
       {request.questions.map((question) => (
         <div className="bh-question-item" key={question.id}>
-          {question.header === undefined ? null : <div className="bh-note">{question.header}</div>}
+          {developerMode && question.header !== undefined ? (
+            <div className="bh-note">{question.header}</div>
+          ) : null}
           <div className="bh-question-prompt">{question.question}</div>
           {question.detail === undefined ? null : <div className="bh-note">{question.detail}</div>}
-          {question.options?.map((option) => (
-            <Button
-              key={option.label}
-              variant={(selected[question.id] ?? []).includes(option.label) ? 'primary' : 'outline'}
-              disabled={status !== 'pending' || busy}
-              aria-pressed={(selected[question.id] ?? []).includes(option.label)}
-              onClick={() => choose(question.id, option.label, question.multiSelect === true)}
+          {question.options?.length ? (
+            <SidebarCardList label={question.question} className="bh-message-card-list">
+              {question.options.map((option) => (
+                <SidebarCardRow
+                  key={option.label}
+                  title={option.label}
+                  meta={option.description}
+                  selection={{
+                    checked: (selected[question.id] ?? []).includes(option.label),
+                    multiple: question.multiSelect === true,
+                  }}
+                  disabled={status !== 'pending' || busy}
+                  onClick={() => choose(question.id, option.label, question.multiSelect === true)}
+                />
+              ))}
+            </SidebarCardList>
+          ) : null}
+          {question.options?.length ? null : (
+            <label
+              className="bh-question-custom"
+              htmlFor={'bh-question-' + message.id + '-' + question.id}
             >
-              <span className="bh-question-option">
-                <span>{option.label}</span>
-                {option.description === undefined ? null : <small>{option.description}</small>}
-              </span>
-            </Button>
-          ))}
-          <label
-            className="bh-question-custom"
-            htmlFor={'bh-question-' + message.id + '-' + question.id}
-          >
-            {t('question.custom')}
-          </label>
+              {t('question.custom')}
+            </label>
+          )}
           <Input
             id={'bh-question-' + message.id + '-' + question.id}
+            aria-label={t('question.custom')}
             value={custom[question.id] ?? ''}
             disabled={status !== 'pending' || busy}
             maxLength={2000}
-            placeholder={t('question.customPlaceholder')}
+            placeholder={t(
+              question.options?.length ? 'question.otherPlaceholder' : 'question.customPlaceholder',
+            )}
             onChange={(event) => {
               const value = event.target.value;
               setCustom((current) => ({ ...current, [question.id]: value }));
@@ -638,8 +678,19 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.contentPurged) return <div className="bh-bubble-body">{t('purge.purged')}</div>;
+  if (message.onboardingWelcome !== undefined && actions !== undefined && channelId !== undefined)
+    return <OnboardingWelcome actions={actions} channelId={channelId} t={t} />;
   if (message.sessionFailure !== undefined)
-    return <SessionFailureNotice message={message} t={t} nativeChatT={nativeChatT} />;
+    return (
+      <SessionFailureNotice
+        message={message}
+        channelId={channelId}
+        actions={actions}
+        t={t}
+        nativeChatT={nativeChatT}
+      />
+    );
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {
     return (
       <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />

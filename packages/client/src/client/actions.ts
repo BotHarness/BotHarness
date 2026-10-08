@@ -1,3 +1,5 @@
+import { onboardingFor } from './onboarding.js';
+import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {
   ChannelHistoryItem,
@@ -271,6 +273,16 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  onboarding(slug?: string, action?: TutorialAction): Promise<OnboardingSnapshot>;
+  onboardingModel(
+    slug: string | undefined,
+    expectedRevision: number,
+    route: ModelRouteView,
+    globalDefault: boolean,
+  ): Promise<{ revision: number }>;
+  inheritModel(slug: string, expectedRevision: number): Promise<{ revision: number }>;
+  retryMessage(channelId: string, messageId: string): Promise<void>;
+
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
   channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
@@ -582,7 +594,11 @@ export interface BridgeActions {
     before?: string,
   ): Promise<{ sources: PurgeSource[]; before?: string }>;
   channelPurgePreview(channelId: string, sourceEventIds: string[]): Promise<PurgePreview>;
-  channelPurgeConfirm(channelId: string, sourceEventIds: string[], token: string): Promise<void>;
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): Promise<{ accepted: number; cleanupPending?: number }>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -1101,7 +1117,22 @@ export function createActions(
     return bot;
   };
 
+  const invoke = async <T>(endpoint: string, payload: Record<string, unknown>): Promise<T> => {
+    const result = await call(endpoint, payload);
+    if (!result.ok)
+      throw new BridgeCallError(result.error.code, result.error.message, result.error.details);
+    return result.value as T;
+  };
   const actions: BridgeActions = {
+    onboarding: (slug, action) => invoke('onboarding', { slug, action }),
+    onboardingModel: (slug, expectedRevision, route, globalDefault) =>
+      invoke('onboardingModel', { slug, expectedRevision, route, globalDefault }),
+    inheritModel: (slug, expectedRevision) =>
+      invoke('modelPlanInherit', { slug, expectedRevision }),
+    async retryMessage(channelId, messageId) {
+      await invoke('channelRetry', { channelId, messageId });
+      await actions.refreshChannelMessages(channelId);
+    },
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
@@ -1954,6 +1985,19 @@ export function createActions(
         snapshot.conversation.sending
       )
         return false;
+      if (
+        channel.type === 'dm' &&
+        channel.botSlug !== undefined &&
+        !attachments?.length &&
+        !replyTo &&
+        !mentions?.length &&
+        !channelRefs?.length &&
+        !memorySwitchTarget &&
+        !grantRequestResolution
+      ) {
+        const prepared = onboardingFor(actions).prepareSend(channel.id, channel.botSlug, text);
+        if (!(typeof prepared === 'boolean' ? prepared : await prepared)) return false;
+      }
       const replyTarget = snapshot.conversation.messages.find((message) => message.id === replyTo);
       if (snapshot.conversation.timeline.hasNewer) {
         try {
@@ -1973,7 +2017,11 @@ export function createActions(
           return false;
         }
       }
+      snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id !== channel.id || snapshot.conversation.sending)
+        return false;
       const localId = nextLocalEchoId();
+      onboardingFor(actions).markSubmitted(channel.id, text);
       clientStore.setConversation({
         sending: true,
         error: undefined,
@@ -2312,6 +2360,7 @@ export function createActions(
     async channelPurgeConfirm(channelId, sourceEventIds, token) {
       const result = await call('channelPurgeConfirm', { channelId, sourceEventIds, token });
       if (!result.ok) throw new Error(result.error.message);
+      return result.value as { accepted: number; cleanupPending?: number };
     },
     async deleteGroupChannel(channelId) {
       try {

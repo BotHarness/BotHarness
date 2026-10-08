@@ -95,6 +95,7 @@ export interface PersonaBotRegistry {
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
   setStandingLimits(slug: string, limits: StandingLimits): UpdatePersonaBotResult;
+  inheritModel(slug: string, expectedRevision: number): UpdatePersonaBotResult;
   applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
   migrateLegacyModel(
     slug: string,
@@ -168,6 +169,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       'avatar',
       'appearance',
       'model',
+      'modelPlanRevision',
       'preset',
       'memoryDir',
       'paused',
@@ -632,11 +634,23 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       write(record);
       return { ok: true, record };
     },
+    inheritModel(slug, expectedRevision) {
+      const record = active(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const revision = record.modelPlan?.revision ?? record.modelPlanRevision ?? 0;
+      if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
+      if (record.modelPlan === undefined && record.model === undefined) return { ok: true, record };
+      record.modelPlanRevision = revision + 1;
+      delete record.modelPlan;
+      delete record.model;
+      write(record);
+      return { ok: true, record };
+    },
     applyModelPreset(slug, preset) {
       const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const plan: PersonaBotModelPlan = {
-        revision: (record.modelPlan?.revision ?? 0) + 1,
+        revision: (record.modelPlan?.revision ?? record.modelPlanRevision ?? 0) + 1,
         sourcePresetId: preset.id,
         sourcePresetName: preset.name,
         orchestrator: { ...preset.orchestrator },
@@ -713,7 +727,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     setModelPlan(slug, routes, expectedRevision) {
       const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
-      const revision = record.modelPlan?.revision ?? 0;
+      const revision = record.modelPlan?.revision ?? record.modelPlanRevision ?? 0;
       if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
       record.modelPlan = {
         revision: revision + 1,

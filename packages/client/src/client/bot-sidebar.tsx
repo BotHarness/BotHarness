@@ -346,6 +346,7 @@ function channelPreview(
   t: BotHarnessTranslate,
 ): string {
   const message = channel.latestMessage;
+  if (message?.contentPurged) return t('purge.purged');
   if (message === undefined) return t('rail.noMessages');
   if (message.memberDeparture !== undefined)
     return t(
@@ -783,6 +784,11 @@ export function BotSidebar({
   const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
   const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
+  const createFromWelcome = useMountedResource<HTMLSpanElement>(() => {
+    const create = (): void => setCreateRequest({ kind: 'bot', source: 'empty' });
+    document.addEventListener('botharness/create-bot', create);
+    return () => document.removeEventListener('botharness/create-bot', create);
+  }, []);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
   const searchInput = useRef<HTMLInputElement | null>(null);
@@ -1560,6 +1566,7 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      <span ref={createFromWelcome} hidden aria-hidden="true" />
       {state.activitySync === 'stale' ? (
         <div className="bh-activity-stale" role="status" data-activity-stale>
           {t('roster.activityStale')}

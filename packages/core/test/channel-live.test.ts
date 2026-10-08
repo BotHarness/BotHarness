@@ -37,6 +37,40 @@ afterEach(() => {
 });
 
 describe('Channel post-commit stream', () => {
+  it('replays bodyless purge selectors on connection and reconnect, including shared placements', async () => {
+    let placements = Array.from({ length: 101 }, (_, index) => ({
+      sourceEventId: 'source',
+      channelId: `channel-${index}`,
+      messageId: `message-${index}`,
+    }));
+    const hub = createChannelLiveHub(
+      createChannelStore({ rootDir: root() }),
+      undefined,
+      () => placements,
+    );
+    hubs.push(hub);
+    const connect = () =>
+      hub
+        .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?scope=roster`))
+        .body!.getReader();
+    const reader = connect();
+    const read = async () => new TextDecoder().decode((await reader.read()).value);
+    expect(await read()).toContain('retry:');
+    const first = await read();
+    expect(first).toContain('event: content/purged');
+    expect(JSON.parse(first.split('data: ')[1]!).placements).toHaveLength(100);
+    expect(await read()).toContain('message-100');
+    placements = [{ sourceEventId: 'new', channelId: 'shared', messageId: 'new-message' }];
+    hub.publishContentPurged();
+    expect(await read()).toContain('new-message');
+    hub.publishRosterCommitted();
+    expect(await read()).toContain('roster/changed');
+    await reader.cancel();
+    const resumed = connect();
+    await resumed.read();
+    expect(new TextDecoder().decode((await resumed.read()).value)).toContain('new-message');
+    await resumed.cancel();
+  });
   it('restores processing receipts changed between the HTTP snapshot and stream connection', async () => {
     const store = createChannelStore({ rootDir: root() });
     const channel = store.createGroup({ name: 'Receipt gap', members: ['ada'] });
