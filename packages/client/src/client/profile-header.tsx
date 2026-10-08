@@ -189,7 +189,10 @@ function AvatarModal({
 }: {
   bot: BotSummary;
   channel: ChannelSummary;
-  actions: Pick<BridgeActions, 'setBotAppearance' | 'setBotAvatar'>;
+  actions: Pick<
+    BridgeActions,
+    'setBotAppearance' | 'setBotAvatar' | 'loadPartLibrary' | 'addLibraryPart'
+  >;
   t: BotHarnessTranslate;
   onClose(): void;
 }): ReactElement {
@@ -216,6 +219,7 @@ function AvatarModal({
         bot={bot}
         channelId={channel.id}
         onSave={actions.setBotAppearance}
+        library={{ load: actions.loadPartLibrary, add: actions.addLibraryPart }}
         onUpload={() => input.current?.click()}
         onRemoveImage={() => void removeImage()}
         imageBusy={busy}

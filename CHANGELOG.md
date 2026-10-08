@@ -5,10 +5,15 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval outfits and headwear, and new PersonaBots start from a face seeded across every species; a compatible Provider can create a Lark application or show a WeChat pairing QR in the binding dialog.
+Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval outfits and headwear, you can draw your own headpiece into a Part Library, and new PersonaBots start from a face seeded across every species; a compatible Provider can create a Lark application or show a WeChat pairing QR in the binding dialog.
+
+### Breaking Changes
+
+- The Part Library adds Profile schema Generation 73. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
 
 ### Added
 
+- You can draw your own headpiece for a pixel Avatar: pencil, eraser, fill, mirroring across the face, a front layer over the hair and a back layer behind it, undo and redo, and a 1× preview on the real Avatar. Colors can follow the Avatar's hair, skin, eye or outfit color in five tones, or be fixed. Saved parts go into a Part Library in your Profile and can be worn by any PersonaBot. The worn copy turns and speaks with the Window Companion and travels with an exported Bot, and editing a library part saves a new part without changing Avatars that already wear the old one ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
 - Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
@@ -99,7 +104,7 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 - Bot mode can now install Git for you: when the Host's Git is unusable, **Install Git** downloads a pinned portable Git into the DeepSeek Harness data folder (from `media.botharness.ai`, falling back to GitHub), verifies its SHA-256 and starts using it without a restart or admin rights; the Orchestrator's Shell uses the same Git. A usable system Git still wins on each start ([#1097](https://github.com/BotHarness/BotHarness/issues/1097), [Git section](docs/installation.md#git)).
 - Importing a Bot from an SSH address now falls back to HTTPS: when cloning `git@host:owner/repo` or `ssh://git@host/owner/repo` fails, the Host retries once with the matching HTTPS address, says it switched, and the Bot syncs over HTTPS from then on; if HTTPS fails too, you see the original SSH error. DeepSeekBot settings gain a **Git** row showing the Git version in use and whether it is system or managed ([#1098](https://github.com/BotHarness/BotHarness/issues/1098), [Git section](docs/installation.md#git)).
 
-- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. An authorized scope update and guarded browser retest verified DM reactions and receipt-only silence; group and recovery qualification remain pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
+- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. Guarded QA verified DM and group reaction rendering, group reply states, receipt-only mute, Provider reconnect, a new reply after live Host restart and Web theme captures; exact blocked-source arrival and Web lifecycle reliability remain unqualified ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
 
 ### Changed
 

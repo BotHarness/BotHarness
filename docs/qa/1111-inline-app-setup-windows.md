@@ -203,3 +203,30 @@ The earlier `.5` packaged QR proof remains tied to product `1fd67ed7` / Provider
 `b4603ead`; the unchanged runtime digest does not turn that public-contract check
 into Client visual or native WeChat pairing qualification. Windows full-run failure
 logs above remain retained and are not replaced by the Linux results.
+
+
+## Generation 73 main integration and refreshed packaged proof
+
+The later main `78aba544` was integrated after the qualified Provider pin. Its
+Generation 73 Custom Part Library and separate Lark feedback QA remain intact.
+Only the bilingual Ledger summary conflicted; main's Breaking/Added entries and
+the unmerged setup entry are retained, with release `1.2.0` onward unchanged.
+TypeScript, lint, formatting, bilingual ledgers and 113 tests in eight focused
+files passed. Both incremental review axes found no actionable merge regression.
+
+The preceding integration `58a97aaf` completed [verify](https://github.com/BotHarness/DeepSeekBot/actions/runs/37837200319):
+3471 tests passed, 9 skipped, across 425 passed and 5 skipped files. Its separate
+[package preparation](https://github.com/BotHarness/DeepSeekBot/actions/runs/37837200254)
+failed one documentation-build test at the unchanged 60-second limit (67.5 seconds):
+3470 passed, 1 failed, 9 skipped. No timeout or assertion was relaxed; no package
+artifact is claimed from that failed preparation run. These results belong to
+that exact earlier commit and do not qualify the new main integration.
+
+Installed product `0.0.0-test.1111.6` uses product `b80b8890` and Provider
+`bddd7d93` / `4.32.0-botharness.17`. Its authenticated public Host/Provider
+check again generated a PNG QR, polled pending and cancelled successfully;
+BotHarness snapshots contained no QR. Identity count stayed one, WeChat account
+count stayed zero and Lark stayed connected. This check did not scan, reset,
+switch or re-pair the Human's existing account. It predates the Generation 73
+main integration and qualifies public contracts only: actual QR Client visuals,
+continuous recording and new native WeChat pairing remain unqualified.

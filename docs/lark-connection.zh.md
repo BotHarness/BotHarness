@@ -355,7 +355,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 反馈独立运行，限时四秒并限制并发。权限失败、来源删除或传输不可用不会阻塞 Inbox 接收、模型工作或回复。attempt 持久保留且不自动重试，包括重启／重连；后来启用权限也不会补发历史表情。已认证的 `messagingSnapshot` 管理 API 暴露 `reactionSupported` 和近期 `feedback` 状态：`attempted`、`accepted`、`unavailable`、`failed`、`unknown`。Web 的现有 Lark 身份编辑窗口显示反馈能力与最近五条来源的尝试状态；刷新外部身份可更新。中断的 `attempted` 或 `unknown` 不是成功。
 
-准备、精确测试版本及恢复见[候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/codex/1040-lark-feedback/docs/agents/qa-lark-feedback.md)。首次窗口发现权限缺失后，Human 明确授权并添加 `im:message.reactions:write_only`。2026-10-09 有自动恢复保障的复测通过已登录的 Codex 内置浏览器完成：两条不同私聊各有对应回复，原消息显示 `GLANCE`／`DONE`；静默私聊仅有 `GLANCE`。生产已恢复，Lark／Discord 正常回复已确认。Human 已批准审阅后合并源码；群聊、静音／屏蔽、重连／重启及 Web 明暗对照截图仍待验证，作为扩大资格范围和提升 Provider pin 的门槛；上方旧引导截图不是反馈证据。
+准备、精确测试版本及恢复见[候选 QA 手册](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/agents/qa-lark-feedback.md)。首次窗口发现权限缺失后，Human 明确授权并添加 `im:message.reactions:write_only`。2026-10-09 有自动恢复保障的复测通过已登录的 Codex 内置浏览器完成：两条不同私聊各有对应回复，原消息显示 `GLANCE`／`DONE`；静默私聊仅有 `GLANCE`。后续新授权窗口确认真实群 @ 的接收／回复状态、静音 Admission 仅接收、Provider 重连保留反馈及合并后同状态 Web 明暗截图；网页 @ 列表失败时由 Human 使用可用客户端发送。生产已恢复，Human 确认 Lark／Discord 正常回复。再次新授权的窗口已验证同一 Profile 的真实 Host 重启后可接受新回复，身份与历史反馈保持不变。屏蔽私聊在窗口内发送，未出现回复或表情；官方日志在报告的分钟内有一条成功投递，但尚不能精确关联 marker。Human 随后提供了 `BH1040-R3-GROUP` 原消息截图，显示归属于 DeepSeekBot 的两个表情及对应回复，补齐群表情显示图证。屏蔽 marker 的精确关联、此前触发条件未明的 Web 故障及其他未执行项仍待验证。源码 PR 已合并；剩余用例仍是扩大资格范围和提升 Provider pin 的门槛，上方旧引导截图不是反馈证据。
 
 ## Channel 历史中的图片
 

@@ -1,3 +1,4 @@
+import type { PartLibraryEntry } from '../bots/part-library.js';
 import type { OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
@@ -485,6 +486,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
+  }
+
+  partLibraryList(): { parts: PartLibraryEntry[] } {
+    return unwrap(this.methods.partLibraryList());
+  }
+
+  partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryAdd({ part, name, parent }));
   }
 
   botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
@@ -1228,6 +1237,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'partLibraryList',
+  'partLibraryAdd',
   'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
