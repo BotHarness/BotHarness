@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "issue": "https://github.com/BotHarness/DeepSeekBot/issues/1040",
+  "agentTask": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "claim": "https://github.com/BotHarness/DeepSeekBot/issues/1040#issuecomment-6067866271",
+  "sources": {
+    "botharness": "a7b8524639dbec5d354aa94f504f1ed25fd6845a",
+    "provider": "26e6d66d2ac3c3658d3a0faabdc154ff75af441e",
+    "installedProviderRuntime": {
+      "files": 400,
+      "sha256": "bf8474466374e0ea2d385cccd1cf43a2452bae9253070e5adfafb7fe74b46bca",
+      "matchesCheckout": true
+    },
+    "publishedProviderPinUnchanged": "36da305c9586335a47d4bab6ee4f0025247a9d8f"
+  },
+  "window": {
+    "humanApprovedMaximumSeconds": 600,
+    "armedAt": "2026-10-08T19:52:50.784Z",
+    "localCutoffAt": "2026-10-08T20:00:50.784Z",
+    "serverFallbackAt": "2026-10-08T20:01:50.784Z",
+    "productionRunningVerifiedAt": "2026-10-08T19:57:55.239Z",
+    "qaIdentityUnbound": true,
+    "qaProviderDisabled": true,
+    "temporaryAccountAndCredentialsRemoved": true,
+    "windowHostStopped": true,
+    "independentRestoreTimerStoppedAfterRecovery": true,
+    "productionReplies": {
+      "lark": "human-confirmed",
+      "discord": "human-confirmed"
+    }
+  },
+  "cases": [
+    {
+      "marker": "BH1040-R4-BEFORE",
+      "sourceEventId": "im-a51c45dff2dec5b96d17377b3c76143e4144339a09baa8e9b066d9fc6bce5826",
+      "eventId": "4108895b63e1e12968b01e56695d8f00",
+      "originalMessageId": "om_x100b634b03e1e4a8ee8d696f75ef55e",
+      "sourceAt": "2026-10-08T19:53:54.842Z",
+      "admissionCount": 1,
+      "reply": {
+        "id": "f86bf804-ecd9-4e51-afa8-5c25b8497ab7",
+        "text": "BH1040-R4-BEFORE OK",
+        "state": "provider-accepted",
+        "settledAt": "2026-10-08T19:54:02.562Z"
+      },
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T19:53:58.869Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T19:54:05.032Z",
+          "outboxId": "f86bf804-ecd9-4e51-afa8-5c25b8497ab7"
+        }
+      }
+    },
+    {
+      "marker": "BH1040-R4-AFTER",
+      "sourceEventId": "im-e33c85fd791707f6f06c62a644ea10a53f80f39aa08296a3ca4a004d5b59f871",
+      "eventId": "f072ff936c83a3513d236a364cd76c13",
+      "originalMessageId": "om_x100b634b1fed1ca0ee8b77517ad5eb0",
+      "sourceAt": "2026-10-08T19:54:58.089Z",
+      "admissionCount": 1,
+      "reply": {
+        "id": "c78062c0-949e-4a17-bc57-ef7375158663",
+        "text": "BH1040-R4-AFTER OK",
+        "state": "provider-accepted",
+        "settledAt": "2026-10-08T19:55:06.421Z"
+      },
+      "feedback": {
+        "received": {
+          "state": "accepted",
+          "at": "2026-10-08T19:55:01.823Z"
+        },
+        "answered": {
+          "state": "accepted",
+          "at": "2026-10-08T19:55:09.298Z",
+          "outboxId": "c78062c0-949e-4a17-bc57-ef7375158663"
+        }
+      }
+    }
+  ],
+  "restart": {
+    "sameProfile": true,
+    "liveReceiverHostRestarted": true,
+    "identityRetained": true,
+    "historicalFeedbackUnchanged": true,
+    "automaticReactionReplayObserved": false,
+    "newPostRestartReplyAccepted": true,
+    "cutoffUnchanged": true,
+    "newHostRegisteredWithCutoffGuardBeforeEnable": true
+  },
+  "blockedDm": {
+    "marker": "BH1040-R4-BLOCKED",
+    "canonicalBlockVerified": true,
+    "humanReportedSendTimeJst": "2026-10-09 04:56",
+    "sendBeforeCutoffConfirmed": true,
+    "humanReportedNoReplyOrReaction": true,
+    "noMatchingSourceObserved": true,
+    "noNewFeedbackOrOutbox": true,
+    "officialEventLog": {
+      "queryFromJst": "2026-10-09 04:56:00",
+      "queryToJst": "2026-10-09 04:57:00",
+      "matchingRows": 1,
+      "displayedTimeJst": "2026-10-09 04:56:44.857",
+      "eventType": "im.message.receive_v1",
+      "eventId": "65f6012937855fd6ee313e16b7f3529a",
+      "status": "SUCCESS",
+      "reportedCostMs": 1619,
+      "capture": "lark-r4-block-event-log.jpg",
+      "exactMarkerCorrelation": false
+    },
+    "providerArrivalForExactMarkerProven": false,
+    "fullyQualified": false,
+    "limitation": "Single event within Human-reported send minute; event detail does not expose message ID or body, so exact marker correlation is not independently established."
+  },
+  "web": {
+    "reloadedAfterHostRestart": true,
+    "composerReady": true,
+    "noNewPostReloadConsoleErrors": true,
+    "observedAt": "2026-10-08T19:55:48.284Z",
+    "earlierFailureCauseVerified": false
+  },
+  "limitations": [
+    "The single official event falls within the Human-reported send minute, but the log does not expose message ID or body; exact blocked-marker arrival is not independently proven.",
+    "No new source-specific group reaction rendering capture was obtained.",
+    "A successful post-restart page reload does not establish the cause or fix of the earlier Web scope failure.",
+    "Other unexercised acceptance cases remain pending.",
+    "No publication, production deployment or Provider pin promotion."
+  ],
+  "laterGroupRenderingFollowup": {
+    "file": "lark-group-rendering-followup-2026-10-09.json",
+    "humanSuppliedAfterWindow": true,
+    "originalMarker": "BH1040-R3-GROUP",
+    "originalReactionsAndMatchingReplyVisible": true,
+    "groupRenderingQualified": true,
+    "windowObservationsPreserved": true
+  }
+}
