@@ -107,6 +107,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- On an explicitly configured native RC2 timed-question Profile, a DM question card stays answerable after its foreground deadline while the same Bot handles other messages; a late answer shows submitted until the original native Session admits it. Production pins and blocking RC1 questions remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
+
 - Bot onboarding no longer pauses another window's tutorial when an observing window leaves or sets a model; completed onboarding can be explicitly replayed, and saving a Bot-specific model or restoring inheritance immediately refreshes the open model card ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).
 
 - **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
@@ -125,6 +127,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Qualified native RC2 timed questions in an isolated real-model experiment: conversation can continue before a correlated late answer, while the existing Web question card still expires and production permission/capacity gates remain blocked ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](docs/research/1220-native-timed-question-experiment.md)).
 
 - Documented an [AX browser qualification loop](docs/agents/ax-browser.md) that separates exact-origin permission evidence, Host transport, navigation refusals and screenshot/input timeouts, including measured retries on Human-authorized local ports ([#1225](https://github.com/BotHarness/DeepSeekBot/issues/1225)).
 

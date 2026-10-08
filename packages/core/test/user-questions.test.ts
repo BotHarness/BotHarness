@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 
 import { createChannelStore } from '../src/channels/store.js';
-import { ChannelUserQuestions } from '../src/channels/user-questions.js';
+import { ChannelUserQuestions, type TimedQuestionPort } from '../src/channels/user-questions.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTempRoot, createTestOwnership } from './helpers.js';
 
@@ -22,7 +22,7 @@ const questions = [
   },
 ];
 
-function fixture(role: 'orchestrator' | 'assignment' = 'orchestrator') {
+function fixture(role: 'orchestrator' | 'assignment' = 'orchestrator', timed?: TimedQuestionPort) {
   const channels = createChannelStore({
     rootDir: join(createTempRoot('bh-question-'), 'channels'),
   });
@@ -39,6 +39,7 @@ function fixture(role: 'orchestrator' | 'assignment' = 'orchestrator') {
     (candidate) => candidate === agent && live,
     warn,
     (slug, count) => states.setQuestionCount(slug, count),
+    timed,
   );
   return {
     channels,
@@ -207,6 +208,118 @@ describe('native DSH questions in a PersonaBot DM', () => {
     expect(await state.answerer.answer('ada', id, expected)).toBe(true);
     expect(await wait).toEqual(expected);
     expect(state.states.snapshot('ada').attention).toBeUndefined();
+  });
+});
+
+describe('native timed question card continuation', () => {
+  it('also waits for native settlement when the answer arrives before the deadline', async () => {
+    const answer = { answers: [{ id: 'memory-branch', selected: ['main'] }] };
+    let native: ReturnType<TimedQuestionPort['read']> = { state: 'open' };
+    const port: TimedQuestionPort = { read: () => native, answer: vi.fn(() => true) };
+    const state = fixture('orchestrator', port);
+    const wait = state.answerer.ask({
+      agent: state.agent,
+      questions,
+      wait: { callId: 'in-time', timed: true },
+    } as Parameters<ChannelUserQuestions['ask']>[0]);
+    await vi.waitFor(() => expect(state.channels.readMessages(channelId)).toHaveLength(1));
+    const id = state.channels.readMessages(channelId)[0]!.id;
+    expect(await state.answerer.answer('ada', id, answer)).toBe(true);
+    expect(await wait).toEqual(answer);
+    expect(state.channels.readMessages(channelId)).toHaveLength(1);
+    expect(state.answerer.status('ada', id)).toBe('submitted');
+    expect(port.answer).not.toHaveBeenCalled();
+    native = { state: 'answered', answer };
+    await state.answerer.reconcileSession(sessionId);
+    expect(state.answerer.status('ada', id)).toBe('answered');
+  });
+  async function continued() {
+    const answer = { answers: [{ id: 'memory-branch', selected: ['history-qa'] }] };
+    let native: ReturnType<TimedQuestionPort['read']> = { state: 'open' };
+    const port: TimedQuestionPort = { read: vi.fn(() => native), answer: vi.fn(() => true) };
+    const state = fixture('orchestrator', port);
+    const controller = new AbortController();
+    const wait = state.answerer.ask({
+      agent: state.agent,
+      questions,
+      signal: controller.signal,
+      wait: { callId: 'original', timed: true },
+    } as Parameters<ChannelUserQuestions['ask']>[0]);
+    await vi.waitFor(() => expect(state.channels.readMessages(channelId)).toHaveLength(1));
+    const id = state.channels.readMessages(channelId)[0]!.id;
+    const error = Object.assign(new Error('native deadline'), {
+      name: 'UserQuestionError',
+      code: 'ASK_TIMED_OUT',
+    });
+    const rejected = expect(wait).rejects.toBe(error);
+    controller.abort(error);
+    await rejected;
+    native = { state: 'continued' };
+    return {
+      ...state,
+      port,
+      id,
+      answer,
+      setNative: (value: typeof native) => {
+        native = value;
+      },
+    };
+  }
+
+  it('keeps the original card answerable after the foreground ends and settles only on native admission', async () => {
+    const state = await continued();
+    expect(state.channels.readMessages(channelId)).toHaveLength(1);
+    expect(state.channels.readMessages(channelId)[0]?.userQuestionRequest?.callId).toBe('original');
+    expect(state.answerer.status('ada', state.id)).toBe('pending');
+    expect(state.answerer.activeSessionIds()).toEqual([sessionId]);
+    expect(state.states.snapshot('ada').attention?.questionCount).toBe(1);
+    expect(await state.answerer.answer('other', state.id, state.answer)).toBe(false);
+    expect(await state.answerer.answer('ada', state.id, { answers: [] })).toBe(false);
+    expect(state.port.answer).not.toHaveBeenCalled();
+    expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(true);
+    expect(state.port.answer).toHaveBeenCalledWith(state.agent, 'original', state.answer);
+    expect(state.answerer.status('ada', state.id)).toBe('submitted');
+    await state.answerer.reconcileSession(sessionId);
+    expect(state.channels.readMessages(channelId)).toHaveLength(1);
+    expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(false);
+    state.setNative({ state: 'answered', answer: state.answer });
+    await state.answerer.reconcileSession(sessionId);
+    expect(state.channels.readMessages(channelId)[0]?.userQuestionResolution).toMatchObject({
+      state: 'answered',
+      answers: state.answer.answers,
+    });
+    expect(state.answerer.status('ada', state.id)).toBe('answered');
+    expect(state.answerer.activeMessageIds()).toEqual([]);
+    expect(state.states.snapshot('ada').attention).toBeUndefined();
+  });
+
+  it('lets a discarded native reply be submitted again without falsely recording an answer', async () => {
+    const state = await continued();
+    expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(true);
+    state.answerer.discardReply(sessionId, 'other-call');
+    expect(state.answerer.status('ada', state.id)).toBe('submitted');
+    state.answerer.discardReply(sessionId, 'original');
+    expect(state.answerer.status('ada', state.id)).toBe('pending');
+    expect(state.channels.readMessages(channelId)).toHaveLength(1);
+    expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(true);
+    state.answerer.close();
+  });
+
+  it('fails closed for a stale Agent, changed ownership and a missing native question', async () => {
+    for (const invalidate of [
+      (state: Awaited<ReturnType<typeof continued>>) => state.setLive(false),
+      (state: Awaited<ReturnType<typeof continued>>) => state.setNative(undefined),
+      (state: Awaited<ReturnType<typeof continued>>) => {
+        vi.spyOn(state.ownership, 'resolve').mockReturnValue(undefined);
+      },
+    ]) {
+      const state = await continued();
+      invalidate(state);
+      expect(state.answerer.status('ada', state.id)).toBe('expired');
+      expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(false);
+      expect(state.port.answer).not.toHaveBeenCalled();
+      expect(state.states.snapshot('ada').attention).toBeUndefined();
+    }
   });
 });
 
