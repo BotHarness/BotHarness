@@ -1,3 +1,4 @@
+import { OnboardingMemoryNavigation } from './onboarding-memory.js';
 import { OnboardingSurface } from './onboarding-view.js';
 import { GroupChannelHeader } from './group-channel-header.js';
 import { CompanionPin } from './window-companions-view.js';
@@ -1376,78 +1377,86 @@ function ConversationView({
                           />
                         </div>
                       ) : first.botDmAction === undefined ? (
-                        <MessageGroupView
-                          humanMembers={channel?.humanMembers ?? []}
-                          group={group}
-                          channelId={channelId}
-                          actions={actions}
-                          nativeChatT={nativeChatT}
-                          resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
-                          toolApprovalDecisions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.toolApprovalDecision !== undefined)
-                                .map((item) => [
-                                  item.toolApprovalDecision!.requestMessageId,
-                                  item.toolApprovalDecision!.outcome,
-                                ]),
-                            )
-                          }
-                          userQuestionResolutions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.userQuestionResolution !== undefined)
-                                .map((item) => [
-                                  item.userQuestionResolution!.requestMessageId,
-                                  item.userQuestionResolution!.state,
-                                ]),
-                            )
-                          }
-                          focusMessageId={conversation.focusMessageId}
-                          currentDmBotSlug={
-                            channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
-                          }
-                          bots={state.bots}
-                          onContextMenu={(message, x, y) => {
-                            setMessageMenu({ message, x, y });
+                        <OnboardingMemoryNavigation.Provider
+                          value={{
+                            file: (path) => openMemoryView({ kind: 'file', path }),
+                            commit: (sha) => openMemoryView({ kind: 'commit', sha }),
+                            working: (change) => openMemoryView({ kind: 'working', change }),
                           }}
-                          onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
-                          onJumpReply={(messageId) => {
-                            if (channelId !== undefined)
-                              void actions.openAround(channelId, messageId);
-                          }}
-                          onRestoreFailed={(message) => {
-                            if (channelId === undefined) return;
-                            if (
-                              draft.length > 0 ||
-                              uploadItems.length > 0 ||
-                              conversation.sending
-                            ) {
-                              setRestoreBlocked(true);
-                              return;
+                        >
+                          <MessageGroupView
+                            humanMembers={channel?.humanMembers ?? []}
+                            group={group}
+                            channelId={channelId}
+                            actions={actions}
+                            nativeChatT={nativeChatT}
+                            resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
+                            toolApprovalDecisions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.toolApprovalDecision !== undefined)
+                                  .map((item) => [
+                                    item.toolApprovalDecision!.requestMessageId,
+                                    item.toolApprovalDecision!.outcome,
+                                  ]),
+                              )
                             }
-                            if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                            setDraft(message.body);
-                            setMentionTokens(message.mentions ?? []);
-                            setChannelRefTokens(message.channelRefs ?? []);
-                            setUploadItems(
-                              (message.attachments ?? []).map((ref) => ({
-                                id: crypto.randomUUID(),
-                                file: new File([], ref.name, { type: ref.mime }),
-                                ref,
-                                status: 'ready' as const,
-                              })),
-                            );
-                            setReplyTarget(
-                              message.replyTo === undefined
-                                ? undefined
-                                : messages.find((candidate) => candidate.id === message.replyTo),
-                            );
-                            setRestoreBlocked(false);
-                            setRestoreFocusSignal((value) => value + 1);
-                          }}
-                          t={t}
-                        />
+                            userQuestionResolutions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.userQuestionResolution !== undefined)
+                                  .map((item) => [
+                                    item.userQuestionResolution!.requestMessageId,
+                                    item.userQuestionResolution!.state,
+                                  ]),
+                              )
+                            }
+                            focusMessageId={conversation.focusMessageId}
+                            currentDmBotSlug={
+                              channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
+                            }
+                            bots={state.bots}
+                            onContextMenu={(message, x, y) => {
+                              setMessageMenu({ message, x, y });
+                            }}
+                            onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
+                            onJumpReply={(messageId) => {
+                              if (channelId !== undefined)
+                                void actions.openAround(channelId, messageId);
+                            }}
+                            onRestoreFailed={(message) => {
+                              if (channelId === undefined) return;
+                              if (
+                                draft.length > 0 ||
+                                uploadItems.length > 0 ||
+                                conversation.sending
+                              ) {
+                                setRestoreBlocked(true);
+                                return;
+                              }
+                              if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                              setDraft(message.body);
+                              setMentionTokens(message.mentions ?? []);
+                              setChannelRefTokens(message.channelRefs ?? []);
+                              setUploadItems(
+                                (message.attachments ?? []).map((ref) => ({
+                                  id: crypto.randomUUID(),
+                                  file: new File([], ref.name, { type: ref.mime }),
+                                  ref,
+                                  status: 'ready' as const,
+                                })),
+                              );
+                              setReplyTarget(
+                                message.replyTo === undefined
+                                  ? undefined
+                                  : messages.find((candidate) => candidate.id === message.replyTo),
+                              );
+                              setRestoreBlocked(false);
+                              setRestoreFocusSignal((value) => value + 1);
+                            }}
+                            t={t}
+                          />
+                        </OnboardingMemoryNavigation.Provider>
                       ) : (
                         <button
                           type="button"

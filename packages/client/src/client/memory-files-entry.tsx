@@ -10,7 +10,9 @@ import { useClientState } from './bot-sidebar.js';
 import { SidebarCardList } from './sidebar-card.js';
 import { StandingLimitsRow } from './standing-limits.js';
 
-export function MemoryFilesEntry(props: ChannelSidebarEntryProps): ReactElement {
+type MemoryFilesProps = ChannelSidebarEntryProps & { showLimits?: boolean };
+
+export function MemoryFilesEntry(props: MemoryFilesProps): ReactElement {
   return <MemoryFilesForScope key={cachedMemory(props.actions, props.channelId).key} {...props} />;
 }
 function MemoryFilesForScope({
@@ -21,8 +23,9 @@ function MemoryFilesForScope({
   onMemoryFileSelect,
   selectedMemoryFilePath,
   refreshRevision,
+  showLimits = true,
   t,
-}: ChannelSidebarEntryProps): ReactElement {
+}: MemoryFilesProps): ReactElement {
   const cache = cachedMemory(actions, channelId);
   const bot = useClientState().bots.find((item) => item.slug === botSlug);
   const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
@@ -103,7 +106,7 @@ function MemoryFilesForScope({
           t={t}
         />
       )}
-      {bot === undefined ? null : (
+      {!showLimits || bot === undefined ? null : (
         <SidebarCardList className="bh-memory-limits" label={t('standingLimits.title')}>
           <StandingLimitsRow key={bot.slug} bot={bot} actions={actions} t={t} />
         </SidebarCardList>
