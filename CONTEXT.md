@@ -62,6 +62,14 @@ _Avoid_: Soul, Bot type, mode, skin
 A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
 _Avoid_: Soul, pose, mood, skin
 
+**Custom Part**:
+A bounded pixel part a Human draws for one Avatar Appearance slot, whose cells reference the appearance's color choices or fixed colors. Applying it embeds a copy in the Avatar Appearance, so it travels with a shared PersonaBot; it is data, never markup or an executable renderer.
+_Avoid_: sticker, skin, upload, custom SVG
+
+**Part Library**:
+A Human's reusable collection of Custom Parts in the current DSH Profile, which can be exported and imported on its own. Editing a library part never changes appearances that already embed a copy.
+_Avoid_: asset store, marketplace, catalog
+
 **Window Companion**:
 A Human-selected Binding that keeps one PersonaBot's Avatar present across pages within the Harness window and presents selected activity and messages. It retains the existing PersonaBot identity and is independent of Channel pinning and the active conversation.
 _Avoid_: desktop pet, Channel pin, separate bot
