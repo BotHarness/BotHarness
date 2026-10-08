@@ -11,6 +11,19 @@ Channel != PersonaBot != Session != Agent
 Chat UI != Session
 ```
 
+## Native Human waits: verified boundary
+
+On pinned DSH `0.2.0-rc.1`, [#1036's bounded experiment](../research/1036-native-wait-experiment.md)
+verified a real unrelated model reply while an independent Assignment awaited
+approval. Its running permit was not released. An Orchestrator's own native
+approval or formal question still holds its current step: Inbox Admission and
+steering acceptance precede actual model processing, which starts only after
+the original decision/result. Original Session/call ownership and changed/revoked
+Grant checks remain authoritative. [ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#native-human-wait-qualification-2026-10-09)
+records the qualification without changing ADR-0035's single-root invariant.
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) blocks the missing
+supported continuation mechanism; #1037/#1038 production delivery remains gated.
+
 ## Three graphs
 
 Keep these graphs explicit in architecture diagrams and data models.

@@ -34,6 +34,19 @@ Channel 的消息引用（#145）只保存同 Channel 的已提交目标 ID；Hu
 
 应用定义的 `group_leave` Tool 只在规范成员移除提交后返回 `{channelId,left:true,outcome:"changed"}`；Bot 当前不是该群成员时返回 `{channelId,left:false,outcome:"unchanged",reason:"not-member"}`。无变更既包括重复退出，也包括从未加入的群；不推断历史成员身份，不返回未加入群的名称或名单。缺失 Channel 抛出 `group_leave: channel-unavailable`，非群聊目标抛出 `group_leave: group-required`，替代旧的含糊 `left:false` 成功结果；Tool 异常保持为失败。既有 `{channelId,left}` 字段及 Core 返回结构保持兼容，调用方须处理新的无效目标失败。ADR-0073 的同一事务仍承担创建者移交 Human、待处理 Admission 撤销、单条持久离群通知及剩余成员注意力策略；提交后的实时通知警告不否定已提交变更。读写权限立即撤销，因此 Bot 应通过仍可访问的 Channel 向 Human 报告（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
 
+## 原生 Human 等待的验证边界
+
+[#1036 的有界实验](../research/1036-native-wait-experiment.md) 在固定 DSH
+`0.2.0-rc.1` 上证明：独立 Assignment 等待原生工具审批时，Orchestrator
+可真实处理并回复无关 Inbox 消息，但没有释放 Assignment 运行许可。
+Orchestrator 自己的原生审批或正式提问仍占有当前 Step；Admission 已接收、
+`steer` 已排入下一 Step 不等于模型已处理，原调用决定并返回后才处理无关输入。
+准确 Session／call 归属及当前 Grant 校验仍由既有 authority 承担，变更／撤销
+范围拒绝原操作。[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#native-human-wait-qualification-2026-10-09)
+记录本次资格边界，不改变 ADR-0035 的单一 Orchestrator root 约束。
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 追踪缺失的受支持原生
+continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交付。
+
 ## 1 · 系统上下文
 
 新附件已遵循 [ADR-0100](../adr/0100-file-open-actions-target-real-host-files.md)：独立上传彼此独立，显式复用身份才共享编辑结果。原生打开指向真实目标；后续消息读取、预览和下载使用当前内容，上传源独立。保存不保留附件历史，不生成 Source Revision、Inbox Admission、通知或 Bot wake。目标缺失则报告不可用，不自动重建。旧 CAS 迁移（#577）按 Source Event 附件出现位置预留可重启恢复的身份，仅在保留依赖未转换时继续保护旧对象；其他 CAS 数据与 Memory Git 行为保持各自语义。
