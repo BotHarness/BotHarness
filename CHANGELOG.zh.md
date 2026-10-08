@@ -14,7 +14,7 @@
 
 ### Added
 
-- 窗口伙伴气泡随像素半身的头部倾斜、拉伸与移动定位；卡片因避让或视口限位偏移时保留来源连线，文字保持直立，图片与不支持的形象使用可见盒子顶部锚点（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
+- 窗口伙伴气泡随像素半身的头部倾斜、拉伸与移动定位；卡片因避让或视口限位偏移时保留来源连线，文字保持直立；窗口缩小时人物与连线锚点同步限位，图片与不支持的形象使用可见盒子顶部锚点（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
 
 - 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
 

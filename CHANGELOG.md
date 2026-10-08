@@ -14,7 +14,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Window Companion bubbles follow the displayed pixel bust's head through tilt, stretch and movement, retain an origin connector when cards move to avoid overlap or viewport edges, and keep text upright; image and unsupported-rig fallbacks use their visible box top ([#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)).
+- Window Companion bubbles follow the displayed pixel bust's head through tilt, stretch and movement, retain an origin connector when cards move to avoid overlap or viewport edges, and keep text upright; resize updates the clamped character and bubble origin together, while image and unsupported-rig fallbacks use their visible box top ([#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)).
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 

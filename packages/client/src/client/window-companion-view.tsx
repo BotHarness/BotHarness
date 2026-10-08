@@ -19,7 +19,7 @@ import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { CompanionBot } from '../../../core/src/companions/feed.js';
 import type { CompanionViewState, WindowCompanion } from './window-companion.js';
-import { CompanionMotion } from './companion-motion.js';
+import { CompanionMotion, type CompanionPoint } from './companion-motion.js';
 import { CompanionBubbles, type BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
@@ -160,6 +160,42 @@ export function WindowCompanionView({
       let elapsed = 0;
       let measured = false;
       let visible = true;
+      const placeBubble = (next: CompanionPoint, sampled: ReturnType<AvatarAnchor['read']>) => {
+        const state = latest.current;
+        if (state.selection) {
+          if (statusVisible(state) || state.cards.length) {
+            const placement = bubbleOwner.place(
+              state.selection.botId,
+              next.x,
+              next.y,
+              next.width,
+              viewport.current.height,
+              state.reading
+                ? state.cards.length
+                : Math.min(state.cards.length, state.capacity.layers),
+              state.reading,
+              sampled
+                ? {
+                    x: next.x + sampled.x - viewport.current.left - displayedPoint.current.x,
+                    y: next.y + viewport.current.bottom - sampled.y - displayedPoint.current.y,
+                  }
+                : undefined,
+            );
+            setBubble((previous) =>
+              previous?.bottom === placement.bottom &&
+              previous?.originX === placement.originX &&
+              previous?.originY === placement.originY &&
+              previous?.left === placement?.left &&
+              previous?.cardHeight === placement?.cardHeight
+                ? previous
+                : placement,
+            );
+          } else {
+            bubbleOwner.remove(state.selection.botId);
+            setBubble(undefined);
+          }
+        }
+      };
       const measure = () => {
         const box = node.getBoundingClientRect();
         const width = box.width;
@@ -184,6 +220,7 @@ export function WindowCompanionView({
           drag.originY = next.y;
         }
         setPoint(next);
+        placeBubble(next, anchor.current?.read());
       };
       const tick = (now: number) => {
         frame = 0;
@@ -210,39 +247,7 @@ export function WindowCompanionView({
           const sampled =
             statusVisible(state) || state.cards.length ? anchor.current?.read() : undefined;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
-          if (state.selection) {
-            if (statusVisible(state) || state.cards.length) {
-              const placement = bubbleOwner.place(
-                state.selection.botId,
-                next.x,
-                next.y,
-                next.width,
-                viewport.current.height,
-                state.reading
-                  ? state.cards.length
-                  : Math.min(state.cards.length, state.capacity.layers),
-                state.reading,
-                sampled
-                  ? {
-                      x: next.x + sampled.x - viewport.current.left - displayedPoint.current.x,
-                      y: next.y + viewport.current.bottom - sampled.y - displayedPoint.current.y,
-                    }
-                  : undefined,
-              );
-              setBubble((previous) =>
-                previous?.bottom === placement.bottom &&
-                previous?.originX === placement.originX &&
-                previous?.originY === placement.originY &&
-                previous?.left === placement?.left &&
-                previous?.cardHeight === placement?.cardHeight
-                  ? previous
-                  : placement,
-              );
-            } else {
-              bubbleOwner.remove(state.selection.botId);
-              setBubble(undefined);
-            }
-          }
+          placeBubble(next, sampled);
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
           if (next !== previousPoint) setPoint(next);

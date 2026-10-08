@@ -109,6 +109,12 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
       /^M 570 404 /u,
     );
+    stage = new DOMRect(100, 60, 320, 500);
+    await act(() => window.dispatchEvent(new Event('resize')));
+    expect(node.querySelector<HTMLElement>('.bh-companion')?.style.left).toBe('216px');
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 264 404 /u,
+    );
     const visibility = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     await act(() => document.dispatchEvent(new Event('visibilitychange')));
     expect(frames.size).toBe(0);
