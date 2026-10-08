@@ -1237,7 +1237,6 @@ function ConversationView({
           />
           {profileViewOpen && channel?.type === 'group' ? (
             <GroupProfileView
-              actions={actions}
               channel={channel}
               activity={
                 groupProfileActivity?.channelId === channel.id ? groupProfileActivity : undefined

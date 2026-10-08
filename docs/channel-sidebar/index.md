@@ -28,9 +28,11 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First
 | [External identities](/docs/channel-sidebar/external-identities) | Bind who this Bot speaks as on Lark / Feishu, Slack or WeChat; IM pairing and approval notifications. |
 | [External connectors](/docs/channel-sidebar/external-connectors) | Edit and pause conversations synced into a Channel; advanced saved send targets.                      |
 
-| In a local group                                             | What you can do                                                         |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| [Members and group management](/docs/channel-sidebar/groups) | Inspect members, invite a Bot, handle join requests and edit the group. |
+| In a local group                                                 | What you can do                                                         |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Members and group management](/docs/channel-sidebar/groups)     | Inspect members, invite a Bot, handle join requests and edit the group. |
+| [Wake policy](/docs/channel-sidebar/wake-policy)                 | Choose, per member Bot, how ordinary messages in this group wake it.    |
+| [External connectors](/docs/channel-sidebar/external-connectors) | Connect, edit and pause external conversations synced into this group.  |
 
 [Display and layout](/docs/channel-sidebar/display) explains width, entry ordering, visibility and feature-specific display options. [Settings guide](/docs/settings) covers the rest of the non-IM settings.
 

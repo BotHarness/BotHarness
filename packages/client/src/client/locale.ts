@@ -147,6 +147,11 @@ export const zh = {
   'defaults.platform': '默认设置的平台',
   'defaults.save': '保存平台默认设置',
   'defaults.title': '外部平台默认行为',
+  'defaults.weixinScope':
+    '微信当前仅接收扫码账号的私聊，直接唤醒 Bot。频道连接器保持独立设置；这里不提供群 @ 或 Thread 选项。',
+  'defaults.enableTyping': '为继承默认设置的微信身份请求原生输入状态',
+  'defaults.typingOrigin': '输入状态设置来源',
+  'defaults.typingInheritHint': '保存后使用当前全局输入状态偏好。',
   'defaults.summary':
     '新配置默认继承；Profile 可自定义，也可恢复继承。消息收件、处理和回复分别判断。',
   'defaults.intake': '消息收件与处理默认值',
@@ -583,7 +588,8 @@ export const zh = {
   'channel.name.placeholder': '频道名称',
   'channel.create.title': '创建频道',
   'channel.create.inSection': '在「{name}」中创建频道',
-  'channel.create.description': '创建频道后，可邀请 Bot，并在频道 Profile 中接入外部来源。',
+  'channel.create.description':
+    '创建频道后，可邀请 Bot，并在频道侧栏的「外部连接器」中接入外部来源。',
   'create.failed': '创建失败：{error}',
   'bot.create.title': '创建 PersonaBot',
   'bot.create.inSection': '在「{name}」中创建 PersonaBot',
@@ -732,7 +738,7 @@ export const zh = {
   'message.failed': '发送失败',
   'message.failedRestore': '将失败消息放回输入框修改后重发',
   'message.restoreBlocked': '输入框已有草稿，请先处理草稿再恢复失败消息。',
-  'main.group.note': '邀请 Bot 加入，或在频道 Profile 中添加外部连接器。',
+  'main.group.note': '邀请 Bot 加入，或在频道侧栏的「外部连接器」中接入外部会话。',
   'main.localChat': '本地对话',
   'main.localChat.with': '这是与 {name} 的本地对话',
   'main.localChat.hint': '直接发消息即可；Bot 会自行安排事项，并在这里回复结果。',
@@ -2355,11 +2361,16 @@ export const en = {
 
   'defaults.externalWake': '{platform} ordinary messages',
 
-  'defaults.restore': 'Restore inheritance',
+  'defaults.restore': 'Restore',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
   'defaults.save': 'Save platform defaults',
   'defaults.title': 'External platform defaults',
+  'defaults.weixinScope':
+    'WeChat currently receives only the QR-paired owner DM and wakes the Bot directly. Channel connectors keep separate settings; group mentions and Threads are unavailable here.',
+  'defaults.enableTyping': 'Request native typing for WeChat identities that inherit defaults',
+  'defaults.typingOrigin': 'Typing preference origin',
+  'defaults.typingInheritHint': 'Save to use the current global typing preference.',
   'defaults.summary':
     'New configurations inherit by default. Customize in Profile or restore inheritance. Intake, processing and replies are separate decisions.',
   'defaults.intake': 'Message intake and processing defaults',
@@ -2818,7 +2829,7 @@ export const en = {
   'channel.create.title': 'Create channel',
   'channel.create.inSection': 'Create a channel in “{name}”',
   'channel.create.description':
-    'Create a channel, then invite Bots and connect external sources in its Profile.',
+    'Create a channel, then invite Bots and connect external sources under External connectors in its Channel sidebar.',
   'create.failed': 'Create failed: {error}',
   'bot.create.title': 'Create PersonaBot',
   'bot.create.inSection': 'Create a PersonaBot in “{name}”',
@@ -2959,7 +2970,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'message.draftInterrupted': 'Reply interrupted and not sent.',
   'message.draftExpired': 'Draft reply was not sent.',
   'message.sending': 'Sending',
-  'main.group.note': 'Invite Bots or add an external connector in the Channel Profile.',
+  'main.group.note':
+    'Invite Bots or connect an external conversation under External connectors in the Channel sidebar.',
   'main.localChat': 'Local chat',
   'main.localChat.with': 'This is a local conversation with {name}',
   'message.mention.openDm': 'Open DM with {bot}',
@@ -4021,7 +4033,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'members.wake.silent': 'Silent inbox',
   'members.wake.count': 'Message count',
   'members.wake.seconds': 'Maximum wait (seconds)',
-  'members.wake.save': 'Save attention setting',
+  'members.wake.save': 'Save',
   'members.delete': 'Disband Group',
   'members.deleteConfirm':
     'Disband “{name}”? End local participation and retain history, without deleting the external conversation or purging content. Open ended Channel history from the Channel list menu.',

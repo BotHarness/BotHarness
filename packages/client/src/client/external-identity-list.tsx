@@ -58,6 +58,7 @@ export function ExternalIdentityList({
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
   const [typingEnabled, setTypingEnabled] = useState(true);
+  const [inheritTyping, setInheritTyping] = useState(false);
   const [newConversations, setNewConversations] = useState<'auto' | 'ask' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,6 +108,7 @@ export function ExternalIdentityList({
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
     setTypingEnabled(row?.typingEnabled !== false);
+    setInheritTyping(row?.typingInheritance === 'inherit');
     setNewConversations(
       row?.newConversationsInheritance === 'custom' ? row.newConversations : 'inherit',
     );
@@ -154,9 +156,11 @@ export function ExternalIdentityList({
         t(
           code === 'identity-stale' || code === 'identity-changed' || code === 'conversation-stale'
             ? 'identity.stale'
-            : code === 'conversation-limit'
-              ? 'conversation.limit'
-              : 'identity.failed',
+            : code === 'defaults-stale'
+              ? 'defaults.stale'
+              : code === 'conversation-limit'
+                ? 'conversation.limit'
+                : 'identity.failed',
         ),
       );
     } finally {
@@ -183,7 +187,7 @@ export function ExternalIdentityList({
               enabled: selected.enabled,
               inheritEnabled,
               newConversations,
-              ...(selected.platform === 'weixin' ? { typingEnabled } : {}),
+              ...(selected.platform === 'weixin' ? { typingEnabled, inheritTyping } : {}),
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -564,12 +568,28 @@ export function ExternalIdentityList({
               {mode === 'edit' && selected.platform === 'weixin' ? (
                 <div className="bh-im-field">
                   <span>{t('identity.typing.label')}</span>
-                  <Switch
-                    label={t('identity.typing.label')}
-                    checked={typingEnabled}
+                  <Combobox
+                    searchable={false}
+                    label={t('defaults.typingOrigin')}
+                    toggleLabel={t('defaults.typingOrigin')}
+                    value={inheritTyping ? 'inherit' : 'custom'}
                     disabled={busy}
-                    onChange={setTypingEnabled}
+                    onSelect={(value) => setInheritTyping(value === 'inherit')}
+                    options={[
+                      { value: 'inherit', label: t('defaults.inherited') },
+                      { value: 'custom', label: t('defaults.custom') },
+                    ]}
                   />
+                  {inheritTyping ? (
+                    <span className="bh-bridge-secondary">{t('defaults.typingInheritHint')}</span>
+                  ) : (
+                    <Switch
+                      label={t('identity.typing.label')}
+                      checked={typingEnabled}
+                      disabled={busy}
+                      onChange={setTypingEnabled}
+                    />
+                  )}
                   <span className="bh-bridge-secondary">{t('identity.typing.hint')}</span>
                   {!selected.typing?.supported ? (
                     <span className="bh-bridge-secondary">{t('identity.typing.unavailable')}</span>
