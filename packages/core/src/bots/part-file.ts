@@ -65,7 +65,6 @@ function preview(part: PixelCustomPart): Buffer {
   return Buffer.concat([chunk('IHDR', header), chunk('IDAT', deflateSync(pixels))]);
 }
 
-/** A PNG preview of the part with its data embedded, so it imports back losslessly. */
 export function encodePartFile(file: PartFile): Buffer {
   const part = canonicalCustomPart(file.part);
   const data = JSON.stringify({
@@ -85,10 +84,6 @@ export function encodePartFile(file: PartFile): Buffer {
   ]);
 }
 
-/**
- * Reads the part data embedded in a PNG. Every chunk's CRC is checked and the part is fully
- * validated; its identity is recomputed by the caller from its content, never read from the file.
- */
 export function decodePartFile(bytes: Buffer): PartFile | PartFileError {
   if (bytes.length > MAX_PART_FILE_BYTES) return 'too-large';
   if (bytes.length < 8 || !bytes.subarray(0, 8).equals(SIGNATURE)) return 'not-png';
@@ -146,12 +141,10 @@ export function partFileName(file: PartFile): string {
   return `${stem || 'part'}-${customPartId(file.part).slice(0, 8)}.png`;
 }
 
-/** The whole library as a zip of part PNGs. */
 export function encodePartLibrary(files: readonly PartFile[]): Buffer {
   return writeZip(files.map((file) => ({ path: partFileName(file), data: encodePartFile(file) })));
 }
 
-/** Part files in a PNG or a zip of PNGs; files that are not part PNGs are reported, not imported. */
 export function decodePartFiles(
   bytes: Buffer,
 ): { files: PartFile[]; refused: { name: string; reason: PartFileError }[] } | PartFileError {

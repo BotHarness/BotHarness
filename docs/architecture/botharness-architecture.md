@@ -514,7 +514,7 @@ Custom Part 是有界像素网格，每格引用外形颜色或固定色并带�
 
 新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
 
-目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），以及自绘头发（#1238）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList` 和 `partLibraryAdd` 两个桥接方法使用它；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、导入部件、PNG 部件文件和更多绘制工具尚未实现。
+目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），自绘头发（#1238），自绘其他部件（#1240），以及部件文件分享（#1215）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList`、`partLibraryAdd`、`partLibraryExport` 和 `partLibraryImport` 四个桥接方法使用它；`part-file` 把单个部件编码为 ×8 预览 PNG，部件数据放在 `botharness-part` tEXt 块中，整个部件库导出为这种 PNG 的 zip，导入时校验每个块的 CRC 并按内容去重；导入 Bot 时其外形穿戴的部件以 `imported-bot` 来源加入部件库，作者为该 Bot 的显示名；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、普通 PNG 导入和更多绘制工具尚未实现。
 
 ## 6 · 持久化、导出与恢复边界
 

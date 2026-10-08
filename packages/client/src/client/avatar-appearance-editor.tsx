@@ -448,7 +448,7 @@ export function AvatarAppearanceEditor({
         ...(current ?? []).filter((item) => !result.added.some((added) => added.id === item.id)),
       ]);
       setLibraryNote(
-        t('profile.avatar.part.imported', {
+        t(result.refused ? 'profile.avatar.part.importedRefused' : 'profile.avatar.part.imported', {
           count: result.added.length,
           refused: result.refused,
         }),

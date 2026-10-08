@@ -783,7 +783,7 @@ describe('Profile Avatar Appearance editing', () => {
       });
       expect(importParts).toHaveBeenCalledWith(btoa(String.fromCharCode(1, 2, 3)));
       expect($('[data-part-library-note]')?.textContent).toBe(
-        zhTranslate('profile.avatar.part.imported', { count: 1, refused: 1 }),
+        zhTranslate('profile.avatar.part.importedRefused', { count: 1, refused: 1 }),
       );
       expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(3);
       const filter = $('[data-part-origin-filter]') as HTMLSelectElement;

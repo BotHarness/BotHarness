@@ -1762,7 +1762,8 @@ export const zh = {
   'profile.avatar.part.exportLibrary': '导出部件库',
   'profile.avatar.part.exportPart': '导出这个部件 PNG',
   'profile.avatar.part.exportFailed': '导出失败，请重试。',
-  'profile.avatar.part.imported': '已导入 {count} 个部件，{refused} 个文件无法读取。',
+  'profile.avatar.part.imported': '已导入 {count} 个部件。',
+  'profile.avatar.part.importedRefused': '已导入 {count} 个部件，{refused} 个文件无法读取。',
   'profile.avatar.part.drawPiece': '绘制／修改这一片',
   'profile.avatar.part.removePiece': '换回内置样式',
   'profile.avatar.part.flattenNote': '从当前样式开始：画好后形状固定，不再跟随脸型和发长变化。',
@@ -4335,7 +4336,9 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'profile.avatar.part.exportLibrary': 'Export the library',
   'profile.avatar.part.exportPart': 'Export this part as PNG',
   'profile.avatar.part.exportFailed': "Couldn't export. Try again.",
-  'profile.avatar.part.imported': 'Imported {count} parts. {refused} files could not be read.',
+  'profile.avatar.part.imported': 'Parts imported: {count}.',
+  'profile.avatar.part.importedRefused':
+    'Parts imported: {count}. Files that could not be read: {refused}.',
   'profile.avatar.part.drawPiece': 'Draw or edit this piece',
   'profile.avatar.part.removePiece': 'Back to the built-in style',
   'profile.avatar.part.flattenNote':
