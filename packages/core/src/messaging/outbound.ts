@@ -48,6 +48,7 @@ import { sourceMediaUploadId } from './media-identity.js';
 import { decodeWeChatVoice, MAX_VOICE_INPUT_BYTES } from '../attachments/wechat-audio.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createInboundMessaging, type InboundMessaging, type ExternalSource } from './inbound.js';
+import { createMessagingTyping, type MessagingProcessing } from './typing.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { TelemetryCapture } from '../telemetry/service.js';
@@ -216,6 +217,7 @@ export interface MessagingSnapshot {
 
 export interface OutboundMessaging {
   approvals: ApprovalMessaging;
+  beginProcessing(botSlug: string, sourceEventIds: readonly string[]): MessagingProcessing;
   pairing: BotPairing;
   inbound: InboundMessaging;
   defaults<Platform extends string = 'feishu'>(platform?: Platform): MessagingDefaults<Platform>;
@@ -638,8 +640,49 @@ export function createOutboundMessaging(options: {
         ...(options.warn ? { warn: options.warn } : {}),
       })
     : undefined;
+  const typing = createMessagingTyping({
+    ...(options.warn ? { warn: options.warn } : {}),
+    candidate(botSlug, sourceEventId) {
+      if (!inbound.available(botSlug, sourceEventId)) return undefined;
+      const source = inbound.read(botSlug, sourceEventId);
+      if (source.platform !== 'weixin' || source.event.conversation.kind !== 'dm') return undefined;
+      const value = grant(botSlug, source.grantId);
+      if (!value.bindingId || value.botSlug !== botSlug) return undefined;
+      const identity = enabledBinding(value.bindingId);
+      if (!identity.typingEnabled) return undefined;
+      const entry = provider(value.providerId);
+      if (!entry.provider.beginTyping) return undefined;
+      return {
+        bindingId: identity.id,
+        grantId: value.id,
+        providerId: value.providerId,
+        provider: entry.provider,
+        token: entry.token,
+        accountRef: value.accountRef,
+        fingerprint: value.fingerprint,
+        route: source.event.reply,
+        signal: inbound.sourceSignal(botSlug, sourceEventId),
+        validate() {
+          active(botSlug);
+          current(value.providerId, entry.token);
+          const currentIdentity = enabledBinding(identity.id, identity.revision);
+          const latest = grant(botSlug, value.id);
+          return (
+            currentIdentity.typingEnabled === true &&
+            !latest.revokedAt &&
+            !latest.suspendedReason &&
+            latest.revision === value.revision &&
+            latest.fingerprint === value.fingerprint &&
+            latest.bindingId === identity.id &&
+            inbound.available(botSlug, sourceEventId)
+          );
+        },
+      };
+    },
+  });
   const service: OutboundMessaging = {
     approvals,
+    beginProcessing: (botSlug, sourceEventIds) => typing.begin(botSlug, sourceEventIds),
     inbound,
     pairing,
     defaults<Platform extends string = 'feishu'>(platform?: Platform) {
@@ -714,6 +757,12 @@ export function createOutboundMessaging(options: {
       if (value.revision !== input.expectedRevision) throw new MessagingError('identity-stale');
       if (input.kind === 'update' && (!input.name.trim() || input.name.length > 120))
         throw new MessagingError('invalid-input');
+      if (
+        input.kind === 'update' &&
+        input.typingEnabled !== undefined &&
+        value.platform !== 'weixin'
+      )
+        throw new MessagingError('invalid-input');
       const scopes = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL')
@@ -775,7 +824,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -787,6 +836,11 @@ export function createOutboundMessaging(options: {
               : latest.enabledInheritance === 'inherit'
                 ? 1
                 : 0,
+            (input.kind === 'update'
+              ? (input.typingEnabled ?? latest.typingEnabled)
+              : latest.typingEnabled) === false
+              ? 0
+              : 1,
             input.kind === 'update' &&
               input.newConversations !== undefined &&
               input.newConversations !== 'inherit'
@@ -822,6 +876,7 @@ export function createOutboundMessaging(options: {
         },
         ['bindings', 'grants', 'bot-inbox'],
       );
+      typing.invalidate((candidate) => candidate.bindingId === value.id);
       await bounded(inbound.reconcileBinding(value.id));
       options.warn?.(
         JSON.stringify({
@@ -1129,6 +1184,7 @@ export function createOutboundMessaging(options: {
       if (closed) throw new MessagingError('provider-unavailable');
       const token = {};
       const previous = providers.get(value.id);
+      if (previous) typing.invalidate((candidate) => candidate.token === previous.token);
       if (previous !== undefined)
         for (const attempt of inFlight.values()) {
           if (attempt.token === previous.token) attempt.controller.abort();
@@ -1136,6 +1192,7 @@ export function createOutboundMessaging(options: {
       providers.set(value.id, { provider: value, token });
       const disposeInbound = inbound.register(value);
       return () => {
+        typing.invalidate((candidate) => candidate.token === token);
         disposeInbound();
         if (providers.get(value.id)?.token === token) providers.delete(value.id);
         for (const attempt of inFlight.values())
@@ -1313,6 +1370,20 @@ export function createOutboundMessaging(options: {
                   : ('unavailable' as const),
             grantCount: scopes.length,
             scopes: scopes.map((g) => g.targetName),
+            ...(latest.platform === 'weixin'
+              ? {
+                  typing: {
+                    supported: accounts.some(
+                      (account) =>
+                        account.providerId === latest.providerId &&
+                        account.ref === latest.accountRef &&
+                        account.fingerprint === latest.fingerprint &&
+                        account.typingSupported === true,
+                    ),
+                    ...typing.state(id),
+                  },
+                }
+              : {}),
           };
         }),
       );
@@ -1574,6 +1645,7 @@ export function createOutboundMessaging(options: {
         ['grants', 'bindings', 'outbox'],
       );
       inbound.revoke(grantId);
+      typing.invalidate((candidate) => candidate.grantId === grantId);
       for (const attempt of inFlight.values())
         if (attempt.fileGrantId === grantId) attempt.controller.abort();
     },
@@ -2079,6 +2151,7 @@ export function createOutboundMessaging(options: {
     close() {
       closed = true;
       approvals.close();
+      typing.close();
       inbound.close();
       providers.clear();
       for (const attempt of inFlight.values()) attempt.controller.abort();

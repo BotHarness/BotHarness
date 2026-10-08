@@ -10,6 +10,8 @@ import type {
   MessagingHistoryPage,
   MessagingApprovalCard,
   MessagingApprovalAck,
+  MessagingTypingState,
+  MessagingTypingLease,
 } from './provider.js';
 import { mentionTags } from './mention-text.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
@@ -41,6 +43,17 @@ export interface DshImOutboundService {
   replyFenceVersion?: 1;
   receiptVersion?: 1;
   postFenceVersion?: 1;
+  typingVersion?: 1;
+  beginTypingChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    options: {
+      expectedFingerprint: string;
+      signal: AbortSignal;
+      beforeSend(): boolean;
+      onState(state: MessagingTypingState): void;
+    },
+  ): Promise<MessagingTypingLease>;
   echoVersion?: 1;
   readSourceFile?(
     botId: string,
@@ -339,6 +352,12 @@ export function createDshImProvider(
       name: info.account.name ?? ref,
       fingerprint: info.account.fingerprint,
       connected: info.connected,
+      ...(platform === 'weixin' &&
+      host.typingVersion === 1 &&
+      typeof host.beginTypingChecked === 'function' &&
+      info.capabilities.includes('typing-lifecycle-checked')
+        ? { typingSupported: true }
+        : {}),
       ...(info.capabilities.includes('proactive-text-checked')
         ? {}
         : { unsupported: 'checked-send' as const }),
@@ -392,6 +411,60 @@ export function createDshImProvider(
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
+    ...(platform === 'weixin' &&
+    host.typingVersion === 1 &&
+    typeof host.beginTypingChecked === 'function'
+      ? {
+          async beginTyping(input: Parameters<NonNullable<MessagingProvider['beginTyping']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (!info.connected || !info.capabilities.includes('typing-lifecycle-checked'))
+              throw new MessagingError('capability-unavailable');
+            try {
+              const result = await host.beginTypingChecked!(input.accountRef, input.route, {
+                expectedFingerprint: input.fingerprint,
+                signal: input.signal,
+                beforeSend: input.beforeSend,
+                onState(state) {
+                  const parsed = z
+                    .object({
+                      phase: z.enum(['idle', 'requesting', 'accepted', 'cleanup-unconfirmed']),
+                      reason: z
+                        .enum([
+                          'completed',
+                          'cancelled',
+                          'disposed',
+                          'maximum-duration',
+                          'renewal-refused',
+                          'typing-unavailable',
+                        ])
+                        .optional(),
+                    })
+                    .safeParse(state);
+                  if (parsed.success)
+                    input.onState({
+                      phase: parsed.data.phase,
+                      ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
+                    });
+                },
+              });
+              if (result?.accepted !== true || typeof result.stop !== 'function')
+                throw new MessagingError('provider-incompatible');
+              return result;
+            } catch (error) {
+              throw new MessagingError(
+                error instanceof MessagingError
+                  ? error.code
+                  : input.signal.aborted
+                    ? 'cancelled'
+                    : 'typing-unavailable',
+              );
+            }
+          },
+        }
+      : {}),
     inspectAccount: account,
     async inspect(accountRef, targetRef) {
       const current = await account(accountRef);
