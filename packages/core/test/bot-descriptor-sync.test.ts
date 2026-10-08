@@ -1,3 +1,4 @@
+import { seededBannerRecipe } from '@botharness/pixel-banner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -75,7 +76,9 @@ describe('Bot descriptor sync', () => {
       tags: ['行程规划', '酒店比价'],
       bio: '帮你排行程、比酒店',
       avatar: { recipe: canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')) },
+      banner: { recipe: seededBannerRecipe('旅行规划师') },
     });
+    expect(existsSync(join(memoryDir, '.botharness/banner.png'))).toBe(true);
     expect(parseBotDescriptor(JSON.stringify(descriptor))).toBeDefined();
     expect(readSharedPresentation(memoryDir)?.appearance?.recipe).toEqual(
       canonicalAvatarRecipe(seededAvatarRecipe('旅行规划师')),
@@ -164,6 +167,7 @@ describe('Bot descriptor sync', () => {
     expect(descriptorOf(memoryDir)).toEqual({
       name: 'Shared',
       avatar: { image: 'assets/avatar.png' },
+      banner: { recipe: seededBannerRecipe('Shared') },
     });
     expect(existsSync(join(memoryDir, '.botharness/avatar.png'))).toBe(false);
   });

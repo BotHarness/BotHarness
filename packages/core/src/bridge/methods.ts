@@ -88,6 +88,8 @@ import {
   type ChannelReference,
 } from '../channels/channel.js';
 import { botAvatarUrl } from '../bots/avatar-http.js';
+import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
+import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -234,6 +236,7 @@ export interface PersonaBotSummary {
   description?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  banner?: BotBannerSummary;
   paused?: boolean;
   deleted?: boolean;
   standingLimits: StandingLimits;
@@ -500,6 +503,7 @@ export interface BridgeMethods {
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   standingLimitsSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  botBannerSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
@@ -831,6 +835,9 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
             ? botAvatarUrl(record.slug, record.avatar)
             : record.avatar,
         }),
+    ...(record.banner === undefined
+      ? {}
+      : { banner: botBannerSummary(record.slug, record.banner) }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
@@ -2167,6 +2174,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return result.reason === 'not-found'
           ? unknownBot(scope.botSlug)
           : invalidInput('invalid Avatar Appearance');
+      return { ok: true, value: detailOf(result.record) };
+    },
+    botBannerSet(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const record = deps.registry.get(scope.botSlug);
+      if (record === undefined) return unknownBot(scope.botSlug);
+      const banner = asObject(payload)['banner'];
+      const next = banner === null ? seededBotBanner(record.displayName || record.slug) : banner;
+      if (!isBotBanner(next)) {
+        return invalidInput(
+          'banner must be null, { recipe: { scene, seed } } or { image } as a 3:1 PNG data URL',
+        );
+      }
+      const result = deps.registry.setBanner(scope.botSlug, next);
+      if (!result.ok)
+        return result.reason === 'not-found'
+          ? unknownBot(scope.botSlug)
+          : invalidInput('invalid banner');
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {

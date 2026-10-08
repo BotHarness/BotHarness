@@ -17,6 +17,7 @@
 
 ### Added
 
+- 每个 Bot 的资料页和资料小窗顶部都有了横幅。新建的 Bot 会按名字挑一张像素场景，改名不会变；已有的 Bot 在下次启动时补上一张。点 **更换横幅** 可以从十个场景里挑、换一张、上传图片并裁成 3:1，或恢复生成的场景。`.botharness/bot.json` 记录横幅，`.botharness/banner.png` 总会写入，Bot Zip 导出、导入和从 Git 导入都会保留它（[#1092](https://github.com/BotHarness/BotHarness/issues/1092)）。
 - 完成首次真实 Bot 对话后，欢迎消息提供可选的「绑定应用」入口，复用既有平台选择和官网教程；选择「暂时不绑定」保留完成状态，绑定结果与接收状态以真实记录为准（[#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)）。
 
 - Bot 模式首次真实回复后，欢迎消息提供可选的记忆体验：查看现有记忆文件与实际变更，或将自由填写的偏好作为普通私聊请求发送；跳过不打扰，也不会把初始模板或回复当作保存成功的证据（[#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)）。

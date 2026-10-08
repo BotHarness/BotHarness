@@ -7,6 +7,12 @@ import {
   parseBotDescriptor,
 } from '../marketplace/descriptor.js';
 import type { AvatarAppearance } from './avatar-appearance.js';
+import {
+  botBannerFromPng,
+  isBotBanner,
+  MAX_BOT_BANNER_BYTES,
+  type BotBanner,
+} from './bot-banner.js';
 import { deriveAvatarAppearance } from './avatar-snapshot.js';
 import { isPersonaBotAvatar, MAX_PERSONA_BOT_AVATAR_BYTES } from './persona-bot.js';
 
@@ -47,4 +53,15 @@ export function readSharedPresentation(memoryDir: string): SharedPresentation | 
   if (type === undefined || bytes === undefined) return undefined;
   const dataUrl = `data:${type};base64,${bytes.toString('base64')}`;
   return isPersonaBotAvatar(dataUrl) ? { avatar: dataUrl } : undefined;
+}
+
+export function readSharedBanner(memoryDir: string): BotBanner | undefined {
+  const file = readInside(memoryDir, BOT_DESCRIPTOR_PATH, MAX_DESCRIPTOR_BYTES);
+  if (file === undefined) return undefined;
+  const banner = parseBotDescriptor(file.toString('utf8'))?.banner;
+  if (banner === undefined) return undefined;
+  if ('recipe' in banner) return isBotBanner(banner) ? banner : undefined;
+  if (!banner.image.toLowerCase().endsWith('.png')) return undefined;
+  const bytes = readInside(memoryDir, banner.image, MAX_BOT_BANNER_BYTES);
+  return bytes === undefined ? undefined : botBannerFromPng(bytes);
 }

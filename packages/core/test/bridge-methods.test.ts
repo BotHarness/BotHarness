@@ -1,3 +1,4 @@
+import { seededBannerRecipe } from '@botharness/pixel-banner';
 import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -1223,6 +1224,7 @@ describe('bridge methods', () => {
             aggregateState: 'working',
             workspaces: ['/tmp/ada'],
             createdAt: expect.any(String),
+            banner: { recipe: expect.objectContaining({ seed: expect.any(Number) }) },
             standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
@@ -1247,6 +1249,7 @@ describe('bridge methods', () => {
             aggregateState: 'idle',
             workspaces: [],
             createdAt: expect.any(String),
+            banner: { recipe: expect.objectContaining({ seed: expect.any(Number) }) },
             standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
@@ -1323,6 +1326,7 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          banner: { recipe: expect.objectContaining({ seed: expect.any(Number) }) },
           standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
@@ -1435,6 +1439,7 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          banner: { recipe: expect.objectContaining({ seed: expect.any(Number) }) },
           standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
@@ -2332,6 +2337,30 @@ describe('bridge methods', () => {
     expect(methods.botAvatarSet({ channelId: dm.id, avatar: null }).ok).toBe(true);
     expect(registry.get('ada')?.appearance).toBeUndefined();
     expect(registry.get('ada')?.avatar).toBeUndefined();
+  });
+
+  it('sets a banner scene inside the DM and resets it to the name-seeded one', () => {
+    const { registry, channels, methods } = setup();
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const group = channels.createGroup({ name: 'Team', members: [] });
+    const recipe = { scene: 'night-sky', seed: 12 };
+
+    expect(methods.botBannerSet({ channelId: dm.id, banner: { recipe } })).toMatchObject({
+      ok: true,
+      value: { bot: { banner: { recipe } } },
+    });
+    expect(registry.get('ada')?.banner).toEqual({ recipe });
+    expect(
+      methods.botBannerSet({ channelId: dm.id, banner: { recipe: { scene: 'mars', seed: 1 } } }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(methods.botBannerSet({ channelId: group.id, banner: null })).toMatchObject({
+      ok: false,
+    });
+
+    expect(registry.update('ada', { displayName: 'Ada Lovelace' }).ok).toBe(true);
+    expect(methods.botBannerSet({ channelId: dm.id, banner: null }).ok).toBe(true);
+    expect(registry.get('ada')?.banner).toEqual({ recipe: seededBannerRecipe('Ada Lovelace') });
   });
 
   it('sets, maps, and clears one PersonaBot custom avatar inside its DM', () => {
