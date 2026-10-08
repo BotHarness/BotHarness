@@ -14,6 +14,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
+
 - Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).
 
 - Ended local Groups expose retained history and a separate selected-text Content Purge preview/confirmation, with audit tombstones after restart and a real monotonic restore checkpoint. A new same-name Group gets a fresh identity without overwriting ended history. This first slice refuses external sources, files and complex derivatives; full Channel Purge and Profile Backup remain pending ([#897](https://github.com/BotHarness/DeepSeekBot/issues/897)).

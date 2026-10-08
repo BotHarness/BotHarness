@@ -3,8 +3,14 @@ import { act, createElement, type ButtonHTMLAttributes } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { MessagingDefaultsSettings } from '../src/client/messaging-defaults-settings.js';
-import { zhTranslate } from '../src/client/locale.js';
+import { en, zhTranslate } from '../src/client/locale.js';
 import type { BridgeCall } from '../src/client/bridge.js';
+const enTranslate: typeof zhTranslate = (key, params) => {
+  let message = Object.entries(en).find(([name]) => name === key)?.[1] ?? key;
+  for (const [name, value] of Object.entries(params ?? {}))
+    message = message.replaceAll(`{${name}}`, String(value));
+  return message;
+};
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Switch: ({
@@ -23,6 +29,86 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
       onChange: () => onChange(!checked),
     }),
 }));
+it.each([zhTranslate, enTranslate])(
+  'shows only qualified owner-DM and typing defaults for WeChat (%#)',
+  async (t) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const saves: unknown[] = [];
+    const call: BridgeCall = async (method, payload) => {
+      if (method === 'messagingDefaults')
+        return {
+          ok: true,
+          value: {
+            platform: payload.platform ?? 'feishu',
+            revision: 0,
+            changedAt: '',
+            collection: payload.platform === 'weixin' ? 'all' : 'mentions',
+            wake: payload.platform === 'weixin' ? 'immediate' : 'digest',
+            count: 5,
+            intervalSeconds: 30,
+            identityEnabled: true,
+            typingEnabled: true,
+            newConversations: 'auto',
+          },
+        };
+      if (method === 'messagingDefaultsSet') {
+        saves.push(payload);
+        return { ok: true, value: undefined };
+      }
+      throw new Error(method);
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(createElement(MessagingDefaultsSettings, { call, t })));
+      const platform = container.querySelector<HTMLSelectElement>(
+        `[aria-label="${t('defaults.platform')}"]`,
+      )!;
+      await act(async () => {
+        platform.value = 'weixin';
+        platform.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      const region = container.querySelector<HTMLElement>(
+        '[role="region"][aria-label="WeChat / 微信"]',
+      )!;
+      expect(region.hidden).toBe(false);
+      expect(region.querySelector('select')).toBeNull();
+      expect(region.textContent).toContain(t('defaults.weixinScope'));
+      expect(region.textContent).not.toContain(t('defaults.authorization'));
+      expect(region.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+      await act(async () =>
+        region
+          .querySelector<HTMLButtonElement>(`[aria-label="${t('defaults.enableTyping')}"]`)!
+          .click(),
+      );
+      await act(async () =>
+        [...region.querySelectorAll('button')]
+          .find((b) => b.textContent === t('defaults.save'))!
+          .click(),
+      );
+      expect(saves).toEqual([
+        {
+          input: {
+            platform: 'weixin',
+            expectedRevision: 0,
+            collection: 'all',
+            wake: 'immediate',
+            count: 5,
+            intervalSeconds: 30,
+            identityEnabled: true,
+            typingEnabled: false,
+            newConversations: 'auto',
+          },
+        },
+      ]);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);
+
 it('keeps a dirty draft at its captured revision, refuses a stale save, and refreshes explicitly', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   let remote = {
@@ -47,7 +133,14 @@ it('keeps a dirty draft at its captured revision, refuses a stale save, and refr
   const saves: unknown[] = [];
   const call: BridgeCall = async (method, payload) => {
     if (method === 'messagingDefaults')
-      return { ok: true, value: { ...remote, platform: payload.platform ?? 'feishu' } };
+      return {
+        ok: true,
+        value: {
+          ...remote,
+          platform: payload.platform ?? 'feishu',
+          ...(payload.platform === 'weixin' ? { typingEnabled: true } : {}),
+        },
+      };
     if (method === 'messagingDefaultsSet') {
       saves.push(payload);
       return { ok: false, error: { code: 'defaults-stale', message: 'stale', details: {} } };
@@ -115,10 +208,11 @@ it.each(['slack', 'discord'] as const)(
       revision: 0,
       changedAt: '',
     };
-    const remote: Record<string, typeof base & { platform: string }> = {
+    const remote: Record<string, typeof base & { platform: string; typingEnabled?: boolean }> = {
       feishu: { ...base, platform: 'feishu' },
       slack: { ...base, platform: 'slack' },
       discord: { ...base, platform: 'discord' },
+      weixin: { ...base, platform: 'weixin', typingEnabled: true },
     };
     let stream: EventTarget | undefined;
     class Events extends EventTarget {

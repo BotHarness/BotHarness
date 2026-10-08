@@ -14,6 +14,8 @@
 
 ### Added
 
+- 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
+
 - 隔离 AX 启动向 coding agent 提供有界、白名单化的真实 Client 启动／运行证据和明确 shell 就绪状态，跨文档重试保留首次失败（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)）。
 
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。

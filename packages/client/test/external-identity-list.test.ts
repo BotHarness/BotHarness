@@ -108,6 +108,24 @@ it('edits WeChat typing in the current identity modal and keeps native request a
         newConversations: 'inherit',
       }),
     );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[title="编辑身份：QA WeChat"]')!.click(),
+    );
+    await chooseOption(zhTranslate('defaults.typingOrigin'), 'inherit', container);
+    expect(
+      container.querySelector(`[aria-label="${zhTranslate('identity.typing.label')}"]`),
+    ).toBeNull();
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      zhTranslate('defaults.typingInheritHint'),
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((b) => b.textContent === '保存身份')!
+        .click(),
+    );
+    expect(mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'wechat', inheritTyping: true }),
+    );
   } finally {
     await act(async () => root.unmount());
     container.remove();

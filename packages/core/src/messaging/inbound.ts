@@ -1306,6 +1306,8 @@ export function createInboundMessaging(options: {
       throw new MessagingError('consumer-unavailable');
     if (event.fingerprint !== identity.fingerprint || event.botId !== identity.accountRef)
       throw new MessagingError('untrusted-source');
+    if (identity.receiveAfter && Date.parse(event.at) < Date.parse(identity.receiveAfter))
+      return { accepted: true };
     if (event.conversation.kind === 'group' && !event.mentionedAccount) {
       placeIngests(identity, event);
       return { accepted: true };
@@ -1340,6 +1342,12 @@ export function createInboundMessaging(options: {
         const entries = renameEntries(db, conversationEntries(db, id, event.conversation), event);
         if (entries.some((item) => item.origin !== 'implicit')) return undefined;
         let value: MessagingGrant | undefined = entries[0];
+        if (
+          identity.platform === 'weixin' &&
+          value?.receiveAfter &&
+          Date.parse(event.at) < Date.parse(value.receiveAfter)
+        )
+          return undefined;
         let created = false;
         if (value === undefined) {
           if (readBlock(db, identity.botSlug, identity.fingerprint, event.conversation))
