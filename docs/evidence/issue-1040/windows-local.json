@@ -1,0 +1,99 @@
+{
+  "issue": "https://github.com/BotHarness/BotHarness/issues/1040",
+  "task": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "verifiedAt": "2026-10-08",
+  "status": "candidate-awaiting-human-platform-qa",
+  "sources": {
+    "botharnessBase": "be804da7bb958e6e350aa3209ce2b0c04216670b",
+    "botharnessRuntime": "2a47188e976947baadcd6619fe46d1df6b68ec93",
+    "providerBase": "9aa0e04ef5698fc93721c12aa415664e34d52cb9",
+    "providerCandidate": "05c283f2e8260075e635442da8c25dac6f293d91",
+    "providerDraft": "https://github.com/DoodleBears/dsh-im/pull/16",
+    "providerPackageVersion": "4.32.0",
+    "dsh": "0.2.0-rc.1",
+    "node": "24.14.0",
+    "pnpm": "12.4.2",
+    "publishedProviderPinChanged": false
+  },
+  "installedProvider": {
+    "composition": "isolated Profile local file dependency and Bundle; no IM account",
+    "runtimeFiles": 400,
+    "runtimeSha256": "cb4c6683b0581c03408bbfc645e8cbfadf954289e3d2aac75245f85afd4ea06e",
+    "matchesCandidate": true
+  },
+  "automated": {
+    "feedbackAndIdentityUi": {
+      "command": "pnpm exec vitest run packages/core/test/messaging-feedback.test.ts packages/client/test/external-identity-list.test.ts --maxWorkers=1",
+      "passed": 14,
+      "files": 2,
+      "coverage": [
+        "durable Admission before receipt; accepted canonical reply before completion",
+        "parallel source correspondence; silence, failed and unknown sends",
+        "pending reaction does not hold reply; pending reply does not complete",
+        "SDK-only unmentioned group event has no receipt",
+        "separate source-linked send does not claim answer completion",
+        "old Provider/version or missing capability remains nonblocking",
+        "permission rejection retained without automatic retry",
+        "replay, reconnect and restart retain source attempt deduplication",
+        "mute admits silently and permits explicit reply; block denies new Admission",
+        "Web projects only selected identity records and distinguishes unknown from accepted"
+      ]
+    },
+    "existingDefaultTraffic": {
+      "file": "packages/core/test/messaging-default-traffic.test.ts",
+      "passed": 21
+    },
+    "existingCompatibility": {
+      "files": [
+        "packages/core/test/messaging-outbound.test.ts",
+        "packages/core/test/dsh-im-unsupported.test.ts",
+        "packages/core/test/dsh-im-reply-mentions.test.ts",
+        "packages/client/test/styles-tokens.test.ts",
+        "packages/client/test/client-bundle.test.ts"
+      ],
+      "passed": 36
+    },
+    "sharedChannelRegression": {
+      "file": "packages/core/test/messaging-inbound.test.ts",
+      "case": "places one canonical external Source Event in a shared Channel, wakes only the addressed identity and preserves its reply route",
+      "result": "passed in isolation with 30-second deadline; 12.44-second run including setup",
+      "earlierBroadRun": "26 passed before this case exceeded the default 15-second deadline during concurrent builds"
+    },
+    "requiredChecks": [
+      "typecheck passed",
+      "build passed",
+      "lint passed",
+      "format:check passed",
+      "both release ledgers valid",
+      "Chinese OG font regeneration completed without final binary change"
+    ],
+    "docsBuild": "416 pages built; task-local pnpm.exe was used for the existing Windows spawnSync pnpm lookup",
+    "rootFullSuite": "attempted, then stopped only its owned process tree after reproducing Windows EPERM in temporary-directory cleanup; full-suite green is not claimed",
+    "providerFocused": { "passed": 93, "build": "passed", "packageVerification": "passed" },
+    "providerBroad": {
+      "passed": 3599,
+      "failed": 41,
+      "cancelled": 2,
+      "skipped": 7,
+      "result": "not green; failing areas reproduce on untouched provider base: CRLF-sensitive i18n dictionary, POSIX file mode assertion on Windows, update recovery/timeout tests",
+      "scope": "broad run preceded final still-processing error classification; subsequent 93-test focused run covers final Provider code"
+    }
+  },
+  "nativeHost": {
+    "authenticatedApi": "verified",
+    "realModelDm": "BH1040-NATIVE-OK received from the QA Bot in its canonical Human DM; retained after final-runtime restart",
+    "externalIdentities": 0,
+    "imCredentialsCopied": false,
+    "productionStopped": false,
+    "clientRenderedState": "unobserved; no claim of light/dark visual qualification"
+  },
+  "humanPlatformQa": {
+    "emojiChoice": "Human approved GLANCE / DONE; actual style pending",
+    "permissionWrite": "pending review of concrete QA app permissions in newly authorized window",
+    "realReactionsSilenceFailure": "pending",
+    "matchedWebLightDarkBeforeAfter": "pending; bound Lark identity state requires the newly authorized QA app",
+    "croppedLarkTutorialImages": "pending; existing onboarding and approval screenshots are not feedback evidence",
+    "runbook": "docs/agents/qa-lark-feedback.md",
+    "mergeDeployPublishPinPromotion": "not performed"
+  }
+}
