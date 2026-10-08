@@ -61,6 +61,7 @@ function IdentitiesForBot({
       ) : null}
       <ExternalIdentityList
         snapshot={snapshot}
+        refresh={refresh}
         t={t}
         mutate={async (input) => {
           await actions.messagingIdentity(slug, input);

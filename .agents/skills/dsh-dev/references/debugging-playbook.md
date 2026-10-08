@@ -1,5 +1,15 @@
 # DSH debugging playbook
 
+## Authenticated fixture navigation
+
+In pinned RC1, native connection.admit also applies the Host/Origin fence: a request with Sec-Fetch-Site: cross-site receives 403 even with a valid cookie. A CUA direct navigation to an authenticated fixture produced Chrome ERR_BLOCKED_BY_CLIENT; the same URL reached through a visible same-origin application link passed admission and ran. Check bounded, credential-free admission metadata before blaming the browser extension or product startup. Keep the native fence intact; use normal application navigation for the verification path. Do not log cookie values, launch tokens or request contents ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
+
+## Client startup errors versus browser-control failures
+
+Pinned RC1 has two distinct root guards: `SlotRegistry.renderSlot` refuses assembly with no root registration, while React `RootOutlet` emits `renderSlot('root') before any 'root' registration (boot order)` if the registration disappears after assembly. Reproduce the latter with the installed renderer and real React DOM before attributing it to boot order. Native Conversation locale refresh iterates tracked Session bindings; `uiConversation.binding: unknown session` names an absent native Session, but its appearance after a root crash does not prove causation. Keep the first error and later sequence, and hand off unresolved initiator/lifecycle evidence. See [the executable loop and pinned sources](../../../../docs/dev/guides/client-startup-diagnostics.md) ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
+
+A browser tool's mouse/evaluation/screenshot timeout, connection reset or navigation refusal is control-plane evidence. Inspect the current page before retrying and keep those failures separate from product exceptions. Chrome may defer frame callbacks in background tabs; a foreground observation deadline must not treat that as a white-screen crash. An authenticated API 200 alone is only Host transport evidence.
+
 ## Temporary SSE refusal versus network reconnect
 
 In the pinned DSH 0.2.0 RC1 installed Profile, a loopback transport fixture severed one application SSE while leaving canonical model commits and the Host alive. Returning temporary HTTP 503 on reconnection made Chrome's EventSource terminally CLOSED; restoring the endpoint alone did not create another request. Distinguish this from a network interruption, where the browser keeps its EventSource reconnect machinery. Check terminal readyState explicitly and replace the application-owned closed transport with one bounded-backoff timer; preserve only its process-local resume identity and cancel the timer on removal/disposal. A replacement EventSource cannot set Last-Event-ID itself: an authenticated application-defined resume parameter may carry the lease, while native Last-Event-ID must take precedence on subsequent automatic reconnects. Keep normal authentication, canonical qualification and lease expiry unchanged. Preserve failed real-Profile evidence and re-run that exact refusal/restore path after the fix ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
@@ -44,7 +54,7 @@ Status semantics:
 | ------ | ------- |
 | `401` | no/expired cookie (login step failed or cookie authority mismatch) |
 | `404` + plain `not found` | shared `/api` handler found **no matching interceptor claim** — plugin layer broken or wrong interceptor occupying the slot |
-| `200` + `server-response` envelope | healthy; bad envelope fields come back as `gateway/bad-request`, not 404 |
+| `200` + `server-response` envelope | Host API healthy (Client readiness unverified); bad envelope fields come back as `gateway/bad-request`, not 404 |
 | connection refused | server not booted / wrong port / killed by wrapper exit (use `setsid`) |
 
 No-cookie probes: `/` → 401 means the HTTP shell is up; `/api/*` → 404 without a cookie proves only that the route dispatcher ran — **always probe with a cookie**.

@@ -43,7 +43,7 @@ import {
 import { zhTranslate } from '../src/client/locale.js';
 import { useMessagingSnapshot } from '../src/client/messaging-store.js';
 import { revealSidebarAnchor } from '../src/client/sidebar-anchor.js';
-import { combobox, comboboxOption, openCombobox } from './primitive-mocks.js';
+import { chooseOption, combobox, comboboxOption, openCombobox } from './primitive-mocks.js';
 
 let root: Root;
 let host: HTMLDivElement;
@@ -229,6 +229,52 @@ it('keeps disabled combobox options out of keyboard and click selection', async 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('online');
 });
 
+it('keeps the setup action available with apps, without apps and after an unmatched search, without selecting an account', async () => {
+  const onSelect = vi.fn();
+  const setup = vi.fn();
+  const render = async (options: { value: string; label: string }[]) => {
+    await act(async () =>
+      root.render(
+        createElement(Combobox, {
+          label: 'App',
+          toggleLabel: 'App',
+          value: '',
+          options,
+          onSelect,
+          emptyLabel: 'No apps',
+          action: { label: 'Add new app', onSelect: setup },
+        }),
+      ),
+    );
+    await openCombobox('App');
+  };
+  await render([]);
+  expect(document.querySelector('[role="option"][data-action]')?.textContent).toBe('Add new app');
+  await act(async () =>
+    document.querySelector<HTMLButtonElement>('[role="option"][data-action]')!.click(),
+  );
+  expect(setup).toHaveBeenCalledTimes(1);
+  await render([{ value: 'existing', label: 'Existing app' }]);
+  expect(document.querySelectorAll('[role="option"]')).toHaveLength(2);
+  const input = combobox('App');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+      input,
+      'unmatched',
+    );
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  expect(document.querySelectorAll('[role="option"]')).toHaveLength(1);
+  await act(async () =>
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+  );
+  await act(async () =>
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
+  );
+  expect(setup).toHaveBeenCalledTimes(2);
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
 it('clears a failed load after a successful explicit refresh', async () => {
   const messagingSnapshot = vi
     .fn()
@@ -245,4 +291,213 @@ it('clears a failed load after a successful explicit refresh', async () => {
   expect(host.textContent).toBe('failed');
   await act(async () => refresh());
   expect(host.textContent).toBe('ok');
+});
+
+it('returns from QR settings to the retained bind dialog with newly paired and occupied apps refreshed', async () => {
+  const paired = {
+    providerId: 'dsh-im/weixin',
+    ref: 'new-wechat',
+    platform: 'weixin',
+    name: 'New WeChat',
+    fingerprint: 'b'.repeat(64),
+    connected: true,
+  };
+  const existing = {
+    ...paired,
+    ref: 'existing',
+    name: 'Existing app',
+    fingerprint: 'a'.repeat(64),
+  };
+  const initial: MessagingSnapshot = {
+    accounts: [existing],
+    identities: [],
+    grants: [],
+    intents: [],
+  };
+  let current = initial;
+  const messagingSnapshot = vi.fn(async () => current);
+  const store = { ...actions, messagingSnapshot };
+  const trigger = document.createElement('button');
+  trigger.setAttribute('aria-haspopup', 'dialog');
+  document.body.prepend(trigger);
+  const settings = document.createElement('div');
+  settings.setAttribute('role', 'dialog');
+  const nav = document.createElement('button');
+  nav.textContent = 'IM机器人';
+  const platform = document.createElement('button');
+  platform.textContent = '飞书';
+  nav.onclick = () => settings.append(platform);
+  settings.append(nav);
+  trigger.onclick = () => document.body.append(settings);
+  await act(async () =>
+    root.render(
+      createElement(ExternalIdentitiesEntry, {
+        ...props,
+        botSlug: 'qr-return',
+        actions: store,
+      }),
+    ),
+  );
+  const button = (text: string) =>
+    [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent === text || b.querySelector('.bh-card-title')?.textContent === text,
+    )!;
+  await act(async () => button(zhTranslate('identity.bind')).click());
+  const refreshButton = host.querySelector<HTMLButtonElement>('[aria-label="刷新应用"]')!;
+  expect(refreshButton.textContent).toBe('');
+  expect(
+    refreshButton.closest('.bh-im-app-picker')?.querySelector('[role="combobox"]'),
+  ).not.toBeNull();
+  await chooseOption('应用', 'dsh-im/weixin:existing', host);
+  expect(messagingSnapshot).toHaveBeenCalledTimes(2);
+  await act(async () => button(zhTranslate('identity.manageApps')).click());
+  expect(settings.isConnected).toBe(true);
+  current = {
+    ...initial,
+    accounts: [
+      existing,
+      paired,
+      {
+        ...paired,
+        ref: 'occupied',
+        name: 'Shared app',
+        fingerprint: 'c'.repeat(64),
+        boundBotSlug: 'bea',
+      },
+    ],
+  };
+  await act(async () => settings.remove());
+  expect(host.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+    zhTranslate('identity.bind'),
+  );
+  expect(messagingSnapshot).toHaveBeenCalledTimes(3);
+  expect(combobox('应用', host).value).toBe('Existing app');
+  expect(host.textContent).toContain('添加新应用');
+  await openCombobox('应用', host);
+  expect(comboboxOption('dsh-im/weixin:new-wechat')?.disabled).toBe(false);
+  expect(comboboxOption('dsh-im/weixin:occupied')?.textContent).toContain('已绑定其他 Bot');
+  expect(comboboxOption('dsh-im/weixin:occupied')?.disabled).toBe(true);
+  await act(async () =>
+    document.querySelector<HTMLButtonElement>('[role="option"][data-action]')!.click(),
+  );
+  expect(settings.isConnected).toBe(true);
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => settings.remove());
+  expect(messagingSnapshot).toHaveBeenCalledTimes(4);
+  expect(combobox('应用', host).value).toBe('Existing app');
+});
+
+it('keeps a failed app refresh recoverable in the same dialog', async () => {
+  const initial: MessagingSnapshot = { accounts: [], identities: [], grants: [], intents: [] };
+  const messagingSnapshot = vi.fn(async () => initial);
+  await act(async () =>
+    root.render(
+      createElement(ExternalIdentitiesEntry, {
+        ...props,
+        botSlug: 'refresh-retry-apps',
+        actions: { ...actions, messagingSnapshot },
+      }),
+    ),
+  );
+  messagingSnapshot.mockRejectedValueOnce(new Error('Provider unavailable'));
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[data-anchor="lark-bind"] button')!.click(),
+  );
+  expect(host.querySelector('[role="dialog"] [role="alert"]')?.textContent).toBe(
+    '刷新应用失败，请重试。',
+  );
+  messagingSnapshot.mockResolvedValueOnce({
+    ...initial,
+    accounts: [
+      {
+        providerId: 'dsh-im/weixin',
+        ref: 'recovered',
+        platform: 'weixin',
+        name: 'Recovered WeChat',
+        fingerprint: 'a'.repeat(64),
+        connected: true,
+      },
+    ],
+  });
+  await act(async () =>
+    [...host.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.getAttribute('aria-label') === '刷新应用')!
+      .click(),
+  );
+  expect(host.querySelector('[role="dialog"] [role="alert"]')).toBeNull();
+  await openCombobox('应用', host);
+  expect(comboboxOption('dsh-im/weixin:recovered')?.disabled).toBe(false);
+});
+
+it('does not reopen a closed bind dialog when an app refresh settles later', async () => {
+  const initial: MessagingSnapshot = { accounts: [], identities: [], grants: [], intents: [] };
+  const messagingSnapshot = vi.fn(async () => initial);
+  await act(async () =>
+    root.render(
+      createElement(ExternalIdentitiesEntry, {
+        ...props,
+        botSlug: 'closed-refresh-apps',
+        actions: { ...actions, messagingSnapshot },
+      }),
+    ),
+  );
+  let finish: (value: MessagingSnapshot) => void = () => undefined;
+  messagingSnapshot.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[data-anchor="lark-bind"] button')!.click(),
+  );
+  expect(host.querySelector('[role="status"]')?.textContent).toBe('正在刷新应用…');
+  const bind = [...host.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
+    (b) => b.textContent === '绑定应用',
+  )!;
+  expect(bind.disabled).toBe(true);
+  await act(async () =>
+    [...host.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent === '取消')!
+      .click(),
+  );
+  await act(async () => finish(initial));
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+});
+
+it('releases the settings return watcher when the Bot sidebar unmounts', async () => {
+  const initial: MessagingSnapshot = { accounts: [], identities: [], grants: [], intents: [] };
+  const messagingSnapshot = vi.fn(async () => initial);
+  const trigger = document.createElement('button');
+  trigger.setAttribute('aria-haspopup', 'dialog');
+  const settings = document.createElement('div');
+  settings.setAttribute('role', 'dialog');
+  const nav = document.createElement('button');
+  nav.textContent = 'IM机器人';
+  settings.append(nav);
+  trigger.onclick = () => document.body.append(settings);
+  document.body.prepend(trigger);
+  await act(async () =>
+    root.render(
+      createElement(ExternalIdentitiesEntry, {
+        ...props,
+        botSlug: 'unmounted-qr-apps',
+        actions: { ...actions, messagingSnapshot },
+      }),
+    ),
+  );
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[data-anchor="lark-bind"] button')!.click(),
+  );
+  await act(async () =>
+    [...host.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent === '添加新应用')!
+      .click(),
+  );
+  expect(settings.isConnected).toBe(true);
+  expect(messagingSnapshot).toHaveBeenCalledTimes(2);
+  await act(async () => root.render(createElement('div')));
+  await act(async () => settings.remove());
+  expect(messagingSnapshot).toHaveBeenCalledTimes(2);
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
