@@ -4,8 +4,8 @@
   "verifiedAt": "2026-10-08",
   "status": "candidate-awaiting-human-platform-qa",
   "sources": {
-    "botharnessBase": "be804da7bb958e6e350aa3209ce2b0c04216670b",
-    "botharnessRuntime": "2a47188e976947baadcd6619fe46d1df6b68ec93",
+    "botharnessBase": "a1ea01ad4af50bb6f5f88af7cdf571482e79b74c",
+    "botharnessRuntime": "8a060307395c00953135ba00f765d00fbe5ff96f",
     "providerBase": "9aa0e04ef5698fc93721c12aa415664e34d52cb9",
     "providerCandidate": "05c283f2e8260075e635442da8c25dac6f293d91",
     "providerDraft": "https://github.com/DoodleBears/dsh-im/pull/16",
@@ -13,7 +13,9 @@
     "dsh": "0.2.0-rc.1",
     "node": "24.14.0",
     "pnpm": "12.4.2",
-    "publishedProviderPinChanged": false
+    "publishedProviderPinChanged": false,
+    "botharnessOriginalBase": "be804da7bb958e6e350aa3209ce2b0c04216670b",
+    "botharnessInitialRuntime": "2a47188e976947baadcd6619fe46d1df6b68ec93"
   },
   "installedProvider": {
     "composition": "isolated Profile local file dependency and Bundle; no IM account",
@@ -69,7 +71,11 @@
     ],
     "docsBuild": "416 pages built; task-local pnpm.exe was used for the existing Windows spawnSync pnpm lookup",
     "rootFullSuite": "attempted, then stopped only its owned process tree after reproducing Windows EPERM in temporary-directory cleanup; full-suite green is not claimed",
-    "providerFocused": { "passed": 93, "build": "passed", "packageVerification": "passed" },
+    "providerFocused": {
+      "passed": 93,
+      "build": "passed",
+      "packageVerification": "passed"
+    },
     "providerBroad": {
       "passed": 3599,
       "failed": 41,
@@ -77,15 +83,28 @@
       "skipped": 7,
       "result": "not green; failing areas reproduce on untouched provider base: CRLF-sensitive i18n dictionary, POSIX file mode assertion on Windows, update recovery/timeout tests",
       "scope": "broad run preceded final still-processing error classification; subsequent 93-test focused run covers final Provider code"
+    },
+    "mergedCandidate": {
+      "upstream": "a1ea01ad",
+      "passed": 77,
+      "files": 10,
+      "testDeadlineMs": 30000,
+      "result": "feedback, identity UI, default traffic, outbound compatibility, tokens/bundle and current locale guards passed together after resolving both ledger entries",
+      "checks": "types, build, lint, format, both ledgers, Chinese font regeneration and 416-page docs build passed again"
     }
   },
   "nativeHost": {
     "authenticatedApi": "verified",
-    "realModelDm": "BH1040-NATIVE-OK received from the QA Bot in its canonical Human DM; retained after final-runtime restart",
+    "realModelDm": "BH1040-FINAL-OK received from the QA Bot in its canonical Human DM after restarting the final merged runtime",
     "externalIdentities": 0,
     "imCredentialsCopied": false,
     "productionStopped": false,
-    "clientRenderedState": "unobserved; no claim of light/dark visual qualification"
+    "clientRenderedState": "unobserved; no claim of light/dark visual qualification",
+    "dmProof": {
+      "requestMessageId": "93d5061d-bdb5-4e57-be6e-d0fa7e4c2799",
+      "replyMessageId": "0ae43255-8198-4702-aa26-2ec3bd543733",
+      "expected": "BH1040-FINAL-OK"
+    }
   },
   "humanPlatformQa": {
     "emojiChoice": "Human approved GLANCE / DONE; actual style pending",
