@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be prepared for playback, native quotes and retained local context can be read, native video can be played and returned through a checked media path, Discord defaults can be saved independently and inherited by Profile settings, and a Bot can be exported as a zip and imported as a new Bot elsewhere.
+No changes since 1.2.0 yet.
+
+## [1.2.0] - 2026-10-08
+
+Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.
 
 ### Breaking Changes
 
