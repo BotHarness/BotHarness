@@ -1,4 +1,6 @@
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
+import { mountContentPurge } from './purge/owner.js';
+import type { ContentPurge } from './purge/contracts.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -216,6 +218,7 @@ export interface BotHarnessCore {
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
+  contentPurge: ContentPurge;
   modelPresets: ModelPresetStore;
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
@@ -365,6 +368,11 @@ export function createCore(
     migrateLegacySouls(registry, options.warn);
   }
   const states = createBotStateTracker();
+  const contentPurge = mountContentPurge({
+    dshHome,
+    database: operationalDatabase,
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   let runtime: BotRuntime | undefined;
   let companions: CompanionFeed | undefined;
   const attachments = createAttachmentStore({
@@ -661,6 +669,7 @@ export function createCore(
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
+    contentPurge,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -859,6 +868,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  ctx.effect(() => () => core.contentPurge.close(), 'botharness: purge ledger');
   if (core.operationalDatabase.mode === 'ready' && telemetryState.lockedBy === undefined) {
     const usageDatabase = attachOperationalModule(core.operationalDatabase, 'telemetry');
     ctx.effect(
@@ -1172,6 +1182,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     warn: (message) => ctx.logger.warn(message),
     registry: core.registry,
     deletions: core.deletions,
+    contentPurge: core.contentPurge,
     modelPresets: core.modelPresets,
     modelCatalog,
     modelReadiness,
