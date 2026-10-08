@@ -173,7 +173,7 @@ it('pins independently, exposes right-click controls and applies global bounded 
               generation: 'host',
               revision: 1,
               bots: [
-                { slug: 'ada', state: 'idle' },
+                { slug: 'ada', state: 'working' },
                 { slug: 'grace', state: 'thinking' },
               ],
             },
@@ -186,6 +186,7 @@ it('pins independently, exposes right-click controls and applies global bounded 
       for (const callback of [...frames.values()]) callback(performance.now());
     });
     const bubbles = [...node.querySelectorAll<HTMLElement>('.bh-companion-activity')];
+    expect(bubbles).toHaveLength(2);
     expect(bubbles[0]!.style.bottom).not.toBe(bubbles[1]!.style.bottom);
     expect([...pins].map((pin) => pin.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
     const grace = node.querySelector<HTMLElement>('[data-bot="grace"]')!;
