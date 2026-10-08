@@ -222,6 +222,7 @@ export function createInboundMessaging(options: {
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
+  onAdmissionCommitted?(botSlug: string, sourceEventId: string): void;
   onReceptionChanged?(): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
@@ -646,6 +647,7 @@ export function createInboundMessaging(options: {
             );
             if (id !== undefined)
               setImmediate(() => {
+                options.onAdmissionCommitted?.(value.botSlug, id);
                 if (!closed && valid(grant(value.id))) options.onAdmitted(value.botSlug, id);
               });
             return { accepted: true };
@@ -818,6 +820,7 @@ export function createInboundMessaging(options: {
               ['source-event', 'channel', 'bot-inbox'],
             );
             if (id) {
+              options.onAdmissionCommitted?.(value.botSlug, id);
               for (const commit of placed) {
                 try {
                   options.onPlaced?.(commit);
@@ -957,6 +960,7 @@ export function createInboundMessaging(options: {
             ['source-event', 'channel', 'bot-inbox'],
           );
           if (id === undefined) return { accepted: true };
+          options.onAdmissionCommitted?.(value.botSlug, id);
           if (placement) {
             try {
               options.onPlaced?.(placement);
@@ -1409,8 +1413,13 @@ export function createInboundMessaging(options: {
       return { accepted: true };
     }
     const { value, created, sourceEventId } = admitted;
-    if (created || !leases.has(value.id)) void start(value);
+    const reception = created || !leases.has(value.id) ? start(value) : undefined;
     if (created) receptionChanged();
+    if (sourceEventId !== undefined) {
+      const committed = () => options.onAdmissionCommitted?.(value.botSlug, sourceEventId);
+      if (reception) void reception.then(committed);
+      else setImmediate(committed);
+    }
     if (sourceEventId !== undefined && !value.muted)
       setImmediate(() => {
         if (closed) return;

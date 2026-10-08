@@ -46,6 +46,14 @@ Agent-facing debugging is a first-class concern. A plugin that owns long-running
 
 WSL egress fallback: if a task-local DSH Host cannot reach a provider while Windows can, follow [the AX restricted-relay runbook](docs/agents/ax-wsl-network.md) for standing authorization, isolation, live-model proof, and lifecycle.
 
+### IM browser QA (AX)
+
+For Discord and Lark message/reaction tests, prefer their signed-in web clients in the **Codex in-app browser**. Discover the current tabs and verify the account and designated test conversation each run; login state is session-local. Reuse the existing login in place, with the Human completing login when it expires.
+
+Within the Human-authorized destination and test cases, the agent can compose and send uniquely marked messages, inspect the actual replies/reactions, and capture cropped evidence in the browser. Correlate that visible result with canonical Source Event, Admission and Outbox facts; a successful API call alone does not verify rendering. Ask the Human to send manually only when browser interaction is unavailable or blocked.
+
+Keep credentials and login tokens machine-local and crop unrelated conversations from published evidence. App permission changes and exclusive production-receiver windows still require their specific authorization; prepare cutoff/restore guards before cutover and verify normal replies after restoration.
+
 ## Delivery workflow — tracer bullets
 
 For a feature that crosses layers, deliver a sequence of **tracer bullets**: the smallest production-shaped end-to-end slice that reaches the owning Host module, durable authority, adapter/RPC, Client surface, and a Human-testable runtime path. Validate that slice before expanding the next one. This follows the [tracer-bullet practice](https://www.aihero.dev/tracer-bullets): build one narrow vertical path, test it immediately, get feedback, then extend it.
