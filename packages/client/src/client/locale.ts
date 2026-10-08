@@ -20,16 +20,30 @@ export const zh = {
   'purge.expiry': '预览有效至 {at}；范围变动后须重新预览。',
   'purge.placements': '受影响的全部会话位置',
   'purge.admissions': '受影响的 Bot Inbox Admission',
-  'purge.noFiles': '本次选择不含托管附件或迁移文件绑定。',
+  'purge.noFiles':
+    '独占托管附件会清理；仍被其他来源或投递引用的文件保留。文件清理中断后会在重启时继续。',
+  'purge.files': '托管附件',
+  'purge.fileShared': '共享，保留',
+  'purge.fileRemove': '独占，清除',
+  'purge.cleanupPending': '正文已清除，{count} 个附件待清理；重启后继续。',
+  'purge.effects': '{count} 项投递或衍生记录',
+  'purge.derivativeReport': '衍生副本 · {count} 项已知引用',
+  'purge.derivativeDetails': 'Memory、Workspace 与导出副本',
+  'purge.derivative.recorded': '已记录的衍生提交，保留',
+  'purge.derivative.possible': '可能有副本的位置，未扫描',
+  'purge.derivative.unavailable': '历史引用，仓库不可用',
+  'purge.effectsTitle': '投递与衍生记录',
+  'purge.effectsHint':
+    '未发出的内容依赖投递会取消；已发出请求按实际结果结算，无法确定时保留结果未知。已有 Assignment、其他来源正文和 DSH Session 副本保留，旧来源不能启动新效果。',
   'purge.derivatives':
-    '不会扫描或修改用户管理的 Memory、Workspace 和导出文件；其中可能留有衍生副本。',
+    '仅报告已记录的 Memory 衍生提交和可能的 Workspace 位置；未追踪的文件与导出可能仍保留内容。不会扫描或修改这些副本。',
   'purge.disclosure':
     'DSH Session 的提示与结果、外部提供方副本、Git 远程和人工离线备份可能仍保留内容，本操作不能召回。',
   'purge.offline': '旧独立备份只能执行其自身携带的清除检查点；本入口不提供完整 Profile 备份恢复。',
   'purge.back': '返回已结束会话',
   'purge.endedAt': '已结束于 {at}',
   'purge.slice':
-    '首条路径支持已结束本地群聊的纯文本。外部来源、文件、运行中的投递和复杂内容衍生暂不可清除。',
+    '从已结束群聊选择来源；清除影响该来源的全部共享位置和收件记录。全部位置均须仍在你的可读范围。',
   'purge.tombstone': '正文已清除 · Human · {at} · human-request',
   'purge.unsupported': '此来源超出当前可清除范围，正文保留。',
   'purge.empty': '此页没有历史来源。',
@@ -188,6 +202,11 @@ export const zh = {
   'defaults.platform': '默认设置的平台',
   'defaults.save': '保存平台默认设置',
   'defaults.title': '外部平台默认行为',
+  'defaults.weixinScope':
+    '微信当前仅接收扫码账号的私聊，直接唤醒 Bot。频道连接器保持独立设置；这里不提供群 @ 或 Thread 选项。',
+  'defaults.enableTyping': '为继承默认设置的微信身份请求原生输入状态',
+  'defaults.typingOrigin': '输入状态设置来源',
+  'defaults.typingInheritHint': '保存后使用当前全局输入状态偏好。',
   'defaults.summary':
     '新配置默认继承；Profile 可自定义，也可恢复继承。消息收件、处理和回复分别判断。',
   'defaults.intake': '消息收件与处理默认值',
@@ -624,7 +643,8 @@ export const zh = {
   'channel.name.placeholder': '频道名称',
   'channel.create.title': '创建频道',
   'channel.create.inSection': '在「{name}」中创建频道',
-  'channel.create.description': '创建频道后，可邀请 Bot，并在频道 Profile 中接入外部来源。',
+  'channel.create.description':
+    '创建频道后，可邀请 Bot，并在频道侧栏的「外部连接器」中接入外部来源。',
   'create.failed': '创建失败：{error}',
   'bot.create.title': '创建 PersonaBot',
   'bot.create.inSection': '在「{name}」中创建 PersonaBot',
@@ -773,7 +793,7 @@ export const zh = {
   'message.failed': '发送失败',
   'message.failedRestore': '将失败消息放回输入框修改后重发',
   'message.restoreBlocked': '输入框已有草稿，请先处理草稿再恢复失败消息。',
-  'main.group.note': '邀请 Bot 加入，或在频道 Profile 中添加外部连接器。',
+  'main.group.note': '邀请 Bot 加入，或在频道侧栏的「外部连接器」中接入外部会话。',
   'main.localChat': '本地对话',
   'main.localChat.with': '这是与 {name} 的本地对话',
   'main.localChat.hint': '直接发消息即可；Bot 会自行安排事项，并在这里回复结果。',
@@ -2268,9 +2288,23 @@ export const en = {
   'purge.expiry': 'Preview expires at {at}; changed scope requires a new preview.',
   'purge.placements': 'All affected Channel placements',
   'purge.admissions': 'Affected Bot Inbox Admissions',
-  'purge.noFiles': 'This selection has no managed attachments or migrated file bindings.',
+  'purge.noFiles':
+    'Exclusively referenced managed files are removed; files still referenced by other sources or deliveries are retained. Interrupted cleanup resumes on restart.',
+  'purge.files': 'Managed attachments',
+  'purge.fileShared': 'Shared, retained',
+  'purge.fileRemove': 'Exclusive, removed',
+  'purge.cleanupPending': 'Bodies cleared; {count} attachments await cleanup on restart.',
+  'purge.effects': '{count} delivery or derivative records',
+  'purge.derivativeReport': 'Derived copies · {count} known references',
+  'purge.derivativeDetails': 'Memory, Workspace and export copies',
+  'purge.derivative.recorded': 'Recorded derived commit, retained',
+  'purge.derivative.possible': 'Possible copy location, not scanned',
+  'purge.derivative.unavailable': 'Historical reference, repository unavailable',
+  'purge.effectsTitle': 'Deliveries and derivatives',
+  'purge.effectsHint':
+    'Pending content-dependent deliveries are cancelled. Issued requests settle with actual evidence or remain unknown. Existing Assignments, other Source Event bodies and DSH Session copies survive; stale sources cannot start new effects.',
   'purge.derivatives':
-    'Human-managed Memory, Workspace and export files are not scanned or modified; derivative copies may survive there.',
+    'Only recorded source-derived Memory commits and possible Workspace locations are reported. Untracked files and exports may retain copies; these copies are not scanned or modified.',
   'purge.disclosure':
     'DSH Session prompts/results, external provider copies, Git remotes and Human-managed offline backups may retain content and cannot be recalled by this operation.',
   'purge.offline':
@@ -2278,7 +2312,7 @@ export const en = {
   'purge.back': 'Back to ended Channels',
   'purge.endedAt': 'Ended at {at}',
   'purge.slice':
-    'This first path supports text in ended local Groups. External sources, files, running delivery and complex content derivatives are not yet eligible.',
+    'Select sources from an ended Group. Purge affects every shared placement and Inbox Admission of that source; all placements must remain within your read access.',
   'purge.tombstone': 'Content purged · Human · {at} · human-request',
   'purge.unsupported': 'This source is outside the current purge scope; its content is retained.',
   'purge.empty': 'No historical sources on this page.',
@@ -2438,11 +2472,16 @@ export const en = {
 
   'defaults.externalWake': '{platform} ordinary messages',
 
-  'defaults.restore': 'Restore inheritance',
+  'defaults.restore': 'Restore',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
   'defaults.save': 'Save platform defaults',
   'defaults.title': 'External platform defaults',
+  'defaults.weixinScope':
+    'WeChat currently receives only the QR-paired owner DM and wakes the Bot directly. Channel connectors keep separate settings; group mentions and Threads are unavailable here.',
+  'defaults.enableTyping': 'Request native typing for WeChat identities that inherit defaults',
+  'defaults.typingOrigin': 'Typing preference origin',
+  'defaults.typingInheritHint': 'Save to use the current global typing preference.',
   'defaults.summary':
     'New configurations inherit by default. Customize in Profile or restore inheritance. Intake, processing and replies are separate decisions.',
   'defaults.intake': 'Message intake and processing defaults',
@@ -2901,7 +2940,7 @@ export const en = {
   'channel.create.title': 'Create channel',
   'channel.create.inSection': 'Create a channel in “{name}”',
   'channel.create.description':
-    'Create a channel, then invite Bots and connect external sources in its Profile.',
+    'Create a channel, then invite Bots and connect external sources under External connectors in its Channel sidebar.',
   'create.failed': 'Create failed: {error}',
   'bot.create.title': 'Create PersonaBot',
   'bot.create.inSection': 'Create a PersonaBot in “{name}”',
@@ -3042,7 +3081,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'message.draftInterrupted': 'Reply interrupted and not sent.',
   'message.draftExpired': 'Draft reply was not sent.',
   'message.sending': 'Sending',
-  'main.group.note': 'Invite Bots or add an external connector in the Channel Profile.',
+  'main.group.note':
+    'Invite Bots or connect an external conversation under External connectors in the Channel sidebar.',
   'main.localChat': 'Local chat',
   'main.localChat.with': 'This is a local conversation with {name}',
   'message.mention.openDm': 'Open DM with {bot}',
@@ -4104,7 +4144,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'members.wake.silent': 'Silent inbox',
   'members.wake.count': 'Message count',
   'members.wake.seconds': 'Maximum wait (seconds)',
-  'members.wake.save': 'Save attention setting',
+  'members.wake.save': 'Save',
   'members.delete': 'Disband Group',
   'members.deleteConfirm':
     'Disband “{name}”? End local participation and retain history, without deleting the external conversation or purging content. Open ended Channel history from the Channel list menu.',

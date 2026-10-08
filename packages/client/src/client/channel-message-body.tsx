@@ -666,6 +666,7 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.contentPurged) return <div className="bh-bubble-body">{t('purge.purged')}</div>;
   if (message.onboardingWelcome !== undefined && actions !== undefined && channelId !== undefined)
     return <OnboardingWelcome actions={actions} channelId={channelId} t={t} />;
   if (message.sessionFailure !== undefined)

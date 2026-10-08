@@ -346,6 +346,7 @@ function channelPreview(
   t: BotHarnessTranslate,
 ): string {
   const message = channel.latestMessage;
+  if (message?.contentPurged) return t('purge.purged');
   if (message === undefined) return t('rail.noMessages');
   if (message.memberDeparture !== undefined)
     return t(

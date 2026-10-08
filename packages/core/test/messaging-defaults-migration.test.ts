@@ -233,13 +233,77 @@ it('qualifies Discord on upgrade while preserving every earlier revision and cus
     }
     expect(() =>
       port.transaction((db) =>
-        db.prepare("INSERT INTO messaging_default_revisions VALUES ('weixin', 1, '{}')").run(),
+        db.prepare("INSERT INTO messaging_default_revisions VALUES ('unknown', 1, '{}')").run(),
       ),
     ).toThrow();
     next.close();
     next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     expect(
       attachOperationalModule(next, 'messaging').read((db) => messagingDefaults(db, 'discord')),
+    ).toEqual(saved);
+  } finally {
+    next.close();
+  }
+});
+
+it('qualifies WeChat without changing existing enabled or typing choices, and keeps revisions immutable after restart', () => {
+  const home = createTempRoot('bh-wechat-defaults-upgrade-');
+  const prior = mountOperationalDatabase({
+    dshHome: home,
+    schemaPlan: defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation < 69),
+    ),
+  });
+  attachOperationalModule(prior, 'messaging').transaction((db) => {
+    for (const enabled of [0, 1])
+      db.prepare(
+        'INSERT INTO messaging_bindings (id,bot_slug,provider_id,platform,account_ref,fingerprint,created_at,enabled,display_name,enabled_inherited,typing_enabled) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      ).run(
+        `wechat-${enabled}`,
+        `bot-${enabled}`,
+        'weixin',
+        'weixin',
+        `app-${enabled}`,
+        `${enabled}`.repeat(64),
+        '2026-10-08T00:00:00Z',
+        enabled,
+        'QA',
+        0,
+        enabled,
+      );
+  });
+  prior.close();
+  let next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  try {
+    const port = attachOperationalModule(next, 'messaging');
+    const saved = port.transaction((db) => {
+      const { revision, changedAt: _at, ...preferences } = messagingDefaults(db, 'weixin');
+      return commitMessagingDefaults(db, {
+        ...preferences,
+        expectedRevision: revision,
+        identityEnabled: false,
+        typingEnabled: false,
+      });
+    });
+    for (const enabled of [false, true])
+      expect(
+        port.read((db) => readMessagingIdentity(db, `wechat-${Number(enabled)}`)),
+      ).toMatchObject({
+        enabled,
+        typingEnabled: enabled,
+        enabledInheritance: 'custom',
+        typingInheritance: 'custom',
+        revision: 1,
+      });
+    for (const sql of [
+      "UPDATE messaging_default_revisions SET body = '{}' WHERE platform = 'weixin'",
+      "DELETE FROM messaging_default_revisions WHERE platform = 'weixin'",
+    ])
+      expect(() => port.transaction((db) => db.prepare(sql).run())).toThrow();
+    next.close();
+    next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(
+      attachOperationalModule(next, 'messaging').read((db) => messagingDefaults(db, 'weixin')),
     ).toEqual(saved);
   } finally {
     next.close();

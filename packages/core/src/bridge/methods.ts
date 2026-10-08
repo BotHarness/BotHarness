@@ -409,7 +409,9 @@ export interface BridgeMethods {
     payload: unknown,
   ): BridgeResult<{ sources: PurgeSource[]; before?: string }>;
   channelPurgePreview(payload: unknown): BridgeResult<PurgePreview>;
-  channelPurgeConfirm(payload: unknown): BridgeResult<{ accepted: number }>;
+  channelPurgeConfirm(
+    payload: unknown,
+  ): BridgeResult<{ accepted: number; cleanupPending?: number }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
@@ -1177,6 +1179,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
                 typingEnabled: z.boolean().optional(),
+                inheritTyping: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
                 newConversations: z.enum(['auto', 'ask', 'inherit']).optional(),
               })
@@ -2397,17 +2400,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
               ...(deps.externalMessaging
                 ? {
-                    externals: messagingDefaultsPlatform.options.map((platform) => ({
-                      platform,
-                      ...externalMemberWake(
-                        channel,
-                        botSlug,
-                        deps.sourcePolicy
-                          ?.list(botSlug)
-                          .find((p) => p.sourceClass === 'group-ordinary'),
-                        deps.externalMessaging!.defaults(platform),
-                      ),
-                    })),
+                    externals: messagingDefaultsPlatform.options
+                      .filter((platform) => platform !== 'weixin')
+                      .map((platform) => ({
+                        platform,
+                        ...externalMemberWake(
+                          channel,
+                          botSlug,
+                          deps.sourcePolicy
+                            ?.list(botSlug)
+                            .find((p) => p.sourceClass === 'group-ordinary'),
+                          deps.externalMessaging!.defaults(platform),
+                        ),
+                      })),
                     external: {
                       platform: 'feishu' as const,
                       ...externalMemberWake(
@@ -2573,6 +2578,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channelId === undefined) return invalidInput('channelId is required');
       try {
         deps.channels.deleteGroup(channelId);
+        deps.externalMessaging?.inbound.endChannel(channelId);
         return { ok: true, value: { deleted: true } };
       } catch (error) {
         return invalidInput(String(error));

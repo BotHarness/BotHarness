@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
 import { createCore } from '../src/plugin.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import type { BotAgentAdapter, OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
@@ -258,4 +261,54 @@ describe('Bot onboarding through the public Host bridge', () => {
       ).toMatchObject({ ok: false });
     });
   });
+});
+
+it('upgrades main generation 70 without changing qualified defaults or purge fences', () => {
+  const dshHome = createTempRoot('bh-onboarding-main-upgrade-');
+  const prior = mountOperationalDatabase({
+    dshHome,
+    schemaPlan: defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation <= 70),
+    ),
+  });
+  try {
+    expect(prior.generation).toBe(70);
+    attachOperationalModule(prior, 'messaging').transaction((db) => {
+      db.prepare(
+        'INSERT INTO messaging_default_revisions (platform, revision, body) VALUES (?, ?, ?)',
+      ).run('weixin', 1, '{"identityEnabled":false,"typingEnabled":false}');
+    });
+  } finally {
+    prior.close();
+  }
+  const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  try {
+    expect(upgraded.mode).toBe('ready');
+    expect(upgraded.generation).toBe(71);
+    const port = attachOperationalModule(upgraded, 'onboarding-upgrade-check');
+    expect(
+      port.read((db) =>
+        db.prepare('SELECT platform, revision, body FROM messaging_default_revisions').all(),
+      ),
+    ).toEqual([
+      { platform: 'weixin', revision: 1, body: '{"identityEnabled":false,"typingEnabled":false}' },
+    ]);
+    expect(
+      port.read((db) => db.prepare('SELECT COUNT(*) AS count FROM bot_onboarding').get()),
+    ).toEqual({ count: 0 });
+    expect(
+      port.read((db) => db.prepare('SELECT COUNT(*) AS count FROM channel_output_origins').get()),
+    ).toEqual({ count: 0 });
+    expect(
+      port.read((db) =>
+        db
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'messaging_purge_file_binding_insert'",
+          )
+          .get(),
+      ),
+    ).toEqual({ name: 'messaging_purge_file_binding_insert' });
+  } finally {
+    upgraded.close();
+  }
 });

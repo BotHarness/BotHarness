@@ -1,4 +1,4 @@
-# ADR-0146: Onboarding is Profile progress over canonical DM evidence
+# ADR-0147: Onboarding is Profile progress over canonical DM evidence
 
 - Status: Accepted
 - Date: 2026-10-08
@@ -10,7 +10,7 @@ The first Bot-mode experience needs a useful nonblank DM before model credential
 
 ## Decision
 
-An application-defined Onboarding owner persists one Profile receipt in the existing operational database, schema generation 69. It starts only through deliberate Bot-mode entry. Record a stable intended PersonaBot identity before using the existing Registry/Memory lifecycle. Empty Profiles prepare DeepSeek Bot with a saved website mascot Appearance; existing identities remain selectable and archived/deleted identities are never automatically restored. The existing Channel owner prepares the real Human DM and appends one deduplicated, product-authored system welcome. No synthetic Agent reply or second message store is introduced.
+An application-defined Onboarding owner persists one Profile receipt in the existing operational database, schema generation 71. It starts only through deliberate Bot-mode entry. Record a stable intended PersonaBot identity before using the existing Registry/Memory lifecycle. Empty Profiles prepare DeepSeek Bot with a saved website mascot Appearance; existing identities remain selectable and archived/deleted identities are never automatically restored. The existing Channel owner prepares the real Human DM and appends one deduplicated, product-authored system welcome. No synthetic Agent reply or second message store is introduced.
 
 Completion is historical evidence of a Human request followed by a nonempty model-authored reply in the same Human DM, from that DM's Bot. The canonical Channel append transaction records trusted runtime Session ownership and request Source Event provenance alongside the output Source Event. The Onboarding owner reconciles that evidence after notifications, refresh and restart; acceptance, failures, tool questions and arbitrary Bot notices do not qualify. Memory writes and external bindings are independent optional experiences.
 
@@ -26,4 +26,4 @@ DSH seams remain Service Definition/Provider/Consumer and Typert/API Gateway for
 
 ## Consequences
 
-Generation 69 is forward-only; a binary supporting only generation 68 cannot reopen this Profile safely. Rollback requires a compatible binary or the pre-upgrade backup, while retaining the independent Purge Ledger and enforcing its monotonic facts as required by generation 68. The receipt can be recomputed from canonical evidence after a missed notification, while unsent text and companion preferences remain isolated to the Client. After Human feedback, the welcome offers capability introduction, today’s news, a daily news summary and a ten-minute schedule test as ordinary Human DM requests through existing execution capabilities. These examples do not introduce another news or scheduler authority. Optional guided Memory/IM breadth still requires Human feedback before expansion.
+Generation 71 is forward-only; a binary supporting only generation 70 cannot reopen this Profile safely. Rollback requires a compatible binary or the pre-upgrade backup, while retaining the independent Purge Ledger and enforcing its monotonic facts as required by generation 68. The receipt can be recomputed from canonical evidence after a missed notification, while unsent text and companion preferences remain isolated to the Client. After Human feedback, the welcome offers capability introduction, today’s news, a daily news summary and a ten-minute schedule test as ordinary Human DM requests through existing execution capabilities. These examples do not introduce another news or scheduler authority. Optional guided Memory/IM breadth still requires Human feedback before expansion.

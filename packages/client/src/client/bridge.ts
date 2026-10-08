@@ -1324,6 +1324,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(asRecord(record['onboardingWelcome'])?.['version'] === 1 && author.kind === 'system'
       ? { onboardingWelcome: { version: 1 as const } }
       : {}),
+    ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
+      ? { contentPurged: true as const }
+      : {}),
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(mentions === undefined
       ? {}
@@ -3435,6 +3438,7 @@ export async function loadMessagingDefaults(
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
     typeof value['identityEnabled'] !== 'boolean' ||
+    (platform === 'weixin' && typeof value['typingEnabled'] !== 'boolean') ||
     !['mentions', 'all'].includes(String(value['collection'])) ||
     !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
     !Number.isInteger(value['count']) ||

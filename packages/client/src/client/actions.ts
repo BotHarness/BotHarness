@@ -589,7 +589,11 @@ export interface BridgeActions {
     before?: string,
   ): Promise<{ sources: PurgeSource[]; before?: string }>;
   channelPurgePreview(channelId: string, sourceEventIds: string[]): Promise<PurgePreview>;
-  channelPurgeConfirm(channelId: string, sourceEventIds: string[], token: string): Promise<void>;
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): Promise<{ accepted: number; cleanupPending?: number }>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -2341,6 +2345,7 @@ export function createActions(
     async channelPurgeConfirm(channelId, sourceEventIds, token) {
       const result = await call('channelPurgeConfirm', { channelId, sourceEventIds, token });
       if (!result.ok) throw new Error(result.error.message);
+      return result.value as { accepted: number; cleanupPending?: number };
     },
     async deleteGroupChannel(channelId) {
       try {

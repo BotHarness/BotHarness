@@ -70,6 +70,7 @@ interface SqliteChannelStoreOptions extends ChannelStoreOptions {
 }
 
 interface PlacementRow {
+  message_id: string;
   revision: number;
   source_event_id: string;
   payload_json: string;
@@ -93,15 +94,24 @@ function parseRecord(value: string, id: string): ChannelRecord | undefined {
   }
 }
 
-function parseMessage(value: string, body?: string): ChannelMessage | undefined {
+function parseMessage(
+  value: string,
+  body?: string,
+  messageId?: string,
+): ChannelMessage | undefined {
   try {
     const parsed: unknown = JSON.parse(value);
     const external =
       typeof parsed === 'object' && parsed !== null && 'external' in parsed
         ? (parsed as { external: ExternalSource }).external
         : undefined;
-    if (external && body !== undefined) return projectBridgeMessage(external, body);
-    const candidate = body === undefined ? parsed : { ...(parsed as object), body };
+    const payload =
+      external && body !== undefined
+        ? projectBridgeMessage(external, body)
+        : body === undefined
+          ? parsed
+          : { ...(parsed as object), body };
+    const candidate = messageId === undefined ? payload : { ...(payload as object), id: messageId };
     return isChannelMessage(candidate) ? candidate : undefined;
   } catch {
     return undefined;
@@ -397,7 +407,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const rows = database.read((db) =>
       db
         .prepare(`
-      SELECT p.revision, p.source_event_id, e.payload_json, e.body
+      SELECT p.revision, p.source_event_id, p.message_id, e.payload_json, e.body
         FROM channel_placements p
         JOIN source_events e ON e.source_event_id = p.source_event_id
        WHERE p.channel_id = ? ORDER BY p.revision
@@ -406,7 +416,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     ) as unknown as PlacementRow[];
     const members = humanMembers(id);
     return rows.flatMap((row) => {
-      const original = parseMessage(row.payload_json, row.body);
+      const original = parseMessage(row.payload_json, row.body, row.message_id);
       if (original === undefined) return [];
       const message = attachmentMigration.project(row.source_event_id, original);
       const deliveries = admissionStatuses(row.source_event_id);
@@ -1779,10 +1789,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           );
           db.prepare(`
             UPDATE inbox_admissions SET attempt_state = 'needs-repair',
-              last_error = 'Group Channel deleted by Human'
+              last_error = 'channel-ended'
              WHERE source_event_id IN (
-               SELECT source_event_id FROM source_events WHERE channel_id = ?
-             ) AND attempt_state IN ('pending', 'retryable')
+               SELECT source_event_id FROM source_events WHERE channel_id = ? AND source_kind != 'bridge-message'
+             ) AND attempt_state IN ('pending', 'retryable', 'running') AND NOT EXISTS (
+               SELECT 1 FROM channel_placements p JOIN channel_records c ON c.channel_id = p.channel_id
+               JOIN json_each(json_extract(c.record_json, '$.members')) m ON m.value = inbox_admissions.bot_slug
+               WHERE p.source_event_id = inbox_admissions.source_event_id
+                 AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             )
           `).run(channelId);
           for (const invitation of channel.invitations ?? [])
             db.prepare(`
@@ -1861,16 +1876,18 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const row = database.read((db) =>
         db
           .prepare(`
-        SELECT p.rowid AS position, p.revision, e.payload_json, e.body
+        SELECT p.rowid AS position, p.revision, p.message_id, e.payload_json, e.body
           FROM channel_placements p
           JOIN source_events e ON e.source_event_id = p.source_event_id
          WHERE p.channel_id = ? AND p.message_id = ?
       `)
           .get(id, messageId),
       ) as
-        | (Pick<PlacementRow, 'revision' | 'payload_json' | 'body'> & { position: number })
+        | (Pick<PlacementRow, 'revision' | 'message_id' | 'payload_json' | 'body'> & {
+            position: number;
+          })
         | undefined;
-      const message = row && parseMessage(row.payload_json, row.body);
+      const message = row && parseMessage(row.payload_json, row.body, row.message_id);
       if (!row || !message || message.id !== messageId) return undefined;
       const member = humanMembers(id).find((entry) => entry.human_id === LOCAL_HUMAN_ID);
       return {
@@ -2070,7 +2087,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         }
         return db
           .prepare(`
-          SELECT p.revision, p.source_event_id, e.payload_json, e.body
+          SELECT p.revision, p.source_event_id, p.message_id, e.payload_json, e.body
             FROM channel_placements p
             JOIN source_events e ON e.source_event_id = p.source_event_id
            WHERE ${where.join(' AND ')}
@@ -2080,7 +2097,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }) as unknown as PlacementRow[];
       const members = humanMembers(id);
       const selected = rows.slice(0, query.limit).flatMap((row) => {
-        const original = parseMessage(row.payload_json, row.body);
+        const original = parseMessage(row.payload_json, row.body, row.message_id);
         if (original === undefined) return [];
         const message = attachmentMigration.project(row.source_event_id, original);
         const deliveries = admissionStatuses(row.source_event_id);
@@ -2105,15 +2122,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         const replies = database.read((db) =>
           db
             .prepare(`
-            SELECT e.payload_json, e.body
+            SELECT p.message_id, e.payload_json, e.body
               FROM channel_placements p
               JOIN source_events e ON e.source_event_id = p.source_event_id
              WHERE p.channel_id = ? AND p.message_id IN (${placeholders})
           `)
             .all(id, ...replyIds),
-        ) as unknown as Array<Pick<PlacementRow, 'payload_json' | 'body'>>;
+        ) as unknown as Array<Pick<PlacementRow, 'message_id' | 'payload_json' | 'body'>>;
         for (const row of replies) {
-          const message = parseMessage(row.payload_json, row.body);
+          const message = parseMessage(row.payload_json, row.body, row.message_id);
           if (message !== undefined) byId.set(message.id, message);
         }
       }

@@ -224,7 +224,7 @@ The recording shows real Profile input, send, Outbox settlement and receipt insp
 
 ## 13. Request native typing while the Bot works
 
-The #911 preview candidate connects native typing to the canonical Bot processing lifecycle. In Windows packaged candidate `.911.7`, the Human confirmed native typing during private-message, related Assignment and follow-up processing, and no indicator during actual work with the preference off. Genuine native pwsh waits and final replies were verified. The Human confirmed cleanup after failure, native Session cancellation, Binding disablement, Grant revocation, Provider disposal and a Windows Host interruption/restart. Fresh-message recovery passed after revocation and restart. The subsequent main integration uses candidate `.911.8` and a fresh Profile; its native requalification remains pending. See the [Windows verification record](qa/wechat-911-windows-handoff.md) for evidence and limits; this is still a Draft candidate awaiting final Human QA and artifact promotion.
+The #911 preview candidate connects native typing to the canonical Bot processing lifecycle. In Windows packaged candidate `.911.7`, the Human confirmed native typing during private-message, related Assignment and follow-up processing, and no indicator during actual work with the preference off. Genuine native pwsh waits and final replies were verified. The Human confirmed cleanup after failure, native Session cancellation, Binding disablement, Grant revocation, Provider disposal and a Windows Host interruption/restart. Fresh-message recovery passed after revocation and restart. The subsequent `.911.8` candidate passed fresh Windows native completion, related Assignment (stdout `911-V8-ASSIGN`, exit 0) and stop cleanup, independently confirmed by the Human. See the [Windows verification record](qa/wechat-911-windows-handoff.md) for evidence and limits; #1102 has been merged and #911 is accepted and closed; public release and deployment remain separate.
 
 Open **PersonaBot DM → Channel sidebar → External identities → Edit** for the bound WeChat identity. **Native WeChat typing status** defaults to on; turn it off to suppress requests for that identity. The preference survives restart. A Provider lacking the checked capability is shown as unavailable, even when the preference is on. Global defaults and Profile inheritance belong to #912.
 
@@ -243,6 +243,45 @@ flowchart LR
 **Request accepted** reports API acceptance, not visible client typing, delivery or reading. **Typing request did not succeed** means processing can continue without typing. **Typing cleanup is unconfirmed** means cancellation could not be confirmed; do not describe it as successful cleanup or promise an undocumented server expiry. Turning the identity off or revoking its authorization cancels active leases; restart begins idle and never restores a saved indicator.
 
 For real verification, send a unique controlled request in the paired WeChat DM, observe the native typing indicator during actual work, and capture its disappearance after completion and a stopped/failed run. The Human operates WeChat and records those observations; Host logs alone cannot satisfy this check. Native tickets, pairing codes and unrelated chats stay out of evidence. See [#911](https://github.com/BotHarness/BotHarness/issues/911) for the qualification record.
+
+## 14. Inherit defaults or keep a Bot-specific choice
+
+In **Bot settings → External platform defaults → WeChat / 微信**, save the default
+identity enablement and native typing preference. Current WeChat intake is the QR-paired
+owner DM and wakes the Bot directly. There are no group @, Thread or new-contact
+controls. Channel connectors keep their existing destination, switch and member policies.
+
+Open the bound identity's **Edit** dialog to choose **Inherit global defaults** or
+**Custom** independently for identity enablement and typing. Select inheritance and
+save to restore the current default. For custom identity enablement, use the identity
+row's switch; for custom typing, choose Custom and use its switch in the dialog.
+New bindings inherit; existing bindings keep earlier choices as Custom, including
+an earlier off preference. Effective values and origins survive a same-Profile restart.
+
+```mermaid
+flowchart LR
+    A[WeChat global defaults] --> B{Preference origin}
+    C[Bot-specific override] --> B
+    B --> D[Effective identity and typing preferences]
+    D --> E[Existing account, Grant and owner-DM checks]
+    E --> F[Fresh authorized processing]
+```
+
+A defaults change neither binds an app nor authorizes a new target. Pause stops inherited
+identity intake; resume accepts fresh events without backfilling the paused period.
+Changing inherited typing off cancels active requests; custom typing keeps its choice.
+Accepted sources and replies retain their original author, time, native message ID,
+Source Event ID and trusted route. A stale save asks for refresh and keeps the draft.
+
+The #912 candidate's automated checks cover upgrade preservation, independent overrides,
+restoration, restart, stale revisions, active typing cleanup and owner-DM fencing. Windows
+Chrome save/reopen, native inherited typing off/on, reception pause and same-Profile
+preference persistence have been checked. The Human also confirmed fresh native processing,
+reply and typing cleanup after restart, with no paused-message backfill;
+see the [Windows verification record and screenshots](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/qa/wechat-912-defaults-windows.md).
+This is a candidate review path, not a released build.
+
+![WeChat global reception and typing defaults](https://raw.githubusercontent.com/BotHarness/DeepSeekBot/main/docs/evidence/issue-912/defaults-after-zh-dark.jpg)
 
 ## Pause or reconnect
 
