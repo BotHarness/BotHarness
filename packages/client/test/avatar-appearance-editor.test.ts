@@ -20,6 +20,7 @@ import {
   seededAvatarRecipeV2,
   canonicalCustomPart,
   customPartId,
+  hairPieceStart,
   type PixelCustomPart,
 } from '../../core/src/bots/avatar-appearance.js';
 import type { PartLibraryEntry } from '../../core/src/bots/part-library.js';
@@ -545,6 +546,95 @@ describe('Profile Avatar Appearance editing', () => {
       expect(save).toHaveBeenCalledWith(
         'dm-ada',
         expect.objectContaining({ assetVersion: 3, headpiece: canonicalCustomPart(part) }),
+      );
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('draws a hair piece from the built-in style, wears it and switches back', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const add = vi.fn(
+      async (part: PixelCustomPart, name: string, parent?: string): Promise<PartLibraryEntry> => ({
+        id: customPartId(part),
+        part: canonicalCustomPart(part),
+        name,
+        origins: ['drawn'],
+        ...(parent ? { parent } : {}),
+        addedAt: '2026-10-08T00:00:00.000Z',
+      }),
+    );
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const press = async (x: number, y: number) =>
+      act(() => {
+        $(`[data-part-cell="${x},${y}"]`)!.dispatchEvent(
+          new Event('pointerdown', { bubbles: true, cancelable: true }),
+        );
+        $('[data-part-canvas]')!.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      });
+    const start = hairPieceStart(seededAvatarRecipe('Ada'), 'bangs');
+    const [x, y] = start.front[0]!;
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            library: { load: vi.fn(async () => []), add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="bangs"]');
+      await click('[data-part-draw="bangs"]');
+      expect($('[data-part-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.flattenNote'),
+      );
+      expect($('[data-part-layer="back"]')).toBeNull();
+      expect($(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink')).toBe('hairColor:0');
+      expect(container.querySelectorAll('[data-part-cell]')).toHaveLength(32 * 32);
+      await click('[data-part-mirror]');
+      await click('[data-part-tool="eraser"]');
+      await press(x, y);
+      await click('[data-part-save]');
+      const [part, , parent] = add.mock.calls[0]!;
+      expect(part.slot).toBe('bangs');
+      expect(parent).toBeUndefined();
+      expect(part.front).toHaveLength(start.front.length - 1);
+      const id = customPartId(part);
+      expect($(`[data-avatar-option="bangs:${id}"]`)?.getAttribute('aria-pressed')).toBe('true');
+      expect(
+        $('[data-avatar-option^="bangs:"][aria-pressed="true"]')?.dataset['avatarOption'],
+      ).toBe(`bangs:${id}`);
+
+      await click('[data-part-draw="bangs"]');
+      expect($('[data-part-note]')).toBeNull();
+      await click('[data-part-cancel]');
+      expect(add).toHaveBeenCalledTimes(1);
+
+      await click('[data-part-remove="bangs"]');
+      expect($(`[data-avatar-option="bangs:${id}"]`)?.getAttribute('aria-pressed')).toBe('false');
+      await click(`[data-avatar-option="bangs:${id}"]`);
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith(
+        'dm-ada',
+        expect.objectContaining({ assetVersion: 3, bangsPart: canonicalCustomPart(part) }),
       );
     } finally {
       await act(() => root.unmount());
