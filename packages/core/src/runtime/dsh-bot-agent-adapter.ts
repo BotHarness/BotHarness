@@ -337,6 +337,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       });
     try {
       await this.#prepareModelRoute?.(run.bot.slug, 'orchestrator');
+      if (run.acceptNativeInput !== undefined && this.#handles.get(run.sessionId) === undefined)
+        throw new Error('Native question requires its existing live Orchestrator');
       const handle = await this.#orchestratorHandle(run);
       if (this.#stoppedBots.has(run.bot.slug)) throw new Error('PersonaBot is deleted');
       const selection = this.#orchestratorSelections.get(run.sessionId);
@@ -349,12 +351,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       }
       const fromSeq = handle.agent.session.seq;
       const text = [run.message, run.inbox].filter((part) => part.trim().length > 0).join('\n\n');
-      handle.agent.followup(
-        createUserMessage({
-          content: [{ type: 'text', text }],
-          source: { kind: 'user' },
-        }),
-      );
+      if (run.acceptNativeInput !== undefined) {
+        if (!run.acceptNativeInput()) return;
+      } else
+        handle.agent.followup(
+          createUserMessage({
+            content: [{ type: 'text', text }],
+            source: { kind: 'user' },
+          }),
+        );
       await handle.agent.whenIdle();
       const provider = selection?.current?.provider;
       requireCompletedTurn(handle, fromSeq, undefined, undefined, (code) => {

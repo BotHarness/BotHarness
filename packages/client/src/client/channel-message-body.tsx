@@ -151,7 +151,7 @@ function UserQuestionCard({
   const request = message.userQuestionRequest!;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
   const [status, setStatus] = useState<
-    'loading' | 'pending' | 'expired' | 'answered' | 'cancelled'
+    'loading' | 'pending' | 'submitted' | 'expired' | 'answered' | 'cancelled'
   >(resolution ?? 'loading');
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [custom, setCustom] = useState<Record<string, string>>({});
@@ -167,17 +167,25 @@ function UserQuestionCard({
     }
     if (botSlug === undefined) return;
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     setStatusError(false);
-    void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
-      (value) => {
-        if (active) setStatus(value);
-      },
-      () => {
-        if (active) setStatusError(true);
-      },
-    );
+    const refresh = (): void => {
+      void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
+        (value) => {
+          if (active) {
+            setStatus(value);
+            if (value === 'submitted') retry = setTimeout(refresh, 800);
+          }
+        },
+        () => {
+          if (active) setStatusError(true);
+        },
+      );
+    };
+    refresh();
     return () => {
       active = false;
+      clearTimeout(retry);
     };
   }, [actions, botSlug, message.id, resolution, statusRetry]);
 
@@ -221,7 +229,13 @@ function UserQuestionCard({
     void actions
       .answerUserQuestion(channelId, message.id, answers)
       .then(
-        () => setStatus('answered'),
+        () => {
+          if (request.callId === undefined) setStatus('answered');
+          else {
+            setStatus('submitted');
+            setStatusRetry((current) => current + 1);
+          }
+        },
         (cause: unknown) => {
           setError(errorMessage(cause));
           setStatus('loading');
@@ -299,6 +313,8 @@ function UserQuestionCard({
         <div className="bh-note" role="status">
           {status === 'answered' ? (
             t('question.answered')
+          ) : status === 'submitted' ? (
+            t('question.submitted')
           ) : status === 'cancelled' ? (
             t('question.cancelled')
           ) : status === 'loading' ? (
