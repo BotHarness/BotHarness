@@ -17,7 +17,10 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- The welcome now offers a daily evening check-in at 21:00 with the browser time zone and current DM shown before selection; missing time zones are confirmed first, and existing model setup retains the complete request for explicit sending ([#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)).
+
 - The Bot Marketplace now shows each Bot's Profile banner: a thumbnail on every row and a full banner at the top of the detail view, with a neutral placeholder when a Bot has none. The Marketplace Worker reads `banner` from `.botharness/bot.json`; a pixel scene is drawn locally, and an uploaded image loads from the repository at the indexed commit ([#1093](https://github.com/BotHarness/BotHarness/issues/1093)).
+
 - The welcome’s ten-minute reminder now shows the browser time zone and requests a single delivery to the current DM; the Host computes relative deadlines without rounding them early, and the Bot receives concise one-time scheduling and destination guidance ([#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)).
 
 - Every Bot now has a Profile banner at the top of its Profile and its popover. New Bots get a pixel scene picked from their name, which a rename doesn't change; existing Bots get one at the next start. **Change banner** picks one of ten scenes, rerolls the picture, uploads an image cropped to 3:1, or resets to the generated scene. `.botharness/bot.json` records the banner, `.botharness/banner.png` is always written, and Bot Zip export, import and Git import keep it ([#1092](https://github.com/BotHarness/BotHarness/issues/1092)).

@@ -105,7 +105,12 @@ export const zh = {
   'onboarding.prompt': '想让 Bot 帮你做点什么？',
   'onboarding.firstRequest': '介绍一下你能帮我做什么',
   'onboarding.newsRequest': '帮我看一下今天的新闻',
-  'onboarding.dailyRequest': '每天早上 9 点给我一份新闻摘要',
+  'onboarding.dailyRequest': '每天晚上 9 点来和我打个招呼',
+  'onboarding.dailyHint': '每天 21:00 · 当前私聊 · {timeZone}',
+  'onboarding.dailyBody':
+    '请创建每天 21:00 的定时任务，在当前私聊和我打个招呼，问问我今天过得怎么样。我的时区是 {timeZone}。请确认实际保存的每天提醒时间、下一次执行时间和投递位置，并简要说明任务需要应用运行、Bot 启用和可用模型。',
+  'onboarding.dailyUnknownBody':
+    '我想让你每天晚上 21:00 在当前私聊和我打个招呼，问问我今天过得怎么样。但浏览器无法识别我的时区，请先问我使用哪个时区，再创建真实的每天定时任务。',
   'onboarding.testRequest': '10 分钟后提醒我测试定时任务',
   'onboarding.reminderHint': '只提醒一次 · 当前私聊 · {timeZone}',
   'onboarding.reminderUnknownHint': '无法识别时区，先确认再设置',
@@ -2503,7 +2508,12 @@ export const en = {
   'onboarding.prompt': 'What would you like your Bot to help with?',
   'onboarding.firstRequest': 'Tell me what you can help with',
   'onboarding.newsRequest': 'Help me catch up on today’s news',
-  'onboarding.dailyRequest': 'Give me a news summary every morning at 9',
+  'onboarding.dailyRequest': 'Check in with me every evening at 9',
+  'onboarding.dailyHint': 'Daily at 21:00 · This DM · {timeZone}',
+  'onboarding.dailyBody':
+    'Create a daily schedule at 21:00 to greet me and ask how my day went in this DM. My time zone is {timeZone}. Confirm the saved daily time, next run and destination, and briefly explain that the app must be running, the Bot enabled and a usable model available.',
+  'onboarding.dailyUnknownBody':
+    'I want a daily check-in at 21:00 in this DM to greet me and ask how my day went. My browser could not identify my time zone. Ask which time zone to use before creating a real daily schedule.',
   'onboarding.testRequest': 'Remind me to test scheduled tasks in 10 minutes',
   'onboarding.reminderHint': 'Once only · This DM · {timeZone}',
   'onboarding.reminderUnknownHint': 'Time zone unavailable; confirm it before scheduling',
