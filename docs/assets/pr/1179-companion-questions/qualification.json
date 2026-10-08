@@ -1,0 +1,52 @@
+{
+  "runtimeCode": "a5193b36b31df37c918a509d4229165536b73106",
+  "kind": "real-isolated-DSH-native-question-UI",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "locale": "zh",
+  "simultaneousNativeRequests": 2,
+  "questions": [3, 1],
+  "directAnswer": {
+    "single": ["体验版"],
+    "multi": ["拖拽", "气泡"],
+    "custom": true,
+    "canonicalDecisions": 1,
+    "actualOriginalBotReply": true,
+    "otherBotRemainsPending": true,
+    "unrelatedChannelRemainsSelected": true,
+    "focus": "拖动 Companion question QA A；点击打开私聊"
+  },
+  "crossView": {
+    "actualChatAnswer": true,
+    "canonicalDecisions": 1,
+    "companionRemoved": true,
+    "actualOriginalBotReply": true,
+    "uniqueInputIds": true
+  },
+  "recordings": {
+    "choices": "Ends after real selection/custom input, before submission; the QA observer failed to read default-type text inputs with an attribute-only selector. This is a harness failure, not a successful whole workflow.",
+    "directAnswer": "Starts with the existing selected draft; shows both themes, explicit Enter submission, focus recovery and A resumption.",
+    "chatReconciliation": "Actual Chat answer to B and removal of the same companion request."
+  },
+  "limits": [
+    "Mouse click returned an unstructured tool failure and is not qualified by this keyboard replay.",
+    "Initial toolbar pause attempted while hidden did not focus; walking was still enabled during captures, so positions/backgrounds differ. Actual postflight pause is separately checked.",
+    "Legacy QA Bots retain their existing question-mark avatar fallback; this does not qualify the pixel mouth.",
+    "Other cancellation/archive/restart/reconnect/reduced-motion edge scenes are not implied accepted."
+  ],
+  "tests": {
+    "fullClient": {
+      "files": 143,
+      "tests": 1028,
+      "passed": true
+    },
+    "mainSubmittedRegression": {
+      "failedBefore": true,
+      "passedAfter": true
+    },
+    "localFullRepository": "Failed on Windows temporary SQLite cleanup EPERM;292passed55skipped before bail. Host paging/restart test also times out unchanged in approval parent.",
+    "ci": "https://github.com/BotHarness/DeepSeekBot/actions/runs/37828214118"
+  }
+}
