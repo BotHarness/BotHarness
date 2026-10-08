@@ -83,6 +83,7 @@ it('Channel voice exposes original download and prepares playback only on explic
     expect(fetched.mock.calls[0]?.[0]).toContain('representation=playback');
     expect(container.querySelector('audio')?.getAttribute('src')).toBe('blob:voice');
     expect(container.querySelector('audio')?.getAttribute('preload')).toBe('none');
+    expect(container.querySelector('audio')?.getAttribute('aria-label')).toBe('语音播放器');
     expect(container.querySelector('audio')?.hasAttribute('autoplay')).toBe(false);
   } finally {
     await act(async () => root.unmount());
