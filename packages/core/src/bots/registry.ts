@@ -614,7 +614,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setStandingLimits(slug, limits) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (!isStandingLimits(limits)) return { ok: false, reason: 'invalid-input' };
       if (
@@ -705,7 +705,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setModelPlan(slug, routes, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const revision = record.modelPlan?.revision ?? 0;
       if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };

@@ -119,6 +119,23 @@ describe('confirmed terminal PersonaBot deletion', () => {
       reason: 'duplicate',
     });
     expect(f.core.registry.setPaused('a', false)).toEqual({ ok: false, reason: 'not-found' });
+    const historical = f.core.registry.getHistorical('a');
+    expect(f.core.registry.setStandingLimits('a', { soul: 1000, coreMemory: 1000 })).toEqual({
+      ok: false,
+      reason: 'not-found',
+    });
+    expect(
+      f.core.registry.setModelPlan(
+        'a',
+        {
+          orchestrator: { provider: 'test', model: 'model' },
+          assignmentDefault: { provider: 'test', model: 'model' },
+          assignmentModels: [],
+        },
+        0,
+      ),
+    ).toEqual({ ok: false, reason: 'not-found' });
+    expect(f.core.registry.getHistorical('a')).toEqual(historical);
     expect(f.core.channels.latestMessage(channel.id)?.body).toBe('Keep attribution');
     expect(f.core.ownership.resolve('old-session')?.botSlug).toBe('a');
     await f.core.runtime.close();

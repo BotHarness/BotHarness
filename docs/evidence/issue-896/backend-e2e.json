@@ -22,9 +22,7 @@
     {
       "name": "drain-real-Agent-awaiting-native-approval",
       "phase": "complete",
-      "sessions": [
-        "botharness-0d9ee0d1-2e78-481b-b873-3c57115c3e1f"
-      ]
+      "sessions": ["botharness-0d9ee0d1-2e78-481b-b873-3c57115c3e1f"]
     },
     {
       "name": "cold-restart-terminal-fence-Memory-outcome-and-native-history",
