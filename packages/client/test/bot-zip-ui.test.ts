@@ -30,7 +30,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 import type { BridgeActions } from '../src/client/actions.js';
 import { BridgeCallError } from '../src/client/bridge.js';
 import {
-  BotZipExportSection,
+  BotZipShareButton,
+  BotZipShareDialog,
   botZipError,
   botZipTree,
   formatBotZipSize,
@@ -167,15 +168,13 @@ async function openExport(translate: BotHarnessTranslate = zhTranslate) {
   const botZipFiles = vi.fn(async () => LISTING);
   const exportBotZip = vi.fn(async (..._args: unknown[]) => undefined);
   const host = await mount(
-    createElement(BotZipExportSection, {
+    createElement(BotZipShareButton, {
       bot: BOT,
       actions: { botZipFiles, exportBotZip } as unknown as BridgeActions,
       t: translate,
     }),
   );
-  await act(async () =>
-    button(host, translate === zhTranslate ? '导出 zip' : 'Export zip').click(),
-  );
+  await act(async () => button(host, translate === zhTranslate ? '分享' : 'Share').click());
   return { host, botZipFiles, exportBotZip };
 }
 
@@ -199,7 +198,6 @@ describe('Export zip', () => {
   it('reminds about secrets and exports everything by default', async () => {
     const { host, botZipFiles, exportBotZip } = await openExport();
 
-    expect(host.querySelector('section')?.getAttribute('aria-label')).toBe('分享与导出');
     expect(botZipFiles).toHaveBeenCalledWith('ada');
     expect(host.querySelector('[role="dialog"]')?.textContent).toContain('导出 Ada');
     expect(host.textContent).toContain('分享前请先检查');
@@ -299,14 +297,34 @@ describe('Export zip', () => {
       throw new BridgeCallError('not-found', 'gone');
     });
     const host = await mount(
-      createElement(BotZipExportSection, {
+      createElement(BotZipShareButton, {
         bot: BOT,
         actions: { botZipFiles, exportBotZip: vi.fn() } as unknown as BridgeActions,
         t: zhTranslate,
       }),
     );
-    await act(async () => button(host, '导出 zip').click());
+    await act(async () => button(host, '分享').click());
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('读取文件列表失败');
     expect(button(host, '导出').disabled).toBe(true);
+  });
+});
+
+describe('Share from the App Sidebar', () => {
+  it('opens the export dialog on mount and reports when it closes', async () => {
+    const botZipFiles = vi.fn(async () => LISTING);
+    const onClose = vi.fn();
+    const host = await mount(
+      createElement(BotZipShareDialog, {
+        bot: BOT,
+        actions: { botZipFiles, exportBotZip: vi.fn() } as unknown as BridgeActions,
+        t: zhTranslate,
+        onClose,
+      }),
+    );
+    expect(botZipFiles).toHaveBeenCalledWith('ada');
+    expect(host.querySelector('[role="dialog"]')?.textContent).toContain('导出 Ada');
+    await act(async () => button(host, '取消').click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
   });
 });

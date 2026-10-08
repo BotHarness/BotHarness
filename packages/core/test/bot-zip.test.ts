@@ -244,8 +244,23 @@ describe('Bot Zip import', () => {
       ]),
     );
     expect(contents.files.map((file) => file.path)).toEqual(['SOUL.md', '.botharness/bot.json']);
-    expect(contents.descriptor).toEqual({ name: 'Ada', roles: ['QA'] });
+    expect(contents.descriptor).toEqual({ name: 'Ada', tags: ['QA'] });
     expect(zipCodeOf(() => readBotZip(writeZip([])))).toBe('empty');
+  });
+
+  it('imports the legacy roles of an older zip as Tags', async () => {
+    const registry = registryAt(tempRoot());
+    const archive = writeZip([
+      { path: 'Old/SOUL.md', data: Buffer.from('# Old\n') },
+      {
+        path: 'Old/.botharness/bot.json',
+        data: Buffer.from('{"name":"Old","roles":["Legacy"]}'),
+      },
+    ]);
+    const imported = await httpFor(registry)(importRequest(new Uint8Array(archive)));
+    expect(imported.status).toBe(200);
+    const body = (await imported.json()) as { bot: { slug: string } };
+    expect(registry.get(body.bot.slug)).toMatchObject({ displayName: 'Old', roles: ['Legacy'] });
   });
 
   it('leaves no half-created Bot when the files cannot be unpacked', async () => {
@@ -277,6 +292,9 @@ describe('Bot Zip import', () => {
       avatar: PNG_URL,
     });
     expect(created.ok).toBe(true);
+    expect(
+      registry.update('ada', { roles: ['Researcher', 'Writer'], description: 'Finds sources' }).ok,
+    ).toBe(true);
     const memoryDir = registry.memoryDirFor('ada')!;
     writeFileSync(join(memoryDir, 'MEMORY.md'), '- people/alex.md\n');
     mkdirSync(join(memoryDir, 'people'));
@@ -299,7 +317,12 @@ describe('Bot Zip import', () => {
     const body = (await imported.json()) as { bot: { slug: string } };
     expect(body.bot.slug).toBe('zip-bot-1');
     const copy = registry.get('zip-bot-1')!;
-    expect(copy).toMatchObject({ displayName: 'Ada', roles: ['Researcher'], avatar: PNG_URL });
+    expect(copy).toMatchObject({
+      displayName: 'Ada',
+      roles: ['Researcher', 'Writer'],
+      description: 'Finds sources',
+      avatar: PNG_URL,
+    });
     const copyDir = registry.memoryDirFor('zip-bot-1')!;
     for (const path of ['SOUL.md', 'MEMORY.md', 'people/alex.md', '.botharness/bot.json']) {
       expect(readFileSync(join(copyDir, path), 'utf8')).toBe(

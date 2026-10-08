@@ -1906,6 +1906,17 @@ export async function setBotAvatar(
   return bot;
 }
 
+export async function updateBotProfile(
+  call: BridgeCall,
+  slug: string,
+  patch: { roles?: string[]; description?: string },
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'update', { slug, patch }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid update response');
+  return bot;
+}
+
 export async function setBotAppearance(
   call: BridgeCall,
   channelId: string,
