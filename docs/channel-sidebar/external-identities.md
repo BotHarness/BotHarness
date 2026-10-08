@@ -25,7 +25,7 @@ Open **+ Bind app** for direct links to the website tutorials for [Lark / Feishu
 
 1. First connect the app under **Settings → IM Bots**, following the guide for your platform.
 2. Click **+ Bind app**.
-3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Every connected app this Bot doesn't already have is listed: apps another Bot uses are greyed out and say which Bot, and disconnected apps say **not connected**. **Manage app credentials** opens **Settings → IM bots**.
+3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Apps this Bot already has are omitted; apps another Bot owns stay visible, greyed out and labelled **bound to another Bot: name**, and disconnected apps say **not connected**. **Add external binding** opens **Settings → IM Bots**: connect or scan there, then close Settings to return to this dialog with a refreshed app list. **Refresh apps** reloads the list manually; if refreshing fails, retry before binding.
 4. Click **Bind app**. The dialog then shows the real receiving state:
    - **Ready**: DMs and @mentions to the app now reach this Bot’s Inbox.
    - **Connecting**: the app is still opening its receiver. Wait a moment.
