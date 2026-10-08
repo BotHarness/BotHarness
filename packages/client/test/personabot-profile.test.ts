@@ -271,7 +271,7 @@ describe('PersonaBot Profile surface', () => {
         '所选时间范围内暂无模型调用记录。',
       );
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(4);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(3);
       const sidebarLabels = [
         ...container.querySelectorAll('.bh-channel-sidebar .bh-channel-sidebar-entry-label'),
       ].map((label) => label.textContent);
@@ -424,7 +424,7 @@ describe('PersonaBot Profile surface', () => {
 });
 
 describe('Profile activity windows', () => {
-  it('keeps entirely unreported usage unknown in the chart and summary', async () => {
+  it('keeps entirely unreported usage unknown in the token card', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');
     document.body.append(container);
@@ -473,12 +473,10 @@ describe('Profile activity windows', () => {
             'div',
             null,
             cards.find((card) => card.id === 'token-usage')!.render(props),
-            cards.find((card) => card.id === 'totals')!.render(props),
           ),
         ),
       );
       expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain('未知');
-      expect(container.querySelector('.bh-profile-stats')?.textContent).toContain('未知');
       expect(container.querySelector('.bh-profile-empty')).toBeNull();
       expect(container.querySelector('.bh-profile-token-shares')).toBeNull();
       expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
@@ -514,15 +512,11 @@ describe('Profile activity windows', () => {
             'div',
             null,
             cards.find((card) => card.id === 'token-usage')!.render(partial),
-            cards.find((card) => card.id === 'totals')!.render(partial),
           ),
         ),
       );
       expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
         '155 tokens',
-      );
-      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
-        '155',
       );
       const totalOnly = {
         ...props,
@@ -537,15 +531,11 @@ describe('Profile activity windows', () => {
             'div',
             null,
             cards.find((card) => card.id === 'token-usage')!.render(totalOnly),
-            cards.find((card) => card.id === 'totals')!.render(totalOnly),
           ),
         ),
       );
       expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
         '155 tokens',
-      );
-      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
-        '155',
       );
       expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
         '所选时间范围：155',

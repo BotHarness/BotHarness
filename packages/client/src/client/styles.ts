@@ -2910,6 +2910,9 @@ button.bh-profile-heat-cell:focus-visible {
 }
 .bh-model-usage-range input { width: auto; }
 .bh-usage-model-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.bh-usage-range-controls { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.bh-usage-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.bh-usage-daily > .bh-usage-legend { margin-bottom: 4px; }
 .bh-usage-grouping { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
 .bh-usage-grouping button { border: 0; border-radius: 6px; padding: 4px 10px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
 .bh-usage-grouping button[aria-pressed="true"] { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
