@@ -17,8 +17,20 @@ The scheduled prompt retains the exact current DM destination. Creation confirma
 - In the isolated real Host using `deepseek-official/deepseek-flash`, the final request was admitted at **2026-10-08 15:57:22 UTC**. The model created one PersonaBot-owned, enabled `once` task at **15:57:29 UTC**, due **16:08:00 UTC / 2026-10-09 01:08 Asia/Tokyo**, with the exact DM destination retained in its prompt. Its concise confirmation arrived at **15:57:30 UTC** and completed onboarding through the canonical Bot reply.
 - The real Session records show the model called `bot_schedule_create` with `once_in_minutes: 10` and `time_zone: Asia/Tokyo`. No reminder was present at **16:07:50 UTC**, before the deadline. The final task fired naturally at **16:08:00.003 UTC** and delivered exactly one「测试定时任务」message in the same DM at **16:08:05.288 UTC**. Its single firing was `planned` and `handled`, with canonical Source Event and handling Session references; the schedule became disabled and its next due time cleared. The final result is also recorded in [PR #1221](https://github.com/BotHarness/DeepSeekBot/pull/1221) and the issue handoff.
 
-## UI capture exception
+## Real Client click and screenshots
 
-Matched light/dark before/after screenshots and a final real Client click are outstanding. Chrome reopened the old local Host, but the next accessibility read timed out and reset page control. A fresh Chrome tab for the new isolated Host then returned `net::ERR_BLOCKED_BY_CLIENT`. The in-app browser had also blocked loopback pages in the preceding tracer. No browser restriction was bypassed, no synthetic UI screenshot is presented, and no rendered-UI pass is claimed.
+Chrome reconnection restored real page control on 2026-10-08. The welcome's actual reminder button was clicked at **16:21:50 UTC**, dispatching the concise translated Human request through the Client. The real model created a new canonical one-time task at **16:21:55 UTC**, due **16:32:00 UTC / 2026-10-09 01:32 Asia/Tokyo**, and confirmed at **16:21:57 UTC** that it would send once to the current DM. This is a distinct follow-up to the naturally fired 16:08 acceptance above; the screenshot's older reminder is not presented as delivery for this new click.
 
-The real-model evidence above uses the authenticated normal `channelSend` API with the welcome's exact translated request; it does not create schedules directly or substitute Run now for a planned firing. To complete visual review, open the launcher's local login URL in a connected browser, enter Bot mode, compare the welcome at the same viewport in light/dark themes, select the reminder, inspect the actual confirmation and wait for the scheduled DM message. Keep the isolated Host running throughout.
+The screenshots below are unmodified browser captures, **1559 × 865**, Chinese locale and the native light/dark themes. The welcome image retains the earlier real conversation and natural delivery. The confirmation images show the new Client click's actual Human request and Bot response, with the window companion removed through its visible control.
+
+![Welcome with one-time reminder metadata, dark theme](./welcome-dark.jpg)
+
+![Actual Client click and model confirmation, dark theme](./confirmation-dark.jpg)
+
+![Actual Client click and model confirmation, light theme](./confirmation-light.jpg)
+
+## Remaining matched-baseline capture exception
+
+The final real Client click and light/dark confirmation captures now pass. A clean isolated PR instance and a separately built base revision (the merged #1205 revision) were prepared for matched welcome screenshots. Both Hosts passed authenticated API health checks, but Chrome's next page read timed out, reset page control and then reported Debugger unattached. Opening another fresh Chrome tab also timed out. The in-app browser again returned net::ERR_BLOCKED_BY_CLIENT for loopback. No browser restriction was bypassed and no synthetic render is presented.
+
+Matched before/after welcome screenshots remain outstanding, so the PR remains draft. To finish, open separate isolated Profiles for the base and PR revisions using scripts/dev-instance.mjs, use each launcher's local login URL in a connected browser, enter Bot mode with the same default Bot/model and no conversation, and capture the same viewport in light/dark themes. The base has the single-line reminder label; the PR adds the one-time/current-DM/browser-time-zone line. The existing runtime evidence is retained independently of this visual-review gap.
