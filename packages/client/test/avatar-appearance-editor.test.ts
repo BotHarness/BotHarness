@@ -11,6 +11,7 @@ import { PersonaBotAvatar } from '../src/client/avatar.js';
 import { parseBotSummaries } from '../src/client/bridge.js';
 import {
   AVATAR_HAIR_PARTS,
+  AVATAR_HEADPIECES,
   AVATAR_PARTS,
   AVATAR_PRESETS,
   AVATAR_SPECIES,
@@ -785,13 +786,17 @@ describe('Profile Avatar Appearance editing', () => {
       expect($('[data-part-library-note]')?.textContent).toBe(
         zhTranslate('profile.avatar.part.importedRefused', { count: 1, refused: 1 }),
       );
-      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(3);
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(
+        3 + AVATAR_HEADPIECES.length,
+      );
       const filter = $('[data-part-origin-filter]') as HTMLSelectElement;
       await act(() => {
         filter.value = 'imported-file';
         filter.dispatchEvent(new Event('change', { bubbles: true }));
       });
-      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(2);
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(
+        2 + AVATAR_HEADPIECES.length,
+      );
       expect($(`[data-avatar-option="headpiece:${customPartId(ears)}"]`)).not.toBeNull();
       await click('[data-part-export-library]');
       expect(exportParts).toHaveBeenLastCalledWith(undefined, undefined);
@@ -907,6 +912,72 @@ describe('Profile Avatar Appearance editing', () => {
         eyes: 'cross',
         spacing: 3,
       });
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+  it('colors every hair piece, adds a strand and wears a built-in headpiece with an accessory', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async (_channel: string, _recipe: unknown) => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const legacy = { ...seededAvatarRecipe('Ada'), accessory: 'catears' } as const;
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+      appearance: { recipe: legacy, revision: '0'.repeat(64) },
+    };
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="accessory"]');
+      expect($('[data-avatar-option="accessory:catears"]')?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      await click('[data-avatar-category="headpiece"]');
+      expect($('[data-avatar-option="headpiece:none"]')?.getAttribute('aria-pressed')).toBe('true');
+      await click('[data-avatar-option="headpiece:halo"]');
+      expect($('[data-avatar-option="headpiece:halo"]')?.getAttribute('aria-pressed')).toBe('true');
+      await click('[data-avatar-category="accessory"]');
+      expect($('[data-avatar-option="accessory:none"]')?.getAttribute('aria-pressed')).toBe('true');
+      expect($('[data-avatar-option="accessory:catears"]')).toBeNull();
+      await click('[data-avatar-option="accessory:bow"]');
+      await click('[data-avatar-category="strand"]');
+      await click('[data-avatar-option="strand:curl"]');
+      await click('[data-avatar-category="colors"]');
+      await click('[data-avatar-option="bangsColor:#f06292"]');
+      await click('[data-avatar-option="backHairColor:#3fc1b8"]');
+      await click('[data-avatar-option="strandColor:#e2b04a"]');
+      await click('[data-avatar-color-reset="backHairColor"]');
+      await click('[data-avatar-save]');
+      const saved = save.mock.calls[0]![1] as Record<string, unknown>;
+      expect(saved).toMatchObject({
+        assetVersion: 4,
+        headpiece: 'halo',
+        accessory: 'bow',
+        strand: 'curl',
+        bangsColor: '#f06292',
+        strandColor: '#e2b04a',
+      });
+      expect(saved['backHairColor']).toBeUndefined();
+      expect(AVATAR_HEADPIECES).toContain('wings');
     } finally {
       await act(() => root.unmount());
       container.remove();
