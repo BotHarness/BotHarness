@@ -136,6 +136,7 @@ interface MutableMetrics {
 }
 
 interface InternalOwner {
+  closeEffects: Set<() => void>;
   owner: OwnerImplementation;
   database: DatabaseSync | undefined;
   lease: DatabaseSync | undefined;
@@ -211,6 +212,9 @@ class OwnerImplementation implements OperationalDatabaseOwner {
       }
     };
 
+    for (const effect of internal.closeEffects) attempt(effect);
+    internal.closeEffects.clear();
+
     attempt(() => closeDatabase(internal.database));
     internal.database = undefined;
     attempt(() => {
@@ -241,6 +245,7 @@ export function mountOperationalDatabase(
     acquiredAt: now().toISOString(),
   };
   const internal: InternalOwner = {
+    closeEffects: new Set(),
     owner,
     database: undefined,
     lease: undefined,
@@ -408,6 +413,20 @@ export function attachOperationalModule(
       return value;
     },
   };
+}
+
+export function failOperationalDatabase(owner: OperationalDatabaseOwner, message: string): void {
+  enterRecoveryAndClose(
+    requireInternal(owner),
+    new OperationalDatabaseError('recovery-mode', message),
+  );
+}
+
+export function onOperationalDatabaseClose(
+  owner: OperationalDatabaseOwner,
+  cleanup: () => void,
+): void {
+  requireInternal(owner).closeEffects.add(cleanup);
 }
 
 function acquireWriterLease(

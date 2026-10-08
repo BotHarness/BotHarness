@@ -1,3 +1,4 @@
+import { ChannelHistory } from './channel-history.js';
 import {
   useRef,
   useState,
@@ -757,6 +758,7 @@ export function BotSidebar({
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [pinSortMenuOpen, setPinSortMenuOpen] = useState(false);
   const [hiddenManagerOpen, setHiddenManagerOpen] = useState(false);
+  const [channelHistoryOpen, setChannelHistoryOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
   const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1060,6 +1062,10 @@ export function BotSidebar({
 
   const selectSortMenu = (id: string): void => {
     setSortMenuOpen(false);
+    if (id === 'channel-history') {
+      setChannelHistoryOpen(true);
+      return;
+    }
     if (id === 'hidden') {
       setHiddenManagerOpen(true);
       return;
@@ -2345,6 +2351,9 @@ export function BotSidebar({
             setDeleteTarget(undefined);
           }}
         />
+      ) : null}
+      {channelHistoryOpen ? (
+        <ChannelHistory actions={actions} t={t} onClose={() => setChannelHistoryOpen(false)} />
       ) : null}
       {hiddenManagerOpen ? (
         <HiddenChannelsModal

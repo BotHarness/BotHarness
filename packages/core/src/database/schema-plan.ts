@@ -1734,6 +1734,55 @@ const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
   },
 };
 
+const CONTENT_PURGE_MIGRATION: SchemaMigration = {
+  generation: 67,
+  module: 'messaging-purge',
+  description: 'Require an independent Purge Ledger and fence accepted local Source Events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_purge_requirement (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), version INTEGER NOT NULL);
+      CREATE TABLE messaging_purge_facts (
+        source_event_id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, message_id TEXT NOT NULL,
+        accepted_at TEXT NOT NULL, tombstone_json TEXT NOT NULL CHECK(json_valid(tombstone_json))
+      );
+      CREATE TRIGGER messaging_purge_no_delete BEFORE DELETE ON messaging_purge_facts
+        BEGIN SELECT RAISE(ABORT, 'purge facts are monotonic'); END;
+      CREATE TRIGGER messaging_purge_no_update BEFORE UPDATE ON messaging_purge_facts
+        BEGIN SELECT RAISE(ABORT, 'purge facts are monotonic'); END;
+      CREATE TRIGGER messaging_purge_source_insert BEFORE INSERT ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE f.source_event_id = NEW.source_event_id
+          OR (f.channel_id = NEW.channel_id AND f.message_id = NEW.message_id)
+          OR f.source_event_id = json_extract(NEW.payload_json, '$.botCausation.rootSourceEventId')
+          OR f.source_event_id = json_extract(NEW.payload_json, '$.botCausation.parentSourceEventId'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_source_update BEFORE UPDATE ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE (f.source_event_id = OLD.source_event_id
+          OR (f.channel_id = NEW.channel_id AND f.message_id = NEW.message_id))
+          AND (NEW.source_event_id != f.source_event_id OR NEW.channel_id != f.channel_id OR NEW.message_id != f.message_id
+            OR NEW.body != '' OR NEW.payload_json != f.tombstone_json))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_source_delete BEFORE DELETE ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = OLD.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'retain purge causality'); END;
+      CREATE TRIGGER messaging_purge_admission_insert BEFORE INSERT ON inbox_admissions
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_admission_update BEFORE UPDATE ON inbox_admissions
+        WHEN NEW.attempt_state IN ('pending', 'retryable', 'running') AND EXISTS
+          (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_outbox_insert BEFORE INSERT ON messaging_outbox
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = json_extract(NEW.body, '$.sourceEventId'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_outbox_update BEFORE UPDATE ON messaging_outbox
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = json_extract(NEW.body, '$.sourceEventId'))
+          AND (COALESCE(json_extract(NEW.body, '$.text'), '') != '' OR json_type(NEW.body, '$.file') IS NOT NULL
+            OR NEW.state IN ('pending', 'in-flight'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1800,4 +1849,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CONVERSATION_INGEST_MIGRATION,
   NEW_CONVERSATION_DEFAULT_MIGRATION,
   PERSONA_BOT_DELETION_MIGRATION,
+  CONTENT_PURGE_MIGRATION,
 ]);
