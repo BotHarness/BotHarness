@@ -26,6 +26,7 @@ import {
 } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
+import { recordMemoryOwnership } from './deletion.js';
 import type { HttpsFallback, MemoryCloneResult } from '../memory/clone.js';
 import { restoreBotHistory, writeBotFiles } from './bot-zip.js';
 import type { ZipEntry } from './zip-archive.js';
@@ -81,6 +82,8 @@ export interface PersonaBotRegistry {
     },
   ): Promise<CreatePersonaBotResult>;
   get(slug: string): PersonaBotRecord | undefined;
+  getHistorical(slug: string): PersonaBotRecord | undefined;
+  listHistorical(): PersonaBotRecord[];
   list(): PersonaBotRecord[];
   findByWorkspace(workspace: string): PersonaBotRecord | undefined;
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
@@ -236,14 +239,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       ['bot-registry'],
     );
   };
-  const erase = (slug: string): void => {
-    port.transaction(
-      (database) => {
-        database.prepare('DELETE FROM persona_bots WHERE slug = ?').run(slug);
-      },
-      ['bot-registry'],
+  const deleted = (slug: string): boolean =>
+    port.read(
+      (database) =>
+        database.prepare('SELECT slug FROM persona_bot_deletions WHERE slug = ?').get(slug) !==
+        undefined,
     );
-  };
+  const active = (slug: string): PersonaBotRecord | undefined =>
+    deleted(slug) ? undefined : read(slug);
   const list = (): PersonaBotRecord[] =>
     port.read((database) =>
       database
@@ -313,6 +316,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const memoryDirOf = (record: PersonaBotRecord): string =>
     record.memoryDir ?? defaultMemoryDir(record.slug);
 
+  if (options.database.mode === 'ready') {
+    for (const record of list()) {
+      if (record.memoryDir === undefined && !deleted(record.slug))
+        recordMemoryOwnership(port, record.slug, memoryDirOf(record));
+    }
+  }
+
   const applyOptionalText = (
     record: PersonaBotRecord,
     key: 'tag' | 'description' | 'avatar' | 'model' | 'preset',
@@ -371,6 +381,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       ...(memoryDir ? { memoryDir } : {}),
     };
     const targetMemoryDir = memoryDirOf(record);
+    const newMemoryDirectory = !existsSync(targetMemoryDir);
     const newBotDirectory = !existsSync(botDir(record.slug));
     mkdirSync(targetMemoryDir, { recursive: true });
     const seeded = seedStandingFiles(targetMemoryDir, {
@@ -390,6 +401,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       };
     }
     write(record);
+    if (newMemoryDirectory || memoryDir === undefined)
+      recordMemoryOwnership(port, record.slug, targetMemoryDir);
     if (sync) syncDescriptor(record);
     return { ok: true, record };
   };
@@ -486,35 +499,22 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         }
       });
     },
-    get(slug) {
-      return read(slug);
-    },
-    list,
+    get: active,
+    getHistorical: read,
+    listHistorical: list,
+    list: () => list().filter((record) => !deleted(record.slug)),
     findByWorkspace(workspace) {
       const target = normalizeWorkspacePath(workspace);
       if (target.length === 0) return undefined;
-      return list().find((record) =>
-        record.workspaces.some((candidate) => normalizeWorkspacePath(candidate) === target),
-      );
+      return list()
+        .filter((record) => !deleted(record.slug))
+        .find((record) =>
+          record.workspaces.some((candidate) => normalizeWorkspacePath(candidate) === target),
+        );
     },
-    remove(slug, removeOptions) {
-      if (!isValidSlug(slug)) return false;
-      const record = read(slug);
-      const exists = record !== undefined || existsSync(botDir(slug));
-      if (removeOptions?.purge === true) {
-        const removeFiles = () => {
-          if (exists) rmSync(botDir(slug), { recursive: true, force: true });
-        };
-        if (options.onPurge === undefined) removeFiles();
-        else options.onPurge(slug, removeFiles);
-        erase(slug);
-        if (record !== undefined) capture('bot_deleted');
-        return exists;
-      }
-      if (!exists) return false;
-      erase(slug);
-      if (record !== undefined) capture('bot_deleted');
-      return true;
+    remove(slug) {
+      if (!isValidSlug(slug) || read(slug) === undefined) return false;
+      throw new Error('Use confirmed PersonaBot deletion; direct Registry removal is unavailable');
     },
     memoryDirFor(slug) {
       const record = read(slug);
@@ -522,7 +522,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return memoryDirOf(record);
     },
     update(slug, patch) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const previousName = record.displayName;
       const previousAvatar = record.avatar;
@@ -568,7 +568,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setAppearance(slug, recipe) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const derived = deriveAvatarAppearance(recipe);
       if (derived === undefined) return { ok: false, reason: 'invalid-input' };
@@ -579,7 +579,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record: updated };
     },
     setPaused(slug, paused) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const archiving = paused && record.paused !== true;
       if (paused) record.paused = true;
@@ -589,7 +589,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setComputerAccess(slug, enabled) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (enabled) record.computerAccess = true;
       else delete record.computerAccess;
@@ -597,7 +597,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setBrowserAccess(slug, enabled) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (enabled) record.browserAccess = true;
       else delete record.browserAccess;
@@ -605,7 +605,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setBrowserProfile(slug, profile) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const trimmed = profile.trim();
       if (trimmed === '') delete record.browserProfile;
@@ -614,7 +614,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setStandingLimits(slug, limits) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (!isStandingLimits(limits)) return { ok: false, reason: 'invalid-input' };
       if (
@@ -627,7 +627,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     applyModelPreset(slug, preset) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const plan: PersonaBotModelPlan = {
         revision: (record.modelPlan?.revision ?? 0) + 1,
@@ -651,7 +651,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     migrateLegacyModel(slug, expectedModel, route) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan !== undefined) return { ok: true, record };
       if (record.model !== expectedModel) return { ok: false, reason: 'invalid-input' };
@@ -668,7 +668,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     customizeModelPlan(slug, orchestrator, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan === undefined) return { ok: false, reason: 'invalid-input' };
       if (record.modelPlan.revision !== expectedRevision)
@@ -685,7 +685,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setAssignmentModels(slug, assignmentDefault, assignmentModels, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan === undefined || record.modelPlan.revision !== expectedRevision)
         return { ok: false, reason: 'invalid-input' };
@@ -705,7 +705,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setModelPlan(slug, routes, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const revision = record.modelPlan?.revision ?? 0;
       if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };

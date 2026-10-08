@@ -7,10 +7,12 @@ import {
   IconPinFillRegular,
   IconPinOutlineRegular,
   Tag,
+  Button,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type { ProfileActivity } from './bridge.js';
+import { PersonaBotDeletionView } from './personabot-deletion.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { AvatarAppearanceEditor } from './avatar-appearance-editor.js';
 import { NameInput } from './name-input.js';
@@ -118,6 +120,7 @@ export function ProfileView({
   onTogglePin,
   onClose,
 }: ProfileViewProps): ReactElement {
+  const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(bot.displayName);
   const [busy, setBusy] = useState(false);
@@ -185,6 +188,7 @@ export function ProfileView({
           type="button"
           className="bh-profile-avatar-button"
           aria-label={t('profile.avatar.change')}
+          disabled={avatarBusy || bot.deleted}
           onClick={(event) => {
             const section = event.currentTarget
               .closest('.bh-profile-view')
@@ -246,6 +250,7 @@ export function ProfileView({
                 type="button"
                 className="bh-profile-edit"
                 aria-label={t('profile.name.edit')}
+                disabled={bot.deleted}
                 onClick={startEditing}
               >
                 <IconEditOutlineRegular />
@@ -272,16 +277,18 @@ export function ProfileView({
           )}
         </div>
       </div>
-      <AvatarAppearanceEditor
-        key={`avatar-${bot.slug}`}
-        bot={bot}
-        channelId={channel.id}
-        onSave={actions.setBotAppearance}
-        onUpload={() => avatarInputRef.current?.click()}
-        onRemoveImage={() => void removeAvatar()}
-        imageBusy={avatarBusy}
-        t={t}
-      />
+      {bot.deleted ? null : (
+        <AvatarAppearanceEditor
+          key={`avatar-${bot.slug}`}
+          bot={bot}
+          channelId={channel.id}
+          onSave={actions.setBotAppearance}
+          onUpload={() => avatarInputRef.current?.click()}
+          onRemoveImage={() => void removeAvatar()}
+          imageBusy={avatarBusy}
+          t={t}
+        />
+      )}
       {visibleCards.length === 0 ? null : (
         <section className="bh-profile-section" aria-label={t('profile.activitySection')}>
           <h2 className="bh-profile-section-title">{t('profile.activitySection')}</h2>
@@ -315,7 +322,38 @@ export function ProfileView({
           </div>
         </section>
       )}
-      <BotZipExportSection key={`zip-${bot.slug}`} bot={bot} actions={actions} t={t} />
+      {bot.deleted ? (
+        <PersonaBotDeletionView
+          key={`deleted-${bot.slug}`}
+          slug={bot.slug}
+          actions={actions}
+          t={t}
+          onClose={onClose}
+          history
+        />
+      ) : (
+        <>
+          <BotZipExportSection key={`zip-${bot.slug}`} bot={bot} actions={actions} t={t} />
+          {deleting ? (
+            <PersonaBotDeletionView
+              key={bot.slug}
+              slug={bot.slug}
+              actions={actions}
+              t={t}
+              onClose={() => setDeleting(false)}
+            />
+          ) : null}
+          <section className="bh-profile-section" aria-label={t('deletion.title')}>
+            <Button
+              variant="outline"
+              className="bh-bot-deletion-confirm"
+              onClick={() => setDeleting(true)}
+            >
+              {t('deletion.title')}
+            </Button>
+          </section>
+        </>
+      )}
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal
           file={avatarFile}

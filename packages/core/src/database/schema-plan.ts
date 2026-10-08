@@ -1594,6 +1594,19 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
+  generation: 65,
+  module: 'messaging',
+  description: 'Let a bound app inherit the platform default new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations_inherited INTEGER NOT NULL DEFAULT 1
+        CHECK (new_conversations_inherited IN (0, 1));
+      UPDATE messaging_bindings SET new_conversations_inherited = 0 WHERE new_conversations = 'ask';
+    `);
+  },
+};
+
 const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
   generation: 61,
   module: 'messaging',
@@ -1678,6 +1691,49 @@ const SEVERAL_APPS_MIGRATION: SchemaMigration = {
   },
 };
 
+const CONVERSATION_INGEST_MIGRATION: SchemaMigration = {
+  generation: 64,
+  module: 'messaging',
+  description: 'Let a Channel ingest an external conversation as one-way context',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_conversation_ingests (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        account_ref TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE UNIQUE INDEX messaging_conversation_ingest_target ON messaging_conversation_ingests
+        (channel_id, provider_id, fingerprint, conversation_kind, conversation_id);
+      CREATE INDEX messaging_conversation_ingest_source ON messaging_conversation_ingests
+        (provider_id, fingerprint, conversation_kind, conversation_id);
+    `);
+  },
+};
+
+const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
+  generation: 66,
+  module: 'bot-registry',
+  description: 'Terminal PersonaBot deletion and exclusive Memory ownership proofs',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE persona_bot_deletions (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE TABLE persona_bot_memory_ownership (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1741,4 +1797,7 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOUND_APP_ADMISSION_MIGRATION,
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
+  CONVERSATION_INGEST_MIGRATION,
+  NEW_CONVERSATION_DEFAULT_MIGRATION,
+  PERSONA_BOT_DELETION_MIGRATION,
 ]);

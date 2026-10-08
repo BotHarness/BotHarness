@@ -247,6 +247,8 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  disableBot(botSlug: string): Promise<void>;
+  deletionDependencies(botSlug: string): { identities: string[]; grants: string[] };
   apps(): Promise<MessagingApp[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
@@ -294,6 +296,7 @@ export function createOutboundMessaging(options: {
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
+  onIngested?(channelId: string, messageId: string): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -560,6 +563,7 @@ export function createOutboundMessaging(options: {
     ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.onShared ? { onShared: options.onShared } : {}),
+    ...(options.onIngested ? { onIngested: options.onIngested } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const sourceForReply = (botSlug: string, sourceEventId: string, value: MessagingGrant) => {
@@ -771,7 +775,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, new_conversations = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -783,9 +787,22 @@ export function createOutboundMessaging(options: {
               : latest.enabledInheritance === 'inherit'
                 ? 1
                 : 0,
-            input.kind === 'update'
-              ? (input.newConversations ?? latest.newConversations)
-              : latest.newConversations,
+            input.kind === 'update' &&
+              input.newConversations !== undefined &&
+              input.newConversations !== 'inherit'
+              ? input.newConversations
+              : (
+                  db
+                    .prepare('SELECT new_conversations FROM messaging_bindings WHERE id = ?')
+                    .get(value.id) as { new_conversations: string }
+                ).new_conversations,
+            input.kind === 'update' && input.newConversations !== undefined
+              ? input.newConversations === 'inherit'
+                ? 1
+                : 0
+              : latest.newConversationsInheritance === 'custom'
+                ? 0
+                : 1,
             value.id,
           );
           if (input.kind === 'unbind') {
@@ -1187,6 +1204,35 @@ export function createOutboundMessaging(options: {
           .filter((g) => !g.revokedAt && g.availability === 'available' && g.canReceive)
           .map(source),
       };
+    },
+    deletionDependencies(botSlug) {
+      return database.read((db) => ({
+        identities: db
+          .prepare(
+            'SELECT id FROM messaging_bindings WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+        grants: db
+          .prepare(
+            'SELECT id FROM messaging_grants WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+      }));
+    },
+    async disableBot(botSlug) {
+      const dependencies = service.deletionDependencies(botSlug);
+      for (const id of dependencies.grants) service.revoke(botSlug, id);
+      database.transaction(
+        (db) => {
+          db.prepare(
+            'UPDATE messaging_bindings SET enabled = 0, enabled_inherited = 0, revision = revision + 1 WHERE bot_slug = ? AND revoked_at IS NULL',
+          ).run(botSlug);
+        },
+        ['bindings', 'grants', 'bot-inbox'],
+      );
+      await Promise.all(dependencies.identities.map((id) => bounded(inbound.reconcileBinding(id))));
     },
     async apps() {
       const accounts = (

@@ -14,6 +14,10 @@ import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overvie
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import {
+  conversationIngestInput,
+  type ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
+import {
   externalMemberWake,
   messagingDefaultsInput,
   messagingDefaultsPlatform,
@@ -86,6 +90,11 @@ import type {
 } from '../bots/persona-bot.js';
 import { isPersonaBotAvatar } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import type {
+  PersonaBotDeletions,
+  PersonaBotDeletionPreview,
+  PersonaBotDeletion,
+} from '../bots/deletion.js';
 import { isValidSlug } from '../bots/slug.js';
 import {
   MAX_ROSTER_BATCH_SIZE,
@@ -213,6 +222,7 @@ export interface PersonaBotSummary {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   paused?: boolean;
+  deleted?: boolean;
   standingLimits: StandingLimits;
   aggregateState: AggregatedState;
   workspaces: string[];
@@ -322,6 +332,8 @@ export interface BridgeMethods {
   >;
   pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelIngests(payload: unknown): Promise<BridgeResult<ConversationIngestSnapshot>>;
+  channelIngest(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -357,6 +369,12 @@ export interface BridgeMethods {
     payload: unknown,
   ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  deletionPreview(payload: unknown): BridgeResult<{ preview: PersonaBotDeletionPreview }>;
+  deletionConfirm(payload: unknown): Promise<BridgeResult<{ deletion: PersonaBotDeletion }>>;
+  deletionRetry(payload: unknown): Promise<BridgeResult<{ deletion: PersonaBotDeletion }>>;
+  deletionMemoryFolder(
+    payload: unknown,
+  ): BridgeResult<{ target: { path: string; relativePath: string; kind: 'directory' } }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   humanIdentity(payload: unknown): BridgeResult<LocalHumanIdentity>;
@@ -482,6 +500,7 @@ export interface BridgeMethods {
 export interface BridgeMethodsDeps {
   warn?: (message: string) => void;
   registry: PersonaBotRegistry;
+  deletions?: PersonaBotDeletions;
   attachments?: AttachmentStore;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
@@ -875,7 +894,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     }
   };
 
-  const dmMemory = (payload: unknown): { botSlug: string } | BridgeResult<never> => {
+  const dmMemory = (
+    payload: unknown,
+    historical = false,
+  ): { botSlug: string } | BridgeResult<never> => {
     const channelId = asNonBlank(asObject(payload), 'channelId');
     if (channelId === undefined) return invalidInput('channelId is required');
     const channel = deps.channels.get(channelId);
@@ -883,7 +905,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     if (channel.type !== 'dm' || channel.botSlug === undefined) {
       return invalidInput('Memory is available only in a PersonaBot DM');
     }
-    if (deps.registry.get(channel.botSlug) === undefined) return unknownBot(channel.botSlug);
+    if (
+      (historical
+        ? deps.registry.getHistorical(channel.botSlug)
+        : deps.registry.get(channel.botSlug)) === undefined
+    )
+      return unknownBot(channel.botSlug);
     return { botSlug: channel.botSlug };
   };
   const memoryCall = <T>(operation: () => T): BridgeResult<T> => {
@@ -946,6 +973,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .safeParse(payload);
       if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
       return messagingCall((service) => service.channelBridges(input.data.channelId));
+    },
+    channelIngests(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall(async (service) => service.inbound.ingests(input.data.channelId));
+    },
+    channelIngest(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: conversationIngestInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success)
+        return Promise.resolve(invalidInput('Invalid external conversation command'));
+      return messagingCall(async (service) => {
+        await service.inbound.ingest(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
     },
     channelBridge(payload) {
       const input = z
@@ -1106,7 +1153,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
-                newConversations: z.enum(['auto', 'ask']).optional(),
+                newConversations: z.enum(['auto', 'ask', 'inherit']).optional(),
               })
               .strict(),
             z
@@ -1476,6 +1523,57 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
+    deletionPreview(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { preview: deps.deletions.preview(slug) } };
+      } catch (error) {
+        return invalidInput(
+          error instanceof Error ? error.message : 'Deletion preview unavailable',
+        );
+      }
+    },
+    async deletionConfirm(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      if (
+        slug === undefined ||
+        typeof source['token'] !== 'string' ||
+        typeof source['eraseMemory'] !== 'boolean'
+      )
+        return invalidInput('Explicit deletion scope is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        const result = deps.deletions.confirm(slug, source['token'], source['eraseMemory']);
+        deps.computerAccess?.changed(slug);
+        deps.browserAccess?.changed(slug);
+        return { ok: true, value: { deletion: await result } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Deletion unavailable');
+      }
+    },
+    async deletionRetry(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { deletion: await deps.deletions.retry(slug) } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Deletion retry unavailable');
+      }
+    },
+    deletionMemoryFolder(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { target: deps.deletions.folder(slug) } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Memory folder unavailable');
+      }
+    },
     async modelPlanSet(payload) {
       if (deps.modelCatalog === undefined) return unavailable();
       const source = asObject(payload);
@@ -1519,7 +1617,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     list(payload) {
       const query = asQuery(payload)?.trim().toLowerCase();
       const bots = deps.registry
-        .list()
+        .listHistorical()
         .filter((record) => {
           if (query === undefined || query.length === 0) return true;
           const roles = record.roles ?? (record.tag === undefined ? [] : [record.tag]);
@@ -1528,7 +1626,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             roles.some((role) => role.toLowerCase().includes(query))
           );
         })
-        .map((record) => summarize(record, deps.states.snapshot(record.slug)));
+        .map((record) => ({
+          ...summarize(record, deps.states.snapshot(record.slug)),
+          ...(deps.registry.get(record.slug) === undefined ? { deleted: true, paused: true } : {}),
+        }));
       return { ok: true, value: { bots } };
     },
     channelActivityToday() {
@@ -2617,7 +2718,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (
         channel.type === 'dm' &&
         channel.botSlug !== undefined &&
-        deps.registry.get(channel.botSlug)?.paused === true
+        ((deps.registry.getHistorical(channel.botSlug) !== undefined &&
+          deps.registry.get(channel.botSlug) === undefined) ||
+          deps.registry.get(channel.botSlug)?.paused === true)
       ) {
         return dmAdmissionFailure(channelId, channel.botSlug, 'archived-bot');
       }
@@ -2678,7 +2781,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const source = asObject(payload);
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const limit = source['limit'];
       const cursor = source['cursor'];
       const state = source['state'];
@@ -3094,7 +3197,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     assignments(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       return {
         ok: true,
         value: { assignments: deps.runtime?.listAssignments(slug) ?? [] },
@@ -3106,7 +3209,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const sessionId = asNonBlank(source, 'sessionId');
       if (slug === undefined) return invalidInput('slug is required');
       if (sessionId === undefined) return invalidInput('sessionId is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const assignment = deps.runtime?.getAssignment(slug, sessionId);
       if (assignment === undefined) return unknownAssignment(sessionId);
       return { ok: true, value: { assignment } };
@@ -3384,7 +3487,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     sessions(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const assignments = new Map(
         (deps.runtime?.listAssignments(slug) ?? []).map((assignment) => [
           assignment.sessionId,
@@ -3621,7 +3724,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               const bot = deps.registry.get(row.slug);
               return {
                 ...row,
-                displayName: bot?.displayName ?? row.slug,
+                displayName: deps.registry.getHistorical(row.slug)?.displayName ?? row.slug,
                 current: bot !== undefined,
               };
             }),
@@ -3637,7 +3740,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
     },
     profileUsage(payload) {
-      const scope = dmMemory(payload);
+      const scope = dmMemory(payload, true);
       if (!('botSlug' in scope)) return scope;
       const parsed = usageFilterSchema.safeParse(asObject(payload)['filter']);
       if (!parsed.success || parsed.data.end > (localDay(new Date().toISOString()) ?? ''))

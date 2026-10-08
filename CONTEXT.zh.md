@@ -62,6 +62,14 @@ _避免使用_：Soul、Bot type、mode、skin
 保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
 _避免使用_：Soul、pose、mood、skin
 
+**Window Companion**：
+窗口伙伴：由 Human 选择的一种 Binding，使某个 PersonaBot 的 Avatar 在 Harness 窗口内跨页面保留，并呈现选定的活动与消息。它仍是同一个 PersonaBot，独立于 Channel 置顶和当前打开的会话。
+_避免使用_：desktop pet、Channel pin、另一个 bot
+
+**Companion Visibility**：
+伙伴可见范围：Human 为窗口伙伴选择的、可呈现该 PersonaBot 发言的 Channel 范围：Human 与该 PersonaBot 的 DM、双方都参与的 Channel，或该 PersonaBot 加入的全部 Channel。它独立于消息类型的播放开关，不改变 Channel 成员关系或执行权限。
+_避免使用_：Channel pin、Channel membership、Agent Scope
+
 **Model Preset**：
 模型预设。Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
 _避免使用_：DSH Agent preset、SoulSnapshot
@@ -435,6 +443,10 @@ _避免使用_：default folder、inbox、fixed bottom bucket
 **Bridge**：
 从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
 _避免使用_：integration、adapter、裸用 connector
+
+**Conversation ingest**：
+外部会话接入。由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 PersonaBot 默认只获得「仅作上下文」的 Admission；接入的唤醒设置可改为攒够条数后唤醒或逐条唤醒，成员在该 Channel 中的唤醒策略优先。它列在「外部连接器」中，显示为外部会话；它不给任何 PersonaBot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
+_避免使用_：sync、mirror、用 Bridge 指代这条记录
 
 **App**：
 UI 上叫「应用」：一个已认证 Provider account 的名称，例如 Lark 应用、Slack 应用、Discord bot 或已配对的微信 Bot。一个应用最多绑定到一个 PersonaBot；一个 PersonaBot 可以绑定多个应用，包括同一平台的多个应用。「设置 → IM 应用」列出每个应用及使用它的 Bot。
