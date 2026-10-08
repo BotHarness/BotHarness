@@ -343,6 +343,18 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 [查看浅色恢复截图](/guides/lark/approvals/recovery-light.jpg)。测试授权撤销后，本机 Host 在禁用 IM Provider 的状态下重启：目的地为「关闭自动通知」，旧请求「已失效」，本机身份暂不可用。这张截图不证明生产连接状态；恢复后的生产 Discord／Lark 连接已另行核验。新测试不能使用旧卡片。
 
+## 接收与回答反馈（候选）
+
+[#1040](https://github.com/BotHarness/BotHarness/issues/1040) 候选在**原始入站消息**上增加可选反馈：Source Event 与 Inbox Admission 持久提交后尝试原生 `GLANCE`；只有该来源的明确回复获外部 Provider 接受后才尝试 `DONE`。Human 已选择这两个官方类型，实际样式仍需新的 QA 窗口确认。表情不表示 Human 已读。
+
+未提及 Bot 的普通群消息、待允许请求及被屏蔽会话没有 Admission 反馈。静音仍会静默接收，因此可能出现 `GLANCE`；明确回复获接受后可以出现 `DONE`。静默结束、等待澄清、委派完成、失败或结果未知的发送，以及无关主动输出均不表示已回答。
+
+此功能需要可选 checked Provider 的 `reactionVersion: 1`／`reaction-write-checked` 能力；旧 Provider 仍可正常收发，反馈能力显示不可用。已验证 Provider pin 保持原样。[官方添加表情 API](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/create) 要求表情写入权限或既有更广消息权限，并要求应用可访问来源会话。权限不足需维护者审查；候选不会自行扩大应用权限或订阅 reaction 事件。[官方表情类型](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/emojis-introduce)可供核对。
+
+反馈独立运行，限时四秒并限制并发。权限失败、来源删除或传输不可用不会阻塞 Inbox 接收、模型工作或回复。attempt 持久保留且不自动重试，包括重启／重连；后来启用权限也不会补发历史表情。已认证的 `messagingSnapshot` 管理 API 暴露 `reactionSupported` 和近期 `feedback` 状态：`attempted`、`accepted`、`unavailable`、`failed`、`unknown`。Web 的现有 Lark 身份编辑窗口显示反馈能力与最近五条来源的尝试状态；刷新外部身份可更新。中断的 `attempted` 或 `unknown` 不是成功。
+
+准备、用例及恢复见[精确候选 QA 手册](agents/qa-lark-feedback.md)。真实 Lark 截图需在新授权窗口采集；上方旧引导截图不是反馈证据。
+
 ## Channel 历史中的图片
 
 在支持图片的 #1021 候选版本中，已授权的 Lark 图片或受支持的图文消息会显示在原 Channel 气泡内。上方的来源名称仍可打开来源详情。图片进入可见区域时加载；点击图片可放大，加载失败后可点击「重试」。文字和多张图片按原生顺序保留在一条消息中。

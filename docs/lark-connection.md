@@ -343,6 +343,18 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 
 [Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
 
+## Receipt and answer feedback (candidate)
+
+The [#1040](https://github.com/BotHarness/BotHarness/issues/1040) candidate adds optional feedback on the **original incoming message**. After its Source Event and Inbox Admission are durably committed, BotHarness attempts native `GLANCE`. Only after that source's explicit reply is accepted by the external Provider does it attempt native `DONE`. The Human selected these two official types; their actual appearance still needs the new QA window. Neither reaction proves that a Human read the message.
+
+Ordinary unmentioned group traffic, held requests and blocked conversations receive no Admission feedback. Mute still admits silently and may show `GLANCE`; an explicit accepted reply may later show `DONE`. Silence, waiting for clarification, delegation completion, failed or unknown sends and unrelated proactive output do not qualify as an answer.
+
+This requires the optional checked `reactionVersion: 1` / `reaction-write-checked` Provider capability. An older Provider remains usable for normal messaging and reports feedback unavailable. The qualified Provider pin is unchanged. The [official create-reaction API](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/create) requires reaction write permission or an existing broader message permission, plus access to the source conversation. A maintainer must review any missing permission; this candidate does not expand app scopes or subscribe to reaction events automatically. See the [official reaction types](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/emojis-introduce).
+
+Feedback runs separately with a four-second deadline and bounded concurrency. Permission failures, missing/deleted sources and unavailable transport do not block Inbox receipt, model work or replies. Attempts are retained without automatic retry, including after restart or reconnect; enabling a permission later does not replay historical messages. The authenticated `messagingSnapshot` management API exposes `reactionSupported` and recent `feedback` attempt states: `attempted`, `accepted`, `unavailable`, `failed` or `unknown`. In Web, open the existing Lark identity editor to inspect feedback capability and the five most recent source attempts; refresh external identities to update them. An interrupted `attempted` or `unknown` record is not success.
+
+Use the [exact-candidate QA runbook](agents/qa-lark-feedback.md) for preparation, test cases and recovery. Its pending real Lark captures must be collected in a newly authorized window; older guide screenshots above are not feedback evidence.
+
 ## Images in Channel history
 
 In the image-capable #1021 candidate, an authorized Lark image or supported image-bearing post appears inside its original Channel bubble. The source name above it still opens source details. Images load when visible; select an image to enlarge it, and use **Retry** after a failed load. Text and multiple images stay in their native order in one message.
