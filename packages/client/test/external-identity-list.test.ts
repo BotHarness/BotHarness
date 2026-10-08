@@ -75,6 +75,7 @@ it('edits WeChat typing in the current identity modal and keeps native request a
         createElement(ExternalIdentityList, {
           snapshot: { accounts: [], identities: [identity], grants: [], intents: [] },
           t: zhTranslate,
+          refresh: vi.fn(async () => undefined),
           mutate,
           conversation: vi.fn(),
           rules: vi.fn(),
@@ -106,6 +107,24 @@ it('edits WeChat typing in the current identity modal and keeps native request a
         typingEnabled: false,
         newConversations: 'inherit',
       }),
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[title="编辑身份：QA WeChat"]')!.click(),
+    );
+    await chooseOption(zhTranslate('defaults.typingOrigin'), 'inherit', container);
+    expect(
+      container.querySelector(`[aria-label="${zhTranslate('identity.typing.label')}"]`),
+    ).toBeNull();
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      zhTranslate('defaults.typingInheritHint'),
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((b) => b.textContent === '保存身份')!
+        .click(),
+    );
+    expect(mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'wechat', inheritTyping: true }),
     );
   } finally {
     await act(async () => root.unmount());
@@ -149,6 +168,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
         createElement(ExternalIdentityList, {
           snapshot,
           t: zhTranslate,
+          refresh: vi.fn(async () => undefined),
           mutate,
           conversation: vi.fn(),
           rules: vi.fn(),
@@ -259,6 +279,7 @@ it('Bind app shows real readiness after the commit and the app row lists its con
       createElement(ExternalIdentityList, {
         snapshot,
         t: zhTranslate,
+        refresh: vi.fn(async () => undefined),
         mutate,
         conversation: vi.fn(),
         rules: vi.fn(),
@@ -339,7 +360,7 @@ it('Bind app leaves out this Bot’s own apps, disables the ones another Bot use
   const snapshot: MessagingSnapshot = {
     accounts: [
       app('mine', 'ada'),
-      app('theirs', 'bea'),
+      { ...app('theirs', 'bea'), unsupported: 'checked-send' as const },
       { ...app('old'), unsupported: 'checked-send' as const },
       app('free'),
     ],
@@ -373,6 +394,7 @@ it('Bind app leaves out this Bot’s own apps, disables the ones another Bot use
         createElement(ExternalIdentityList, {
           snapshot,
           t: zhTranslate,
+          refresh: vi.fn(async () => undefined),
           mutate: vi.fn(),
           conversation: vi.fn(),
           rules: vi.fn(),
@@ -389,7 +411,8 @@ it('Bind app leaves out this Bot’s own apps, disables the ones another Bot use
     expect(options.map((o) => [o.dataset.value, o.disabled, o.textContent])).toEqual([
       ['dsh-im/feishu:free', false, expect.stringContaining('App free')],
       ['dsh-im/feishu:old', true, expect.stringContaining('需要更新 IM 插件')],
-      ['dsh-im/feishu:theirs', true, expect.stringContaining('已被 Bea 使用')],
+      ['dsh-im/feishu:theirs', true, expect.stringContaining('已绑定其他 Bot：Bea')],
+      [expect.any(String), false, '添加新应用'],
     ]);
   } finally {
     await act(async () => root.unmount());

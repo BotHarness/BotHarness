@@ -1,4 +1,11 @@
 import type { HttpsFallback } from '../memory/clone.js';
+import {
+  ContentPurgeError,
+  type ContentPurge,
+  type ChannelHistoryItem,
+  type PurgeSource,
+  type PurgePreview,
+} from '../purge/contracts.js';
 import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
@@ -392,6 +399,14 @@ export interface BridgeMethods {
   channelGroupWakePolicies(payload: unknown): BridgeResult<{ members: GroupMemberWakePolicy[] }>;
   channelGroupWakeSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
+  channelHistory(payload: unknown): BridgeResult<{ channels: ChannelHistoryItem[] }>;
+  channelHistorySources(
+    payload: unknown,
+  ): BridgeResult<{ sources: PurgeSource[]; before?: string }>;
+  channelPurgePreview(payload: unknown): BridgeResult<PurgePreview>;
+  channelPurgeConfirm(
+    payload: unknown,
+  ): BridgeResult<{ accepted: number; cleanupPending?: number }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
@@ -501,6 +516,7 @@ export interface BridgeMethodsDeps {
   warn?: (message: string) => void;
   registry: PersonaBotRegistry;
   deletions?: PersonaBotDeletions;
+  contentPurge?: ContentPurge;
   attachments?: AttachmentStore;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
@@ -1153,6 +1169,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
                 typingEnabled: z.boolean().optional(),
+                inheritTyping: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
                 newConversations: z.enum(['auto', 'ask', 'inherit']).optional(),
               })
@@ -2260,17 +2277,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
               ...(deps.externalMessaging
                 ? {
-                    externals: messagingDefaultsPlatform.options.map((platform) => ({
-                      platform,
-                      ...externalMemberWake(
-                        channel,
-                        botSlug,
-                        deps.sourcePolicy
-                          ?.list(botSlug)
-                          .find((p) => p.sourceClass === 'group-ordinary'),
-                        deps.externalMessaging!.defaults(platform),
-                      ),
-                    })),
+                    externals: messagingDefaultsPlatform.options
+                      .filter((platform) => platform !== 'weixin')
+                      .map((platform) => ({
+                        platform,
+                        ...externalMemberWake(
+                          channel,
+                          botSlug,
+                          deps.sourcePolicy
+                            ?.list(botSlug)
+                            .find((p) => p.sourceClass === 'group-ordinary'),
+                          deps.externalMessaging!.defaults(platform),
+                        ),
+                      })),
                     external: {
                       platform: 'feishu' as const,
                       ...externalMemberWake(
@@ -2338,11 +2357,105 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelHistory() {
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return { ok: true, value: { channels: deps.contentPurge.history() } };
+      } catch {
+        return unavailable();
+      }
+    },
+    channelHistorySources(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          before: z.string().regex(/^\d+$/u).optional(),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid history scope');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.sources(input.data.channelId, input.data.before),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError ? error.message : 'Channel history is unavailable',
+          },
+        };
+      }
+    },
+    channelPurgePreview(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          sourceEventIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid purge scope');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.preview(input.data.channelId, input.data.sourceEventIds),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError ? error.message : 'Purge preview is unavailable',
+          },
+        };
+      }
+    },
+    channelPurgeConfirm(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          sourceEventIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+          token: z.string().min(1).max(512),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid purge confirmation');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.confirm(
+            input.data.channelId,
+            input.data.sourceEventIds,
+            input.data.token,
+          ),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError
+                ? error.message
+                : 'Purge could not complete; inspect recovery diagnostics',
+          },
+        };
+      }
+    },
     channelGroupDelete(payload) {
       const channelId = asNonBlank(asObject(payload), 'channelId');
       if (channelId === undefined) return invalidInput('channelId is required');
       try {
         deps.channels.deleteGroup(channelId);
+        deps.externalMessaging?.inbound.endChannel(channelId);
         return { ok: true, value: { deleted: true } };
       } catch (error) {
         return invalidInput(String(error));

@@ -1,4 +1,6 @@
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
+import { mountContentPurge } from './purge/owner.js';
+import type { ContentPurge } from './purge/contracts.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -30,6 +32,7 @@ import {
 import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
+import { mountClientDiagnostics } from './diagnostics/client-diagnostics.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import {
   createReleaseService,
@@ -216,6 +219,7 @@ export interface BotHarnessCore {
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   deletions: PersonaBotDeletions;
+  contentPurge: ContentPurge;
   modelPresets: ModelPresetStore;
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
@@ -365,11 +369,39 @@ export function createCore(
     migrateLegacySouls(registry, options.warn);
   }
   const states = createBotStateTracker();
-  let runtime: BotRuntime | undefined;
-  let companions: CompanionFeed | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
+  const contentPurge = mountContentPurge({
+    dshHome,
+    database: operationalDatabase,
+    attachments,
+    derivatives: (ids, botSlugs) => {
+      const references = memory.sourceReferences(ids);
+      const slugs = [...new Set([...botSlugs, ...references.map((ref) => ref.botSlug)])].sort();
+      return [
+        ...references.map((ref) => ({
+          kind: 'memory' as const,
+          botSlug: ref.botSlug,
+          location: ref.memoryDir ?? '',
+          reference: ref.sha,
+          tracking: ref.available ? ('recorded' as const) : ('unavailable' as const),
+        })),
+        ...slugs.flatMap((slug) =>
+          grants.list(slug).map((grant) => ({
+            kind: 'workspace' as const,
+            botSlug: slug,
+            location: grant.workspacePath,
+            reference: grant.id,
+            tracking: 'possible' as const,
+          })),
+        ),
+      ];
+    },
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  let runtime: BotRuntime | undefined;
+  let companions: CompanionFeed | undefined;
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
@@ -465,7 +497,12 @@ export function createCore(
       );
     refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
-      if (topics.some((topic) => ['bindings', 'grants', 'bot-schedules'].includes(topic)))
+      if (topics.includes('content-purge')) live?.publishContentPurged();
+      if (
+        topics.some((topic) =>
+          ['bindings', 'grants', 'bot-schedules', 'content-purge'].includes(topic),
+        )
+      )
         live?.publishRosterCommitted();
       if (
         topics.some((topic) =>
@@ -475,14 +512,18 @@ export function createCore(
         refreshDurableAttention();
     });
   }
-  live = createChannelLiveHub(channels, {
-    snapshot: () =>
-      personaBotActivitySnapshot(
-        registry.list().map((bot) => bot.slug),
-        states,
-      ),
-    onChange: (changed) => states.onActivity(() => changed()),
-  });
+  live = createChannelLiveHub(
+    channels,
+    {
+      snapshot: () =>
+        personaBotActivitySnapshot(
+          registry.list().map((bot) => bot.slug),
+          states,
+        ),
+      onChange: (changed) => states.onActivity(() => changed()),
+    },
+    () => contentPurge.redactions(),
+  );
   if (operationalDatabase.mode === 'ready')
     for (const bot of registry.list())
       if (bot.paused === true) channels.cancelInvitationsForBot(bot.slug);
@@ -661,6 +702,7 @@ export function createCore(
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
+    contentPurge,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -709,6 +751,7 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  mountClientDiagnostics(ctx, dshHome);
   const release = installedRelease(import.meta.url);
   const telemetryChoice = telemetryDecision(config.telemetry);
   const telemetryDir = join(dshHome, 'botharness');
@@ -859,6 +902,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  ctx.effect(() => () => core.contentPurge.close(), 'botharness: purge ledger');
   if (core.operationalDatabase.mode === 'ready' && telemetryState.lockedBy === undefined) {
     const usageDatabase = attachOperationalModule(core.operationalDatabase, 'telemetry');
     ctx.effect(
@@ -1172,6 +1216,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     warn: (message) => ctx.logger.warn(message),
     registry: core.registry,
     deletions: core.deletions,
+    contentPurge: core.contentPurge,
     modelPresets: core.modelPresets,
     modelCatalog,
     modelReadiness,

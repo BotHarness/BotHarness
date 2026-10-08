@@ -1,5 +1,10 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {
+  ChannelHistoryItem,
+  PurgeSource,
+  PurgePreview,
+} from '../../../core/src/purge/contracts.js';
+import type {
   PersonaBotDeletionPreview,
   PersonaBotDeletion,
 } from '../../../core/src/bots/deletion.js';
@@ -566,6 +571,17 @@ export interface BridgeActions {
     },
   ): Promise<boolean>;
   deleteGroupChannel(channelId: string): Promise<boolean>;
+  channelHistory(): Promise<ChannelHistoryItem[]>;
+  channelHistorySources(
+    channelId: string,
+    before?: string,
+  ): Promise<{ sources: PurgeSource[]; before?: string }>;
+  channelPurgePreview(channelId: string, sourceEventIds: string[]): Promise<PurgePreview>;
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): Promise<{ accepted: number; cleanupPending?: number }>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -2263,6 +2279,29 @@ export function createActions(
         console.warn('botharness: Group wake policy update failed', error);
         return false;
       }
+    },
+    async channelHistory() {
+      const result = await call('channelHistory', {});
+      if (!result.ok) throw new Error(result.error.message);
+      return (result.value as { channels: ChannelHistoryItem[] }).channels;
+    },
+    async channelHistorySources(channelId, before) {
+      const result = await call('channelHistorySources', {
+        channelId,
+        ...(before === undefined ? {} : { before }),
+      });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as { sources: PurgeSource[]; before?: string };
+    },
+    async channelPurgePreview(channelId, sourceEventIds) {
+      const result = await call('channelPurgePreview', { channelId, sourceEventIds });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as PurgePreview;
+    },
+    async channelPurgeConfirm(channelId, sourceEventIds, token) {
+      const result = await call('channelPurgeConfirm', { channelId, sourceEventIds, token });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as { accepted: number; cleanupPending?: number };
     },
     async deleteGroupChannel(channelId) {
       try {

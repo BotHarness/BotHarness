@@ -7,6 +7,7 @@ import type {
   ThreadReceptionView,
 } from '../messaging/thread-policy.js';
 import type { GroupReceptionInput, GroupReceptionPolicy } from '../messaging/group-policy.js';
+import { requireSourceContent, requireSourceEffects } from '../purge/fence.js';
 import {
   OriginalAttachmentAccess,
   type OriginalAttachmentInput,
@@ -197,6 +198,7 @@ export interface OrchestratorAssignmentAccess {
 }
 
 export interface OrchestratorAgentRun {
+  requireContent?(): void;
   sessionId: string;
   resume: boolean;
   bot: PersonaBotRecord;
@@ -275,6 +277,7 @@ export interface OrchestratorAgentRun {
 }
 
 export interface AssignmentAgentRun {
+  requireContent?(): void;
   sessionId: string;
   bot: PersonaBotRecord;
   purpose: string;
@@ -888,6 +891,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #activeTurns = new Map<string, Promise<void>>();
   readonly #typingTurns = new Map<string, MessagingProcessing>();
   readonly #typingAssignments = new Map<string, MessagingProcessing>();
+  readonly #turnSources = new Map<string, Set<string>>();
   readonly #activeMemoryEvents = new Map<
     string,
     { eventIds: string[]; preserveObservation: boolean }
@@ -2345,9 +2349,11 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #markAdmissionsSideEffect(botSlug: string, sourceEventIds: string[]): void {
     if (sourceEventIds.length === 0) return;
+    for (const id of sourceEventIds) this.#turnSources.get(botSlug)?.add(id);
     this.#database.transaction(
       (database) => {
-        for (const id of sourceEventIds)
+        for (const id of sourceEventIds) {
+          requireSourceEffects(database, id, botSlug);
           database
             .prepare(`
           UPDATE inbox_admissions
@@ -2355,6 +2361,7 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
             .run(this.#now().toISOString(), id, botSlug);
+        }
       },
       ['bot-inbox'],
     );
@@ -2729,6 +2736,8 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    const turnSources = new Set([sourceEventId, ...wakeEventIds, ...reportEventIds]);
+    this.#turnSources.set(bot.slug, turnSources);
     const typingSources = [sourceEventId, ...inboxUnits.map((unit) => unit.sourceEventId)];
     for (const unit of inboxUnits) {
       if (!unit.assignmentSessionId) continue;
@@ -2755,6 +2764,10 @@ class BotRuntimeImplementation implements BotRuntime {
     let preserveObservation = false;
     const importedFiles = new Map<string, ChannelAttachmentRef>();
     const markSideEffect = (): void => {
+      this.#database.read((db) => {
+        for (const id of new Set([...turnSources, ...readAdmissions]))
+          requireSourceEffects(db, id, bot.slug);
+      });
       this.#markReportSideEffects([...reportEventIds, ...memoryEventIds], bot.slug);
       markAttemptSideEffect();
     };
@@ -2813,6 +2826,11 @@ class BotRuntimeImplementation implements BotRuntime {
       processing = this.#externalMessaging?.beginProcessing(bot.slug, typingSources);
       if (processing) this.#typingTurns.set(bot.slug, processing);
       await this.#agents.runOrchestrator({
+        requireContent: () =>
+          this.#database.read((db) => {
+            for (const id of new Set([...turnSources, ...readAdmissions]))
+              requireSourceEffects(db, id, bot.slug);
+          }),
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
         bot,
@@ -3108,6 +3126,7 @@ class BotRuntimeImplementation implements BotRuntime {
     } finally {
       await processing?.stop();
       if (this.#typingTurns.get(bot.slug) === processing) this.#typingTurns.delete(bot.slug);
+      if (this.#turnSources.get(bot.slug) === turnSources) this.#turnSources.delete(bot.slug);
       if (observeMemory) this.#activeMemoryEvents.delete(bot.slug);
       this.#originalAttachments.clear(orchestrator.sessionId);
     }
@@ -3166,6 +3185,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const markSideEffect = markAttemptSideEffect;
     return {
       create: (input) => {
+        this.#database.read((db) => requireSourceEffects(db, sourceEventId, bot.slug));
         const outcome = this.#createOrReuseAssignment(bot, sourceEventId, input);
         if (outcome.outcome === 'created' || outcome.outcome === 'reused') markSideEffect();
         return outcome;
@@ -3190,6 +3210,7 @@ class BotRuntimeImplementation implements BotRuntime {
         return this.#readAssignmentReportPage(sessionId, acceptedSummary, offset);
       },
       request: (input) => {
+        this.#database.read((db) => requireSourceEffects(db, sourceEventId, bot.slug));
         const outcome = this.#requestAssignment(bot, input);
         if (outcome.delivery !== 'capacity') markSideEffect();
         return outcome;
@@ -3312,6 +3333,7 @@ class BotRuntimeImplementation implements BotRuntime {
   #markSideEffectStarted(sourceEventId: string): void {
     this.#database.transaction(
       (database) => {
+        requireSourceContent(database, sourceEventId);
         database
           .prepare(
             `UPDATE source_events
@@ -3492,6 +3514,11 @@ class BotRuntimeImplementation implements BotRuntime {
     readAdmissions: Set<string>,
     onImport?: (ref: ChannelAttachmentRef) => void,
   ): OrchestratorChannelAccess {
+    const authorize = beforeSend;
+    beforeSend = () => {
+      this.#database.read((db) => requireSourceEffects(db, sourceEventId, botSlug));
+      authorize();
+    };
     const resolve = (requested?: string): ChannelRecord => {
       const id = requested ?? defaultChannelId;
       if (id === undefined)
@@ -4650,6 +4677,8 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     this.#trackAssignmentRun(sessionId, () =>
       this.#agents.runAssignment({
+        requireContent: () =>
+          this.#database.read((db) => requireSourceEffects(db, sourceEventId, bot.slug)),
         sessionId,
         bot,
         purpose,
@@ -4733,6 +4762,8 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#setActivity(input.sessionId, 'working');
     }
     const run: AssignmentAgentRun = {
+      requireContent: () =>
+        this.#database.read((db) => requireSourceEffects(db, row.source_event_id, bot.slug)),
       sessionId: input.sessionId,
       bot,
       purpose: text,
@@ -5196,6 +5227,8 @@ class BotRuntimeImplementation implements BotRuntime {
     input: AssignmentReportInput,
     execution?: { turn: number },
   ): Promise<AssignmentReport> {
+    const origin = this.#assignmentRow(botSlug, sessionId)?.source_event_id;
+    if (origin) this.#database.read((db) => requireSourceContent(db, origin));
     if (execution !== undefined && (!Number.isSafeInteger(execution.turn) || execution.turn < 1))
       throw new Error('Invalid native Assignment Turn');
     const content = requireNonBlank(input.summary, 'Assignment report summary');

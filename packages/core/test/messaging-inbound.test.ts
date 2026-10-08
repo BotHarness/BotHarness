@@ -3060,6 +3060,153 @@ async function addRoute(
     delivery,
   });
 }
+it('ends only one local Channel route and purges its shared external source without provider replay refill', async () => {
+  const fx = await fixture();
+  const first = createRouteGroup(fx, 'Ended route');
+  const second = createRouteGroup(fx, 'Retained route');
+  await addRoute(fx, first);
+  await addRoute(fx, second);
+  const dm = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
+  await addRoute(fx, dm.id, 'inbox');
+  const message = event({ at: new Date(Date.now() + 100).toISOString() });
+  await fx.receive(message);
+  await fx.idle();
+  const methods = createBridgeMethods({ ...fx.core });
+  expect(methods.channelGroupDelete({ channelId: first }).ok).toBe(true);
+  expect(
+    (await fx.core.externalMessaging.snapshot('ada')).grants[0]?.bridgeRoutes?.map(
+      (route) => route.channelId,
+    ),
+  ).toEqual([second, null]);
+  expect(fx.core.channels.readMessages(second)[0]?.body).toBe(message.text);
+  const source = fx.core.contentPurge.sources(first).sources[0]!;
+  expect(source.refusal).toBeUndefined();
+  const preview = fx.core.contentPurge.preview(first, [source.sourceEventId]);
+  expect(preview.placements).toHaveLength(2);
+  expect(preview.admissions).toHaveLength(1);
+  fx.core.contentPurge.confirm(first, preview.sourceEventIds, preview.token);
+  expect(fx.core.channels.readMessages(second)[0]?.body).toBe('');
+  expect(() => fx.core.externalMessaging.inbound.read('ada', source.sourceEventId)).toThrow(
+    'content-purged',
+  );
+  const count = fx.runs.length;
+  await fx.receive(message).catch(() => undefined);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(count);
+  expect(fx.query('SELECT body FROM source_events')).toEqual([{ body: '' }]);
+  await fx.restart();
+  expect(fx.core.contentPurge.sources(first).sources[0]?.body).toBe('');
+});
+
+it('keeps an already issued reply in flight and settles the actual receipt after purge without restoring text', async () => {
+  const fx = await fixture();
+  const channel = createRouteGroup(fx, 'Issued reply purge');
+  await addRoute(fx, channel);
+  await fx.receive(event({ at: new Date(Date.now() + 100).toISOString() }));
+  await fx.idle();
+  const sourceId = String(
+    fx.query('SELECT source_event_id FROM source_events')[0]!.source_event_id,
+  );
+  let finish!: () => void;
+  fx.setReply(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ sent: true });
+      }),
+  );
+  const sending = fx.core.externalMessaging.reply('ada', sourceId, 'synthetic outgoing body');
+  await expect.poll(() => fx.replies.length).toBe(1);
+  expect(createBridgeMethods({ ...fx.core }).channelGroupDelete({ channelId: channel }).ok).toBe(
+    true,
+  );
+  const preview = fx.core.contentPurge.preview(channel, [sourceId]);
+  expect(preview.effects).toMatchObject([{ kind: 'outbox', state: 'in-flight' }]);
+  fx.core.contentPurge.confirm(channel, preview.sourceEventIds, preview.token);
+  expect(fx.core.externalMessaging.history('ada')[0]).toMatchObject({
+    state: 'in-flight',
+    text: '',
+  });
+  finish();
+  expect(await sending).toMatchObject({ state: 'provider-accepted', text: '' });
+  await expect(
+    fx.core.externalMessaging.reply('ada', sourceId, 'stale new effect'),
+  ).rejects.toThrow();
+  expect(fx.replies).toHaveLength(1);
+});
+
+it('fences running Bot admissions and retained tool callbacks after accepted source purge', async () => {
+  let resume!: () => void;
+  let active: OrchestratorAgentRun | undefined;
+  const paused = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  const fx = await fixture({
+    onRun: async (run) => {
+      active = run;
+      await paused;
+    },
+  });
+  const channel = createRouteGroup(fx, 'Running admission purge');
+  const other = createRouteGroup(fx, 'Still joined');
+  await addRoute(fx, channel);
+  await addRoute(fx, other);
+  try {
+    await fx.receive(event({ at: new Date(Date.now() + 100).toISOString() }));
+    await expect.poll(() => active !== undefined).toBe(true);
+    expect(createBridgeMethods({ ...fx.core }).channelGroupDelete({ channelId: channel }).ok).toBe(
+      true,
+    );
+    const source = fx.core.contentPurge.sources(channel).sources[0]!;
+    const preview = fx.core.contentPurge.preview(channel, [source.sourceEventId]);
+    expect(preview.admissions).toMatchObject([{ state: 'running' }]);
+    fx.core.contentPurge.confirm(channel, preview.sourceEventIds, preview.token);
+    expect(() => active!.requireContent!()).toThrow();
+    await expect(
+      active!.channels.send({ channelId: other, body: 'stale outgoing body' }),
+    ).rejects.toThrow();
+    expect(
+      fx.core.channels
+        .readMessages(other)
+        .every((message) => message.body !== 'stale outgoing body'),
+    ).toBe(true);
+  } finally {
+    resume();
+    await fx.idle();
+  }
+});
+it('ends running Channel effects only after its last reception path ends while retaining history', async () => {
+  let resume!: () => void;
+  let active: OrchestratorAgentRun | undefined;
+  const paused = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  const fx = await fixture({
+    onRun: async (run) => {
+      active = run;
+      await paused;
+    },
+  });
+  const first = createRouteGroup(fx, 'First running route');
+  const second = createRouteGroup(fx, 'Last running route');
+  await addRoute(fx, first);
+  await addRoute(fx, second);
+  try {
+    await fx.receive(event({ at: new Date(Date.now() + 100).toISOString() }));
+    await expect.poll(() => active !== undefined).toBe(true);
+    const methods = createBridgeMethods({ ...fx.core });
+    expect(methods.channelGroupDelete({ channelId: first }).ok).toBe(true);
+    expect(() => active!.requireContent!()).not.toThrow();
+    expect(methods.channelGroupDelete({ channelId: second }).ok).toBe(true);
+    expect(() => active!.requireContent!()).toThrow('Channel has ended');
+    expect(fx.core.contentPurge.sources(first).sources[0]?.body).toBe(event().text);
+    expect(fx.query('SELECT attempt_state FROM inbox_admissions')[0]?.attempt_state).toBe(
+      'needs-repair',
+    );
+  } finally {
+    resume();
+    await fx.idle();
+  }
+});
 function createRouteGroup(
   fx: Awaited<ReturnType<typeof fixture>>,
   name: string,

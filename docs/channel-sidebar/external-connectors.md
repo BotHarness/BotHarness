@@ -33,7 +33,7 @@ Lark, Slack and Discord apps post to conversations directly, so they never need 
 
 ## Connect an external conversation to a group Channel
 
-A group Channel can take in everything said in an external group, the way a webhook feeds it. Open the group's detailed Profile, scroll to **External connectors** and click **Connect an external conversation**:
+A group Channel can take in everything said in an external group, the way a webhook feeds it. Open the group, expand **External connectors** in the Channel sidebar and click **Connect an external conversation**:
 
 1. Choose an **App**. Every app a member Bot has bound is listed, with the platform and the Bot that uses it.
 2. Choose a **Conversation**. The list shows the groups that app already knows, for example a group where someone has @mentioned it. If yours is missing, @ the app once in that group.
@@ -43,4 +43,4 @@ From then on every message from that group appears in the Channel. With **Contex
 
 The row shows **Waiting for the first message** until one arrives, then **Receiving** and the time of the last message. The app must receive ordinary group messages: Lark needs the `im:message.group_msg` scope. Use the Switch to pause, and **Delete** in the edit dialog to stop new messages; messages already in the Channel stay.
 
-A local Group still manages its connectors in the group’s detailed Profile. Platform setup: [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection), [personal WeChat](/docs/wechat-connection). [All sidebar features](/docs/channel-sidebar).
+In a local group the same **External connectors** entry lists the group's connectors; each row opens its edit dialog. Platform setup: [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection), [personal WeChat](/docs/wechat-connection). [All sidebar features](/docs/channel-sidebar).

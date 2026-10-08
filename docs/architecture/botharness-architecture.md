@@ -515,7 +515,19 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 [ADR-0130](../adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md) 与 #138 将 PersonaBot／Channel 的结束参与和物理内容清除分开。删除 PersonaBot 的确认框展示实际 Memory Repository 与依赖，提供“打开记忆文件夹”及默认不勾选的“同时删除记忆文件”；打开文件夹不改变勾选或确认状态。未勾选时保留记忆及 Git，勾选后也只能清除经 Host 重查、专属且归属明确的仓库。共享、路径变化或无法证明归属时不可清除；Workspace、原生 DSH Session、远端 Git、外部导出与备份不随之删除。普通删除先关闭执行／收件／授权入口，等待所拥有的 AgentHandle 执行树静止，再保留 deleted identity、历史 Session Ownership 和仍保留记忆的持久位置；它不同于可恢复归档。Channel 删除保留消息及因果归属，只结束其成员和路由，不删除外部会话或其他路由；Hidden Channel 仍可恢复。另行确认的 Content Purge 才清除选中的 Source Event 正文，附件需检查共享引用，并覆盖 legacy CAS 与当前真实文件绑定。
 
+现有 roster stream 在提交后和重连时投影不含正文的清除位置选择器。Client 清理当前和缓存会话、侧栏和 attention 摘要，拦截延迟响应回填，并显示清除标记。这些内存选择器来自 Host，不构成第二份持久权威。
+
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
+
+### Channel 内容清除运行路径（#897）
+
+Generation 70 的应用定义 `ContentPurge` Host owner 通过已有 Typert/API Gateway 提供已结束 Group 的只读历史、所选 Source Event 预览和单独确认；不注册模型 Tool。已结束 Group 的身份保持占用，同名新群聊不覆盖旧历史。本地和外部来源可以共享到仍活跃的会话，但全部位置在对应 revision 上均须仍在 Human 当前可读范围内。普通删除只结束所选 Channel 的路由／摄入，保留其他 Channel／Inbox 目标及外部会话。[ADR-0146](../adr/0146-content-purge-retains-file-selectors-and-settles-issued-effects.md) 记录文件、效果与恢复边界。 Memory 通过自己的查询和 retained／deleted 仓库定位提供已记录的来源衍生提交；Workspace Grant 提供可能的副本位置。这些引用参与确认前重验证，不写入清除账本，也不声称扫描过未追踪的文件或导出。
+
+独立 `botharness/purge/ledger.db` 由同一 Host 生命周期拥有，SQLite FULL 同步事务先接受无正文的事件身份、作者／时间／因果、Human 审计及托管文件选择器，再移除运行正文；该文件不属于 `botharness.db` 快照。最小墓碑及 placement 保留，secure-delete 后截断 WAL；应用失败关闭运行数据库进入 recovery，启动先应用事实再创建 Messaging Consumers。Attachment owner 重查全部保留来源、迁移／获取绑定和 Outbox 引用后，仅移除已审阅的独占当前文件和 legacy CAS；共享文件保留，受阻清理可见且重启继续。待投递意图脱敏并取消，已发出请求在活跃 Host 中按真实证据结算，冷中断保持结果未知。持久栅栏和原生 Tool Guard 拒绝重复回填、旧命令与新的内容依赖效果。
+
+`checkpoint()` 导出已验证事实；`withCheckpoint` 在同步或异步快照回调完整结束前持有清除屏障，未来 Profile Backup 在其更广的 Backup Barrier 内调用。冷 `restoring` 验证 v1／v2 包检查点，单调 union package／destination 事实并保留目标审计，再应用、开放 Messaging。新目标只可从已验证包初始化；已建立账本缺失、损坏／不支持的数据或 union 中缺少运行快照引用事实均关闭入口。v2 包含托管文件身份及外部／系统作者。此合同不提供完整备份 UI。
+
+预览列出所选来源、全部 placement／Admission、文件移除／保留及依赖效果；info 控件披露仍保留的 Assignment／其他因果来源正文、未改写的 Human Memory／Workspace／导出、原生 DSH Session 提示／结果、外部副本、Git 远程及离线备份。旧独立文件只执行其包含的检查点。[验收指南](../agents/qa-channel-purge.md) 覆盖真实 SQLite／文件恢复及 DSH 共享文件／中断清理。
 
 ### PersonaBot 删除运行路径（#896）
 
@@ -630,7 +642,7 @@ Messaging 的 bindings／grants 事务提交，以及进程内 Consumer lease �
 
 ### 共享普通消息的成员 Attention（#638）
 
-[ADR-0113](../adr/0113-shared-external-traffic-uses-member-channel-harvest.md) 将明确收件并首次放入 Group Channel 的普通外部来源，在同一 canonical 事务中按当前活跃成员各自的频道覆盖／Bot 默认策略建立 Admission。重投不会补发给后来加入的成员或重写策略快照；直接外部 @ 仍只走接收身份的既有提及路径。每成员使用既有 Channel count/time digest、有界最旧优先 harvest、安全 turn 排队和恢复；已放入 Group 的普通来源不再走身份专属外部 digest。接收 Bot 明确设置的话题 wake 覆盖保持独立分区，不影响其他成员。来源文本保留发送者、平台、外部消息 ID 和 Source Event；共享收件不授权借用身份。群 Profile 的成员提醒表读取 Host 的实际有效策略与继承来源，编辑沿用既有审计 owner；频道连接器仍只控制收件。无远端离线回填、新队列或共享 Inbox 存储。
+[ADR-0113](../adr/0113-shared-external-traffic-uses-member-channel-harvest.md) 将明确收件并首次放入 Group Channel 的普通外部来源，在同一 canonical 事务中按当前活跃成员各自的频道覆盖／Bot 默认策略建立 Admission。重投不会补发给后来加入的成员或重写策略快照；直接外部 @ 仍只走接收身份的既有提及路径。每成员使用既有 Channel count/time digest、有界最旧优先 harvest、安全 turn 排队和恢复；已放入 Group 的普通来源不再走身份专属外部 digest。接收 Bot 明确设置的话题 wake 覆盖保持独立分区，不影响其他成员。来源文本保留发送者、平台、外部消息 ID 和 Source Event；共享收件不授权借用身份。群频道侧栏的唤醒策略项按成员卡片读取 Host 的实际有效策略与继承来源，编辑沿用既有审计 owner；频道连接器仍只控制收件。无远端离线回填、新队列或共享 Inbox 存储。
 
 ## Human 群聊全部 Bot 提及（#542）
 
@@ -699,7 +711,9 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 
 [#910](https://github.com/BotHarness/BotHarness/issues/910) extends the canonical external-only report path to qualified paired-owner WeChat DMs ([ADR-0139](../adr/0139-wechat-external-reports-use-private-owner-context.md)). The Profile form and `bridge_post` share owned Outbox authority. The Provider explicitly negotiates receipt and final-fence support, keeps current owner context private with fingerprint/order/retention checks, and invokes the application's current Binding/Grant/Registration fence immediately before one native send. Genuine server IDs stay separate from client acknowledgements. Missing context and native rejection offer explicit fresh-message recovery; unknown outcomes never trigger automatic retry. No local DM mirror, new Inbox delivery, scheduler or standalone Provider Session is introduced.
 
-[#911](https://github.com/BotHarness/BotHarness/issues/911) adds a candidate process-local checked typing lease for the authorized WeChat owner DM ([ADR-0145](../adr/0145-wechat-typing-follows-owned-processing-leases.md)). Canonical Messaging resolves own source, Binding, Grant and Registration authority; actual Orchestrator/accepted steering and related Assignment work share one bounded native lifecycle. The Provider keeps tickets and continuations private, renews only under a current fence and cancels on the last processing owner or invalidation. Identity persistence stores only the preference; live activity resets on restart and never becomes a SessionEvent, Outbox delivery or read receipt. Native client visibility and packaged-product qualification remain pending on #911; global defaults/inheritance belong to #912.
+[#911](https://github.com/BotHarness/BotHarness/issues/911) qualifies a process-local checked typing lease for the authorized WeChat owner DM ([ADR-0145](../adr/0145-wechat-typing-follows-owned-processing-leases.md)). Canonical Messaging resolves own source, Binding, Grant and Registration authority; actual Orchestrator/accepted steering and related Assignment work share one bounded native lifecycle. The Provider keeps tickets and continuations private, renews only under a current fence and cancels on the last processing owner or invalidation. Identity persistence stores only the preference; live activity resets on restart and never becomes a SessionEvent, Outbox delivery or read receipt. Windows native visibility, stop and recovery passed Human QA on #911.
+
+[#912](https://github.com/BotHarness/BotHarness/issues/912) extends the existing immutable defaults owner to WeChat identity enablement and typing with independent inheritance markers ([ADR-0119](../adr/0119-external-platform-defaults-retain-explicit-inheritance.md)). Generation 69 preserves old choices as custom; new bindings inherit. Global typing changes invalidate only inherited live leases, and identity resume retains the existing receive-after fence. The owner-DM editor omits unsupported group/Thread controls; Channel connectors keep separate routing and member policies. No new authority or message store is introduced. Native #912 fresh-message QA remains pending.
 
 ### 窗口伙伴（#1138–#1142）
 
@@ -718,3 +732,7 @@ Avatar 为伙伴消费者提供可释放的锚点读取器：每次形象替换�
 Companion Feed 通过一条可释放的订阅直接观察已提交的 `bot-registry` 通知，独立于 Bot 模式。归档保留带标签的静止形象；规范的暂停／重新启用变化重置有界消息引用和来源检查点。过程生命周期标识随流恢复保留，让合并过的归档／重新启用变化仍可被 Client 识别，不新增耐久身份状态。确认删除通过已确认选择快照发送移除 ID；collection 只释放对应子项、偏好和卡片，旧 revision 不能恢复已删除项。当前 owner 的 attention 事实仅用于导航。上传图片保留原媒体与整体交互；不支持的 rig／schema 保留配方和带版本的保存快照，并明确说明动作限制。图片 owner 拒绝过期版本 URL，不以另一形象替换该版本。键盘焦点与 hover 同样展开阅读；菜单键／Shift+F10 打开原生菜单，Escape 返回焦点，关闭气泡选取存活控件。减少动态效果立即归位，离屏／隐藏停止采样，销毁释放 observer、帧及 morph／fade 动画；旧动画完成回调不能再排入动作。性能验收仍须真实多 Bot 帧、内存、资源测量及 Human 同意的预算。
 
 支持的像素伙伴通过 BotPixel 的可选 `mouthLayers` 公共合约预绘制 saved／closed／half-open／open 四层，普通头像与 Host 保存快照保持默认输出。`WindowCompanion` 从既有安全字素播放进度派生一份嘴型，不引入说话 Activity、第二个消息队列、计时器或耐久表情状态。生产 Avatar 仅在 companion surface 请求这些层，独立 `AvatarSpeech` 资源在既有 SVG 内做短透明度过渡，不重建人物或重启眨眼／转头；说话时暂时显露脸部，外层 Activity 和 attention 仍反映真实事实。标点闭嘴，播放结束、取消、归档、断线及销毁恢复保存表情；减少动态效果、隐藏与离屏由现有共享策略立即归静。多卡片选择第一条仍在逐字呈现的卡片驱动一套有界嘴型。上传图片、不支持的 family／版本保留原有降级，不拼接替代部件。该呈现不需要 TTS、音素、模型动作标记或 Tool 私有内容（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。
+
+### AX Client 启动证据
+
+应用定义的 Client 诊断 collector 扩展既有 ADR-0063／0064 开发者日志边界。在明确启用的 Host 中（隔离 AX launcher 只为自己的子进程启用），Host Cordis Fiber 通过原生 `webServer.tapIndex` 在 Client 导入前安装 observer，并在 `/api/botharness/client-diagnostics` 注册精确、经过认证的 Connection Fetch route。浏览器报告白名单错误／生命周期 code、顺序化文档 attempt、固定保留的首次失败与 shell 挂载记录及有界遗漏；Host 保留有界实时 read model，并将同一过程证据写入既有 `logs.db`。它不创建 SessionEvent、产品状态、额外 SSE 或操作权威。API 健康、已提交且可见的 shell 观测、新鲜度、真实浏览器 console／DOM 核验分别成立；未知、后台延后及失败证据不能隐式变成成功。见 [agent 核验流程](../dev/guides/client-startup-diagnostics.zh.md) 与 [#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)。
