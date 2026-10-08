@@ -247,6 +247,8 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  disableBot(botSlug: string): Promise<void>;
+  deletionDependencies(botSlug: string): { identities: string[]; grants: string[] };
   apps(): Promise<MessagingApp[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
@@ -1202,6 +1204,35 @@ export function createOutboundMessaging(options: {
           .filter((g) => !g.revokedAt && g.availability === 'available' && g.canReceive)
           .map(source),
       };
+    },
+    deletionDependencies(botSlug) {
+      return database.read((db) => ({
+        identities: db
+          .prepare(
+            'SELECT id FROM messaging_bindings WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+        grants: db
+          .prepare(
+            'SELECT id FROM messaging_grants WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+      }));
+    },
+    async disableBot(botSlug) {
+      const dependencies = service.deletionDependencies(botSlug);
+      for (const id of dependencies.grants) service.revoke(botSlug, id);
+      database.transaction(
+        (db) => {
+          db.prepare(
+            'UPDATE messaging_bindings SET enabled = 0, enabled_inherited = 0, revision = revision + 1 WHERE bot_slug = ? AND revoked_at IS NULL',
+          ).run(botSlug);
+        },
+        ['bindings', 'grants', 'bot-inbox'],
+      );
+      await Promise.all(dependencies.identities.map((id) => bounded(inbound.reconcileBinding(id))));
     },
     async apps() {
       const accounts = (

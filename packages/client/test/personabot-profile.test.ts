@@ -230,6 +230,7 @@ describe('PersonaBot Profile surface', () => {
         '头像',
         '活动概览',
         '分享与导出',
+        '删除 Bot',
       ]);
       expect(container.querySelector('.bh-profile-view .bh-model-entry')).toBeNull();
       expect(container.querySelector('.bh-profile-view .bh-wake-policy-entry')).toBeNull();

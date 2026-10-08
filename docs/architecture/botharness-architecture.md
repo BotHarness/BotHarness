@@ -505,6 +505,12 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
 
+### PersonaBot 删除运行路径（#896）
+
+Registry 在 Generation 66 持久化不可恢复的身份关闭状态和确认时的记忆位置。活动查询排除已接受删除的身份；历史查询保留身份、Session Ownership、Report、消息和用量归属。Human Profile 确认框复用 Typert/API Gateway 与原生 Host 文件打开能力。“同时删除记忆文件”默认不勾选，清除需要专属 Git 仓库、已记录的目录身份，以及与其他保留仓库和所有注册 Workspace 均无重叠。新建自定义仓库可以记录同样的归属证明；已有自定义路径本身不足以证明独占归属。Host 共享存储也受到保护。
+
+删除 owner 先接受持久身份关闭状态，再停止该 Bot 所拥有的原生 AgentHandle 执行树、撤销 Workspace／工具规则，并停用其 Messaging 绑定。已发出的原生／provider 效果保留实际结果。可选文件清理具有明确接受的范围和未完成状态；重试只使用原目录身份，不能选择新路径。DSH Session Persistence 与共享 provider 账号保留。冷启动仍排除已删除身份，即使清理需要修复。后续 Profile Backup 必须枚举历史 Registry 记录及删除位置，区分主动清除的记忆。Channel Content Purge 与支持恢复的 ledger 仍属于 #897。
+
 ### Bot Marketplace（已接受设计，待实现）
 
 [ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) 与 #18 让 Bot Marketplace 先作为 GitHub 索引目录上线：作者给公开仓库加 `botharness-bot` topic 即同意收录，也可在 Marketplace 贴链接立即抓取。独立的 Cloudflare Worker 与 D1 每日按 topic 切片发现、每小时用 GraphQL 批量刷新，README 进入 FTS5 索引；浏览用 keyset cursor，搜索只取前 200 条。harness 的 Marketplace modal 展示 README 详情；安装复用 #298 的 Git URL 创建路径，确认框显示最新提交并提示第三方仓库风险。贴链接与一键举报共用 ALTCHA 和限流。不建账号、不计下载。[ADR-0135](../adr/0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md) 撤销了基于账号的第二阶段：把单个 Bot 交给别人或换设备，改为在 harness 里导出 Bot Zip（默认只含 Memory 文件和 `.botharness/bot.json`，整包导出时可选带 Git 历史），对方从创建菜单的「从 zip 导入」得到新的 PersonaBot。

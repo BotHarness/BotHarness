@@ -7,7 +7,13 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 WeChat original voice can be prepared for playback, native quotes and retained local context can be read, native video can be played and returned through a checked media path, Discord defaults can be saved independently and inherited by Profile settings, and a Bot can be exported as a zip and imported as a new Bot elsewhere.
 
+### Breaking Changes
+
+- PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
+
 ### Added
+
+- Human can delete a PersonaBot from Profile while retaining Memory by default, explicitly erase a verified exclusive repository, open its Host folder, and inspect/retry incomplete cleanup; deletion retains history and terminally fences the original identity ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 - Lark, Slack and Discord groups now show their real names instead of IDs: in External identities, in connected external conversations, on messages in the Channel, and in what the Bot reads, where the ID is still given next to the name. Discord groups read as `Server #channel`. Lark sender names are looked up with a longer timeout and cached per app, and a failed lookup falls back to the ID. Existing entries pick up the name with their next message ([#1151](https://github.com/BotHarness/BotHarness/issues/1151), [External connectors guide](docs/channel-sidebar/external-connectors.md)).
 - A group Channel can connect an external conversation: **Connect an external conversation** under External connectors in the Channel Profile picks a bound app and one of its known groups, and every message from that group then appears in the Channel. Member Bots get the messages as context only by default and wake only when someone @s them; the connection's wake setting can switch to a batch or every message, and a member's own wake policy in the Channel still wins. Each row shows its state and last message, with a switch to pause and **Delete** to stop new messages while keeping the ones already here ([#1145](https://github.com/BotHarness/BotHarness/issues/1145), [ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md), [External connectors guide](docs/channel-sidebar/external-connectors.md)).

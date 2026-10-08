@@ -106,6 +106,11 @@ const NO_INSTALL = { installable: false, install: { phase: 'idle' as const } };
 
 function stubActions(): BridgeActions {
   return {
+    deletionPreview: vi.fn(),
+    deletionConfirm: vi.fn(),
+    deletionRetry: vi.fn(),
+    deletionFolderApplications: vi.fn(),
+    deletionFolderOpen: vi.fn(),
     allBotPreview: vi.fn(async () => {
       throw new Error('unexpected All Bots preview');
     }),
