@@ -2,6 +2,12 @@ import { onboardingNewsAvailable } from './onboarding/search.js';
 import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createPartLibrary, type PartLibrary } from './bots/part-library.js';
+import {
+  PART_SLOTS,
+  isAvatarAppearance,
+  wornAvatarPart,
+  type PartSlot,
+} from './bots/avatar-appearance.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
 import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
@@ -321,6 +327,9 @@ export function createCore(
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
   let usage: UsageProjection | undefined;
+  const partLibrary = createPartLibrary({
+    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
+  });
   let registry: PersonaBotRegistry;
   let modelPresets: ModelPresetStore;
   let roster: RosterStore;
@@ -333,6 +342,15 @@ export function createCore(
         options.warn?.(
           `bot-registry-import initiator=host-startup phase=${event.phase} count=${event.count ?? 0} durationMs=${Math.round(event.durationMs)}`,
         ),
+      onAppearanceImported: (record) => {
+        const recipe = isAvatarAppearance(record.appearance) ? record.appearance.recipe : undefined;
+        if (recipe?.family !== 'illustrated') return;
+        for (const slot of Object.keys(PART_SLOTS) as PartSlot[]) {
+          const part = wornAvatarPart(recipe, slot);
+          if (part)
+            partLibrary.add({ part, name: '', origin: 'imported-bot', author: record.displayName });
+        }
+      },
       onDisplayNameChanged: () => {
         try {
           live?.publishRosterCommitted();
@@ -722,9 +740,6 @@ export function createCore(
     database: attachOperationalModule(operationalDatabase, 'bot-onboarding'),
     registry,
     channels,
-  });
-  const partLibrary = createPartLibrary({
-    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
   });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {

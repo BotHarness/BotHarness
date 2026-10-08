@@ -705,6 +705,106 @@ describe('Profile Avatar Appearance editing', () => {
     }
   });
 
+  it('imports part files, filters by origin and exports parts and the library', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const crown: PixelCustomPart = {
+      slot: 'headpiece',
+      front: [[13, 2, '#efb93f', 0]],
+      back: [],
+    };
+    const ears: PixelCustomPart = { slot: 'headpiece', front: [[9, 1, 'hairColor', 0]], back: [] };
+    const entry = (
+      part: PixelCustomPart,
+      name: string,
+      origin: PartLibraryEntry['origins'][number],
+    ) => ({
+      id: customPartId(part),
+      part: canonicalCustomPart(part),
+      name,
+      origins: [origin],
+      addedAt: '',
+    });
+    const importParts = vi.fn(async () => ({
+      added: [entry(ears, 'Ears', 'imported-file')],
+      refused: 1,
+    }));
+    const exportParts = vi.fn(async (id?: string) => ({
+      fileName: id ? 'crown.png' : 'part-library.zip',
+      data: btoa('x'),
+    }));
+    const created: string[] = [];
+    Object.assign(URL, {
+      createObjectURL: () => {
+        created.push('blob');
+        return 'blob:part';
+      },
+      revokeObjectURL: () => {},
+    });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            library: {
+              load: vi.fn(async () => [entry(crown, 'Crown', 'drawn')]),
+              add: vi.fn(async () => undefined),
+              importParts,
+              exportParts,
+            },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      const input = $('[data-part-import] input') as HTMLInputElement;
+      const file = new File([new Uint8Array([1, 2, 3])], 'ears.png', { type: 'image/png' });
+      Object.defineProperty(file, 'arrayBuffer', {
+        value: async () => new Uint8Array([1, 2, 3]).buffer,
+      });
+      Object.defineProperty(input, 'files', { value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(importParts).toHaveBeenCalledWith(btoa(String.fromCharCode(1, 2, 3)));
+      expect($('[data-part-library-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.imported', { count: 1, refused: 1 }),
+      );
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(3);
+      const filter = $('[data-part-origin-filter]') as HTMLSelectElement;
+      await act(() => {
+        filter.value = 'imported-file';
+        filter.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(2);
+      expect($(`[data-avatar-option="headpiece:${customPartId(ears)}"]`)).not.toBeNull();
+      await click('[data-part-export-library]');
+      expect(exportParts).toHaveBeenLastCalledWith(undefined);
+      await click(`[data-avatar-option="headpiece:${customPartId(ears)}"]`);
+      await click('[data-part-export="headpiece"]');
+      expect(exportParts).toHaveBeenLastCalledWith(customPartId(ears));
+      expect(created).toHaveLength(2);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it('retries loading the Part Library after a failed load', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const load = vi

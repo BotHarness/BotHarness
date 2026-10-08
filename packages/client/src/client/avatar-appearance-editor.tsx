@@ -232,6 +232,33 @@ function categoriesFor(
 export interface PartLibraryActions {
   load(): Promise<PartLibraryEntry[] | undefined>;
   add(part: PixelCustomPart, name: string, parent?: string): Promise<PartLibraryEntry | undefined>;
+  exportParts?: (id?: string) => Promise<{ fileName: string; data: string } | undefined>;
+  importParts?: (
+    data: string,
+  ) => Promise<{ added: PartLibraryEntry[]; refused: number } | { error: string }>;
+}
+
+const ORIGIN_FILTERS = ['all', 'drawn', 'imported-bot', 'imported-file'] as const;
+type OriginFilter = (typeof ORIGIN_FILTERS)[number];
+const originKey = (origin: Exclude<OriginFilter, 'all'>) =>
+  origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn';
+
+function download(fileName: string, base64: string, type: string): void {
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function readBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
 }
 
 function hiddenFor(recipe: AvatarRecipe | undefined, category: string): boolean {
@@ -296,6 +323,8 @@ export function AvatarAppearanceEditor({
   t: BotHarnessTranslate;
 }): ReactElement {
   const [parts, setParts] = useState<PartLibraryEntry[]>();
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('all');
+  const [libraryNote, setLibraryNote] = useState<string>();
   const [drawing, setDrawing] = useState<{
     slot: PartSlot;
     base: IllustratedAvatarRecipe;
@@ -401,7 +430,35 @@ export function AvatarAppearanceEditor({
   const partActions = (slot: PartSlot, recipe: IllustratedAvatarRecipe) => {
     const worn = wornAvatarPart(recipe, slot);
     const hair = isHairPartSlot(slot) || isReplacePartSlot(slot);
-    const own = (parts ?? []).filter((entry) => entry.part.slot === slot);
+    const own = (parts ?? []).filter(
+      (entry) =>
+        entry.part.slot === slot &&
+        (originFilter === 'all' || entry.origins.includes(originFilter)),
+    );
+    const importFiles = async (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file || !library?.importParts) return;
+      const result = await library.importParts(await readBase64(file));
+      if ('error' in result) {
+        setLibraryNote(result.error);
+        return;
+      }
+      setParts((current) => [
+        ...result.added,
+        ...(current ?? []).filter((item) => !result.added.some((added) => added.id === item.id)),
+      ]);
+      setLibraryNote(
+        t('profile.avatar.part.imported', {
+          count: result.added.length,
+          refused: result.refused,
+        }),
+      );
+    };
+    const exportParts = async (id?: string) => {
+      const file = await library?.exportParts?.(id);
+      if (file) download(file.fileName, file.data, id ? 'image/png' : 'application/zip');
+      else setLibraryNote(t('profile.avatar.part.exportFailed'));
+    };
     const draw = () =>
       setDrawing(
         hair
@@ -468,7 +525,61 @@ export function AvatarAppearanceEditor({
               {t('profile.avatar.part.removePiece')}
             </button>
           ) : null}
+          {worn && library?.exportParts ? (
+            <button
+              type="button"
+              className="bh-avatar-color-reset"
+              data-part-export={slot}
+              onClick={() => void exportParts(customPartId(worn))}
+            >
+              {t('profile.avatar.part.exportPart')}
+            </button>
+          ) : null}
         </div>
+        {library?.importParts || library?.exportParts ? (
+          <div className="bh-part-library-actions" data-part-library-tools>
+            <select
+              aria-label={t('profile.avatar.part.originFilter')}
+              data-part-origin-filter
+              value={originFilter}
+              onChange={(event) => setOriginFilter(event.currentTarget.value as OriginFilter)}
+            >
+              {ORIGIN_FILTERS.map((value) => (
+                <option key={value} value={value}>
+                  {value === 'all'
+                    ? t('profile.avatar.part.originAll')
+                    : t(`profile.avatar.part.origin.${originKey(value)}`)}
+                </option>
+              ))}
+            </select>
+            {library.importParts ? (
+              <label className="bh-avatar-color-reset" data-part-import>
+                {t('profile.avatar.part.import')}
+                <input
+                  type="file"
+                  accept=".png,.zip,image/png,application/zip"
+                  hidden
+                  onChange={(event) => void importFiles(event.currentTarget.files)}
+                />
+              </label>
+            ) : null}
+            {library.exportParts ? (
+              <button
+                type="button"
+                className="bh-avatar-color-reset"
+                data-part-export-library
+                onClick={() => void exportParts()}
+              >
+                {t('profile.avatar.part.exportLibrary')}
+              </button>
+            ) : null}
+            {libraryNote ? (
+              <span className="bh-avatar-hidden-note" role="status" data-part-library-note>
+                {libraryNote}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {hair ? null : (
           <OptionTile
             id={`${slot}:none`}
