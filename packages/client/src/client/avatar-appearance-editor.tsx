@@ -4,11 +4,15 @@ import {
   AVATAR_FAMILIES,
   AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
+  AVATAR_PIECE_COLORS,
   AVATAR_PRESETS,
   AVATAR_RANGES,
+  AVATAR_SPECIES,
+  AVATAR_SPECIES_SWATCHES,
   detailedAvatarRecipe,
   type IllustratedAvatarRecipe,
   AVATAR_SWATCHES,
+  withAvatarSpecies,
   avatarSvg,
   seededAvatarRecipe,
   type AvatarFamily,
@@ -44,20 +48,34 @@ interface FamilySpec {
 
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
-    parts: { ...AVATAR_PARTS, ...AVATAR_HAIR_PARTS },
-    colors: AVATAR_COLORS,
-    swatches: AVATAR_SWATCHES,
+    parts: {
+      species: AVATAR_SPECIES,
+      ...AVATAR_PARTS,
+      ...AVATAR_HAIR_PARTS,
+      rightSideHair: AVATAR_HAIR_PARTS.sideHair,
+    },
+    colors: [...AVATAR_COLORS, ...AVATAR_PIECE_COLORS],
+    swatches: {
+      ...AVATAR_SWATCHES,
+      leftSideHairColor: AVATAR_SWATCHES.hairColor,
+      rightSideHairColor: AVATAR_SWATCHES.hairColor,
+    },
     ranges: AVATAR_RANGES,
     presets: AVATAR_PRESETS,
     categories: [
       'presets',
+      'species',
       'hair',
-      ...Object.keys(AVATAR_HAIR_PARTS),
+      'bangs',
+      'sideHair',
+      'rightSideHair',
+      'backHair',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop' && part !== 'hair'),
       'shape',
       'colors',
     ],
-    option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,
+    option: (part, value) =>
+      `profile.avatar.option.${part === 'rightSideHair' ? 'sideHair' : part}.${value}` as Key,
     seeded: seededAvatarRecipe,
   },
   line: {
@@ -80,10 +98,19 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
 type Fields = Record<string, string | number>;
 
 const DETAIL = new Set<string>([...Object.keys(AVATAR_HAIR_PARTS), ...Object.keys(AVATAR_RANGES)]);
+// Choices that need an asset version 2 recipe: a species, or a side piece edited on its own.
+const SPLIT = new Set<string>(['species', 'sideHair', 'rightSideHair', ...AVATAR_PIECE_COLORS]);
 
 function withPart(recipe: AvatarRecipe, key: string, value: string | number): AvatarRecipe {
   if (recipe.family !== 'illustrated')
     return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
+  if (key === 'species')
+    return withAvatarSpecies(recipe, value as IllustratedAvatarRecipe['species'] & string);
+  if (SPLIT.has(key))
+    return {
+      ...withAvatarSpecies(recipe, recipe.species ?? 'human'),
+      [key]: value,
+    } as IllustratedAvatarRecipe;
   if (DETAIL.has(key))
     return {
       ...(detailedAvatarRecipe(recipe) as unknown as Fields),
@@ -95,6 +122,9 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
   const split = detailedAvatarRecipe(plain);
   return {
     ...split,
+    ...(split.assetVersion === 2
+      ? { rightSideHair: split.sideHair as NonNullable<IllustratedAvatarRecipe['rightSideHair']> }
+      : {}),
     spacing: next.spacing ?? 0,
     height: next.height ?? 0,
     hairLength: next.hairLength ?? 0,
@@ -105,11 +135,28 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const spec = FAMILIES[recipe.family];
   const pick = <T,>(values: readonly T[]) => values[Math.floor(Math.random() * values.length)]!;
   const next: Fields = { ...(recipe as unknown as Fields) };
-  for (const [part, values] of Object.entries(spec.parts)) next[part] = pick(values);
-  for (const color of spec.colors) next[color] = pick(spec.swatches[color]!);
+  const own = (key: string) => !SPLIT.has(key) || recipe.family !== 'illustrated';
+  for (const [part, values] of Object.entries(spec.parts)) if (own(part)) next[part] = pick(values);
+  for (const color of spec.colors) if (own(color)) next[color] = pick(spec.swatches[color]!);
   for (const [key, [min, max]] of Object.entries(spec.ranges))
     next[key] = min + Math.floor(Math.random() * (max - min + 1));
-  return next as unknown as AvatarRecipe;
+  if (recipe.family !== 'illustrated') return next as unknown as AvatarRecipe;
+  // Every species is in reach; the body color comes from that species' suggestions.
+  const species = pick(AVATAR_SPECIES);
+  const random = withAvatarSpecies(next as unknown as IllustratedAvatarRecipe, species);
+  for (const color of AVATAR_PIECE_COLORS) delete random[color];
+  return {
+    ...random,
+    sideHair: pick(AVATAR_HAIR_PARTS.sideHair),
+    rightSideHair: pick(AVATAR_HAIR_PARTS.sideHair),
+    skinColor: pick(AVATAR_SPECIES_SWATCHES[species]),
+  };
+}
+
+function swatchesFor(spec: FamilySpec, fields: Fields, key: string): readonly string[] {
+  if (key !== 'skinColor' || fields['family'] !== 'illustrated') return spec.swatches[key]!;
+  const species = (fields['species'] ?? 'human') as keyof typeof AVATAR_SPECIES_SWATCHES;
+  return AVATAR_SPECIES_SWATCHES[species];
 }
 
 function OptionTile({
@@ -371,7 +418,7 @@ export function AvatarAppearanceEditor({
                   {spec.colors.map((key) => (
                     <div key={key} className="bh-avatar-color-row">
                       <span>{t(`profile.avatar.${key}` as Key)}</span>
-                      {spec.swatches[key]!.map((value) => (
+                      {swatchesFor(spec, fields, key).map((value) => (
                         <button
                           key={value}
                           type="button"
@@ -387,9 +434,23 @@ export function AvatarAppearanceEditor({
                         name={key}
                         type="color"
                         aria-label={t(`profile.avatar.${key}` as Key)}
-                        value={String(fields[key])}
+                        value={String(fields[key] ?? fields['hairColor'])}
                         onChange={(event) => set(key, event.currentTarget.value)}
                       />
+                      {fields[key] !== undefined &&
+                      (AVATAR_PIECE_COLORS as readonly string[]).includes(key) ? (
+                        <button
+                          type="button"
+                          className="bh-avatar-color-reset"
+                          data-avatar-color-reset={key}
+                          onClick={() => {
+                            const { [key]: _removed, ...rest } = draft as unknown as Fields;
+                            update(rest as unknown as AvatarRecipe);
+                          }}
+                        >
+                          {t('profile.avatar.followHairColor')}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>

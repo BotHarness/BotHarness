@@ -91,7 +91,7 @@ describe('createPersonaBotRegistry', () => {
       recipe,
       revision: createHash('sha256').update(JSON.stringify(recipe)).update(png).digest('hex'),
     });
-    const future = { ...saved.appearance.recipe, assetVersion: 2, tail: 'swirl', wiggle: 3 };
+    const future = { ...saved.appearance.recipe, assetVersion: 999, tail: 'swirl', wiggle: 3 };
     const importRecord = (appearance: unknown) => {
       const importedRoot = createRoot();
       mkdirSync(join(importedRoot, 'ada'));

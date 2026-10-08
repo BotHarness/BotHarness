@@ -17,6 +17,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
+
 - Every Bot now has a Profile banner at the top of its Profile and its popover. New Bots get a pixel scene picked from their name, which a rename doesn't change; existing Bots get one at the next start. **Change banner** picks one of ten scenes, rerolls the picture, uploads an image cropped to 3:1, or resets to the generated scene. `.botharness/bot.json` records the banner, `.botharness/banner.png` is always written, and Bot Zip export, import and Git import keep it ([#1092](https://github.com/BotHarness/BotHarness/issues/1092)).
 - After a first real Bot-mode reply, an optional Bind app action opens the existing platform picker and website tutorials; Not now leaves completion intact, and only canonical binding and reception facts determine the result ([#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)).
 

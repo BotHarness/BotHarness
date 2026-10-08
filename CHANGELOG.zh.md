@@ -17,6 +17,8 @@
 
 ### Added
 
+- 像素头像可以选择哥布林：尖耳朵穿出头发、带小獠牙、配建议的绿色肤色；左右侧发可以分别选择样式和颜色。哥布林在 Window Companion 中同样支持转头和说话嘴型，随机也会覆盖两个物种，已有头像渲染不变（[#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)）。
+
 - 每个 Bot 的资料页和资料小窗顶部都有了横幅。新建的 Bot 会按名字挑一张像素场景，改名不会变；已有的 Bot 在下次启动时补上一张。点 **更换横幅** 可以从十个场景里挑、换一张、上传图片并裁成 3:1，或恢复生成的场景。`.botharness/bot.json` 记录横幅，`.botharness/banner.png` 总会写入，Bot Zip 导出、导入和从 Git 导入都会保留它（[#1092](https://github.com/BotHarness/BotHarness/issues/1092)）。
 - 完成首次真实 Bot 对话后，欢迎消息提供可选的「绑定应用」入口，复用既有平台选择和官网教程；选择「暂时不绑定」保留完成状态，绑定结果与接收状态以真实记录为准（[#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)）。
 
