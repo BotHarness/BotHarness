@@ -255,7 +255,9 @@ it('uses each shared placement message identity for reads and post-commit purge 
   expect(reply()?.replyToPreview?.body).toBe('synthetic body');
   const preview = core.purge.preview(core.channel.id, [core.source.sourceEventId]);
   core.purge.confirm(core.channel.id, preview.sourceEventIds, preview.token);
-  expect(core.channels.readMessages(active.id)[0]).toMatchObject({
+  expect(
+    core.channels.readMessages(active.id).find((message) => message.id === 'shared-message'),
+  ).toMatchObject({
     id: 'shared-message',
     body: '',
   });
