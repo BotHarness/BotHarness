@@ -76,7 +76,11 @@ it('reconciles committed Registry identity while open and detached without repla
     expect((await read(resumed)).messageId).toBe('after-reactivation');
     core.registry.setPaused('ada', true);
     expect((await read(resumed)).bots).toMatchObject([{ slug: 'ada', paused: true }]);
-    core.registry.remove('ada');
+    const deletion = core.deletions.preview('ada');
+    expect(await core.deletions.confirm('ada', deletion.token, false)).toMatchObject({
+      phase: 'complete',
+      memory: 'retained',
+    });
     const removed = await read(resumed);
     expect(removed.bots).toEqual([]);
     expect(removed.removedBotIds).toEqual(['ada']);
