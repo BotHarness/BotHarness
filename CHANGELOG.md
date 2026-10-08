@@ -19,6 +19,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - The welcome offers today's AI news with source links only when native search credentials and the Bot's search Tool are configured; otherwise it offers a general planning request, and the news request asks for truthful search-error reporting ([#1174](https://github.com/BotHarness/DeepSeekBot/issues/1174)).
 
+- Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
+
 - The welcome now offers a daily evening check-in at 21:00 with the browser time zone and current DM shown before selection; missing time zones are confirmed first, and existing model setup retains the complete request for explicit sending ([#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)).
 
 - The Bot Marketplace now shows each Bot's Profile banner: a thumbnail on every row and a full banner at the top of the detail view, with a neutral placeholder when a Bot has none. The Marketplace Worker reads `banner` from `.botharness/bot.json`; a pixel scene is drawn locally, and an uploaded image loads from the repository at the indexed commit ([#1093](https://github.com/BotHarness/BotHarness/issues/1093)).
@@ -91,6 +93,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Changed
 
+- Bot Marketplace cards now read like a profile card: the Profile banner sits on top, the Bot's avatar overlaps its lower edge with the name, repository and Install beside it, then a two-line bio and one line of tags, stars and update date. The detail view opens with the same banner and avatar, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).
 - **Bind app** links directly to the website connection tutorials for Lark / Feishu, Slack and WeChat, with a more-platforms overview; the standalone Lark setup card is removed so platform instructions stay in one place ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
 - **New conversations** is now a platform default too: Lark, Slack and Discord each have a **New conversations** choice in their global IM defaults (**Admit automatically** unless changed), and every bound app follows it until you pick a value for that app. Apps already set to **Ask me first** keep it ([#1134](https://github.com/BotHarness/BotHarness/issues/1134), [External identities guide](docs/channel-sidebar/external-identities.md)).
