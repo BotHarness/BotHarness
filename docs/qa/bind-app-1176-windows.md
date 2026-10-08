@@ -1,5 +1,59 @@
 # Bind app Windows QA — #1176
 
+## Current UX refinement — candidate 0.0.0-test.1176.2
+
+The Human-requested refinement stays in #1176 / PR #1181. It adds native upper-right icons to
+tutorial links, moves **Add new app** to the App label row and a permanent dropdown action, and
+replaces the manual refresh text button with a native icon and Tooltip beside the picker.
+Automatic refresh still runs on dialog open and after returning from native IM settings.
+
+- Windows verification: **935 Client tests across 127 files passed**, including 18 focused
+  binding/navigation tests; lint, typecheck, build, targeted format, Release Ledger and Chinese
+  font generation passed.
+- Comparison: candidate `.1176.1` → `.1176.2`, same isolated Windows Profile, paired account,
+  QA Bots, Chinese locale and 1559 × 865 viewport. Host JavaScript hashes match.
+- Real Chrome: both Add new app entry points opened native IM settings; closing Settings
+  restored Bind app, and the occupied account remained visible and disabled. Search with no
+  matches retained the Add new app option. The refresh icon worked and displayed its Tooltip.
+- An actually empty inventory and keyboard activation without selecting an account are covered
+  by Client regressions; the live Profile retains its real paired account.
+- Light and dark screenshots were inspected. The original **Follow system** preference was
+  restored through native Settings after capture.
+- Browser console was read directly: the initial `.1176.1` page reported the previously observed
+  unknown-session restoration error, and reload recovered it. The intentional Host restart
+  produced connection-retry warnings. No later errors or warnings appeared during the verified
+  `.1176.2` binding interactions. This PR does not claim an AX startup root-cause fix.
+
+### Refinement comparison — light
+
+![Before refinement](../assets/pr/1176-bind-app/refinement-before-light.png)
+![After refinement](../assets/pr/1176-bind-app/refinement-after-light.png)
+
+### Persistent action and refresh Tooltip
+
+![Occupied app and persistent Add new app](../assets/pr/1176-bind-app/refinement-picker-light.png)
+![No search matches still offers Add new app](../assets/pr/1176-bind-app/refinement-search-empty-light.png)
+![Refresh icon Tooltip](../assets/pr/1176-bind-app/refinement-tooltip-light.png)
+
+### Dark
+
+The earlier `.1176.1` dark action capture below is the matching pre-refinement state.
+
+![Before refinement, dark](../assets/pr/1176-bind-app/after-actions-dark.png)
+![After refinement, dark](../assets/pr/1176-bind-app/refinement-after-dark.png)
+![Persistent action, dark](../assets/pr/1176-bind-app/refinement-picker-dark.png)
+
+### Review the current candidate
+
+1. Open **Binding UX 1176 QA → External identities → Bind app**.
+2. Check the tutorial arrows, Add new app beside App, and icon-only refresh with its Tooltip.
+3. Open App: the occupied WeChat account is disabled; Add new app remains available below it.
+4. Search for an unmatched name: Add new app remains available. Choose it to open native IM Bots.
+5. Close Settings: Bind app returns and refreshes automatically. Try the label-row Add new app too.
+6. Cancel to finish. Repeat in either theme; pairing a fresh personal WeChat remains a Human action.
+
+## Initial implementation and evidence
+
 Implementation: `32b801e646a9060ceb047405996176b1fc35d549`, based on merged main
 `895153357ba11c1729a8f9df2c3e5093401ab968`.
 

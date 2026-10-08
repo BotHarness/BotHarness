@@ -1,6 +1,15 @@
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { useRef, useState, type ReactElement } from 'react';
-import { Button, Input, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  Input,
+  Switch,
+  Tag,
+  Tooltip,
+  IconPlusOutlineRegular,
+  IconRefreshOutlineRegular,
+  IconRightUpOutlineRegular,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type {
   MessagingIdentityInput,
@@ -111,6 +120,23 @@ export function ExternalIdentityList({
       settingsCleanup.current?.();
       setMode(undefined);
     }
+  };
+  const openAppSettings = () => {
+    setMode(undefined);
+    settingsCleanup.current?.();
+    settingsCleanup.current = openExternalBindingSettings(
+      document,
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        void refreshApps();
+      },
+      () => {
+        if (!active.current) return;
+        setMode('bind');
+        setError(t('identity.settingsUnavailable'));
+      },
+    );
   };
   const operate = async (operation: () => Promise<void>, done = false) => {
     if (busy) return;
@@ -347,91 +373,94 @@ export function ExternalIdentityList({
                       rel="noopener noreferrer"
                     >
                       {t(`identity.tutorial.${guide}`)}
+                      <IconRightUpOutlineRegular size={14} />
                     </a>
                   ))}
                 </div>
               </nav>
-              <label className="bh-im-field">
-                <span>{t('identity.app')}</span>
-                <Combobox
-                  label={t('identity.app')}
-                  toggleLabel={t('identity.app')}
-                  placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
-                  emptyLabel={t('identity.noApps')}
-                  disabled={busy}
-                  value={accountKey}
-                  onSelect={setAccountKey}
-                  options={accounts
-                    .filter(
-                      (account) =>
-                        !identities.some(
-                          (i) =>
-                            i.providerId === account.providerId && i.accountRef === account.ref,
-                        ),
-                    )
-                    .sort(
-                      (a, b) =>
-                        Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
-                          Number(b.boundBotSlug !== undefined || !b.connected || !!b.unsupported) ||
-                        platform(a.platform).localeCompare(platform(b.platform)) ||
-                        a.name.localeCompare(b.name),
-                    )
-                    .map((account) => ({
-                      value: account.providerId + ':' + account.ref,
-                      label: account.name,
-                      hint:
-                        account.boundBotSlug !== undefined
-                          ? t('identity.appUsedBy', {
-                              platform: platform(account.platform),
-                              name: botName(account.boundBotSlug),
-                            })
-                          : account.unsupported
-                            ? t('identity.appUnsupported', { platform: platform(account.platform) })
-                            : account.connected
-                              ? platform(account.platform)
-                              : t('identity.appOffline', { platform: platform(account.platform) }),
-                      disabled:
-                        !account.connected ||
-                        account.boundBotSlug !== undefined ||
-                        !!account.unsupported,
-                    }))}
-                />
-              </label>
-              {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
-              <div className="bh-im-tutorials">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy || refreshing}
-                  onClick={() => void refreshApps()}
-                >
-                  {t('identity.refreshApps')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy || refreshing}
-                  onClick={() => {
-                    setMode(undefined);
-                    settingsCleanup.current?.();
-                    settingsCleanup.current = openExternalBindingSettings(
-                      document,
-                      () => {
-                        if (!active.current) return;
-                        setMode('bind');
-                        void refreshApps();
-                      },
-                      () => {
-                        if (!active.current) return;
-                        setMode('bind');
-                        setError(t('identity.settingsUnavailable'));
-                      },
-                    );
-                  }}
-                >
-                  {t('identity.manageApps')}
-                </Button>
+              <div className="bh-im-field">
+                <div className="bh-im-app-heading">
+                  <span>{t('identity.app')}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy || refreshing}
+                    onClick={openAppSettings}
+                  >
+                    <IconPlusOutlineRegular size={16} />
+                    {t('identity.manageApps')}
+                  </Button>
+                </div>
+                <div className="bh-im-app-picker">
+                  <Combobox
+                    label={t('identity.app')}
+                    toggleLabel={t('identity.app')}
+                    placeholder={t(accounts.length ? 'im.select' : 'identity.noApps')}
+                    emptyLabel={t('identity.noApps')}
+                    disabled={busy}
+                    value={accountKey}
+                    onSelect={setAccountKey}
+                    action={{
+                      label: t('identity.manageApps'),
+                      onSelect: openAppSettings,
+                      disabled: busy || refreshing,
+                    }}
+                    options={accounts
+                      .filter(
+                        (account) =>
+                          !identities.some(
+                            (i) =>
+                              i.providerId === account.providerId && i.accountRef === account.ref,
+                          ),
+                      )
+                      .sort(
+                        (a, b) =>
+                          Number(a.boundBotSlug !== undefined || !a.connected || !!a.unsupported) -
+                            Number(
+                              b.boundBotSlug !== undefined || !b.connected || !!b.unsupported,
+                            ) ||
+                          platform(a.platform).localeCompare(platform(b.platform)) ||
+                          a.name.localeCompare(b.name),
+                      )
+                      .map((account) => ({
+                        value: account.providerId + ':' + account.ref,
+                        label: account.name,
+                        hint:
+                          account.boundBotSlug !== undefined
+                            ? t('identity.appUsedBy', {
+                                platform: platform(account.platform),
+                                name: botName(account.boundBotSlug),
+                              })
+                            : account.unsupported
+                              ? t('identity.appUnsupported', {
+                                  platform: platform(account.platform),
+                                })
+                              : account.connected
+                                ? platform(account.platform)
+                                : t('identity.appOffline', {
+                                    platform: platform(account.platform),
+                                  }),
+                        disabled:
+                          !account.connected ||
+                          account.boundBotSlug !== undefined ||
+                          !!account.unsupported,
+                      }))}
+                  />
+                  <Tooltip label={t('identity.refreshApps')} portal side="bottom" delayMs={250}>
+                    <button
+                      type="button"
+                      className="bh-icon-btn bh-im-app-refresh"
+                      aria-label={t('identity.refreshApps')}
+                      aria-busy={refreshing}
+                      disabled={busy || refreshing}
+                      onClick={() => void refreshApps()}
+                    >
+                      <IconRefreshOutlineRegular size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
+              {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
             </>
           ) : mode === 'bound' && selectedAccount ? (
             <>

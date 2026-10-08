@@ -229,6 +229,52 @@ it('keeps disabled combobox options out of keyboard and click selection', async 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('online');
 });
 
+it('keeps the setup action available with apps, without apps and after an unmatched search, without selecting an account', async () => {
+  const onSelect = vi.fn();
+  const setup = vi.fn();
+  const render = async (options: { value: string; label: string }[]) => {
+    await act(async () =>
+      root.render(
+        createElement(Combobox, {
+          label: 'App',
+          toggleLabel: 'App',
+          value: '',
+          options,
+          onSelect,
+          emptyLabel: 'No apps',
+          action: { label: 'Add new app', onSelect: setup },
+        }),
+      ),
+    );
+    await openCombobox('App');
+  };
+  await render([]);
+  expect(document.querySelector('[role="option"][data-action]')?.textContent).toBe('Add new app');
+  await act(async () =>
+    document.querySelector<HTMLButtonElement>('[role="option"][data-action]')!.click(),
+  );
+  expect(setup).toHaveBeenCalledTimes(1);
+  await render([{ value: 'existing', label: 'Existing app' }]);
+  expect(document.querySelectorAll('[role="option"]')).toHaveLength(2);
+  const input = combobox('App');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+      input,
+      'unmatched',
+    );
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  expect(document.querySelectorAll('[role="option"]')).toHaveLength(1);
+  await act(async () =>
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+  );
+  await act(async () =>
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
+  );
+  expect(setup).toHaveBeenCalledTimes(2);
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
 it('clears a failed load after a successful explicit refresh', async () => {
   const messagingSnapshot = vi
     .fn()
@@ -297,6 +343,11 @@ it('returns from QR settings to the retained bind dialog with newly paired and o
       (b) => b.textContent === text || b.querySelector('.bh-card-title')?.textContent === text,
     )!;
   await act(async () => button(zhTranslate('identity.bind')).click());
+  const refreshButton = host.querySelector<HTMLButtonElement>('[aria-label="刷新应用"]')!;
+  expect(refreshButton.textContent).toBe('');
+  expect(
+    refreshButton.closest('.bh-im-app-picker')?.querySelector('[role="combobox"]'),
+  ).not.toBeNull();
   await chooseOption('应用', 'dsh-im/weixin:existing', host);
   expect(messagingSnapshot).toHaveBeenCalledTimes(2);
   await act(async () => button(zhTranslate('identity.manageApps')).click());
@@ -321,11 +372,19 @@ it('returns from QR settings to the retained bind dialog with newly paired and o
   );
   expect(messagingSnapshot).toHaveBeenCalledTimes(3);
   expect(combobox('应用', host).value).toBe('Existing app');
-  expect(host.textContent).toContain('添加外部绑定');
+  expect(host.textContent).toContain('添加新应用');
   await openCombobox('应用', host);
   expect(comboboxOption('dsh-im/weixin:new-wechat')?.disabled).toBe(false);
   expect(comboboxOption('dsh-im/weixin:occupied')?.textContent).toContain('已绑定其他 Bot');
   expect(comboboxOption('dsh-im/weixin:occupied')?.disabled).toBe(true);
+  await act(async () =>
+    document.querySelector<HTMLButtonElement>('[role="option"][data-action]')!.click(),
+  );
+  expect(settings.isConnected).toBe(true);
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => settings.remove());
+  expect(messagingSnapshot).toHaveBeenCalledTimes(4);
+  expect(combobox('应用', host).value).toBe('Existing app');
 });
 
 it('keeps a failed app refresh recoverable in the same dialog', async () => {
@@ -362,7 +421,7 @@ it('keeps a failed app refresh recoverable in the same dialog', async () => {
   });
   await act(async () =>
     [...host.querySelectorAll<HTMLButtonElement>('button')]
-      .find((b) => b.textContent === '刷新应用')!
+      .find((b) => b.getAttribute('aria-label') === '刷新应用')!
       .click(),
   );
   expect(host.querySelector('[role="dialog"] [role="alert"]')).toBeNull();
@@ -432,7 +491,7 @@ it('releases the settings return watcher when the Bot sidebar unmounts', async (
   );
   await act(async () =>
     [...host.querySelectorAll<HTMLButtonElement>('button')]
-      .find((b) => b.textContent === '添加外部绑定')!
+      .find((b) => b.textContent === '添加新应用')!
       .click(),
   );
   expect(settings.isConnected).toBe(true);

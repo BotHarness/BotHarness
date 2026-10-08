@@ -394,6 +394,7 @@ it('Bind app leaves out this Bot’s own apps, disables the ones another Bot use
       ['dsh-im/feishu:free', false, expect.stringContaining('App free')],
       ['dsh-im/feishu:old', true, expect.stringContaining('需要更新 IM 插件')],
       ['dsh-im/feishu:theirs', true, expect.stringContaining('已绑定其他 Bot：Bea')],
+      [expect.any(String), false, '添加新应用'],
     ]);
   } finally {
     await act(async () => root.unmount());

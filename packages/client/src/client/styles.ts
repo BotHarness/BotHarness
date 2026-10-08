@@ -10,8 +10,11 @@ export const CSS =
   WINDOW_COMPANION_CSS +
   `
 .bh-im-tutorials { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.bh-im-tutorials a { color: var(--bh-accent); text-underline-offset: 3px; }
+.bh-im-tutorials a { display: inline-flex; align-items: center; gap: 3px; color: var(--bh-accent); text-underline-offset: 3px; }
 .bh-im-tutorials a:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 3px; border-radius: 2px; }
+.bh-im-app-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bh-im-app-picker { display: flex; align-items: center; gap: 4px; }
+.bh-im-app-refresh:disabled { opacity: 0.5; cursor: default; }
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic
      tokens (ADR-0028): at most three entries, no second design system. */
