@@ -36,7 +36,14 @@ and WeChat typing refusal codes are retained. The compiled Host was rebuilt.
 - Windows full-suite attempts were stopped after widespread failures. The Bridge
   RPC cleanup failures also reproduce on the unchanged `fe08fd92` baseline. This
   does not classify every failed test as pre-existing; Linux qualification of the
-  same source is pending.
+  same source is recorded below.
+- Linux (`Node 24.21.0`, locked pnpm 12.4.2), reviewed runtime source `b49fbf15`:
+  full run with four workers finished with 415 files passed, 5 skipped, and 2
+  files containing one 15-second timeout each (3361 tests passed, 9 skipped).
+  The two files passed all 12 tests on both the candidate and unchanged
+  `fe08fd92` baseline when run serially with the original timeout. A complete
+  serial run remains pending; no full-suite pass is claimed yet. Later candidate
+  commits currently change only this qualification document.
 - Delayed dialog submission retains the entered credentials while inputs are
   disabled. Expired handles permit a fresh setup. A created identity remains
   available for explicit binding after the dialog closes.
