@@ -146,3 +146,27 @@ Preserve pnpm's supply-chain policy when repairing that installation. An earlier
 The pinned Windows composition enables `pwsh-sandbox`; a Tool named `bash` does not by itself identify its Shell Provider. A real approved `printf` invocation reached Git/MSYS and failed with a Win32 signal-pipe error and `[exit code: 1]`, while its native result had `isError: false`. Inspect the actual output and exit evidence as well as the canonical decision. A fresh bounded `node -e` print invocation verified successful execution on Windows; a separate rejected request returned the native rejection error with no replacement call. Keep failed evidence, and do not retry a denied operation under a different command. Authenticated Web approval qualification remains separate from real IM button-to-native-result qualification.
 
 Preserve the instant when comparing an owned Host's process start time. PowerShell's `ConvertFrom-Json` can turn an ISO timestamp into `DateTime`; converting that object back to a culture-specific string and parsing it as `DateTimeOffset` can lose the original UTC offset. This made an exact-PID cleanup guard refuse the correct process. Cast the typed value directly, or retain the original ISO string, and compare UTC instants before stopping the process. The corrected manual check matched with zero time difference. Keep the original refusal as evidence; correcting the helper does not prove its independent automatic cutoff ran successfully. Server-owned restoration and explicit local cleanup must have separate evidence.
+
+## Readable diagnostics require an actual Cordis exporter
+
+In the QQ QA Profile on pinned DSH 0.2.0 RC1, Cordis Logger accepted structured
+messages while the CLI output contained only its startup URL. An empty stdout
+file therefore did not establish that no native callback arrived. Mount a
+task-owned, bounded exporter through a Patch `insert` entry, verify a known
+lifecycle record reaches it, and then inspect the wanted records. A new top-level
+`{ id, name, config }` patch only targets an existing row; it does not add a Plugin.
+Keep the diagnostic sink process evidence, whitelist fields, exclude text and
+secrets, and remove the task Patch after qualification.
+
+This exposed an application-defined QQ restoration failure: account readiness
+was temporarily unavailable at boot, the group receiver classified the missing
+control lease as non-retryable, and the account receiver later recovered while
+the first new mention missed Channel placement. Inspect account readiness before
+requiring the control lease so the existing bounded transient retry remains
+applicable; verify the first new message after a delayed-ready restart, not only
+retained history or replay of old replies ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156)).
+
+A separate Client capture in this Profile became blank after the native locale
+subscriber raised `uiConversation.binding: unknown session`. Reload recovered the
+Client; the cause is unconfirmed. Preserve that browser error and failed capture,
+and do not classify it as QQ transport failure or fix it by changing `/api` ownership.

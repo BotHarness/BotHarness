@@ -769,6 +769,14 @@ export function createDshImProvider(
                   throw new MessagingError('untrusted-source');
                 return input.onEvent(event, context.signal);
               },
+            }).catch((error: unknown) => {
+              const code =
+                error !== null && typeof error === 'object' && 'code' in error
+                  ? error.code
+                  : undefined;
+              if (code === 'provider-unavailable' || code === 'bot-not-connected')
+                throw new MessagingError('provider-unavailable');
+              throw error;
             });
           },
           async reply(input: Parameters<NonNullable<MessagingProvider['reply']>>[0]) {

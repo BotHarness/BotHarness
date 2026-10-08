@@ -1,5 +1,5 @@
 import { setImmediate as tick } from 'node:timers/promises';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { createCore, type BotHarnessCore } from '../src/plugin.js';
 import { createDshImProvider, type DshImOutboundService } from '../src/messaging/dsh-im.js';
 import type { MessagingReplyRoute } from '../src/messaging/provider.js';
@@ -41,6 +41,8 @@ async function fixture(sharedConversation = false) {
   type Consumer = Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1];
   const consumers = new Map<string, Consumer>();
   const replies: { account: string; route: MessagingReplyRoute; text: string }[] = [];
+  let connected = true;
+  const unavailableConsumers = new Set<string>();
   const service: DshImOutboundService = {
     contractVersion: 1,
     replyContextVersion: 1,
@@ -54,7 +56,7 @@ async function fixture(sharedConversation = false) {
       channel: 'qq',
       botId,
       account: { fingerprint: accounts[botId as Account].fingerprint, name: botId },
-      connected: true,
+      connected,
       capabilities: [
         'exclusive-text-consumer',
         'reply-text-checked',
@@ -67,6 +69,8 @@ async function fixture(sharedConversation = false) {
       throw new Error('QQ proactive sending is not qualified by this fixture');
     },
     consumeInbound: async (account, input) => {
+      if (unavailableConsumers.delete(account))
+        throw Object.assign(new Error('Temporarily unavailable'), { code: 'provider-unavailable' });
       consumers.set(account, input);
       return () => {
         if (consumers.get(account) === input) consumers.delete(account);
@@ -175,77 +179,98 @@ async function fixture(sharedConversation = false) {
         collectionInheritance: 'inherit',
       });
     },
-    async restart() {
+    async restart(failure?: 'disconnected' | 'consumer-unavailable') {
       await stop(core);
+      connected = failure !== 'disconnected';
+      if (failure === 'consumer-unavailable')
+        for (const account of ['qq-a', 'qq-b']) unavailableConsumers.add(account);
       core = boot();
+      await settle();
+      connected = true;
+      if (failure)
+        await vi.waitFor(
+          async () => {
+            for (const owner of ['ada', 'bea'])
+              expect((await core.externalMessaging.snapshot(owner)).grants[0]?.reception).toBe(
+                'receiving',
+              );
+          },
+          { timeout: 2000 },
+        );
       await settle();
     },
   };
 }
 
-it('two QQ apps retain independent source identity, Channel mapping and own-group replies across restart', async () => {
-  const fx = await fixture();
-  await fx.bind('qq-a');
-  await fx.bind('qq-b');
-  await fx.receive('qq-a', 'first');
-  await fx.receive('qq-b', 'first');
-  const room = fx.core.channels.createGroup({ name: 'Shared QQ QA', members: ['ada', 'bea'] });
-  await fx.sync('qq-a', room.id);
-  await fx.sync('qq-b', room.id);
-  const a = await fx.receive('qq-a', 'same-native-id');
-  const b = await fx.receive('qq-b', 'same-native-id');
-  expect(a).not.toBe(b);
-  expect(fx.core.channels.readMessages(room.id).map((message) => message.body)).toEqual([
-    'same content',
-    'same content',
-  ]);
-  expect(
-    fx.core.channels
-      .readMessages(room.id)
-      .map((message) => message.bridgeOrigin)
-      .sort((a, b) => a!.accountRef!.localeCompare(b!.accountRef!)),
-  ).toEqual([
-    expect.objectContaining({ accountRef: 'qq-a', accountName: 'qq-a' }),
-    expect.objectContaining({ accountRef: 'qq-b', accountName: 'qq-b' }),
-  ]);
-  expect(fx.core.externalMessaging.inbound.readShared('bea', a).event.botId).toBe('qq-a');
-  await expect(fx.core.externalMessaging.reply('bea', a, 'borrowed')).rejects.toThrow(
-    'own-reply-grant-unavailable',
-  );
-  const ownA = await fx.core.externalMessaging.reply('ada', a, 'A result');
-  const ownB = await fx.core.externalMessaging.reply('bea', b, 'B result');
-  expect(ownA).toMatchObject({
-    state: 'provider-accepted',
-    receipt: { conversationId: 'qq-group-a' },
-  });
-  expect(ownB).toMatchObject({
-    state: 'provider-accepted',
-    receipt: { conversationId: 'qq-group-b' },
-  });
-  expect(
-    fx.replies.map((reply) => [reply.account, reply.text, reply.route.conversationId]),
-  ).toEqual([
-    ['qq-a', 'A result', 'qq-group-a'],
-    ['qq-b', 'B result', 'qq-group-b'],
-  ]);
-  await fx.restart();
-  expect(fx.core.channels.readMessages(room.id)).toHaveLength(2);
-  expect(
-    (await fx.core.externalMessaging.apps())
-      .filter((app) => app.boundBotSlug)
-      .map((app) => [app.ref, app.boundBotSlug]),
-  ).toEqual([
-    ['qq-a', 'ada'],
-    ['qq-b', 'bea'],
-  ]);
-  expect(await fx.core.externalMessaging.reply('ada', a, 'A result')).toMatchObject({
-    id: ownA.id,
-  });
-  expect(await fx.core.externalMessaging.reply('bea', b, 'B result')).toMatchObject({
-    id: ownB.id,
-  });
-  expect(fx.replies).toHaveLength(2);
-});
+it.each(['disconnected', 'consumer-unavailable'] as const)(
+  'two QQ apps retain independent source identity, Channel mapping and own-group replies after %s restart',
+  async (failure) => {
+    const fx = await fixture();
+    await fx.bind('qq-a');
+    await fx.bind('qq-b');
+    await fx.receive('qq-a', 'first');
+    await fx.receive('qq-b', 'first');
+    const room = fx.core.channels.createGroup({ name: 'Shared QQ QA', members: ['ada', 'bea'] });
+    await fx.sync('qq-a', room.id);
+    await fx.sync('qq-b', room.id);
+    const a = await fx.receive('qq-a', 'same-native-id');
+    const b = await fx.receive('qq-b', 'same-native-id');
+    expect(a).not.toBe(b);
+    expect(fx.core.channels.readMessages(room.id).map((message) => message.body)).toEqual([
+      'same content',
+      'same content',
+    ]);
+    expect(
+      fx.core.channels
+        .readMessages(room.id)
+        .map((message) => message.bridgeOrigin)
+        .sort((a, b) => a!.accountRef!.localeCompare(b!.accountRef!)),
+    ).toEqual([
+      expect.objectContaining({ accountRef: 'qq-a', accountName: 'qq-a' }),
+      expect.objectContaining({ accountRef: 'qq-b', accountName: 'qq-b' }),
+    ]);
+    expect(fx.core.externalMessaging.inbound.readShared('bea', a).event.botId).toBe('qq-a');
+    await expect(fx.core.externalMessaging.reply('bea', a, 'borrowed')).rejects.toThrow(
+      'own-reply-grant-unavailable',
+    );
+    const ownA = await fx.core.externalMessaging.reply('ada', a, 'A result');
+    const ownB = await fx.core.externalMessaging.reply('bea', b, 'B result');
+    expect(ownA).toMatchObject({
+      state: 'provider-accepted',
+      receipt: { conversationId: 'qq-group-a' },
+    });
+    expect(ownB).toMatchObject({
+      state: 'provider-accepted',
+      receipt: { conversationId: 'qq-group-b' },
+    });
+    expect(
+      fx.replies.map((reply) => [reply.account, reply.text, reply.route.conversationId]),
+    ).toEqual([
+      ['qq-a', 'A result', 'qq-group-a'],
+      ['qq-b', 'B result', 'qq-group-b'],
+    ]);
+    await fx.restart(failure);
+    expect(fx.core.channels.readMessages(room.id)).toHaveLength(2);
+    expect(
+      (await fx.core.externalMessaging.apps())
+        .filter((app) => app.boundBotSlug)
+        .map((app) => [app.ref, app.boundBotSlug]),
+    ).toEqual([
+      ['qq-a', 'ada'],
+      ['qq-b', 'bea'],
+    ]);
+    expect(await fx.core.externalMessaging.reply('ada', a, 'A result')).toMatchObject({
+      id: ownA.id,
+    });
+    expect(await fx.core.externalMessaging.reply('bea', b, 'B result')).toMatchObject({
+      id: ownB.id,
+    });
+    expect(fx.replies).toHaveLength(2);
+    await fx.receive('qq-a', 'after-restart-a');
+    await fx.receive('qq-b', 'after-restart-b');
+    expect(fx.core.channels.readMessages(room.id)).toHaveLength(4);
+  },
+);
 
 it('revoking one QQ owner fences its reply without transferring identity or erasing the other source', async () => {
   const fx = await fixture();
