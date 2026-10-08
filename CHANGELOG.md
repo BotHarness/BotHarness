@@ -9,7 +9,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Added a candidate QQ group file path with authorized Channel downloads, independent working-copy processing and checked original-group result files; real application file permission remains pending ([#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158), [guide](docs/qq-connection.md)).
+- Added a candidate QQ group file path with direct or explicit native quoted-file association, authorized Channel downloads, independent working-copy processing and checked original-group result files; real application file permission remains pending ([#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158), [guide](docs/qq-connection.md)).
 
 - The QQ image candidate reuses authorized Channel previews and native model image tools, and returns selected image results through the receiving app with a durable native receipt; actual QQ/model qualification remains tracked separately ([#1157](https://github.com/BotHarness/BotHarness/issues/1157), [QQ guide](docs/qq-connection.md)).
 

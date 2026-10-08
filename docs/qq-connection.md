@@ -54,7 +54,7 @@ Image results use the receiving app and original group. Upload is separate from 
 
 ## Process group files (development candidate)
 
-The [#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) candidate negotiates ordinary files separately from images. Only a native group @mention carrying its own file attachment qualifies. A separate adjacent file or a quoted attachment does not establish source association. Tencent's native `file` category becomes opaque `application/octet-stream` metadata; it is not a platform MIME claim.
+The [#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) candidate negotiates ordinary files separately from images. A native group @mention can carry a direct file or a qualifying explicit file quote. If QQ sends files separately, reply to the file, select @Bot in that reply and add the processing request. The current native type-103 quote must contain one actual file block with consistent reference indices and matching group/message/author identity; adjacency alone does not establish source association. The quoted file belongs to this current mention Source and its reply authority, without reconstructing a historical message. Real quote payload qualification remains pending. Tencent's native `file` category becomes opaque `application/octet-stream` metadata; it is not a platform MIME claim.
 
 A synced Channel shows the existing file card with **Download to this device**. Each request checks current Channel membership, source placement, receiving identity and conversation authority. The original file is acquired lazily into the canonical AttachmentStore, bounded to 25 MiB and served as a download. Inbox-only reception uses the same source without requiring Channel placement.
 

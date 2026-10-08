@@ -54,7 +54,7 @@
 
 ## 处理群文件（开发候选）
 
-[#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) 候选单独协商普通文件能力，仅接收原生群 @ 消息自身携带的文件。相邻消息和引用附件不建立来源关联。腾讯原生 `file` 分类映射为不透明的 `application/octet-stream` 元数据，不声称平台提供了 MIME。
+[#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158) 候选单独协商普通文件能力，接收原生群 @ 消息直接携带的文件，或符合条件的显式文件引用。若 QQ 将文件单独发送，请回复该文件，在回复中选择 @Bot 并附处理要求。当前原生 type-103 引用须实际携带唯一文件块、引用索引一致，且群／消息／作者身份吻合；仅相邻不建立来源关联。引用附件归属当前 @ Source 及其回复权限，不重建历史消息。真实引用载荷仍待验收。腾讯原生 `file` 分类映射为不透明的 `application/octet-stream` 元数据，不声称平台提供了 MIME。
 
 已同步 Channel 使用现有文件卡片，提供“下载到此设备”。每次请求重新检查 Channel 成员、来源落点、接收身份和会话授权；按需获取到 canonical AttachmentStore，限制 25 MiB，并强制作为文件下载。Inbox-only 接收复用同一来源，无须 Channel 落点。
 
