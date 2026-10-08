@@ -5,6 +5,8 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
+Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval outfits and headwear, and new PersonaBots start from a face seeded across every species.
+
 ### Added
 
 - Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
