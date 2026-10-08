@@ -20,6 +20,12 @@ class Gain {
   connect = vi.fn();
   disconnect = vi.fn();
 }
+class NoiseSource extends Oscillator {
+  buffer: unknown;
+}
+class Filter extends Oscillator {
+  Q = new AudioParameter();
+}
 class Audio {
   static instances: Audio[] = [];
   state = 'suspended';
@@ -27,6 +33,10 @@ class Audio {
   destination = {};
   oscillators: Oscillator[] = [];
   gains: Gain[] = [];
+  sampleRate = 48000;
+  buffers: { getChannelData: () => Float32Array }[] = [];
+  noises: NoiseSource[] = [];
+  filters: Filter[] = [];
   resume = vi.fn(async () => {
     this.state = 'running';
   });
@@ -46,11 +56,88 @@ class Audio {
     this.gains.push(gain);
     return gain;
   }
+  createBuffer(_channels: number, length: number) {
+    const samples = new Float32Array(length);
+    const buffer = { getChannelData: () => samples };
+    this.buffers.push(buffer);
+    return buffer;
+  }
+  createBufferSource() {
+    const source = new NoiseSource();
+    this.noises.push(source);
+    return source;
+  }
+  createBiquadFilter() {
+    const filter = new Filter();
+    this.filters.push(filter);
+    return filter;
+  }
 }
 
 afterEach(() => {
   Audio.instances = [];
   vi.unstubAllGlobals();
+});
+
+it('reuses a bounded throw-noise buffer and releases its filter after completion or partial allocation failure', () => {
+  vi.stubGlobal('AudioContext', Audio);
+  const sound = new CompanionSound();
+  sound.setEnabled(true);
+  sound.unlock();
+  const audio = Audio.instances[0]!;
+  sound.interact('ada', { kind: 'throw', strength: 1 });
+  expect(audio.buffers).toHaveLength(1);
+  expect(audio.buffers[0]!.getChannelData().length).toBeLessThan(audio.sampleRate);
+  expect(audio.noises[0]!.buffer).toBe(audio.buffers[0]);
+  expect(audio.filters[0]!.type).toBe('bandpass');
+  audio.noises[0]!.onended!();
+  expect(audio.noises[0]!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.filters[0]!.disconnect).toHaveBeenCalledOnce();
+  vi.spyOn(audio, 'createGain').mockImplementationOnce(() => {
+    throw new Error('Unavailable');
+  });
+  expect(() => sound.interact('ada', { kind: 'throw', strength: 1 })).not.toThrow();
+  expect(audio.noises[1]!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.filters[1]!.disconnect).toHaveBeenCalledOnce();
+  sound.interact('ada', { kind: 'throw', strength: 1 });
+  expect(audio.buffers).toHaveLength(1);
+  expect(audio.noises[2]!.buffer).toBe(audio.buffers[0]);
+  sound.interact('ada', { kind: 'grab', strength: 1 });
+  expect(audio.noises[2]!.disconnect).toHaveBeenCalledOnce();
+  sound.interact('ada', { kind: 'throw', strength: 1 });
+  expect(audio.oscillators.at(-1)!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.noises).toHaveLength(4);
+  sound.dispose();
+  expect(audio.noises[3]!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.filters[3]!.disconnect).toHaveBeenCalledOnce();
+});
+
+it('shares opt-in, gesture admission and bounded resources between speech and interaction sounds', () => {
+  vi.stubGlobal('AudioContext', Audio);
+  const sound = new CompanionSound();
+  sound.interact('ada', { kind: 'grab', strength: 1 });
+  sound.setEnabled(true);
+  sound.interact('ada', { kind: 'land', strength: 1 });
+  expect(Audio.instances).toHaveLength(0);
+  sound.unlock();
+  const audio = Audio.instances[0]!;
+  sound.play('ada', 'a');
+  sound.interact('ada', { kind: 'grab', strength: 1 });
+  expect(audio.oscillators).toHaveLength(2);
+  expect(audio.oscillators[0]!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.oscillators[1]!.type).toBe('triangle');
+  sound.stopSpeech('ada');
+  expect(audio.oscillators[1]!.disconnect).not.toHaveBeenCalled();
+  sound.interact('grace', { kind: 'land', strength: 0.3 });
+  sound.interact('third', { kind: 'grab', strength: 1 });
+  expect(audio.oscillators).toHaveLength(3);
+  sound.setEnabled(false);
+  expect(audio.oscillators[1]!.disconnect).toHaveBeenCalledOnce();
+  expect(audio.oscillators[2]!.disconnect).toHaveBeenCalledOnce();
+  sound.setEnabled(true);
+  expect(audio.oscillators).toHaveLength(3);
+  sound.dispose();
+  expect(audio.close).toHaveBeenCalledOnce();
 });
 
 it('requires opt-in and a gesture, drops blocked playback, and never queues it for a later unlock', async () => {

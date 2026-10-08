@@ -1,6 +1,55 @@
 import { expect, it } from 'vitest';
 import { CompanionMotion } from '../src/client/companion-motion.js';
 
+it('reports a real grab, cooled fast drag, fast throw and one first-ground impact without bounce chatter', () => {
+  const feedback: { kind: string; strength: number }[] = [];
+  const motion = new CompanionMotion((event) => feedback.push(event));
+  motion.measure(1200, 800, 0.4);
+  motion.grab(0, false);
+  expect(feedback).toEqual([]);
+  motion.drag(450, 200, 16, false);
+  motion.drag(466, 200, 32, false);
+  motion.drag(482, 200, 48, false);
+  motion.release(64, false);
+  expect(feedback.map((event) => event.kind)).toEqual(['grab', 'drag', 'throw']);
+  for (let frame = 0; frame < 300; frame++) motion.advance(16, false, false, 1);
+  expect(feedback.map((event) => event.kind)).toEqual(['grab', 'drag', 'throw', 'land']);
+  expect(feedback.at(-1)!.strength).toBeGreaterThan(0);
+  expect(feedback.at(-1)!.strength).toBeLessThanOrEqual(1);
+  expect(motion.point).toMatchObject({ phase: 'rest', y: 0 });
+});
+
+it('keeps clicks, cancelled drops, held releases and reduced-motion resets free of stale interaction sounds', () => {
+  const feedback: string[] = [];
+  const motion = new CompanionMotion((event) => feedback.push(event.kind));
+  motion.measure(1200, 800, 0.4);
+  motion.grab(0, false);
+  motion.release(16, false, true);
+  for (let frame = 0; frame < 200; frame++) motion.advance(16, false, false, 1);
+  expect(feedback).toEqual([]);
+  motion.grab(4000, false);
+  motion.drag(450, 200, 4016, false);
+  motion.drag(466, 200, 4032, false);
+  feedback.length = 0;
+  motion.release(4048, false, true);
+  for (let frame = 0; frame < 200; frame++) motion.advance(16, false, false, 1);
+  expect(feedback).toEqual([]);
+  motion.grab(8000, false);
+  motion.drag(450, 200, 8016, false);
+  motion.drag(466, 200, 8032, false);
+  feedback.length = 0;
+  motion.release(9000, false);
+  expect(feedback).toEqual([]);
+  motion.advance(0, true, false, 1);
+  for (let frame = 0; frame < 200; frame++) motion.advance(16, false, false, 1);
+  expect(feedback).toEqual([]);
+  motion.grab(12000, true);
+  motion.drag(500, 200, 12016, true);
+  motion.drag(700, 300, 12032, true);
+  motion.release(12048, true);
+  expect(feedback).toEqual([]);
+});
+
 it('keeps angular inertia through a drag reversal, settles while held, and retains bottom alignment on release', () => {
   const motion = new CompanionMotion();
   motion.measure(1200, 800, 0.4);

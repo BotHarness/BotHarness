@@ -7,6 +7,11 @@ export interface CompanionPoint {
   phase: 'rest' | 'drag' | 'fall' | 'land';
 }
 
+export interface CompanionInteraction {
+  kind: 'grab' | 'drag' | 'throw' | 'land';
+  strength: number;
+}
+
 export class CompanionMotion {
   point: CompanionPoint = { x: 0, y: 0, width: 0, tilt: 0, squash: 0, phase: 'rest' };
   private height = 0;
@@ -17,12 +22,19 @@ export class CompanionMotion {
   private tiltVelocity = 0;
   private tiltTarget = 0;
   private dragIdle = 0;
+  private dragging = false;
+  private landingFeedback = false;
+  private dragFeedbackAt = -Infinity;
+
+  constructor(private readonly interaction?: (event: CompanionInteraction) => void) {}
 
   measure(width: number, height: number, position: number): CompanionPoint {
     this.height = Math.max(0, height - 120);
     this.vx = 0;
     this.vy = 0;
     this.landing = 0;
+    this.dragging = false;
+    this.landingFeedback = false;
     this.resetTilt();
     return (this.point = {
       x: this.clampX(position * Math.max(0, width - 104), width),
@@ -58,6 +70,14 @@ export class CompanionMotion {
     this.landing = 0;
     this.dragIdle = 0;
     this.tiltTarget = reduced ? 0 : Math.max(-18, Math.min(18, this.vx / 35));
+    if (!reduced) {
+      if (!this.dragging) this.interaction?.({ kind: 'grab', strength: 1 });
+      else if (Math.abs(this.vx) > 500 && now - this.dragFeedbackAt >= 500) {
+        this.interaction?.({ kind: 'drag', strength: Math.min(1, Math.abs(this.vx) / 700) });
+        this.dragFeedbackAt = now;
+      }
+    }
+    this.dragging = true;
     if (reduced) this.resetTilt();
     return (this.point = {
       ...this.point,
@@ -74,6 +94,9 @@ export class CompanionMotion {
     this.vy = 0;
     this.sampledAt = now;
     this.dragIdle = 0;
+    this.dragging = false;
+    this.landingFeedback = false;
+    this.dragFeedbackAt = -Infinity;
     this.tiltTarget = 0;
     if (reduced) this.resetTilt();
     return (this.point = {
@@ -90,6 +113,9 @@ export class CompanionMotion {
       this.vy = 0;
     }
     if (reduced) return this.measure(this.point.width, this.height + 120, this.position());
+    this.landingFeedback = this.dragging && !cancelled;
+    if (this.landingFeedback && Math.hypot(this.vx, this.vy) >= 700)
+      this.interaction?.({ kind: 'throw', strength: 1 });
     return (this.point = { ...this.point, phase: 'fall' });
   }
 
@@ -133,6 +159,10 @@ export class CompanionMotion {
         if (y <= 0) {
           y = 0;
           const impact = Math.abs(this.vy);
+          if (this.landingFeedback) {
+            this.landingFeedback = false;
+            this.interaction?.({ kind: 'land', strength: Math.min(1, impact / 1200) });
+          }
           this.vy = impact > 100 ? impact * 0.24 : 0;
           squash = Math.min(0.12, impact / 9000);
           if (!this.vy) {
@@ -180,6 +210,8 @@ export class CompanionMotion {
   move(x: number): CompanionPoint {
     this.vx = 0;
     this.vy = 0;
+    this.dragging = false;
+    this.landingFeedback = false;
     this.resetTilt();
     return (this.point = {
       ...this.point,

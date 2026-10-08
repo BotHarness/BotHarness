@@ -489,6 +489,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
   const openDm = vi.fn();
   const sound = new CompanionSound();
   const stop = vi.spyOn(sound, 'stop');
+  const interact = vi.spyOn(sound, 'interact');
   try {
     await act(() =>
       root.render(
@@ -558,7 +559,10 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       }
     };
     await act(() => pointer('pointerdown', 700, 750));
+    await act(() => pointer('pointermove', 702, 750));
+    expect(interact).not.toHaveBeenCalled();
     await act(() => pointer('pointermove', 400, 400));
+    expect(interact).toHaveBeenLastCalledWith('ada', { kind: 'grab', strength: 1 });
     await advanceFrames(2);
     expect(Number.parseFloat(character.style.rotate)).toBeLessThan(0);
     const beforeReversal = character.style.rotate;
@@ -602,6 +606,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     await act(() => {
       delete document.documentElement.dataset['botharnessMotion'];
     });
+    interact.mockClear();
     await act(() => {
       pointer('pointerdown', 400, 750);
       pointer('pointermove', 400, 750 - lifted);
@@ -629,6 +634,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     expect(positions.slice(firstContact + 1).some((bottom) => bottom > 0)).toBe(true);
     expect(surface.style.bottom).toBe('0px');
     expect(openDm).not.toHaveBeenCalled();
+    expect(interact.mock.calls.filter(([, event]) => event.kind === 'land')).toHaveLength(1);
     await act(() => owner.reading(false));
     await act(() =>
       events.dispatchEvent(
@@ -655,12 +661,14 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       await advanceFrames(1);
       await act(() => intersect!([{ target: surface, isIntersecting: false }]));
       expect(stop).toHaveBeenLastCalledWith('ada');
+      interact.mockClear();
       const shown = owner.getSnapshot().cards[0]!.shown;
       expect(Number.isFinite(Number.parseFloat(surface.style.bottom))).toBe(true);
       await advanceFrames(240);
       expect(surface.dataset['motion']).toBe('rest');
       expect(surface.style.bottom).toBe('0px');
       expect(owner.getSnapshot().cards[0]!.shown).toBe(shown);
+      expect(interact).not.toHaveBeenCalled();
     }
     await act(() => intersect!([{ target: surface, isIntersecting: true }]));
     await act(() =>

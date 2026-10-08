@@ -731,7 +731,7 @@ EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用�
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环；带阻尼的二阶角弹簧在拖拽反向、停留与松手时保留角度和角速度，气泡跟随同一位置。有界积分步长和倾角上限避免延迟帧使姿态失稳。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时清除弹簧能量、直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
-集合共用一个 Client-owned `CompanionSound`，消费既有文字播放循环新显示的已提交字素。全局伙伴声音设置按 Client/Profile 持久化，默认关闭；Web Audio 只在可信 Human 操作时按需创建，受限或不可用不影响消息。短合成音节随 Bot 身份和文字变化，标点与空白静音，并发与频率有界，不排队补播。静音、隐藏／离屏、断线、归档、移除和销毁停止相应声音。该呈现不新增模型工具或 TTS，不持久化音频资源或播放进度（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。
+集合共用一个 Client-owned `CompanionSound`，消费既有文字播放循环新显示的已提交字素，以及 `CompanionMotion` 的抓起、快速拖动、快速释放与首次触地反馈。拖动音效冷却 500ms，地面小反弹不重复播放；取消捕获与减少动效不补播。沿用既有 `speechSound` 存储字段保存统一伙伴音效偏好，避免重置已选设置。全局伙伴声音设置按 Client/Profile 持久化，默认关闭；Web Audio 只在可信 Human 操作时按需创建，受限或不可用不影响消息。短合成音节随 Bot 身份和文字变化，标点与空白静音，并发与频率有界，不排队补播。静音、隐藏／离屏、断线、归档、移除和销毁停止相应声音。该呈现不新增模型工具或 TTS，不持久化音频资源或播放进度（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。
 
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 

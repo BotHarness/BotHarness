@@ -81,7 +81,25 @@ export function WindowCompanionView({
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
   latest.current = view;
-  const [motion] = useState(() => new CompanionMotion());
+  const audio = useRef(sound);
+  audio.current = sound;
+  const audible = useRef(false);
+  const [motion] = useState(
+    () =>
+      new CompanionMotion((event) => {
+        const state = latest.current;
+        if (
+          audible.current &&
+          !document.hidden &&
+          document.documentElement.dataset['botharnessMotion'] !== 'reduce' &&
+          state.selection &&
+          state.bot &&
+          !state.bot.paused &&
+          state.sync === 'live'
+        )
+          audio.current?.interact(state.selection.botId, event);
+      }),
+  );
   const [point, setPoint] = useState(motion.point);
   const [bubble, setBubble] = useState<BubblePlacement | undefined>(undefined);
   const bubbleOffset = bubble?.offset ?? 0;
@@ -178,8 +196,9 @@ export function WindowCompanionView({
       let stageVisible = true;
       const syncAudio = () => {
         const state = companion.getSnapshot();
-        if (!state.selection || state.bot?.paused || state.sync !== 'live' || !state.cards.length)
+        if (!state.selection || !state.bot || state.bot.paused || state.sync !== 'live')
           sound?.stop(state.selection?.botId ?? view.selection?.botId);
+        else if (!state.cards.length) sound?.stopSpeech(state.selection.botId);
       };
       const unsubscribeAudio = companion.subscribe(syncAudio);
       const measure = () => {
@@ -260,6 +279,7 @@ export function WindowCompanionView({
         if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
       const visibility = () => {
+        audible.current = !document.hidden && stageVisible && visible;
         if (document.hidden || !stageVisible || !visible)
           sound?.stop(latest.current.selection?.botId);
         cancelAnimationFrame(frame);
@@ -296,6 +316,7 @@ export function WindowCompanionView({
       window.addEventListener('resize', measure);
       document.addEventListener('visibilitychange', visibility);
       return () => {
+        audible.current = false;
         unsubscribeAudio();
         sound?.stop(latest.current.selection?.botId ?? view.selection?.botId);
         cancelAnimationFrame(frame);
