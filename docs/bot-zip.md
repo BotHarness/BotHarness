@@ -32,9 +32,9 @@ Git history also keeps older content that was deleted or changed. That is why **
 
 ## Import
 
-1. Above the sidebar's message list, click **+ (New) → Create PersonaBot → Import from zip**.
+1. Above the sidebar's message list, click **+ (New) → Create Bot → Import from zip**.
 
-![The Create PersonaBot submenu: Start empty, Import from GitHub, Import from zip](/guides/bot-zip/01-create-menu-en.webp)
+![The Create Bot submenu: Start empty, Import from GitHub, Import from zip](/guides/bot-zip/01-create-menu-en.webp)
 
 2. Click **Choose zip file**, pick the zip you received and click **Import**.
 

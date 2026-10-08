@@ -63,7 +63,7 @@ describe('PersonaBot creation form', () => {
       }),
     );
 
-    expect(markup).toContain('创建 PersonaBot');
+    expect(markup).toContain('创建 Bot');
     expect(markup).toContain('名称用于列表和 @；内部身份由系统生成');
     expect(markup).not.toContain('Git 仓库地址');
     expect(markup).toContain('标签（可选）');
@@ -91,7 +91,7 @@ describe('PersonaBot creation form', () => {
       }),
     );
 
-    expect(markup).toContain('在「工作流」中创建 PersonaBot');
+    expect(markup).toContain('在「工作流」中创建 Bot');
   });
 
   it('asks only for the repository when opened from Import from GitHub', () => {
@@ -104,7 +104,7 @@ describe('PersonaBot creation form', () => {
       }),
     );
 
-    expect(markup).toContain('从 GitHub 导入 PersonaBot');
+    expect(markup).toContain('从 GitHub 导入 Bot');
     expect(markup).toContain('Git 仓库地址');
     expect(markup).not.toContain('人格起点');
   });

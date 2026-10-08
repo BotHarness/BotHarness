@@ -97,7 +97,7 @@ describe('Import from zip', () => {
       }),
     );
 
-    expect(host.textContent).toContain('在「工作流」中从 zip 导入 PersonaBot');
+    expect(host.textContent).toContain('在「工作流」中从 zip 导入 Bot');
     expect(host.textContent).toContain('这是第三方内容');
     expect(host.textContent).toContain('还没有选择文件');
     expect(button(host, '导入').disabled).toBe(true);
