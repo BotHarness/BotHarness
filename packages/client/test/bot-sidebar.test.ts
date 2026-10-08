@@ -131,6 +131,8 @@ function stubActions(): BridgeActions {
     }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
+    channelIngests: vi.fn(async (channelId) => ({ channelId, ingests: [], candidates: [] })),
+    channelIngest: vi.fn(async () => undefined),
     channelBridge: vi.fn(async () => undefined),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,

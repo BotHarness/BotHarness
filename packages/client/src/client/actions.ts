@@ -26,6 +26,10 @@ import type {
   ChannelBridgeSnapshot,
 } from '../../../core/src/messaging/channel-bridge.js';
 import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
+import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
@@ -50,6 +54,8 @@ import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadChannelBridges,
   manageChannelBridge,
+  loadChannelIngests,
+  manageChannelIngest,
   loadMessagingSnapshot,
   manageMessagingIdentity,
   manageMessagingConversation,
@@ -257,6 +263,8 @@ export interface HostDirectoryListing {
 export interface BridgeActions {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -1804,6 +1812,8 @@ export function createActions(
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     channelBridges: (channelId) => loadChannelBridges(call, channelId),
     channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
+    channelIngests: (channelId) => loadChannelIngests(call, channelId),
+    channelIngest: (channelId, input) => manageChannelIngest(call, channelId, input),
     approvalRoute: (slug, pairingId, expectedRevision) =>
       setApprovalRoute(call, slug, pairingId, expectedRevision),
     approvalTest: (slug) => testApprovalRoute(call, slug),

@@ -388,6 +388,7 @@ export function createCore(
     onShared: (slugs) => {
       for (const slug of slugs) runtime?.resumePendingDigests?.(slug);
     },
+    onIngested: (channelId, messageId) => runtime?.admitGroupMessage(channelId, messageId),
     recover: operationalDatabase.mode === 'ready',
     isBotActive: (slug) => {
       const bot = registry.get(slug);
