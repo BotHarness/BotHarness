@@ -36,6 +36,25 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
         : null,
     ),
   Input: (props: Record<string, unknown>) => createElement('input', props),
+  Switch: ({
+    checked,
+    onChange,
+    label,
+    disabled,
+  }: {
+    checked: boolean;
+    onChange(value: boolean): void;
+    label: string;
+    disabled: boolean;
+  }) =>
+    createElement('button', {
+      type: 'button',
+      role: 'switch',
+      'aria-label': label,
+      'aria-checked': checked,
+      disabled,
+      onClick: () => onChange(!checked),
+    }),
   Button: ({
     children,
     size: _size,
@@ -316,6 +335,13 @@ it('pins independently, exposes right-click controls and applies global bounded 
     );
     expect(owner.getSnapshot().capacity).toEqual({ layers: 2, retention: 2 });
     expect(owner.get('grace')!.getSnapshot().capacity.retention).toBe(2);
+    const speech = node.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    expect(speech.getAttribute('aria-checked')).toBe('false');
+    await act(() => speech.click());
+    expect(owner.getSnapshot().speechSound).toBe(true);
+    expect(speech.getAttribute('aria-checked')).toBe('true');
+    await act(() => speech.click());
+    expect(owner.getSnapshot().speechSound).toBe(false);
     await act(() => pins[0]!.click());
     expect(node.querySelector('[data-bot="ada"]')).toBeNull();
     expect(node.querySelector('[data-bot="grace"]')).not.toBeNull();

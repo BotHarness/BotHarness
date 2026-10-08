@@ -16,6 +16,7 @@ import { CompanionMotion } from './companion-motion.js';
 import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+import { companionBabble, type CompanionSound } from './companion-sound.js';
 
 function avatarLimitation(
   bot: CompanionBot | undefined,
@@ -41,6 +42,7 @@ export interface WindowCompanionViewProps {
   onRemove?(botId: string): void;
   bubbles?: CompanionBubbles | undefined;
   openSettings?(): void;
+  sound?: CompanionSound | undefined;
 }
 export function WindowCompanionView({
   companion,
@@ -51,6 +53,7 @@ export function WindowCompanionView({
   onRemove,
   bubbles,
   openSettings,
+  sound,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
@@ -144,6 +147,12 @@ export function WindowCompanionView({
       let elapsed = 0;
       let measured = false;
       let visible = true;
+      const syncAudio = () => {
+        const state = companion.getSnapshot();
+        if (!state.selection || state.bot?.paused || state.sync !== 'live' || !state.cards.length)
+          sound?.stop(state.selection?.botId ?? view.selection?.botId);
+      };
+      const unsubscribeAudio = companion.subscribe(syncAudio);
       const measure = () => {
         const width = node.getBoundingClientRect().width;
         const next = measured
@@ -168,7 +177,13 @@ export function WindowCompanionView({
         if (!document.hidden && visible) {
           elapsed += milliseconds;
           if (elapsed >= 50) {
+            const before = companion.getSnapshot().cards;
             companion.advance(elapsed, reduced);
+            const after = companion.getSnapshot();
+            if (!reduced && after.sync === 'live' && after.bot && !after.bot.paused) {
+              const text = companionBabble(before, after.cards);
+              if (text) sound?.play(after.bot.slug, text);
+            }
             elapsed = 0;
           }
           const walking = Boolean(
@@ -215,6 +230,7 @@ export function WindowCompanionView({
         if (!document.hidden && visible) frame = requestAnimationFrame(tick);
       };
       const visibility = () => {
+        if (document.hidden || !visible) sound?.stop(latest.current.selection?.botId);
         cancelAnimationFrame(frame);
         frame = 0;
         previous = performance.now();
@@ -231,7 +247,10 @@ export function WindowCompanionView({
       const target = node.querySelector('.bh-companion');
       if (target) observer?.observe(target);
       const policy = new MutationObserver(() => {
-        if (reducedMotion()) setPoint(motion.advance(0, true, false, direction.current));
+        if (reducedMotion()) {
+          sound?.stop(latest.current.selection?.botId);
+          setPoint(motion.advance(0, true, false, direction.current));
+        }
       });
       policy.observe(document.documentElement, {
         attributes: true,
@@ -242,6 +261,8 @@ export function WindowCompanionView({
       window.addEventListener('resize', measure);
       document.addEventListener('visibilitychange', visibility);
       return () => {
+        unsubscribeAudio();
+        sound?.stop(latest.current.selection?.botId ?? view.selection?.botId);
         cancelAnimationFrame(frame);
         observer?.disconnect();
         policy.disconnect();
@@ -254,7 +275,7 @@ export function WindowCompanionView({
         root.current = null;
       };
     },
-    [companion, view.selection?.botId, bubbles],
+    [companion, view.selection?.botId, bubbles, sound],
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
@@ -519,7 +540,8 @@ export function WindowCompanionView({
           className="bh-companion-character"
           ref={character}
           style={{
-            transform: `rotate(${point.tilt}deg) scale(${1 + point.squash}, ${1 - point.squash})`,
+            rotate: `${point.tilt}deg`,
+            transform: `scale(${1 + point.squash}, ${1 - point.squash})`,
           }}
           aria-label={t('companion.drag', { name: bot.name })}
           onClick={() => {

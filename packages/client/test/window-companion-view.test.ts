@@ -5,6 +5,7 @@ import { expect, it, vi } from 'vitest';
 import { WindowCompanion } from '../src/client/window-companion.js';
 import { WindowCompanionView } from '../src/client/window-companion-view.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { CompanionSound } from '../src/client/companion-sound.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -38,6 +39,111 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconCloseFillRegular: () => null,
   IconNewChatOutlineRegular: () => null,
 }));
+
+it('sounds only fresh playback and silences a Bot on background, stale sync, archive and unmount', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.useFakeTimers();
+  const frames = new Map<number, FrameRequestCallback>();
+  let frameId = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++frameId, callback);
+    return frameId;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const events = new EventTarget();
+  const companion = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  const send = (type: string, value: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(value) }));
+  const baseline = (paused = false) =>
+    send('companion/baseline', {
+      profileId: 'qa',
+      bot: { slug: 'ada', name: 'Ada', paused },
+      activity: { generation: 'host', revision: 0, bots: [] },
+    });
+  await companion.start();
+  companion.select('ada');
+  baseline();
+  const sound = new CompanionSound();
+  const play = vi.spyOn(sound, 'play');
+  const stop = vi.spyOn(sound, 'stop');
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const advanceFrames = async (count: number) => {
+    for (let index = 0; index < count; index++) {
+      await act(() => {
+        vi.advanceTimersByTime(16);
+        const callbacks = [...frames.values()];
+        frames.clear();
+        for (const callback of callbacks) callback(performance.now());
+      });
+    }
+  };
+  const visibility = vi.spyOn(document, 'hidden', 'get');
+  try {
+    await act(() =>
+      root.render(
+        createElement(WindowCompanionView, {
+          companion,
+          sound,
+          openDm() {},
+          openAttention() {},
+          openChannel() {},
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(() =>
+      send('companion/message', {
+        generation: 'host',
+        botId: 'ada',
+        channelId: 'dm',
+        channelName: 'Ada',
+        messageId: 'new',
+        body: 'abcdefghijklmno',
+        source: 'own-dm',
+      }),
+    );
+    expect(play).not.toHaveBeenCalled();
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledOnce();
+    const shown = companion.getSnapshot().cards[0]!.shown;
+    visibility.mockReturnValue(true);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(100);
+    expect(play).toHaveBeenCalledOnce();
+    expect(companion.getSnapshot().cards[0]!.shown).toBe(shown);
+    visibility.mockReturnValue(false);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(companion.getSnapshot().cards[0]!.shown - shown).toBeLessThanOrEqual(2);
+    await act(() => events.dispatchEvent(new Event('error')));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    await act(() => baseline(true));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    stop.mockClear();
+    await act(() => root.unmount());
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    expect(frames.size).toBe(0);
+  } finally {
+    await act(() => root.unmount());
+    companion.dispose();
+    sound.dispose();
+    node.remove();
+    visibility.mockRestore();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  }
+});
 
 it('enables Group playback from the native menu and explains why a Bot-only source cannot open', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -337,11 +443,28 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       Object.defineProperty(event, 'pointerId', { value: id });
       character.dispatchEvent(event);
     };
+    const advanceFrames = async (count: number) => {
+      for (let index = 0; index < count; index++) {
+        await act(() => {
+          vi.advanceTimersByTime(16);
+          const callbacks = [...frames.values()];
+          frames.clear();
+          for (const callback of callbacks) callback(performance.now());
+        });
+      }
+    };
     await act(() => pointer('pointerdown', 700, 750));
     await act(() => pointer('pointermove', 400, 400));
-    expect(character.style.transform).toMatch(/^rotate\(-[\d.]+deg\)/u);
+    await advanceFrames(2);
+    expect(Number.parseFloat(character.style.rotate)).toBeLessThan(0);
+    const beforeReversal = character.style.rotate;
     await act(() => pointer('pointermove', 450, 400));
-    expect(character.style.transform).toMatch(/^rotate\([\d.]+deg\)/u);
+    expect(character.style.rotate).toBe(beforeReversal);
+    for (let index = 0; index < 12; index++) {
+      await act(() => pointer('pointermove', 450 + index * 5, 400));
+      await advanceFrames(1);
+    }
+    expect(Number.parseFloat(character.style.rotate)).toBeGreaterThan(0);
     await act(() => pointer('pointermove', 400, 400));
     const lifted = Number.parseFloat(surface.style.bottom);
     expect(lifted).toBeGreaterThan(12);
@@ -370,7 +493,8 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       document.documentElement.dataset['botharnessMotion'] = 'reduce';
     });
     expect(surface.style.bottom).toBe('0px');
-    expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
+    expect(character.style.rotate).toBe('0deg');
+    expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => {
       delete document.documentElement.dataset['botharnessMotion'];
     });
@@ -412,7 +536,8 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       pointer('pointerdown', 400, 750);
       pointer('pointermove', 700, 200);
     });
-    expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
+    expect(character.style.rotate).toBe('0deg');
+    expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => pointer('pointerup', 700, 200));
     expect(surface.style.bottom).toBe('0px');
     await act(() => vi.runOnlyPendingTimers());
