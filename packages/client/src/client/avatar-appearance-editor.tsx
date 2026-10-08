@@ -9,6 +9,9 @@ import {
   AVATAR_PIECE_COLORS,
   AVATAR_PIECE_COLORS_V4,
   AVATAR_HEADPIECES,
+  AVATAR_ANIMAL_SPECIES,
+  AVATAR_PATTERNS,
+  isAnimalSpecies,
   AVATAR_STRANDS,
   withAvatarPieces,
   withAvatarBuiltInHeadpiece,
@@ -73,13 +76,14 @@ const PIECE_COLORS = [
   'backHairColor',
   'strandColor',
 ] as const satisfies readonly string[];
-const V4_KEYS = new Set<string>(['strand', ...AVATAR_PIECE_COLORS_V4]);
+const V4_KEYS = new Set<string>(['strand', 'pattern', ...AVATAR_PIECE_COLORS_V4]);
 const MOVED = new Set<string>(AVATAR_HEADPIECES);
 
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
     parts: {
-      species: AVATAR_SPECIES,
+      species: [...AVATAR_SPECIES, ...AVATAR_ANIMAL_SPECIES],
+      pattern: AVATAR_PATTERNS,
       ...AVATAR_PARTS_V2,
       ...AVATAR_HAIR_PARTS,
       rightSideHair: AVATAR_HAIR_PARTS.sideHair,
@@ -98,6 +102,7 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     categories: [
       'presets',
       'species',
+      'pattern',
       'hair',
       'bangs',
       'sideHair',
@@ -146,6 +151,7 @@ const SPLIT = new Set<string>([
 ]);
 const PART_CATEGORY: Partial<Record<string, PartSlot>> = {
   headpiece: 'headpiece',
+  pattern: 'pattern',
   bangs: 'bangs',
   sideHair: 'leftSideHair',
   rightSideHair: 'rightSideHair',
@@ -167,7 +173,7 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
   if (recipe.family !== 'illustrated')
     return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
   if (key === 'species')
-    return withAvatarSpecies(recipe, value as IllustratedAvatarRecipe['species'] & string);
+    return withAvatarSpecies(recipe, value as Parameters<typeof withAvatarSpecies>[1]);
   if (V4_KEYS.has(key)) {
     const { [key]: _removed, ...rest } = withAvatarPieces(recipe) as unknown as Fields;
     return (value === 'none' ? rest : { ...rest, [key]: value }) as unknown as AvatarRecipe;
@@ -248,7 +254,9 @@ function categoriesFor(
         ? !flower
         : key === 'strand'
           ? !flower
-          : true,
+          : key === 'pattern'
+            ? isAnimalSpecies(recipe.species)
+            : true,
   );
 }
 
@@ -1031,6 +1039,11 @@ export function AvatarAppearanceEditor({
                   id="bh-avatar-panel"
                   aria-labelledby="bh-avatar-tab-headpiece"
                 >
+                  {hiddenFor(draft, 'headpiece') ? (
+                    <p className="bh-avatar-hidden-note" data-avatar-hidden-note="headpiece">
+                      {t('profile.avatar.hiddenNote')}
+                    </p>
+                  ) : null}
                   {drawing?.slot === 'headpiece' ? (
                     partEditor()
                   ) : (

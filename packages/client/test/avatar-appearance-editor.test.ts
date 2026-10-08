@@ -15,6 +15,7 @@ import {
   AVATAR_PARTS,
   AVATAR_PRESETS,
   AVATAR_SPECIES,
+  AVATAR_ANIMAL_SPECIES,
   AVATAR_SPECIES_SWATCHES,
   isIllustratedAvatarRecipe,
   seededAvatarRecipe,
@@ -255,7 +256,7 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-edit]');
       await click('[data-avatar-category="species"]');
       expect(container.querySelectorAll('[data-avatar-option^="species:"]')).toHaveLength(
-        AVATAR_SPECIES.length,
+        AVATAR_SPECIES.length + AVATAR_ANIMAL_SPECIES.length,
       );
       await click('[data-avatar-option="species:goblin"]');
       expect(
@@ -1129,6 +1130,61 @@ describe('Profile Avatar Appearance editing', () => {
       );
       await click('[data-part-save]');
       expect(add.mock.calls[0]![0]).toEqual(canonicalCustomPart(start));
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+  it('makes an animal with a fur pattern and keeps an ear headpiece hidden with a note', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async (_channel: string, _recipe: unknown) => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      expect($('[data-avatar-category="pattern"]')).toBeNull();
+      await click('[data-avatar-category="headpiece"]');
+      await click('[data-avatar-option="headpiece:bunnyears"]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:cat"]');
+      await click('[data-avatar-category="pattern"]');
+      await click('[data-avatar-option="pattern:tabby"]');
+      await click('[data-avatar-category="nose"]');
+      expect($('[data-avatar-hidden-note="nose"]')).not.toBeNull();
+      await click('[data-avatar-category="headpiece"]');
+      expect($('[data-avatar-hidden-note="headpiece"]')).not.toBeNull();
+      await click('[data-avatar-category="colors"]');
+      expect($('[data-avatar-option="skinColor:#9aa3ad"]')).not.toBeNull();
+      await click('[data-avatar-option="skinColor:#9aa3ad"]');
+      await click('[data-avatar-save]');
+      expect(save.mock.calls[0]![1]).toMatchObject({
+        assetVersion: 4,
+        species: 'cat',
+        pattern: 'tabby',
+        headpiece: 'bunnyears',
+        skinColor: '#9aa3ad',
+      });
     } finally {
       await act(() => root.unmount());
       container.remove();
