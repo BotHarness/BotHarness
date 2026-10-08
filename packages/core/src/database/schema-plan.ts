@@ -1595,7 +1595,7 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
 };
 
 const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
-  generation: 64,
+  generation: 65,
   module: 'messaging',
   description: 'Let a bound app inherit the platform default new-conversation mode',
   migrate(database) {

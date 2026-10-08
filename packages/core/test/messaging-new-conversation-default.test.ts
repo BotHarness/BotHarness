@@ -11,7 +11,7 @@ it('keeps apps set to ask as custom and lets every other app follow the platform
   const prior = mountOperationalDatabase({
     dshHome: home,
     schemaPlan: defineSchemaPlan(
-      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation < 64),
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation < 65),
     ),
   });
   const insert =
