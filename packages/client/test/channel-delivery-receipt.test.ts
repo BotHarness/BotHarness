@@ -114,9 +114,9 @@ describe('Channel delivery receipt', () => {
         ),
       );
       const trigger = host.querySelector<HTMLButtonElement>('.bh-delivery-trigger');
-      expect(trigger?.getAttribute('aria-label')).toContain('1 Human 未读');
+      expect(trigger?.getAttribute('aria-label')).toContain('1 你未读');
       await act(async () => trigger?.click());
-      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain('Human');
+      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain('你');
       await act(async () =>
         root.render(
           createElement(ChannelDeliveryReceipt, {
@@ -129,7 +129,7 @@ describe('Channel delivery receipt', () => {
           }),
         ),
       );
-      expect(trigger?.getAttribute('aria-label')).toContain('1 Human 已读');
+      expect(trigger?.getAttribute('aria-label')).toContain('1 你已读');
       await act(async () =>
         root.render(
           createElement(ChannelDeliveryReceipt, {

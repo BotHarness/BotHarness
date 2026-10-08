@@ -1,3 +1,4 @@
+import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary, ChannelHumanMember, ChannelMessage, ChannelSummary } from './store.js';
 
 export function channelHumanName(
@@ -7,6 +8,10 @@ export function channelHumanName(
     channel?.humanMembers?.find((member) => member.humanId === 'local-human')?.displayName ??
     'Human'
   );
+}
+
+export function humanLabel(name: string, t: BotHarnessTranslate): string {
+  return name === 'Human' ? t('channelActivity.human') : name;
 }
 
 export function currentMentionLabel(

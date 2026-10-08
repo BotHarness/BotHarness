@@ -290,6 +290,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
 
   today: string;
   events: ProfileActivityReasonDay[];
@@ -4008,11 +4010,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const scope = dmMemory(payload);
       if (!('botSlug' in scope)) return scope;
       const slug = scope.botSlug;
-      const weeks = 26;
-      const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-      const events = deps.channels.admissionActivity?.(slug, since) ?? [];
-      const commits = deps.memory?.activity?.(slug, since) ?? [];
-      const usageRows = deps.usage?.activity(slug, since) ?? [];
+      const source = asObject(payload);
+      const before = source['before'];
+      const requestedWeeks = source['weeks'];
+      if (
+        before !== undefined &&
+        (typeof before !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(before))
+      )
+        return invalidInput('before must be a YYYY-MM-DD day');
+      if (
+        requestedWeeks !== undefined &&
+        (typeof requestedWeeks !== 'number' ||
+          !Number.isInteger(requestedWeeks) ||
+          requestedWeeks < 1 ||
+          requestedWeeks > 104)
+      )
+        return invalidInput('weeks must be an integer from 1 to 104');
+      const weeks = requestedWeeks ?? 26;
+      const end = before === undefined ? undefined : localMidnight(before);
+      const since = new Date(
+        (end?.getTime() ?? Date.now()) - weeks * 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const beforeEnd = <T extends { at: string }>(entries: readonly T[]): T[] =>
+        end === undefined ? [...entries] : entries.filter((entry) => new Date(entry.at) < end);
+      const events = beforeEnd(deps.channels.admissionActivity?.(slug, since) ?? []);
+      const commits = beforeEnd(deps.memory?.activity?.(slug, since) ?? []);
+      const usageRows = (deps.usage?.activity(slug, since) ?? []).filter(
+        (row) => before === undefined || row.day < before,
+      );
+      const createdDay = localDay(deps.registry.getHistorical(slug)?.createdAt ?? '');
       const tokensByDay = new Map<string, ProfileActivityTokensDay>();
       const tokenTotals: ProfileTokenBuckets = {
         inputTokens: 0,
@@ -4044,6 +4070,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug,
           weeks,
           since,
+          ...(before === undefined ? {} : { before }),
+          ...(createdDay === undefined ? {} : { createdDay }),
           today: localDay(new Date().toISOString()) ?? '',
           events: bucketByReason(events),
           memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
@@ -4176,6 +4204,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: { accepted: deps.developerMode !== undefined } };
     },
   };
+}
+
+function localMidnight(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year!, month! - 1, date!);
 }
 
 function localDay(at: string): string | undefined {

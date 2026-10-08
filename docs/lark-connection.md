@@ -174,13 +174,13 @@ Adjust behaviour after the first successful test:
 Start small: **mention the application bot** in a test group and send “Please reply here with LARK-OK.” Avoid testing several Bots at once.
 
 1. The message appears in the Bot DM’s right-hand **Bot Inbox** with the correct Lark group, sender and content, and the group appears under **Active** in the app’s conversation list.
-2. Source details show the external message ID, Source Event ID and topic information when present.
+2. Source details show the external message ID, Event ID and topic information when present.
 3. Lark receives `LARK-OK` from this Bot’s own app in the original conversation. A topic test replies in the same topic.
 4. Send an ordinary unmentioned message and confirm it does not reach this Bot unless the group’s **Rules** allow ordinary messages.
 
 **Lark’s green or gray read circle does not show whether a Bot received a message.** Use the local Inbox source record and the actual reply.
 
-![Real source details, native message ID and Source Event ID](/guides/lark/08-source.webp)
+![Real source details, native message ID and Event ID](/guides/lark/08-source.webp)
 
 _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details._
 

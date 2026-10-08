@@ -218,6 +218,7 @@ import {
   type MemoryRecoveryCheckpoint,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type ProfileActivityWindow,
   type GroupProfileActivity,
   type BotSourcePolicyView,
   type BotScheduleView,
@@ -460,7 +461,7 @@ export interface BridgeActions {
   memoryDiff(channelId: string, sha: string): Promise<string>;
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
-  profileActivity(channelId: string): Promise<ProfileActivity>;
+  profileActivity(channelId: string, window?: ProfileActivityWindow): Promise<ProfileActivity>;
   overviewMemory(
     after?: string,
   ): Promise<import('../../../core/src/memory/overview.js').OverviewMemory>;
@@ -1900,7 +1901,7 @@ export function createActions(
     memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
-    profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    profileActivity: (channelId, window) => loadProfileActivity(call, channelId, window),
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     marketplaceList: (query) => loadMarketplacePage(call, query),
