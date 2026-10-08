@@ -171,3 +171,18 @@ Preserve pnpm's supply-chain policy when repairing that installation. An earlier
 The pinned Windows composition enables `pwsh-sandbox`; a Tool named `bash` does not by itself identify its Shell Provider. A real approved `printf` invocation reached Git/MSYS and failed with a Win32 signal-pipe error and `[exit code: 1]`, while its native result had `isError: false`. Inspect the actual output and exit evidence as well as the canonical decision. A fresh bounded `node -e` print invocation verified successful execution on Windows; a separate rejected request returned the native rejection error with no replacement call. Keep failed evidence, and do not retry a denied operation under a different command. Authenticated Web approval qualification remains separate from real IM button-to-native-result qualification.
 
 Preserve the instant when comparing an owned Host's process start time. PowerShell's `ConvertFrom-Json` can turn an ISO timestamp into `DateTime`; converting that object back to a culture-specific string and parsing it as `DateTimeOffset` can lose the original UTC offset. This made an exact-PID cleanup guard refuse the correct process. Cast the typed value directly, or retain the original ISO string, and compare UTC instants before stopping the process. The corrected manual check matched with zero time difference. Keep the original refusal as evidence; correcting the helper does not prove its independent automatic cutoff ran successfully. Server-owned restoration and explicit local cleanup must have separate evidence.
+
+## RC1 native Human waits hold their current Agent step
+
+For same-PersonaBot wait experiments, distinguish durable Inbox Admission and
+accepted `steer` from actual native input claim/model processing. Pinned DSH
+`0.2.0-rc.1` keeps the current Agent step inside awaited tool preparation/body;
+its driver cannot claim next-step input until approval/question resolves.
+An independent Assignment approval can leave its Orchestrator available when
+that Orchestrator ends its dispatch turn. This does not release the Assignment
+running permit or qualify an Orchestrator's own wait. Test native approval and
+formal question separately through existing Web controls, retain exact original
+Session/call/arguments, native decision/result and the unrelated `channel_send`
+receipt. Recheck scope changes/revocation. Cancellation/cold resume are not
+preserved-call suspension. See the [bounded #1036 experiment](../../../../docs/research/1036-native-wait-experiment.md)
+and [local capability blocker #1220](https://github.com/BotHarness/DeepSeekBot/issues/1220).

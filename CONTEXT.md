@@ -59,8 +59,20 @@ A category of Avatar forms with compatible appearance choices that a Human can c
 _Avoid_: Soul, Bot type, mode, skin
 
 **Avatar Appearance**:
-A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
+A PersonaBot's saved visual choices: its Avatar Family, Avatar Species, compatible parts including Custom Parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
 _Avoid_: Soul, pose, mood, skin
+
+**Avatar Species**:
+A base within one Avatar Family's rig, such as human, elf, goblin or an anthropomorphic animal, that sets its head silhouette, ears, nose or muzzle and suggested colors, and decides which parts it accepts. It shares the family's motion and anchors; a different skeleton or visual language is a different Avatar Family.
+_Avoid_: race, Family, Bot type, skin
+
+**Custom Part**:
+A bounded pixel part a Human draws for one Avatar Appearance slot, whose cells reference the appearance's color choices or fixed colors. Applying it embeds a copy in the Avatar Appearance, so it travels with a shared PersonaBot; it is data, never markup or an executable renderer.
+_Avoid_: sticker, skin, upload, custom SVG
+
+**Part Library**:
+A Human's reusable collection of Custom Parts in the current DSH Profile, each marked by its origin: drawn here, from an imported PersonaBot, or from an imported part file. Importing either adds its parts; editing a library part never changes appearances that already embed a copy.
+_Avoid_: asset store, marketplace, catalog
 
 **Window Companion**:
 A Human-selected Binding that keeps one PersonaBot's Avatar present across pages within the Harness window and presents selected activity and messages. It retains the existing PersonaBot identity and is independent of Channel pinning and the active conversation.

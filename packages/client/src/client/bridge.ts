@@ -1,3 +1,4 @@
+import { isPixelBannerRecipe, type PixelBannerRecipe } from '@botharness/pixel-banner';
 import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
@@ -78,6 +79,7 @@ import type {
   HumanAttentionPage,
   HumanInboxCategory,
   HumanInboxFilters,
+  BotBannerView,
   BotSummary,
   ChannelAuthor,
   ChannelAttachmentRef,
@@ -604,10 +606,19 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
       : isRetainedAvatarAppearance(record['appearance'])
         ? { appearanceUnsupported: true as const }
         : {}),
+    ...(parseBanner(record['banner']) ?? {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
     ...(record['deleted'] === true ? { deleted: true } : {}),
     ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseBanner(value: unknown): { banner: BotBannerView } | undefined {
+  const banner = asRecord(value);
+  if (banner === undefined) return undefined;
+  if (isPixelBannerRecipe(banner['recipe'])) return { banner: { recipe: banner['recipe'] } };
+  const image = banner['image'];
+  return typeof image === 'string' && image.length > 0 ? { banner: { image } } : undefined;
 }
 
 function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
@@ -1903,6 +1914,17 @@ export async function setBotAvatar(
   const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
+export async function setBotBanner(
+  call: BridgeCall,
+  channelId: string,
+  banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botBannerSet', { channelId, banner }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botBannerSet response');
   return bot;
 }
 

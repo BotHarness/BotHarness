@@ -487,6 +487,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
+  botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botBannerSet({ channelId, banner }));
+  }
+
   botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAppearanceSet({ channelId, recipe }));
   }
@@ -1221,6 +1225,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',
