@@ -1,3 +1,4 @@
+import { parseToolApprovalActor } from '../workspaces/tool-approval-actor.js';
 import { createHash } from 'node:crypto';
 
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
@@ -213,6 +214,10 @@ export interface ChannelMessage {
 
   userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
+  bridgeMedia?: {
+    items: { id: string; kind: 'image'; name: string }[];
+    parts?: import('../messaging/provider.js').MessagingContentPart[];
+  };
   bridgeOrigin?: {
     sourceEventId: string;
     platform: string;
@@ -220,6 +225,8 @@ export interface ChannelMessage {
     conversationName: string;
     messageId: string;
     senderId: string;
+    senderName?: string;
+    mentions?: { id: string; key: string; name?: string }[];
     threadId?: string;
   };
   external?: ChannelMessageExternal;
@@ -487,6 +494,7 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     )
       return false;
     const decision = toolDecision as Record<string, unknown>;
+    if (decision['actor'] !== undefined && !parseToolApprovalActor(decision['actor'])) return false;
     if (
       typeof decision['requestMessageId'] !== 'string' ||
       (decision['outcome'] !== 'allowed-once' &&
@@ -702,6 +710,27 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     ]) {
       if (typeof origin[key] !== 'string' || origin[key].length === 0) return false;
     }
+    if (
+      origin['senderName'] !== undefined &&
+      (typeof origin['senderName'] !== 'string' || origin['senderName'].trim().length === 0)
+    )
+      return false;
+    const nativeMentions = origin['mentions'];
+    if (
+      nativeMentions !== undefined &&
+      (!Array.isArray(nativeMentions) ||
+        !nativeMentions.every(
+          (mention) =>
+            typeof mention === 'object' &&
+            mention !== null &&
+            typeof mention.id === 'string' &&
+            mention.id.length > 0 &&
+            typeof mention.key === 'string' &&
+            mention.key.length > 0 &&
+            (mention.name === undefined || typeof mention.name === 'string'),
+        ))
+    )
+      return false;
     if (
       origin['threadId'] !== undefined &&
       (typeof origin['threadId'] !== 'string' || origin['threadId'].length === 0)

@@ -41,7 +41,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | ---------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `botharness/list`            | `{ query?, since? }`                                                                             | `{ bots: PersonaBotSummary[]; cursor }`                                         | roster 名册；`since` 增量                                                                                                                                            |
 | `botharness/get`             | `{ slug }`                                                                                       | `{ bot: PersonaBotDetail }`                                                     | 详情（含记忆入口、workspaces）                                                                                                                                       |
-| `botharness/create`          | `{ displayName, roles?, persona?, description?, model?, preset?, workspaces?, avatar? }`         | `{ bot: PersonaBotDetail }`                                                     | Host 生成内部 ID；最小 UI 发名称及可选岗位/简介；persona 缺省时写占位 `PERSONA.md`                                                                                   |
+| `botharness/create`          | `{ displayName, roles?, persona?, description?, model?, preset?, workspaces?, avatar? }`         | `{ bot: PersonaBotDetail }`                                                     | Host 生成内部 ID；最小 UI 发名称及可选岗位/简介；persona 写入 `SOUL.md`，并写入 `MEMORY.md` 模板（ADR-0134）                                                         |
 | `botharness/update`          | `{ slug, patch: { displayName?, roles?, description?, model?, preset?, workspaces?, avatar? } }` | `{ bot: PersonaBotDetail }`                                                     | `slug` 是内部 ID 的当前 wire 键；不写 persona（人属）；空值清空可选字段                                                                                              |
 | `botharness/pause`           | `{ slug }`                                                                                       | `{ bot: PersonaBotDetail }`                                                     | 暂停后续委派；状态仍在读模型中（`paused: true`）                                                                                                                     |
 | `botharness/resume`          | `{ slug }`                                                                                       | `{ bot: PersonaBotDetail }`                                                     | 恢复委派；读模型清除 `paused`                                                                                                                                        |
@@ -162,7 +162,7 @@ Windows 与 WSL 的 `~/.config/botharness/dev.env` 分属不同的用户目录�
 
 ## 8. 未决
 
-- 桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 相关方法、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 方法经 Messaging module 读写 `botharness.db` 的 Source Event、placement 与已读位置（ADR-0037）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
+- 桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 相关方法、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`SOUL.md`，Channel 方法经 Messaging module 读写 `botharness.db` 的 Source Event、placement 与已读位置（ADR-0037）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。
@@ -181,3 +181,13 @@ Reply to that exact Lark report in its topic, @mentioning the bound Bot. Its eli
 ### 外部附近上下文
 
 Bot 使用 `bridge_context` 的 `nearby` 时，默认读取来源前后各五分钟内的可见 Human 文字消息；一侧不足时，补齐最近的前 10／后 5 条（锚点自身不计入）。可使用 `before_count`／`after_count` 调整每侧 0–20 条。窗口密集时不会因为达到条数而截断：继续传回同一来源、范围和条数配置下的 `nextCursor`，直到没有续页；每页仍受返回文字预算限制。每个 Cursor 有效 30 分钟，重启或授权变化可使其失效。Lark 的 Chat 列表可能不包含话题回复，读取话题内容仍使用 `thread`；锚点本身保留在原 Inbox 来源中。只读取现有消息，不等待未来内容；权限、略过消息或历史已尽可使结果不足保底数量。读取的历史不会自动进入 Inbox（[ADR-0125](adr/0125-nearby-context-combines-time-coverage-and-count-minima.md)）。
+
+### Window Companion 的未来消息消费（#1138）
+
+共享 Activity 健康状态仅在连接状态变化时更新；取消钉选会释放旧的 stale 提示。只有成功加载的 Registry 名单确认 Bot 已不存在时，Client 才自动移除其钉选并恢复普通 Activity 消费；网络或认证失败保留本地选择，不作为 Bot 删除的证据。
+
+`GET /api/botharness/companion` 通过 Connection Fetch 的原生认证返回 `{ profileId }`；标识为原生 Profile 目录的不透明 SHA-256，既不返回路径，也不包含凭据。`?botId=<slug>&dm=1|0` 返回 SSE：`companion/baseline` 和 `companion/activity` 含 Registry 形象与现有全 Bot Activity snapshot，`companion/message` 仅含拥有者已提交的 Human–Bot 私聊消息 ID、Channel ID/名称及最多 2000 字符的文字预览。首个切片不消费群聊或 Bot–Bot DM。未认证真实 Host 请求返回 401。
+
+Host 同步注册消费者后写基线，不扫描旧消息；Client 每次基线或 Host generation 变化清空过程卡片，重启只恢复本地选择。消息不持久化。Activity 合并为一个待发送快照，Host 消息待发队列最多二十条；Client 保留卡片最多二十张，阅读中的新到达队列另外最多二十条；离开时合并并保留最新二十张。阅读中最多四十条卡片记录，文字揭示及预览截断保持完整字素。断流显示 stale，后续重连从新基线开始，离线有界补播由 #1141 继续实现。取消消费释放 listener、heartbeat 与队列；移除伙伴后恢复普通页面的 Activity 消费。
+
+选中伙伴时，伙伴 feed 也供给共享 Activity store；不要同时打开独立 Activity SSE。真实 RC1 Windows Web 验证中，额外 SSE 曾使 Bot 模式的 DM 发送停在发送中，退出模式后恢复。合并消费后，同一模式内连续三条真实提交完成。此症状符合浏览器同 origin HTTP/1 长连接额度耗尽，具体连接计数未直接测量。

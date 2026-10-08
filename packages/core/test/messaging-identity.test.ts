@@ -7,7 +7,7 @@ import { createTempRoot } from './helpers.js';
 
 const cleanup: (() => void)[] = [];
 afterEach(() => cleanup.splice(0).forEach((f) => f()));
-function fixture(platform: 'feishu' | 'slack' = 'feishu') {
+function fixture(platform: 'feishu' | 'slack' | 'discord' = 'feishu') {
   const home = createTempRoot('bh-identity-');
   let owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   let fingerprint = 'a'.repeat(64),
@@ -279,7 +279,7 @@ it('provider loss reports unavailable while enabled preference remains durable a
   ).rejects.toThrow('provider-unavailable');
 });
 
-it.each(['feishu', 'slack'] as const)(
+it.each(['feishu', 'slack', 'discord'] as const)(
   '%s inherits live identity defaults, preserves custom choices, restores inheritance, and fences queued sends',
   async (platform) => {
     const f = fixture(platform);

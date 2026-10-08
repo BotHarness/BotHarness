@@ -97,6 +97,9 @@ describe('confirmed terminal PersonaBot deletion', () => {
       rootRole: 'orchestrator',
       at: new Date().toISOString(),
     });
+    const workspace = join(f.home, 'workspace');
+    f.core.registry.update('a', { workspaces: [workspace] });
+    expect(f.core.registry.findByWorkspace(workspace)?.slug).toBe('a');
     const preview = f.deletion.preview('a');
     expect(preview.eraseAvailable).toBe(true);
     expect(await f.deletion.confirm('a', preview.token, false)).toMatchObject({
@@ -109,6 +112,7 @@ describe('confirmed terminal PersonaBot deletion', () => {
       execFileSync('git', ['-C', path, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     ).not.toBe('');
     expect(f.core.registry.get('a')).toBeUndefined();
+    expect(f.core.registry.findByWorkspace(workspace)).toBeUndefined();
     expect(f.core.registry.getHistorical('a')?.displayName).toBe('Same name');
     expect(f.core.registry.create({ slug: 'a', displayName: 'new' })).toEqual({
       ok: false,

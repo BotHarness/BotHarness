@@ -42,20 +42,20 @@ describe('handleCompactionEvent', () => {
       memory: service,
       warn: (message: string) => void warnings.push(message),
     };
-    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
-    expect(service.personaForSession('session-ada')).toBe('# Persona v1\n');
+    writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v1\n');
+    expect(service.personaForSession('session-ada')).toContain('# Persona v1');
 
-    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+    writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v2\n');
     handleCompactionEvent(sink, 'session-ada', 'compaction/end');
-    expect(service.personaForSession('session-ada')).toBe('# Persona v2\n');
+    expect(service.personaForSession('session-ada')).toContain('# Persona v2');
     expect(warnings).toEqual([]);
   });
 
   it('leaves identical snapshots alone', () => {
     const { ownership, service, memoryDir } = setup();
     const warnings: string[] = [];
-    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
-    expect(service.personaForSession('session-ada')).toBe('# Persona v1\n');
+    writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v1\n');
+    expect(service.personaForSession('session-ada')).toContain('# Persona v1');
     const before = ownership.personaSnapshot('session-ada');
 
     handleCompactionEvent(
@@ -75,13 +75,13 @@ describe('handleCompactionEvent', () => {
       memory: service,
       warn: (message: string) => void warnings.push(message),
     };
-    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
-    expect(service.personaForSession('session-ada')).toBe('# Persona v1\n');
+    writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v1\n');
+    expect(service.personaForSession('session-ada')).toContain('# Persona v1');
 
     handleCompactionEvent(sink, 'ghost-session', 'compaction/end');
     handleCompactionEvent(sink, 'session-ada', 'turn/end');
     handleCompactionEvent(sink, 'session-ada', 'compaction/start');
-    expect(service.personaForSession('session-ada')).toBe('# Persona v1\n');
+    expect(service.personaForSession('session-ada')).toContain('# Persona v1');
     expect(warnings).toEqual([]);
   });
 

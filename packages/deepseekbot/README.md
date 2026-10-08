@@ -39,15 +39,24 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 
 ## Every Bot is a colleague
 
-- **Lasting identity:** each PersonaBot keeps its own name, persona (PERSONA.md) and avatar across chats, Sessions and Workspaces.
+- **Lasting identity:** each PersonaBot keeps its own name, Soul (SOUL.md) and avatar across chats, Sessions and Workspaces.
 - **Git Memory you can see:** a Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.
 - **Groups:** messages keep each Bot's identity, and you @ whoever you need.
 - **Assignments:** grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report.
 - **Their own IM identity:** when mentioned in an authorized group or thread, a Bot replies there under its own identity.
+- **Schedules:** have a Bot do something every few minutes, every hour or every day; add one in the sidebar or just ask the Bot, and lock it when the Bot shouldn't change it.
+- **Bot Marketplace:** install a Bot someone shared on the [Bot Marketplace](https://market.botharness.ai), or [share your own](https://github.com/BotHarness/BotHarness/blob/main/docs/share-bot.md).
+- **Update notes:** after an install or update, Bot mode shows what changed, and Bot settings check npm for a newer version.
 
-<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/memory-evolution.jpg" width="800" alt="Memory evolution in DSH: Git graph, commit history and a line diff of a Bot's memory" />
+<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/v2/en/hero.jpg" width="800" alt="Bot mode: a roster of pixel-avatar Bots, a DM with Mira and her Memory evolution Git graph" />
 
-<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/group-collaboration.jpg" width="800" alt="Three PersonaBots replying under their own identities in a Group" />
+<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/v2/en/group.jpg" width="800" alt="Three PersonaBots replying under their own identities in a Group" />
+
+<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/v2/en/schedules.jpg" width="800" alt="A Bot created a daily schedule itself; the sidebar lists Sessions and Schedules as cards" />
+
+<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/v2/en/marketplace.jpg" width="800" alt="Bot Marketplace with topic filters, search and Install buttons (sample listings)" />
+
+More screenshots and per-version highlights are in the [GitHub README](https://github.com/BotHarness/BotHarness#screenshots).
 
 ## Pixel avatars
 
@@ -75,7 +84,7 @@ DeepSeekBot runs on DSH's own session management and harness, so any LLM provide
 
 **开源的 GrokBot 平替。一组有各自身份、人格和记忆的 bots，一起做事。**
 
-DeepSeekBot 以一个插件装进 DeepSeek Harness（DSH）：Bot 名册、私聊与 Group、看得见的 Git Memory、任务委派，以及 Bot 自己的 IM 身份（飞书 / Lark、Slack、Discord、微信）。它直接用 DSH 的 Session 管理和 Harness，你在 DSH 里接入的任何模型 provider 都能用，也能和其他 DSH 插件装在一起。
+DeepSeekBot 以一个插件装进 DeepSeek Harness（DSH）：Bot 名册、私聊与 Group、看得见的 Git Memory、定时任务、Bot 市场、任务委派，以及 Bot 自己的 IM 身份（飞书 / Lark、Slack、Discord、微信）。它直接用 DSH 的 Session 管理和 Harness，你在 DSH 里接入的任何模型 provider 都能用，也能和其他 DSH 插件装在一起。
 
 **桌面端**：打开 DeepSeek Harness，点「插件 → 添加插件」，在「包名或地址」里输入 `deepseekbot`，点「安装」，再点「立即启用」。
 
@@ -86,6 +95,10 @@ npm i -g @deepseek-ai/dsh@0.2.0-rc.1
 dsh plugin --profile web add deepseekbot
 dsh web
 ```
+
+<img src="https://raw.githubusercontent.com/BotHarness/BotHarness/main/docs/assets/readme/v2/zh/hero.jpg" width="800" alt="Bot 模式：像素头像的 Bot 名册、与 Mira 的私聊和她的记忆演化" />
+
+更多截图和各版本亮点见 [GitHub README](https://github.com/BotHarness/BotHarness/blob/main/README.md#screenshots)。
 
 官网：[deepseekbot.botharness.ai](https://deepseekbot.botharness.ai) · 源码：[GitHub](https://github.com/BotHarness/BotHarness) · Discord：[加入](https://discord.gg/aEB2Ayhu7B) · QQ 群：1125565676
 

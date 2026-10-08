@@ -22,7 +22,6 @@ import {
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
-  PersonaBotStatusBadges,
   personaBotPresentationSummary,
   type PersonaBotFacepileItem,
 } from './avatar.js';
@@ -72,6 +71,10 @@ import {
   type ClientState,
 } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
+import type { ReleaseNotesController } from './release-notes.js';
+import { ReleaseNotesAnnouncement } from './release-notes-view.js';
+import type { TelemetryNoticeController } from './telemetry-notice.js';
+import { TelemetryNotice } from './telemetry-notice-view.js';
 
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
@@ -1139,16 +1142,13 @@ function ConversationView({
                     indicator={false}
                   />
                 ) : channelFacepile.length > 0 ? (
-                  <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
+                  <PersonaBotFacepile items={channelFacepile} size={22} indicator={false} t={t} />
                 ) : (
                   <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
                     #
                   </span>
                 )}
                 <span className="bh-title">{title}</span>
-                {bot === undefined ? null : (
-                  <PersonaBotStatusBadges state={botActivity} attention={bot.attention} />
-                )}
                 {bot === undefined || bot.roles.length === 0 ? null : (
                   <span className="bh-role-badges">
                     {bot.roles.map((role) => (
@@ -1180,10 +1180,6 @@ function ConversationView({
                     indicator={false}
                   />
                   <span className="bh-title">{title}</span>
-                  <PersonaBotStatusBadges
-                    state={profileBotActivity}
-                    attention={profileBot.attention}
-                  />
                   {profileBot.roles.length === 0 ? null : (
                     <span className="bh-role-badges">
                       {profileBot.roles.map((role) => (
@@ -1640,6 +1636,8 @@ export function BotPanel({
   channelSidebar,
   profileCards,
   nativeChatT,
+  releaseNotes,
+  telemetryNotice,
   t,
 }: {
   actions: BridgeActions;
@@ -1647,6 +1645,8 @@ export function BotPanel({
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
+  releaseNotes?: ReleaseNotesController | undefined;
+  telemetryNotice?: TelemetryNoticeController | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const modeMount = useMountedResource<HTMLSpanElement>(() => {
@@ -1658,6 +1658,12 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
+      {releaseNotes === undefined ? null : (
+        <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
+      )}
+      {telemetryNotice === undefined ? null : (
+        <TelemetryNotice controller={telemetryNotice} releaseNotes={releaseNotes} t={t} />
+      )}
       <BotMain
         actions={actions}
         nativeSessions={nativeSessions}

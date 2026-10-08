@@ -58,7 +58,14 @@ apps/docs/src/content/docs/docs/model-setup.mdx
 apps/docs/src/content/docs-zh/docs/model-setup.mdx
 apps/docs/src/content/docs/docs/settings.mdx
 apps/docs/src/content/docs-zh/docs/settings.mdx
+apps/docs/src/content/docs/docs/soul-and-core-memory.mdx
+apps/docs/src/content/docs-zh/docs/soul-and-core-memory.mdx
+apps/docs/src/content/docs/docs/bot-zip.mdx
+apps/docs/src/content/docs-zh/docs/bot-zip.mdx
 
 # Generated Channel sidebar guide chapter
 /apps/docs/src/content/docs/docs/channel-sidebar/
 /apps/docs/src/content/docs-zh/docs/channel-sidebar/
+
+# PR Lens writes its previews here. They are rebuilt on demand.
+.pr-lens/

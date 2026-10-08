@@ -101,6 +101,13 @@ describe('Workspace Grant execution boundary', () => {
     ])
       expect(requiresHumanToolApproval(tool)).toBe(false);
     expect(requiresHumanToolApproval('bot_dm_send')).toBe(false);
+    for (const tool of [
+      'bot_schedule_list',
+      'bot_schedule_create',
+      'bot_schedule_update',
+      'bot_schedule_delete',
+    ])
+      expect(requiresHumanToolApproval(tool)).toBe(false);
   });
 
   it('keeps checked external file operations internal while retaining Shell approval', () => {

@@ -35,6 +35,21 @@ describe("generated developer reference", () => {
           "PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）",
         source: "packages/core/src/plugin.ts",
       },
+      {
+        name: "marketplaceUrl",
+        type: "string",
+        default: "https://market.botharness.ai",
+        description: "Bot Marketplace 服务地址",
+        source: "packages/core/src/plugin.ts",
+      },
+      {
+        name: "telemetry",
+        type: "boolean",
+        default: true,
+        description:
+          "发送匿名使用统计（Anonymous usage telemetry）；DO_NOT_TRACK=1 或 BOTHARNESS_TELEMETRY=0 也会关闭",
+        source: "packages/core/src/plugin.ts",
+      },
     ]);
   });
 

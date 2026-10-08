@@ -192,7 +192,7 @@ export function PersonaBotDeletionView({
           {state === undefined ? (
             <Button
               variant="primary"
-              className="bh-bot-deletion-confirm"
+              className="bh-im-danger"
               disabled={busy || preview === undefined || (erase && !preview.eraseAvailable)}
               onClick={() =>
                 void perform(async () => {

@@ -1,6 +1,6 @@
 # Configure API providers and Bot models
 
-Continue from [Install DeepSeekBot](/docs/installation). These controls were checked with DSH **0.2.0-rc.1** and public **deepseekbot@0.1.0-alpha.1**. Configure the API provider first, then choose models for each Bot. Multiple Bots can use one provider. Screenshots show the Chinese UI; the captions identify the corresponding controls.
+Continue from [Install DeepSeekBot](/docs/installation). These controls were checked with DSH **0.2.0-rc.1** and the public **deepseekbot** package. Configure the API provider first, then choose models for each Bot. Multiple Bots can use one provider. Screenshots show the Chinese UI; the captions identify the corresponding controls.
 
 ## 1. Configure a provider in DSH
 
@@ -30,61 +30,55 @@ Open **Settings → Models** at the bottom left. Edit an existing provider, or c
 
 The catalog provider's **Custom settings** override its API URL and model list. With no catalog entries, DSH says the selector will show no models. Bot model presets also need an available catalog entry. Saving the provider alone does not finish Bot model selection.
 
-## 2. Open the target Bot's Profile
+## 2. Open the target Bot's Model entry
 
-Close Settings, enter **Bot mode**, and open the Bot's DM. Click its **name/avatar in the chat header → View details**, then scroll to and expand **Model preset**.
+Close Settings, enter **Bot mode**, and open the Bot's DM. In the Channel sidebar on the right, expand **Model** and click the **Main model** card to open the **Model** dialog. See [Model](/docs/channel-sidebar/model) for what each card shows.
 
-![Open PersonaBot Profile from the chat header, then choose View details](/guides/settings/model-profile-entry-zh.webp)
+![The Model entry in the Bot DM's Channel sidebar](/guides/channel-sidebar/14-model-zh.webp)
 
 This page configures one Bot. Global **Bot settings** contain appearance, sorting, and concurrency options. DSH **Agent presets** choose tools and working style; they are separate from Bot model presets.
 
-## 3. Create and apply a model preset
+## 3. Choose the models and save
 
-Under **Create a preset**, enter a name, select both models and their reasoning efforts, and choose **Create and apply**.
+Pick models directly in the dialog; no preset is needed.
 
-| Field / action               | Purpose                                                                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Preset name                  | A reusable model combination, such as “Everyday assistant.”                                                                          |
-| Orchestrator model           | The Bot's model for receiving messages, coordinating work, and everyday conversation.                                                |
-| Assignment default model     | The default for newly created task sessions when no other model is chosen.                                                           |
-| Reasoning effort             | An effort supported by the selected model. “Model default effort” leaves the effort unspecified. Models may offer different options. |
-| Create and apply             | Save the template and an independent model snapshot for this Bot.                                                                    |
-| Quick preset switch → Switch | Apply a saved template to this Bot. Selecting a dropdown entry alone does not apply it.                                              |
+| Field / action      | Purpose                                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Main model          | The Bot's model for receiving messages, coordinating work, and everyday conversation. Type to filter the list.    |
+| Task model          | The default for delegated tasks when no other model is chosen.                                                    |
+| Reasoning effort    | An effort supported by the selected model. **Default** leaves it unspecified. Models may offer different options. |
+| Allowed task models | Other models a task may pick, and the efforts each one allows.                                                    |
+| Save                | Save these settings for this Bot. They apply from the next turn.                                                  |
 
-![Applied Bot snapshot showing Orchestrator and Assignment routes](/guides/settings/model-bot-preset-zh.webp)
+![The Model dialog opened from the sidebar](/guides/channel-sidebar/15-model-dialog-zh.webp)
 
-Check **Independent snapshot for this Bot** for the expected `provider ID / model ID / effort`. Bots can share a template or use different combinations.
+After saving, the two sidebar cards show the expected `model · effort`. Each Bot can use a different combination.
 
-## 4. Customize a Bot and its Assignment choices
+## 4. Use presets (optional)
 
-After applying a preset, these controls become available:
+A preset is a reusable set of model settings, handy when several Bots share the same models.
 
-| Action                                                   | Scope                                                                                                                                     |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Edit selected preset → Save preset revision              | Update the template for future applications. Existing Bot snapshots stay unchanged; switch each intended Bot to the revised preset again. |
-| Customize this Bot's Orchestrator → Save custom snapshot | Change only this Bot's conversation model and effort. Does not edit the shared template.                                                  |
-| Allowed Assignment models                                | Select the models this Bot may choose for new tasks; keep at least one.                                                                   |
-| Allowed efforts                                          | Keep at least one effort for each allowed model.                                                                                          |
-| Default effort for this model                            | Choose a default from that model's allowed efforts.                                                                                       |
-| Assignment default model                                 | Choose the fallback from the selected models.                                                                                             |
-| Save Assignment model choices                            | Save the model/effort range available to new tasks.                                                                                       |
+| Action             | Scope                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| Save as preset     | Save the dialog's current settings as a new preset and make this Bot use it.            |
+| Fill from a preset | Fill the dialog from a saved preset; **Save** applies it to this Bot.                   |
+| Change anything    | This Bot is no longer linked to the preset and saves your settings; the preset is kept. |
 
-Task model selection is fixed when the task is created. Changing a default does not reconfigure existing Assignments or rerun a response already being generated.
+Task model selection is fixed when the task is created. Changing a default does not reconfigure existing tasks or rerun a response already being generated.
 
 ## 5. Verify the actual model
 
-Return to chat and send a short message. After a reply, check the Profile's **Token usage**, grouped by model or provider. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
+Return to chat and send a short message. After a reply, check **Token usage** in the Bot's Profile (chat header name/avatar → View details), grouped by model or provider. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
 
 ![Actual Session model selector and reply after applying the preset](/guides/settings/model-session-verification-zh.webp)
 
-The Profile snapshot and an open Session's model selection are separate visible states. For resumed sessions, check the model used by the next turn after saving; a saved label alone is not request verification. Inspect running tasks in their own sessions.
+The Bot's saved model settings and an open Session's model selection are separate visible states. For resumed sessions, check the model used by the next turn after saving; a saved label alone is not request verification. Inspect running tasks in their own sessions.
 
 | Symptom                                     | Check                                                                                                                           |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| “No models are available”                   | Settings → Models: saved provider, working credentials, and catalog entries; then reopen Model preset.                          |
-| “Current model unavailable” / repair needed | A provider/model may have been renamed or removed. Select and apply an available preset.                                        |
-| Editing a template did not change a Bot     | Existing snapshots do not follow template revisions automatically. Click Switch on the target Bot.                              |
+| “No models are available”                   | Settings → Models: saved provider, working credentials, and catalog entries; then reopen the Model dialog.                      |
+| “Current model unavailable” / repair needed | A provider/model may have been renamed or removed. Pick an available model in the Model dialog and save.                        |
 | No reply / service error                    | Check URL, protocol, key, model ID, and service quota. Complete a local DM first.                                               |
-| Session model differs from the snapshot     | Inspect that Session's selector and next-turn usage; retain the result for feedback instead of repeatedly editing the template. |
+| Session model differs from the settings     | Inspect that Session's selector and next-turn usage; retain the result for feedback instead of repeatedly editing the settings. |
 
 Other fields and locations are covered in [Settings guide](/docs/settings). IM connections have separate [Lark / Feishu](/docs/lark-connection) and [Slack](/docs/slack-connection) guides.

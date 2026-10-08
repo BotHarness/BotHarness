@@ -82,18 +82,20 @@ Slack 显式跟进复用来源锚定的话题策略。Root 消息可作为未来
 
 下表是**开发源码资格验证**，不表示所有已发布安装包都具有相同能力。每次 E2E 记录不可变 Provider SHA 与实际运行产物 hash。[产品 IM 安装](../../product-im-installation.md)固定的是独立验证过的产物；不替换成 fork tip，也不把上游 merge 当成已安装 Profile 自动升级。
 
-| 能力                              | Lark／飞书                                                                                                                                                                                   | Slack                                                                                     | Discord    |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------- |
-| 受校验 @ 收件／自己身份原话题回复 | 已验证 [#12](https://github.com/BotHarness/BotHarness/issues/12)                                                                                                                             | 已验证 [#802](https://github.com/BotHarness/BotHarness/issues/802)                        | 未资格验证 |
-| 有界群／附近／话题读取            | 已验证 [#612](https://github.com/BotHarness/BotHarness/issues/612)、[#793](https://github.com/BotHarness/BotHarness/issues/793)                                                              | 已验证 [#819](https://github.com/BotHarness/BotHarness/issues/819)                        | 未资格验证 |
-| 托管附件处理                      | 已验证 [#657](https://github.com/BotHarness/BotHarness/issues/657)                                                                                                                           | 已验证单个带 @ 附件 [#831](https://github.com/BotHarness/BotHarness/issues/831)           | 未资格验证 |
-| 普通群文字与 harvest              | 已验证 [#613](https://github.com/BotHarness/BotHarness/issues/613)                                                                                                                           | 已验证公开频道文字 [#837](https://github.com/BotHarness/BotHarness/issues/837)            | 未资格验证 |
-| 全局默认／Profile 覆盖            | 已验证 [#701](https://github.com/BotHarness/BotHarness/issues/701)                                                                                                                           | 已验证 [#843](https://github.com/BotHarness/BotHarness/issues/843)                        | 未资格验证 |
-| 共享 Channel 投递                 | 已验证 [#634](https://github.com/BotHarness/BotHarness/issues/634)、[#635](https://github.com/BotHarness/BotHarness/issues/635)、[#638](https://github.com/BotHarness/BotHarness/issues/638) | 已验证 [#845](https://github.com/BotHarness/BotHarness/issues/845)                        | 未资格验证 |
-| 自主跟进／退出原生话题            | 已验证 [#614](https://github.com/BotHarness/BotHarness/issues/614)                                                                                                                           | 已验证 [#854](https://github.com/BotHarness/BotHarness/issues/854)                        | 未资格验证 |
-| 带 canonical 回执的主动发消息     | 已验证 [#639](https://github.com/BotHarness/BotHarness/issues/639)                                                                                                                           | 已验证根报告与 Human 话题追问 [#863](https://github.com/BotHarness/BotHarness/issues/863) | 未资格验证 |
+| 能力                              | Lark／飞书                                                                                                                                                                                   | Slack                                                                                     | Discord                                                                                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 受校验 @ 收件／自己身份原话题回复 | 已验证 [#12](https://github.com/BotHarness/BotHarness/issues/12)                                                                                                                             | 已验证 [#802](https://github.com/BotHarness/BotHarness/issues/802)                        | 已验证 [#855](https://github.com/BotHarness/BotHarness/issues/855)                                              |
+| 有界群／附近／话题读取            | 已验证 [#612](https://github.com/BotHarness/BotHarness/issues/612)、[#793](https://github.com/BotHarness/BotHarness/issues/793)                                                              | 已验证 [#819](https://github.com/BotHarness/BotHarness/issues/819)                        | 未资格验证                                                                                                      |
+| 托管附件处理                      | 已验证 [#657](https://github.com/BotHarness/BotHarness/issues/657)                                                                                                                           | 已验证单个带 @ 附件 [#831](https://github.com/BotHarness/BotHarness/issues/831)           | 未资格验证                                                                                                      |
+| 普通群文字与 harvest              | 已验证 [#613](https://github.com/BotHarness/BotHarness/issues/613)                                                                                                                           | 已验证公开频道文字 [#837](https://github.com/BotHarness/BotHarness/issues/837)            | 未资格验证                                                                                                      |
+| 全局默认／Profile 覆盖            | 已验证 [#701](https://github.com/BotHarness/BotHarness/issues/701)                                                                                                                           | 已验证 [#843](https://github.com/BotHarness/BotHarness/issues/843)                        | 未资格验证                                                                                                      |
+| 共享 Channel 投递                 | 已验证 [#634](https://github.com/BotHarness/BotHarness/issues/634)、[#635](https://github.com/BotHarness/BotHarness/issues/635)、[#638](https://github.com/BotHarness/BotHarness/issues/638) | 已验证 [#845](https://github.com/BotHarness/BotHarness/issues/845)                        | 已验证一个绑定成员，仅收提及／Message Content OFF [#1054](https://github.com/BotHarness/BotHarness/issues/1054) |
+| 自主跟进／退出原生话题            | 已验证 [#614](https://github.com/BotHarness/BotHarness/issues/614)                                                                                                                           | 已验证 [#854](https://github.com/BotHarness/BotHarness/issues/854)                        | 未资格验证                                                                                                      |
+| 带 canonical 回执的主动发消息     | 已验证 [#639](https://github.com/BotHarness/BotHarness/issues/639)                                                                                                                           | 已验证根报告与 Human 话题追问 [#863](https://github.com/BotHarness/BotHarness/issues/863) | 未资格验证                                                                                                      |
 
 Slack 私有频道／DM、修改／撤回、普通附件消息、workspace 全局搜索和缺口补收不属于目前公开频道验收范围。已确认范围不包含同步外部撤回；后续读取可报告来源已消失。dsh-im 声称支持某平台不等于 BotHarness 已资格验证。
+
+Discord 共享 Channel [#1054](https://github.com/BotHarness/BotHarness/issues/1054) 验证一个绑定成员、原公开 thread 提及、重叠 Inbox／Channel 去重、暂停／恢复不补录和冷重启，Message Content 保持 OFF。[实际模型／原生证据与恢复](https://github.com/BotHarness/BotHarness/blob/main/docs/dev/verification/discord-1054-shared-channel.zh.md) 区分真实结果与额外成员／重复投递 fixture；不提升普通共享收件资格，也不更新产品 Provider pin。
 
 ## 下一平台可复用的验收流程
 
@@ -106,6 +108,14 @@ Slack 私有频道／DM、修改／撤回、普通附件消息、workspace 全�
 
 Slack 后接入 Discord。其 Gateway 事件／intents、guild／channel／thread 权限、身份与名称映射、消息内容可见性、历史上限和附件处理都需要官方文档与真实、已授权 QA App 的逐项验证。不把 Slack `thread_ts` 或 Lark parent ID 当成 Discord 契约。适合复用的 checked Provider 契约尽量贡献上游；已资格验证的固定 fork 可以继续推进，不依赖上游 merge 时间。
 
+## Discord 有界上下文候选 — 2026-10-06
+
+[#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；重建 Profile 后的最终模型续页（13 + 5 条不重复 Human 消息）、精确原生编辑冲突及整页回滚也已通过，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[最终验收、截图及不可变运行版本](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
+
+## Discord 原文件候选 — 2026-10-06
+
+[#1002](https://github.com/BotHarness/BotHarness/issues/1002) 在独立开发 Provider 中增加一个直接提及的托管文件与经过校验的原位置结果回复。安全元信息明确 opt-in；重新查询原消息刷新私有 CDN 签名地址，下载和唯一一次不自动重试的 multipart 回复保留身份、原生权限、lease 与 Host 授权校验。输入／输出上限 20 MiB。既有 canonical 保存、原生文件处理、导入及 Bridge Tool 流程继续拥有数据。自动化与真实模型保存／读取／写入／导入／原 thread 文件回复均通过；独立验证 41 字节输入／输出、原件不变、canonical 增量、临时写权限撤销与稳定冷重启。见[候选范围与当前检查](../verification/discord-1002-source-files.zh.md)。产品 Provider pin 和能力表不变。
+
 ## 原生参考与权限检查
 
 新增能力时重新检查官方契约：[Slack message.channels](https://docs.slack.dev/reference/events/message.channels/)、[Slack 历史与话题](https://docs.slack.dev/messaging/retrieving-messages/)、[Discord Gateway](https://docs.discord.com/developers/events/gateway) 和 [Discord threads](https://docs.discord.com/developers/topics/threads)。这些描述原生行为，实际开放范围仍由更窄的 BotHarness checked Provider 契约控制。
@@ -114,11 +124,11 @@ Slack 公开频道 QA App 的 Bot scopes 为 `app_mentions:read`、`chat:write`�
 
 ## Discord @ 收件／回复检查点 — 2026-10-06
 
-[#855](https://github.com/BotHarness/BotHarness/issues/855) 的实现已合并，但 **Discord 仍未资格验证**。[BotHarness #870](https://github.com/BotHarness/BotHarness/pull/870) 增加 checked @ 收件与原位置回复，[#876](https://github.com/BotHarness/BotHarness/pull/876) 修复身份／Grant／接收状态变化后相邻视图不刷新的问题。[Provider #6](https://github.com/DoodleBears/dsh-im/pull/6) 合并提交为 `1a605b11fa8d321110540de42d58a77bdcd60f13`，与实测候选 `8cf705ea474cdef8e658f7756ee48d5c936bd404` 的 tree 相同。专用 QA Host 使用 `4138eeebffbf7abda53d9cd1ba1ccc98f95e16b1`、DSH `0.2.0-rc.1`；394 个 Provider 运行文件的 SHA-256 为 `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`。这些是 QA 版本，不表示产品依赖已升级。
+[#855](https://github.com/BotHarness/BotHarness/issues/855) 的实现已合并，**开发源码的 checked @ 收件／原位置回复已通过资格验证**。[BotHarness #870](https://github.com/BotHarness/BotHarness/pull/870) 增加 checked @ 收件与原位置回复，[#876](https://github.com/BotHarness/BotHarness/pull/876) 修复身份／Grant／接收状态变化后相邻视图不刷新的问题。[Provider #6](https://github.com/DoodleBears/dsh-im/pull/6) 合并提交为 `1a605b11fa8d321110540de42d58a77bdcd60f13`，与实测候选 `8cf705ea474cdef8e658f7756ee48d5c936bd404` 的 tree 相同。此前 QA 检查点使用 Host `4138eeebffbf7abda53d9cd1ba1ccc98f95e16b1`、DSH `0.2.0-rc.1`；394 个 Provider 运行文件的 SHA-256 为 `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`。这些是 QA 版本，不表示产品依赖已升级。
 
 真实频道及已有公开 thread 的 @ 消息已贯通一条 canonical Source Event／Inbox Admission、既有 Orchestrator 模型和一条独立原生读回的本身份原位置回复。后续有界检查覆盖身份暂停／恢复、Grant 撤销、真实 Provider Service 丢失／恢复、独占 consumer 冲突、来源编辑，以及发送中的身份／Grant／Provider 丢失。恢复后的新频道和原 thread 模型回复均通过；旧中断请求没有自动重发。Provider 在发送中丢失仍保留 `unknown-outcome`，不能因原生读回未见回复就改称确定未发送。
 
-Human 后续明确要求代理直接完成 E2E 验收，取消本人操作与人工 QA 等待条件。代理通过既有 Profile 界面解绑并重新绑定同一已认证账号、授权同一目标、开启仅 @ 收件。随后在真实 Discord 输入框发送的新频道与已有 thread 提及，各产生一次 canonical Admission、一次模型 `bridge_reply` Intent 和一条独立原生读回的本 Bot 原位置回复。这是代理操作界面的验收，不声称 Human 亲自完成了设置。后续真实 Gateway 恢复在 `RESUMED` 前重发同一原生消息 ID，仍只有一次 Admission、一次模型 Intent 和一条原生回复。重连期间的一条真实提及没有补收；移除全部临时观察器并恢复原 Profile 后，新模型回复通过。原生 HTTP 401／404 与已注册 Service 的错误指纹拒绝也已检查，受控输入与完整模型／绑定路径明确区分。来源删除的生命周期与错误 Application／user／guild 绑定仍缺少完整原生／模型证据。错误原生路由与真实权限丢失通过调用 Discord API 的 Provider preflight 检查过；这比真实模型尝试回复并被拒绝的证据范围更窄。
+Human 后续明确要求代理直接完成 E2E 验收，取消本人操作与人工 QA 等待条件。代理通过既有 Profile 界面解绑并重新绑定同一已认证账号、授权同一目标、开启仅 @ 收件。随后在真实 Discord 输入框发送的新频道与已有 thread 提及，各产生一次 canonical Admission、一次模型 `bridge_reply` Intent 和一条独立原生读回的本 Bot 原位置回复。这是代理操作界面的验收，不声称 Human 亲自完成了设置。后续真实 Gateway 恢复在 `RESUMED` 前重发同一原生消息 ID，仍只有一次 Admission、一次模型 Intent 和一条原生回复。重连期间的一条真实提及没有补收；移除全部临时观察器并恢复原 Profile 后，新模型回复通过。原生 HTTP 401／404 与已注册 Service 的错误指纹拒绝也已检查，受控输入与完整模型／绑定路径明确区分。后续经授权删除一条真实来源，发现旧 Host 的适配器把确定的 `source-not-found` 误转为结果未知。本次修复保留 `source-not-found` 与 `reply-permission-denied` 的失败状态，旧未知请求保持原样。重启修复后的 Host 后，真实模型在发送权限不足时明确失败；精确恢复全部原权限后，一条新消息收到本 Bot 的原位置回复。修复后的原生 preflight 对实际已删除来源在发送前拒绝。Human 另行确认删除新准备的一条来源后，修复后的真实模型读取保留的原始历史并只回复一次：单个 Intent 明确失败为 `source-not-found`，无回执、无原生回复。随后一条新原生来源收到本 Bot 的原频道唯一回复。随后，两个经原生 API 检查的真实 App／Bot 身份对均连接成功；交叉账号指纹的 Host 绑定命令在 canonical 写入前以 `rebind-required` 拒绝。这验证身份对边界，不声称 Token 互换或分别修改 App／user 字段。Human 创建第二个 QA 服务器并安装原 QA Bot 后，原生检查确认成员身份和回复权限，但该服务器没有 BotHarness Grant：真实提及使已消费 Gateway 计数增加一次，全部 canonical 记录保持一致，原生回复为零。原频道的新模型回复随后通过；最终为 41 条 Admission／36 条 Intent，原授权和历史结果保持一致。Human 最新保存的 Boundary Token 有效；刷新同一账号原先存储的旧凭证后，两个 QA 连接恢复，授权未变。验证页分别记录此前 Host revision 与重新构建的修复后运行版本。
 
 见[当前验证范围及历史首片检查点](../verification/discord-855-mention-reply.md)和 [#876 的成对 UI 证据](../../evidence/issue-855-messaging-refresh/README.md)。[ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) 记录父会话／原生子频道映射。已验证的产品 Provider 和 Discord 其他能力表行保持不变。
 
@@ -136,6 +146,56 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 
 ## 个人微信扫码者文字私聊
 
-微信首片（#878）采用扫码绑定者的文本私聊，不模拟群、@ 或话题。收件前明确绑定身份并授权私聊。原始来源续接信息留在 Provider 私有状态；发送成功记录客户端确认 ID，不伪称原生消息 ID。开发候选为 `589e5507`。源码版已通过真实 Inbox／模型／回复 E2E，并独立核对原生回复。本机安装的产品候选 `0.0.0-test.878`／Provider `4.32.0-botharness.4` 恢复同一授权连接，并通过新一轮文本／模型／回复验证：一条收件记录处理完成、一条回复被接受、无本地 DM 镜像，Human 已确认微信收到回复。Human 已验收首个切片并提供原生截图；公开发布与部署仍是独立动作；上下文、文件、其他联系人和群能力均未开放。
+微信首片（#878）采用扫码绑定者的文本私聊，不模拟群、@ 或话题。收件前明确绑定身份并授权私聊。原始来源续接信息留在 Provider 私有状态；发送成功记录客户端确认 ID，不伪称原生消息 ID。开发候选为 `589e5507`。源码版已通过真实 Inbox／模型／回复 E2E，并独立核对原生回复。本机安装的产品候选 `0.0.0-test.878`／Provider `4.32.0-botharness.4` 恢复同一授权连接，并通过新一轮文本／模型／回复验证：一条收件记录处理完成、一条回复被接受、无本地 DM 镜像，Human 已确认微信收到回复。Human 已验收首个切片并提供原生截图；公开发布与部署仍是独立动作；上下文、其他联系人和群能力均未开放。
 
 连接步骤与真实截图见[个人微信指南](../../wechat-connection.zh.md)。
+
+### 扫码者文件（#903）
+
+本机安装文件候选固定 fork `8852e87f`，Provider 为 `4.32.0-botharness.5`。单个原生 type-4 文件及可选文字复用 canonical Source Event 与 Bot Inbox。保留精确十进制原生 ID 和平台元数据，MIME 缺失时保持通用类型。AES 密钥、CDN 票据与来源续接信息不能进入模型或 Client；私有来源票据须匹配当前账号、lease、路由及完整保留元数据。流式密文字节与解密后字节都限制为 25 MiB，传输只额外允许加密填充；超限声明仍可展示，但不能下载。
+
+结果文件单独导入既有 canonical 附件。此微信契约要求 `reply-file-fence-checked`：上传完成后、原生发送前再核对应用当前授权。撤销 Grant、身份／lease 替换或来源过期均拒绝发送；诚实记录客户端接受，结果不明不重试。本机安装产品和真实模型已回传 224 字节 ZIP，Human 从微信下载后独立验证内容完全一致，207 字节输入未变；撤销、无效媒体及实际下载上限另有聚焦回归覆盖。这不代表完整原生生命周期矩阵、远端历史、群、图片或主动发送已完成。
+
+### 图片资格验证候选（#904）
+
+微信图片候选独立协商 `sourceImages`；文件收件开关不自动收图片。原生 type-2 图片的 AES 密钥与 CDN 票据留在私有状态；公开元数据不猜扩展名、明文字节数或具体 MIME。先对有界解密字节判断格式，再形成 canonical Attachment 或预览；不能把原生密文的 `mid_size` 当作明文大小。能预览不等于模型已收到图片输入：需要实际调用模型的 DSH 图像能力、原生 `read_image` 和新一轮盲内容识别。模型不支持时应明确拒绝，显式切换模型后再验证恢复。
+
+结果单独导入 canonical 附件。仅微信 checked Provider 接收由实际字节确定的额外 MIME，并选择原生图片发送；其他平台保持已有文件参数形状。CDN 上传后、最终发送前再次检查授权。回归覆盖无效字节／MIME、元数据伪造、独立 opt-in／lease、上传期间撤销、预览拒绝／恢复／资源释放。本机安装产品已通过真实 DeepSeek Flash 图像输入验证：原生 `read_image` 返回 JPEG，模型独立识别实际应用、布局与多处文字。固定官方工具遗漏 scoped `fs` 依赖的问题已通过真实 Cordis Tool Runtime 复现，并用受版本控制的包补丁修复；安装产品随后在同一路径成功读取。独立导入的未修改图片回传同一来源，Human 已确认原微信收到内容一致的原生图片。详见带图[图片指南](../../wechat-connection.zh.md#6-查看图片并回传图片结果)。接收端独立字节核对、最终 PR Human QA 和公开部署仍独立管理。
+
+## 平台原生语音转写
+
+微信 #905 候选增加默认关闭的 `source-voice-transcript-checked` 能力和 `sourceVoiceTranscripts` Consumer 选项。单个已完成的原生语音项沿用现有 Source Event 和 Inbox；Provider 必须保留扫码者、账号指纹、原生消息 ID 与原私聊续接能力。`voice.transcript` 标记 `platform` 或 `unavailable`，可选原生语音项 ID 和时长作为来源信息保留。Client 和模型必须区分平台转写与 Bot 生成内容；同一来源的语音元数据发生变化属于冲突，不能覆盖已提交证据。
+
+原生 `voice_item.text` 可缺失。不得暗中用 ASR 补齐、从附带说明伪造转写、暴露媒体密钥，或在没有独立 checked 音频能力时提供播放器／下载。缺失转写必须明确呈现。未完成／生成中的消息及多项歧义消息不会由此候选收件。首次真实测试提供了平台转写和 7,377 毫秒时长，但沿用的 QA Session 保留上一轮不回复指令；该次仅证明收件，不能证明回复送达。新 QA Session 中的第二条原生语音提供 5,180 毫秒时长，真实 DeepSeek Flash 模型调用 `bridge_read` 与 `bridge_reply`，自身身份 Outbox 被平台接受，Human 确认在原微信私聊收到“蓝色灯塔37”。浅色／深色截图呈现同一来源。这证明 checked 平台转写路径，不是 BotHarness 自行识别音频。
+
+## 受检查的原生视频（#907）
+
+独立协商 `sourceVideos`，并同时要求 `source-video-checked` 与 `reply-video-fence-checked`。保留原生视频项 ID 与平台报告值，不猜测语义：此次收件的 `video_size` 等于解密字节数，官方发送实现却填写加密长度，因此使用 `reportedSizeBytes`；`playLength` 保留原值，不假设单位。不能为了重命名字段改写已有 canonical 证据。
+
+来源播放与处理沿用既有 checked Attachment 路径，原件上限 25 MiB，私有 CDN 票据和密钥留在 Provider。保守核对 MP4 字节后显示浏览器原生控件，不自动播放，保留正文，提供拒绝／重试，关闭时取消请求并释放 Blob URL。播放器、文件检查或模型自述不代表理解视频。结果单独导入 canonical 附件，由行动 Bot 使用当前身份与原 Source 路由回传，在上传后、发送前再次检查授权；Provider 接受不能代替接收端送达证据。
+
+本机安装候选已验证真实视频收件、输入字节完全一致、原生播放，以及经审批的模型文件处理，生成三秒 H.264 结果。Human 已确认原生视频送达，接收端截图呈现相同画面的三秒结果；未宣称接收端下载后的字节完全一致。详见带图[视频指南](../../wechat-connection.zh.md#9-接收原生视频并回传视频结果)。更广的 Channel 历史媒体渲染属于独立切片。
+
+## Discord nearby 开发切片 — #981
+
+下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
+
+[#981](https://github.com/BotHarness/BotHarness/issues/981) 跟踪自动化和真实模型资格验证。代理执行的真实模型原生资格验证已在 Core `7edd33e0`／Provider `5ae8bb3b` 通过：三页（11／0／5 条文本）、16 条唯一 Human 文本、准确原 thread 原生回复，无历史 Admission，临时 Message Content 已完整恢复 OFF。最终冷重启保留六张 canonical 表全部字节相同。详见[有界证据报告](../verification/discord-981-nearby-context.zh.md)。产品 Provider pin 和 history／nearby／topic 组合行资格保持不变；不增加普通消息收件或 thread 订阅。
+
+## 原生引用与本地保留上下文（#908）
+
+独立协商 `sourceQuotes`／`source-quote-checked`。分开保留一层原生 `serverMessageId`、`itemId`、内嵌正文、显示摘要、附件类型和局部引用信息；数字 `svr_id` 在 JavaScript 精度丢失前按 JSON 原始字面量保存。去掉 continuation token、媒体密钥和嵌套引用。相同 canonical 原生消息的引用发生改变时，返回来源冲突。
+
+正文缺失时，只由 Messaging 解析：同一当前账号指纹／私聊的可读 canonical Source Event，或带真实服务器回执的已接受 Outbox。不能用 Provider standalone Session 历史、时间就近猜测、客户端确认、摘要或条目 ID 替代。Client／模型区分原生正文、本地解析与不可用；不可用不能证明远端已删除，引用也不是 Thread。
+
+`retained`／`retained-nearby` 沿用 `bridge_context`，明确返回 `coverage: retained-local-sources`，不修改远端 Provider history 契约。Keyset 分页固定首次 canonical 记录边界；进程内 opaque cursor 绑定 Bot、来源、Grant revision、身份指纹、范围与条数。每页重新核对自身身份、当前 Grant／lease 和 Provider 检查结果，在锚点 Source Event 记录有界读取审计，不创建新 Admission 或唤醒。记录／条数限制、过期／重启、字符预算恢复与本地覆盖缺口均应明确。它不是微信远端历史／搜索；原生引用变体以实际收件为证，合成回归不能证明当前客户端的线上字段形状。
+
+微信 #909 把已授权扫码者的**原生私聊**接入既有连接器多目标路由。收件为该授权私聊的消息，不虚构 @ 或话题。本地群聊沿用成员 Attention，私聊 Inbox 与明确的本地 DM 投递沿用 `human-dm`；原生会话类型与本地投递类型独立。共享来源可读不授予接收身份、私密续接或已校验附件读取权限，仍需逐平台真实 E2E。
+
+## 已授权微信纯外部报告（#910）
+
+协商 `receiptVersion: 1` 和 `postFenceVersion: 1`，以及账号能力 `proactive-receipt-checked`、`proactive-fence-checked`。已验证的扫码者私聊复用 canonical post／Outbox；既有独占 Consumer 仍独自拥有轮询和私有上下文，不增加 standalone Session、聊天存储、本地 DM 镜像或新定时系统。
+
+通过公开 Service 契约传递最终应用回调，在原生发送前检查 Provider Registration、账号指纹、启用 Binding／当前 Grant 和取消状态，并与账号切换串行化。只缓存真实扫码者上下文，绑定指纹及原生顺序，不进入公开状态。本地 30 天只限制存储，不承诺服务器有效期；缺失／本地过期在发送前拒绝，原生拒绝明确失败并提示新扫码者消息恢复，网络结果不明保持 unknown，不自动重试。
+
+实际返回的原生 `message_id` 以无损十进制 `serverMessageId` 保存，与标为 `client-acknowledgement` 的生成 ID 分开；二者都不是送达／已读证明。源码和压缩包资格验证须覆盖无新微信触发的唯一报告、Human 独立收件、canonical 后续消息、本地 DM 未变及拒绝／恢复。参见 [ADR-0139](../../adr/0139-wechat-external-reports-use-private-owner-context.md) 和[配图指南](../../wechat-connection.zh.md#12-发送纯外部主动文字报告)。

@@ -1,5 +1,6 @@
-import { useId, useState, type ReactElement } from 'react';
-import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useState, type ReactElement } from 'react';
+import { Combobox } from './combobox.js';
+import { Button, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   ThreadReceptionInput,
   ThreadReceptionView,
@@ -20,7 +21,6 @@ export function ThreadReceptionSettings({
   save(sourceEventId: string, input: ThreadReceptionInput): Promise<boolean>;
 }): ReactElement {
   const [failed, setFailed] = useState(false);
-  const participationId = useId();
   const [selected, setSelected] = useState<ThreadReceptionView>();
   const [mode, setMode] = useState<ThreadReceptionInput['mode']>('inherit');
   const [wake, setWake] = useState<'inherit' | NonNullable<ThreadReceptionInput['wake']>['wake']>(
@@ -96,47 +96,48 @@ export function ThreadReceptionSettings({
             {failed ? <p role="alert">{t('im.error')}</p> : null}
             <div className="bh-im-field">
               <span className="bh-im-heading">
-                <label htmlFor={participationId}>{t('im.threadParticipation')}</label>
+                <span>{t('im.threadParticipation')}</span>
                 <MessagingHelp
                   title={t('im.threadParticipation')}
                   text={t('im.threadHumanOverride')}
                   t={t}
                 />
               </span>
-              <select
-                id={participationId}
+              <Combobox
+                searchable={false}
+                label={t('im.threadParticipation')}
+                toggleLabel={t('im.threadParticipation')}
                 value={mode}
                 disabled={busy}
-                onChange={(e) => setMode(e.target.value as ThreadReceptionInput['mode'])}
-              >
-                {(['inherit', 'follow', 'exclude'] as const).map((value) => (
-                  <option key={value} value={value}>
-                    {t(`im.threadMode.${value}`)}
-                  </option>
-                ))}
-              </select>
+                onSelect={(value) => setMode(value as ThreadReceptionInput['mode'])}
+                options={(['inherit', 'follow', 'exclude'] as const).map((value) => ({
+                  value,
+                  label: t(`im.threadMode.${value}`),
+                }))}
+              />
             </div>
-            <label className="bh-im-field">
+            <div className="bh-im-field">
               <span>{t('im.ordinaryWake')}</span>
-              <select
+              <Combobox
+                searchable={false}
+                label={t('im.ordinaryWake')}
+                toggleLabel={t('im.ordinaryWake')}
                 value={wake}
                 disabled={busy || mode !== 'follow'}
-                onChange={(e) => setWake(e.target.value as typeof wake)}
-              >
-                {(['inherit', 'immediate', 'digest', 'mentions', 'silent'] as const).map(
-                  (value) => (
-                    <option key={value} value={value}>
-                      {value === 'inherit' ? t('im.threadInheritWake') : t(`im.wake.${value}`)}
-                    </option>
-                  ),
+                onSelect={(value) => setWake(value as typeof wake)}
+                options={(['inherit', 'immediate', 'digest', 'mentions', 'silent'] as const).map(
+                  (value) => ({
+                    value,
+                    label: value === 'inherit' ? t('im.threadInheritWake') : t(`im.wake.${value}`),
+                  }),
                 )}
-              </select>
-            </label>
+              />
+            </div>
             {wake === 'digest' && mode === 'follow' ? (
               <>
                 <label className="bh-im-field">
                   <span>{t('im.digestCount')}</span>
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={100}
@@ -147,7 +148,7 @@ export function ThreadReceptionSettings({
                 </label>
                 <label className="bh-im-field">
                   <span>{t('im.digestSeconds')}</span>
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={86400}

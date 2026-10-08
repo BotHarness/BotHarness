@@ -12,11 +12,14 @@ export interface MessagingIdentity {
   name: string;
   enabled: boolean;
   enabledInheritance?: 'inherit' | 'custom';
+  newConversations: MessagingNewConversations;
+  newConversationsInheritance?: 'inherit' | 'custom';
   defaultRevision?: number;
   revision: number;
   createdAt: string;
   revokedAt?: string;
 }
+export type MessagingNewConversations = 'auto' | 'ask';
 export type MessagingIdentityInput =
   | { kind: 'bind'; providerId: string; accountRef: string; fingerprint: string }
   | {
@@ -27,11 +30,13 @@ export type MessagingIdentityInput =
       enabled: boolean;
       inheritEnabled?: boolean | undefined;
       expectedDefaultRevision?: number | undefined;
+      newConversations?: MessagingNewConversations | 'inherit' | undefined;
     }
   | { kind: 'reconnect'; id: string; expectedRevision: number }
   | { kind: 'unbind'; id: string; expectedRevision: number };
 export type MessagingIdentityView = MessagingIdentity & {
   availability: 'available' | 'paused' | 'unavailable' | 'rebind-required';
+  reception?: 'off' | 'connecting' | 'receiving' | 'unavailable';
   grantCount: number;
   scopes: string[];
 };
@@ -45,6 +50,8 @@ interface BindingRow {
   display_name: string;
   enabled: number;
   enabled_inherited: number;
+  new_conversations: MessagingNewConversations;
+  new_conversations_inherited: number;
   revision: number;
   created_at: string;
   revoked_at: string | null;
@@ -67,6 +74,11 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
         ? messagingDefaults(db, r.platform).identityEnabled
         : r.enabled === 1,
     enabledInheritance: r.enabled_inherited === 1 ? 'inherit' : 'custom',
+    newConversations:
+      r.new_conversations_inherited === 1
+        ? (messagingDefaults(db, r.platform).newConversations ?? 'auto')
+        : r.new_conversations,
+    newConversationsInheritance: r.new_conversations_inherited === 1 ? 'inherit' : 'custom',
     defaultRevision: messagingDefaults(db, r.platform).revision,
     revision: r.revision,
     createdAt: r.created_at,

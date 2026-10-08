@@ -79,7 +79,14 @@ function reactEffect(path, seen = new Set()) {
   return false;
 }
 
+function importsReact(parsed) {
+  return parsed.program.body.some(
+    (node) => node.type === 'ImportDeclaration' && node.source.value === 'react',
+  );
+}
+
 export function findReactEffects(parsed) {
+  if (!importsReact(parsed)) return [];
   const calls = [];
   const visit = (path) => {
     if (reactEffect(path.get('callee'))) calls.push({ start: path.node.start, end: path.node.end });

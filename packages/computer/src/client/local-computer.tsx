@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactElement } from 'react';
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type { ComputerTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 
@@ -69,28 +70,52 @@ export function LocalComputerStatus({ t }: { t: ComputerTranslate }): ReactEleme
       .catch((error: unknown) => setError(String(error)))
       .finally(() => setBusy(false));
   };
+  const granted = payload?.status?.state === 'running';
   return (
-    <div ref={resource} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div>
-        {t(
-          payload?.status?.state === 'running'
-            ? 'local.granted'
-            : preparing
-              ? 'local.checking'
-              : 'local.title',
-        )}
-      </div>
-      <div style={{ color: LOCAL_COMPUTER_COLORS.secondary, fontSize: 12 }}>
-        {t('local.description')}
-      </div>
-      {failure === undefined ? null : (
-        <div role="alert" style={{ color: LOCAL_COMPUTER_COLORS.error, fontSize: 12 }}>
-          {failure}
-        </div>
-      )}
-      <Button size="sm" disabled={preparing || payload?.probe?.available === false} onClick={check}>
-        {t(preparing ? 'local.checking' : 'local.check')}
-      </Button>
+    <div ref={resource}>
+      <SidebarCardList className="bh-computer-cards">
+        <SidebarCardRow
+          icon="monitor"
+          title={t('local.title')}
+          chips={
+            granted ? (
+              <Tag tone="success">{t('local.chip.granted')}</Tag>
+            ) : preparing ? (
+              <Tag tone="info">{t('local.chip.checking')}</Tag>
+            ) : failure === undefined ? (
+              <Tag tone="neutral">{t('local.chip.unchecked')}</Tag>
+            ) : (
+              <Tag tone="danger">{t('local.chip.failed')}</Tag>
+            )
+          }
+          meta={t(granted ? 'local.granted' : 'local.description')}
+          detail={
+            <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+              {failure === undefined ? null : (
+                <div
+                  role="alert"
+                  style={{
+                    color: LOCAL_COMPUTER_COLORS.error,
+                    fontSize: 12,
+                    lineHeight: '16px',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {failure}
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={preparing || payload?.probe?.available === false}
+                onClick={check}
+              >
+                {t(preparing ? 'local.checking' : 'local.check')}
+              </Button>
+            </div>
+          }
+        />
+      </SidebarCardList>
     </div>
   );
 }

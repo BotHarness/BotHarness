@@ -76,7 +76,9 @@ describe('current Memory files', () => {
       "filename*=UTF-8''" + encodeURIComponent('你好 "large".bin'),
     );
     expect(response.headers.get('content-disposition')).not.toContain('Project notes/');
-    expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+    const received = Buffer.from(await response.arrayBuffer());
+    expect(received.length).toBe(bytes.length);
+    expect(received.equals(bytes)).toBe(true);
     writeFileSync(join(dir, name), 'external save');
     expect(await (await get(name)).text()).toBe('external save');
   });

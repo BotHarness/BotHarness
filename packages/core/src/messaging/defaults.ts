@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { DatabaseSync } from 'node:sqlite';
 import { MessagingError } from './provider.js';
 
-export const messagingDefaultsPlatform = z.enum(['feishu', 'slack']);
+export const messagingDefaultsPlatform = z.enum(['feishu', 'slack', 'discord']);
 export type MessagingDefaultsPlatform = z.infer<typeof messagingDefaultsPlatform>;
 
 export const messagingDefaultsInput = z
@@ -16,6 +16,7 @@ export const messagingDefaultsInput = z
     count: z.number().int().min(1).max(100),
     intervalSeconds: z.number().int().min(1).max(86400),
     identityEnabled: z.boolean(),
+    newConversations: z.enum(['auto', 'ask']).optional(),
   })
   .strict();
 export type MessagingDefaultsInput = z.infer<typeof messagingDefaultsInput>;
@@ -46,6 +47,7 @@ export function messagingDefaults<Platform extends string = 'feishu'>(
         count: 5,
         intervalSeconds: 30,
         identityEnabled: true,
+        newConversations: 'auto',
         revision: 0,
         changedAt: '',
       };
@@ -60,6 +62,7 @@ export function commitMessagingDefaults(
   const { expectedRevision: _expected, ...preferences } = parsed;
   const value = {
     ...preferences,
+    newConversations: preferences.newConversations ?? prior.newConversations ?? 'auto',
     revision: prior.revision + 1,
     changedAt: new Date().toISOString(),
   };

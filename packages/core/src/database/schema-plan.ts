@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
 
 import { defineSchemaPlan, type SchemaMigration } from './schema.js';
 
@@ -1465,8 +1466,258 @@ const ROSTER_ARRANGEMENT_MIGRATION: SchemaMigration = {
   },
 };
 
-const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
+function rebuildWithKind(
+  database: DatabaseSync,
+  table: 'source_events' | 'inbox_admissions',
+  lastKind: string,
+): void {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(table) as { sql: string } | undefined;
+  const marker = `'${lastKind}'))`;
+  if (row === undefined || row.sql.split(marker).length !== 2)
+    throw new Error(`Cannot extend the ${table} kind check`);
+  const indexes = (
+    database
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL",
+      )
+      .all(table) as Array<{ sql: string }>
+  ).map((index) => index.sql);
+  const next = row.sql
+    .replace(marker, `'${lastKind}', 'schedule'))`)
+    .replace(/^CREATE TABLE\s+"?\w+"?/u, `CREATE TABLE ${table}_next`);
+  database.exec(next);
+  database.exec(`INSERT INTO ${table}_next SELECT * FROM ${table};
+    DROP TABLE ${table};
+    ALTER TABLE ${table}_next RENAME TO ${table};`);
+  for (const index of indexes) database.exec(index);
+}
+
+const BOT_SCHEDULE_MIGRATION: SchemaMigration = {
   generation: 57,
+  module: 'bot-schedules',
+  description: 'Own PersonaBot Schedules and admit their firings into the Bot Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    rebuildWithKind(database, 'source_events', 'bridge-message');
+    rebuildWithKind(database, 'inbox_admissions', 'memory-change');
+    database.exec(`
+      CREATE TABLE bot_schedules (
+        schedule_id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        record_json TEXT NOT NULL CHECK (json_valid(record_json)),
+        enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+        creator TEXT NOT NULL CHECK (creator IN ('human', 'personabot')),
+        locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX bot_schedules_bot ON bot_schedules (bot_slug, created_at);
+      CREATE TABLE bot_schedule_firings (
+        firing_id TEXT PRIMARY KEY,
+        schedule_id TEXT NOT NULL,
+        bot_slug TEXT NOT NULL,
+        trigger TEXT NOT NULL CHECK (trigger IN ('planned', 'manual')),
+        occurrence_at TEXT NOT NULL,
+        fired_at TEXT NOT NULL,
+        source_event_id TEXT,
+        coalesced INTEGER NOT NULL DEFAULT 0 CHECK (coalesced IN (0, 1)),
+        skipped_reason TEXT,
+        session_id TEXT
+      );
+      CREATE INDEX bot_schedule_firings_schedule
+        ON bot_schedule_firings (schedule_id, fired_at);
+      CREATE INDEX bot_schedule_firings_event ON bot_schedule_firings (source_event_id);
+    `);
+  },
+};
+
+const DISCORD_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
+  generation: 58,
+  module: 'messaging',
+  description:
+    'Qualify independent Discord defaults without rewriting earlier revisions or overrides',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions_qualified (
+        platform TEXT NOT NULL CHECK (platform IN ('feishu', 'slack', 'discord')),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      INSERT INTO messaging_default_revisions_qualified SELECT * FROM messaging_default_revisions;
+      DROP TABLE messaging_default_revisions;
+      ALTER TABLE messaging_default_revisions_qualified RENAME TO messaging_default_revisions;
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+    `);
+  },
+};
+
+const BOT_PAIRING_MIGRATION: SchemaMigration = {
+  generation: 59,
+  module: 'messaging',
+  description: 'Own current-Bot Human pairing and explicitly reviewed IM capabilities',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_pairings (
+        id TEXT PRIMARY KEY, bot_slug TEXT NOT NULL,
+        binding_id TEXT NOT NULL REFERENCES messaging_bindings(id),
+        actor_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'revoked', 'expired')),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE UNIQUE INDEX messaging_pairings_current
+        ON messaging_pairings(binding_id, actor_id) WHERE status IN ('pending', 'approved');
+      CREATE INDEX messaging_pairings_bot ON messaging_pairings(bot_slug);
+    `);
+  },
+};
+
+const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
+  generation: 60,
+  module: 'messaging',
+  description:
+    'Own approved management routes and notification receipts without duplicating native decisions',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_approval_routes (
+        bot_slug TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision > 0), body TEXT CHECK(body IS NULL OR json_valid(body))
+      );
+      CREATE TABLE messaging_approval_deliveries (
+        id TEXT PRIMARY KEY, bot_slug TEXT NOT NULL, body TEXT NOT NULL CHECK(json_valid(body))
+      );
+      CREATE INDEX messaging_approval_deliveries_bot ON messaging_approval_deliveries(bot_slug);
+    `);
+  },
+};
+
+const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
+  generation: 65,
+  module: 'messaging',
+  description: 'Let a bound app inherit the platform default new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations_inherited INTEGER NOT NULL DEFAULT 1
+        CHECK (new_conversations_inherited IN (0, 1));
+      UPDATE messaging_bindings SET new_conversations_inherited = 0 WHERE new_conversations = 'ask';
+    `);
+  },
+};
+
+const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 61,
+  module: 'messaging',
+  description:
+    'Admit default traffic through a bound app with implicit conversation entries and a per-binding new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations TEXT NOT NULL DEFAULT 'auto'
+        CHECK (new_conversations IN ('auto', 'ask'));
+      UPDATE messaging_grants SET body = json_set(body, '$.origin', 'explicit');
+      CREATE UNIQUE INDEX messaging_grants_implicit_conversation ON messaging_grants(
+        binding_id,
+        json_extract(body, '$.receiveScope.kind'),
+        json_extract(body, '$.receiveScope.conversationId')
+      ) WHERE revoked_at IS NULL AND json_extract(body, '$.origin') = 'implicit';
+    `);
+  },
+};
+
+const CONVERSATION_LIST_MIGRATION: SchemaMigration = {
+  generation: 62,
+  module: 'messaging',
+  description:
+    'Keep durable conversation blocks per Bot and app fingerprint, and held conversations waiting for a decision',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_conversation_blocks (
+        bot_slug TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        PRIMARY KEY (bot_slug, fingerprint, conversation_kind, conversation_id)
+      );
+      CREATE TABLE messaging_held_conversations (
+        binding_id TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        PRIMARY KEY (binding_id, conversation_kind, conversation_id)
+      );
+      CREATE INDEX messaging_held_conversations_seen
+        ON messaging_held_conversations(binding_id, last_seen_at);
+      INSERT OR IGNORE INTO messaging_conversation_blocks
+        (bot_slug, fingerprint, conversation_kind, conversation_id, revision, body)
+      SELECT g.bot_slug, json_extract(g.body, '$.fingerprint'),
+             json_extract(g.body, '$.receiveScope.kind'),
+             json_extract(g.body, '$.receiveScope.conversationId'), 1,
+             json_object(
+               'botSlug', g.bot_slug,
+               'fingerprint', json_extract(g.body, '$.fingerprint'),
+               'conversation', json_object(
+                 'kind', json_extract(g.body, '$.receiveScope.kind'),
+                 'id', json_extract(g.body, '$.receiveScope.conversationId')),
+               'name', json_extract(g.body, '$.targetName'),
+               'blockedAt', g.revoked_at,
+               'revision', 1)
+        FROM messaging_grants g
+       WHERE g.revoked_at IS NOT NULL
+         AND json_extract(g.body, '$.origin') = 'explicit'
+         AND json_extract(g.body, '$.receiveScope.kind') IN ('dm', 'group')
+         AND NOT EXISTS (
+           SELECT 1 FROM messaging_grants a
+            WHERE a.revoked_at IS NULL AND a.bot_slug = g.bot_slug
+              AND json_extract(a.body, '$.fingerprint') = json_extract(g.body, '$.fingerprint')
+              AND json_extract(a.body, '$.receiveScope.kind') = json_extract(g.body, '$.receiveScope.kind')
+              AND json_extract(a.body, '$.receiveScope.conversationId') =
+                  json_extract(g.body, '$.receiveScope.conversationId'));
+    `);
+  },
+};
+
+const SEVERAL_APPS_MIGRATION: SchemaMigration = {
+  generation: 63,
+  module: 'messaging',
+  description:
+    'Let one Bot bind several apps of the same platform; one app still belongs to one Bot',
+  migrate(database) {
+    database.exec('DROP INDEX IF EXISTS messaging_binding_bot_platform;');
+  },
+};
+
+const CONVERSATION_INGEST_MIGRATION: SchemaMigration = {
+  generation: 64,
+  module: 'messaging',
+  description: 'Let a Channel ingest an external conversation as one-way context',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_conversation_ingests (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        account_ref TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE UNIQUE INDEX messaging_conversation_ingest_target ON messaging_conversation_ingests
+        (channel_id, provider_id, fingerprint, conversation_kind, conversation_id);
+      CREATE INDEX messaging_conversation_ingest_source ON messaging_conversation_ingests
+        (provider_id, fingerprint, conversation_kind, conversation_id);
+    `);
+  },
+};
+
+const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
+  generation: 66,
   module: 'bot-registry',
   description: 'Terminal PersonaBot deletion and exclusive Memory ownership proofs',
   migrate(database) {
@@ -1539,5 +1790,14 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MODEL_PRESET_STORAGE_MIGRATION,
   PERSONA_BOT_REGISTRY_MIGRATION,
   ROSTER_ARRANGEMENT_MIGRATION,
+  BOT_SCHEDULE_MIGRATION,
+  DISCORD_PLATFORM_DEFAULTS_MIGRATION,
+  BOT_PAIRING_MIGRATION,
+  APPROVAL_MESSAGING_MIGRATION,
+  BOUND_APP_ADMISSION_MIGRATION,
+  CONVERSATION_LIST_MIGRATION,
+  SEVERAL_APPS_MIGRATION,
+  CONVERSATION_INGEST_MIGRATION,
+  NEW_CONVERSATION_DEFAULT_MIGRATION,
   PERSONA_BOT_DELETION_MIGRATION,
 ]);

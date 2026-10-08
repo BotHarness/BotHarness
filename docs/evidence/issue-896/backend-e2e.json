@@ -1,9 +1,9 @@
 {
-  "startedAt": "2026-10-05T18:50:55.704Z",
+  "startedAt": "2026-10-08T05:53:30.029Z",
   "checks": [
     {
       "name": "real-model-DM-reply",
-      "channelId": "dm-bot-47ddcae8ed334819b29bdf5fc66cb7dd"
+      "channelId": "dm-bot-5c5dee4eac284607b35751fc7f2df435"
     },
     {
       "name": "native-folder-target",
@@ -22,60 +22,30 @@
     {
       "name": "drain-real-Agent-awaiting-native-approval",
       "phase": "complete",
-      "sessions": ["botharness-36fa5c1a-da15-45f6-a7c3-6d1d1d56126b"]
+      "sessions": [
+        "botharness-0d9ee0d1-2e78-481b-b873-3c57115c3e1f"
+      ]
     },
     {
       "name": "cold-restart-terminal-fence-Memory-outcome-and-native-history",
       "passed": true
-    },
-    {
-      "name": "real-Host-stale-confirmation-refused-before-terminal-fence",
-      "passed": true
-    },
-    {
-      "name": "real-Host-escaping-link-refused-ordinary-deletion-retains-outside-bytes",
-      "passed": true
-    },
-    {
-      "name": "real-Host-injected-filesystem-failure-keeps-terminal-fence-and-pending-cleanup",
-      "passed": true
-    },
-    {
-      "name": "real-Host-cold-restart-incomplete-cleanup-and-explicit-retry",
-      "passed": true
-    },
-    {
-      "name": "real-Host-new-custom-exclusive-Memory-erasure",
-      "passed": true
-    },
-    {
-      "name": "real-Host-unproven-and-shared-custom-paths-refuse-erasure-retain-bytes",
-      "passed": true
     }
   ],
   "bots": {
-    "retained": "bot-47ddcae8ed334819b29bdf5fc66cb7dd",
-    "erased": "bot-244097cb4b2c43f29cc27fc66143a9f5",
-    "working": "bot-8b7fea8c757f4fe1a1db8d2eedc0c05a"
+    "retained": "bot-5c5dee4eac284607b35751fc7f2df435",
+    "erased": "bot-874350c3e61946eaaf624118f4468b89",
+    "working": "bot-d6922f8448a8427dad28a91c37d145fd"
   },
-  "finishedAt": "2026-10-05T18:51:00.438Z",
+  "finishedAt": "2026-10-08T05:56:43.864Z",
   "humanReviewBots": [
     {
-      "slug": "bot-bd9121fa877a4800ad46b575595786e4",
+      "slug": "bot-2b139b12c54a402cafdbd8157231d3dd",
       "displayName": "Human QA896 keep Memory"
     },
     {
-      "slug": "bot-17ea17e7ee4543f591ca7525e6e12593",
+      "slug": "bot-9306d3e2d51048ffa8233d23220b9262",
       "displayName": "Human QA896 erase Memory"
     }
   ],
-  "coldCheckedAt": "2026-10-05T18:53:03.434Z",
-  "failureBot": "bot-14370b3be88445b293caca3dcbb47952",
-  "customCases": {
-    "owned": "qa896-4a3387cc1d8f45ad807ab49ac32cb214",
-    "unproven": "qa896-3a779079b2e141958bb5e8517948abaf",
-    "sharedParent": "qa896-a9593523b8d848a2800a8146c9a69202",
-    "sharedChild": "qa896-b3dfb40083654cbba8d4bf4a043597c5"
-  },
-  "customFixture": "Seeded through canonical Registry API with Host stopped; verified through authenticated running Host API after restart."
+  "coldCheckedAt": "2026-10-08T06:12:01.757Z"
 }

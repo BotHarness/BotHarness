@@ -3,7 +3,25 @@ import type {
   PersonaBotDeletionPreview,
   PersonaBotDeletion,
 } from '../../../core/src/bots/deletion.js';
+import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
+import {
+  gitInstalling,
+  loadGitAvailability,
+  reviewPairing,
+  startGitInstall,
+  setApprovalRoute,
+  testApprovalRoute,
+  retryApprovalNotification,
+} from './bridge.js';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
+import type {
+  MarketplaceDetail,
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceQuery,
+  MarketplaceTopic,
+} from '../../../core/src/marketplace/client.js';
+import type { AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import { loadAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 
@@ -11,6 +29,10 @@ import type {
   ChannelBridgeInput,
   ChannelBridgeSnapshot,
 } from '../../../core/src/messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
 import type {
   MessagingIdentity,
   MessagingIdentityInput,
@@ -24,6 +46,7 @@ import {
 } from './last-view.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -35,8 +58,11 @@ import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadChannelBridges,
   manageChannelBridge,
+  loadChannelIngests,
+  manageChannelIngest,
   loadMessagingSnapshot,
   manageMessagingIdentity,
+  manageMessagingConversation,
   loadMessagingTargets,
   authorizeMessaging,
   revokeMessaging,
@@ -65,6 +91,12 @@ import {
   loadGroupWakePolicies,
   deleteGroupChannel,
   createPersonaBot,
+  type CreatedBot,
+  downloadBotZip,
+  importBotZip,
+  loadBotZipFiles,
+  type BotZipExportChoice,
+  type BotZipFileListing,
   createRosterSection,
   errorMessage,
   loadWorkspaceOptions,
@@ -109,6 +141,12 @@ import {
   loadProfileUsage,
   loadOverviewMemory,
   loadOverviewUsage,
+  loadMarketplaceDetail,
+  loadMarketplacePage,
+  loadMarketplaceTopics,
+  submitMarketplaceRepository,
+  loadMarketplaceChallenge,
+  reportMarketplaceBot,
   type UsageFilter,
   type UsageQueryResult,
   loadGroupProfileActivity,
@@ -122,12 +160,21 @@ import {
   applyModelPreset,
   customizeModelPlan,
   setModelPlanAssignments,
-  type ModelCatalogEntryView,
+  setModelPlan,
+  setStandingLimits,
+  type ModelCatalogView,
   type ModelPresetView,
   type ModelPlanView,
   type ModelRouteView,
   type AssignmentModelOptionView,
   loadBotSourcePolicies,
+  loadBotSchedules,
+  createBotSchedule,
+  updateBotSchedule,
+  deleteBotSchedule,
+  loadBotScheduleHistory,
+  runBotScheduleNow,
+  previewBotSchedule,
   type BotSourcePolicyEdit,
   setBotSourcePolicy,
   resetBotSourcePolicy,
@@ -165,6 +212,11 @@ import {
   type ProfileActivity,
   type GroupProfileActivity,
   type BotSourcePolicyView,
+  type BotScheduleView,
+  type BotScheduleChange,
+  type BotScheduleFiringView,
+  type BotScheduleInput,
+  type BotScheduleTrigger,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -182,6 +234,7 @@ import {
 } from './roster-order.js';
 import type {
   BotSummary,
+  StandingLimitsView,
   ChannelAttachmentRef,
   ChannelMessage,
   ChannelSummary,
@@ -201,6 +254,8 @@ import {
   type NativeHostFiles,
 } from './host-file-actions.js';
 
+const GIT_INSTALL_POLL_MS = 500;
+
 export interface HostDirectoryListing {
   path: string;
   home: string;
@@ -212,6 +267,8 @@ export interface HostDirectoryListing {
 export interface BridgeActions {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -221,7 +278,12 @@ export interface BridgeActions {
   messagingGroupPolicy(slug: string, grantId: string, policy: GroupReceptionInput): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
+  approvalRoute(slug: string, pairingId: string | null, expectedRevision: number): Promise<void>;
+  approvalTest(slug: string): Promise<void>;
+  approvalRetry(slug: string, id: string): Promise<void>;
+  pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
+  messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -240,7 +302,7 @@ export interface BridgeActions {
     text: string,
   ): Promise<OutboxIntent>;
 
-  modelCatalog(): Promise<ModelCatalogEntryView[]>;
+  modelCatalog(): Promise<ModelCatalogView>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
   modelPlanState(slug: string): Promise<ModelPlanStateView>;
@@ -248,6 +310,7 @@ export interface BridgeActions {
     name: string,
     orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
+    assignmentModels?: AssignmentModelOptionView[],
   ): Promise<ModelPresetView>;
   updateModelPreset(
     id: string,
@@ -258,9 +321,17 @@ export interface BridgeActions {
   ): Promise<ModelPresetView>;
   applyModelPreset(slug: string, presetId: string): Promise<ModelPlanView>;
   customizeModelPlan(slug: string, orchestrator: ModelRouteView): Promise<ModelPlanView>;
+  setStandingLimits(slug: string, limits: StandingLimitsView): Promise<BotSummary>;
   setModelPlanAssignments(
     slug: string,
     expectedRevision: number,
+    assignmentDefault: ModelRouteView,
+    assignmentModels: AssignmentModelOptionView[],
+  ): Promise<ModelPlanView>;
+  setModelPlan(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
     assignmentModels: AssignmentModelOptionView[],
   ): Promise<ModelPlanView>;
@@ -276,6 +347,8 @@ export interface BridgeActions {
   deletionFolderApplications(slug: string): Promise<HostFileOptions>;
   deletionFolderOpen(slug: string, choice?: HostFileOpen): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
+  refreshGit(signal?: AbortSignal): Promise<void>;
+  installGit(): Promise<void>;
   openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
@@ -381,6 +454,13 @@ export interface BridgeActions {
   channelActivityToday(): Promise<ChannelActivityToday>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
+  botSchedules(slug: string): Promise<BotScheduleView[]>;
+  createBotSchedule(slug: string, input: BotScheduleInput): Promise<BotScheduleView>;
+  updateBotSchedule(slug: string, id: string, change: BotScheduleChange): Promise<BotScheduleView>;
+  deleteBotSchedule(slug: string, id: string): Promise<void>;
+  botScheduleHistory(slug: string, id: string): Promise<BotScheduleFiringView[]>;
+  runBotScheduleNow(slug: string, id: string): Promise<BotScheduleFiringView>;
+  botSchedulePreview(trigger: BotScheduleTrigger): Promise<string[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
   resetBotSourcePolicy(
     slug: string,
@@ -450,7 +530,17 @@ export interface BridgeActions {
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
     allBotMention?: AllBotMention,
   ): Promise<boolean>;
-  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
+  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<CreatedBot>;
+  openCreatedBot(bot: BotSummary, sectionId?: string): Promise<void>;
+  importBotZip(file: File, sectionId?: string): Promise<BotSummary>;
+  botZipFiles(slug: string): Promise<BotZipFileListing>;
+  exportBotZip(slug: string, displayName: string, choice?: BotZipExportChoice): Promise<void>;
+  marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
+  marketplaceChallenge(): Promise<AltchaChallenge>;
+  marketplaceSubmit(url: string, altcha: string): Promise<MarketplaceEntry>;
+  marketplaceReport(id: string, altcha: string, reason?: string): Promise<void>;
+  marketplaceTopics(): Promise<MarketplaceTopic[]>;
+  marketplaceDetail(id: string): Promise<MarketplaceDetail>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
@@ -582,6 +672,42 @@ export function createActions(
     return channel?.id === selection.channelId && channel.type === 'dm'
       ? channel.botSlug
       : undefined;
+  };
+
+  let followingGitInstall = false;
+  const followGitInstall = async (): Promise<void> => {
+    if (followingGitInstall) return;
+    followingGitInstall = true;
+    try {
+      while (gitInstalling(clientStore.getSnapshot().git)) {
+        await new Promise((resolve) => setTimeout(resolve, GIT_INSTALL_POLL_MS));
+        clientStore.setGit(await loadGitAvailability(call));
+      }
+    } catch (error) {
+      console.warn('botharness: Git install status check failed', error);
+    } finally {
+      followingGitInstall = false;
+    }
+  };
+
+  const refreshGit = async (signal?: AbortSignal): Promise<void> => {
+    try {
+      const git = await loadGitAvailability(call, signal);
+      if (signal?.aborted === true) return;
+      clientStore.setGit(git);
+      if (gitInstalling(git)) void followGitInstall();
+    } catch (error) {
+      if (signal?.aborted !== true) console.warn('botharness: Git status check failed', error);
+    }
+  };
+
+  const installGit = async (): Promise<void> => {
+    try {
+      clientStore.setGit(await startGitInstall(call));
+      await followGitInstall();
+    } catch (error) {
+      console.warn('botharness: Git install failed to start', error);
+    }
   };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
@@ -940,19 +1066,34 @@ export function createActions(
     }
   };
 
+  const openCreatedBot = async (
+    bot: BotSummary,
+    sectionId: string | undefined,
+  ): Promise<BotSummary> => {
+    const channel = await openDmChannel(call, bot.slug, bot.displayName);
+    clientStore.upsertBot(bot);
+    clientStore.upsertChannel(channel);
+    await placeCreatedChannelFirst(channel.id, sectionId);
+    await actions.openBot(bot.slug);
+    return bot;
+  };
+
   const actions: BridgeActions = {
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
     modelPlanState: (slug) => loadModelPlanState(call, slug),
-    createModelPreset: (name, orchestrator, assignmentDefault) =>
-      createModelPreset(call, name, orchestrator, assignmentDefault),
+    createModelPreset: (name, orchestrator, assignmentDefault, assignmentModels) =>
+      createModelPreset(call, name, orchestrator, assignmentDefault, assignmentModels),
     updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>
       updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
     customizeModelPlan: (slug, orchestrator) => customizeModelPlan(call, slug, orchestrator),
+    setStandingLimits: (slug, limits) => setStandingLimits(call, slug, limits),
     setModelPlanAssignments: (slug, expectedRevision, assignmentDefault, assignmentModels) =>
       setModelPlanAssignments(call, slug, expectedRevision, assignmentDefault, assignmentModels),
+    setModelPlan: (slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels) =>
+      setModelPlan(call, slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels),
     listHostFolders(path, signal) {
       if (folderAccess?.listDirectory === undefined)
         throw new Error('DSH folder browser is unavailable');
@@ -1009,6 +1150,7 @@ export function createActions(
       ),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
+      void refreshGit(signal);
       try {
         const [bots, channels] = await Promise.all([
           loadBots(call, signal),
@@ -1071,6 +1213,8 @@ export function createActions(
       }
     },
     refreshRoster,
+    refreshGit,
+    installGit,
     async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
@@ -1705,6 +1849,12 @@ export function createActions(
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
+    marketplaceList: (query) => loadMarketplacePage(call, query),
+    marketplaceChallenge: () => loadMarketplaceChallenge(call),
+    marketplaceSubmit: (url, altcha) => submitMarketplaceRepository(call, url, altcha),
+    marketplaceReport: (id, altcha, reason) => reportMarketplaceBot(call, id, altcha, reason),
+    marketplaceTopics: () => loadMarketplaceTopics(call),
+    marketplaceDetail: (id) => loadMarketplaceDetail(call, id),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
@@ -1718,7 +1868,15 @@ export function createActions(
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     channelBridges: (channelId) => loadChannelBridges(call, channelId),
     channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
+    channelIngests: (channelId) => loadChannelIngests(call, channelId),
+    channelIngest: (channelId, input) => manageChannelIngest(call, channelId, input),
+    approvalRoute: (slug, pairingId, expectedRevision) =>
+      setApprovalRoute(call, slug, pairingId, expectedRevision),
+    approvalTest: (slug) => testApprovalRoute(call, slug),
+    approvalRetry: (slug, id) => retryApprovalNotification(call, slug, id),
+    pairingReview: (slug, input) => reviewPairing(call, slug, input),
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
+    messagingConversation: (slug, input) => manageMessagingConversation(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),
@@ -1727,6 +1885,13 @@ export function createActions(
     messagingSend: (slug, grantId, requestId, text) =>
       sendMessaging(call, slug, grantId, requestId, text),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
+    botSchedules: (slug) => loadBotSchedules(call, slug),
+    createBotSchedule: (slug, input) => createBotSchedule(call, slug, input),
+    updateBotSchedule: (slug, id, change) => updateBotSchedule(call, slug, id, change),
+    deleteBotSchedule: (slug, id) => deleteBotSchedule(call, slug, id),
+    botScheduleHistory: (slug, id) => loadBotScheduleHistory(call, slug, id),
+    runBotScheduleNow: (slug, id) => runBotScheduleNow(call, slug, id),
+    botSchedulePreview: (trigger) => previewBotSchedule(call, trigger),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
@@ -1943,13 +2108,29 @@ export function createActions(
       return true;
     },
     async createBot(input, sectionId) {
-      const bot = await createPersonaBot(call, input);
-      const channel = await openDmChannel(call, bot.slug, bot.displayName);
-      clientStore.upsertBot(bot);
-      clientStore.upsertChannel(channel);
-      await placeCreatedChannelFirst(channel.id, sectionId);
-      await actions.openBot(bot.slug);
-      return bot;
+      const created = await createPersonaBot(call, input);
+      if (created.httpsFallback === undefined) await openCreatedBot(created, sectionId);
+      return created;
+    },
+    async openCreatedBot(bot, sectionId) {
+      await openCreatedBot(bot, sectionId);
+    },
+    async importBotZip(file, sectionId) {
+      return openCreatedBot(await importBotZip(file), sectionId);
+    },
+    botZipFiles(slug) {
+      return loadBotZipFiles(slug);
+    },
+    async exportBotZip(slug, displayName, choice) {
+      const { blob, name } = await downloadBotZip(slug, displayName, choice);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = name;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
     async createGroup(name, sectionId) {
       const channel = await createGroupChannel(call, name);

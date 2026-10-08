@@ -17,6 +17,8 @@ import {
   type AttachmentSaveInput,
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
+import { mentionPeople, withMentionNames } from '../messaging/mention-text.js';
+import type { MessagingInboundEvent } from '../messaging/provider.js';
 import type { OutboxIntent, OutboundMessaging } from '../messaging/outbound.js';
 import type {
   ExternalSource,
@@ -74,6 +76,12 @@ import {
   type BotSourcePolicyStore,
 } from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
+import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleInput,
+  BotScheduleStore,
+} from '../schedules/bot-schedules.js';
 import type {
   AssignmentPermissionSnapshot,
   WorkspaceGrant,
@@ -231,6 +239,7 @@ export interface OrchestratorAgentRun {
       attachmentId: string;
       grantId: string;
       destinationPath: string;
+      representation?: 'playback';
     }): ReturnType<typeof saveAttachmentFile>;
     replyFile(sourceEventId: string, fileId: string): ReturnType<OutboundMessaging['replyFile']>;
   };
@@ -252,6 +261,12 @@ export interface OrchestratorAgentRun {
     resetImmediateDelivery(sourceClass: 'human-dm' | 'bot-dm' | 'group-mention'): BotSourcePolicy;
   };
   assignments: OrchestratorAssignmentAccess;
+  schedules?: {
+    list(): BotSchedule[];
+    create(input: BotScheduleInput): BotSchedule;
+    update(id: string, change: BotScheduleChange): BotSchedule;
+    remove(id: string): boolean;
+  };
   memory?: {
     switchBranch(branch: string): { from: string; to: string; head: string };
     continueFromCommit(sha: string, branch: string): { from: string; to: string; head: string };
@@ -441,6 +456,7 @@ export interface BotRuntime {
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
 
   admitExternalSource?(botSlug: string, sourceEventId: string): void;
+  admitScheduleFiring?(botSlug: string): void;
   resumePendingDigests?(botSlug: string): void;
 
   stopBot?(botSlug: string): Promise<void>;
@@ -453,6 +469,7 @@ export interface BotRuntimeOptions {
   externalMessaging?: OutboundMessaging;
   database: OperationalDatabaseOwner;
   sourcePolicy?: BotSourcePolicyStore;
+  schedules?: Pick<BotScheduleStore, 'list' | 'create' | 'update' | 'remove'>;
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
@@ -520,8 +537,14 @@ interface AssignmentRow {
 
 interface InboxReportRow {
   source_event_id: string;
-  source_kind: 'assignment-report' | 'assignment-lifecycle' | 'memory-change' | 'bridge-message';
+  source_kind:
+    | 'assignment-report'
+    | 'assignment-lifecycle'
+    | 'memory-change'
+    | 'bridge-message'
+    | 'schedule';
   external?: ExternalSource;
+  schedule_json?: string | null;
   assignment_session_id: string | null;
   body: string;
   created_at: string;
@@ -544,6 +567,7 @@ interface DigestRow {
   external_sender_id?: string | null;
   external_platform?: string | null;
   external_message_id?: string | null;
+  external_mentions?: string | null;
   reply_session_id?: string | null;
   reply_source_event_id?: string | null;
 }
@@ -552,8 +576,24 @@ function groupMessageAuthor(row: DigestRow, humanName = 'Human'): string {
   if (row.author_kind === 'bot') return `PersonaBot ${row.author_slug ?? 'unknown'}`;
   if (row.author_kind === 'system') return 'Channel system';
   if (row.author_kind === 'bridged')
-    return `${row.external_sender ?? row.external_sender_id ?? 'unknown'} (${row.external_platform ?? 'external'}, sender ${row.external_sender_id ?? 'unknown'}, external message ${row.external_message_id ?? 'unknown'})`;
+    return `${row.external_sender ?? row.external_sender_id ?? 'unknown'} (${row.external_platform ?? 'external'}, sender ${row.external_sender_id ?? 'unknown'}, external message ${row.external_message_id ?? 'unknown'}${mentionedLabel(rowMentions(row))})`;
   return humanName;
+}
+
+function rowMentions(row: DigestRow): MessagingInboundEvent['mentions'] {
+  if (!row.external_mentions) return [];
+  const parsed: unknown = JSON.parse(row.external_mentions);
+  return Array.isArray(parsed) ? (parsed as MessagingInboundEvent['mentions']) : [];
+}
+
+function mentionedLabel(mentions: MessagingInboundEvent['mentions']): string {
+  return mentions.length === 0
+    ? ''
+    : `, mentioned ${mentions.map((mention) => `${mention.name ?? mention.id} (${mention.id})`).join(', ')}`;
+}
+
+function groupMessageBody(row: DigestRow): string {
+  return withMentionNames(row.body, rowMentions(row));
 }
 
 interface GroupContext {
@@ -572,8 +612,18 @@ const DM_CONTEXT_CHARACTER_BUDGET = 8_000;
 const GROUP_PROMPT_CHANNEL_LIMIT = 100;
 const GROUP_CONTEXT_BODY_LIMIT = 1_000;
 
+interface ScheduleFiringFacts {
+  id: string;
+  title: string;
+  prompt: string;
+  occurrenceAt: string;
+  trigger: 'planned' | 'manual';
+  creator: 'human' | 'personabot';
+}
+
 interface InboxUnit {
   external?: ExternalSource;
+  schedule?: ScheduleFiringFacts;
   sourceEventId: string;
   sourceKind: InboxReportRow['source_kind'];
   assignmentSessionId: string | null;
@@ -693,6 +743,12 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
         sourceEventId: row.source_event_id,
         sourceKind: row.source_kind,
         ...(row.external === undefined ? {} : { external: row.external }),
+        ...(row.schedule_json == null
+          ? {}
+          : {
+              schedule: (JSON.parse(row.schedule_json) as { schedule: ScheduleFiringFacts })
+                .schedule,
+            }),
         assignmentSessionId: row.assignment_session_id,
         summary: row.body,
         createdAt: row.created_at,
@@ -730,7 +786,11 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External ${unit.external.event.conversation.kind === 'dm' ? 'private message' : `work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}`}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, conversation: unit.external.conversationName, conversationKind: unit.external.event.conversation.kind, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, people: mentionPeople(unit.external.event.actor, unit.external.event.mentions), at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, voice: unit.external.event.voice, quote: unit.external.quote, nativeQuote: unit.external.event.quote, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(withMentionNames(unit.summary, unit.external.event.mentions))}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Mentions in the text appear as @name; to @ the sender or a mentioned person in a Lark, Slack or Discord reply, write <@ID> anywhere in the bridge_reply text with their id from people; never write other mention markup yourself. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+    }
+    if (unit.schedule !== undefined) {
+      const schedule = unit.schedule;
+      return `- Bot Schedule ${JSON.stringify(schedule.title)} [Source Event ${unit.sourceEventId}; schedule ${schedule.id}; ${schedule.trigger === 'manual' ? 'run now by the Human' : `occurrence ${schedule.occurrenceAt}`}; created by ${schedule.creator === 'human' ? 'the Human' : 'you'}] is due. Scheduled task: ${JSON.stringify(schedule.prompt)}. Carry it out now as this PersonaBot: answer directly, or dispatch an Assignment for long work (the schedule id makes a stable continuity key).`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -761,7 +821,7 @@ function renderInbox(units: InboxUnit[]): string {
     return `- ${target} (${facts}) reported [Source Event ${unit.sourceEventId}]: ${unit.summary}${lifecycle}`;
   });
   return [
-    '[Bot Inbox] External mentions, actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
+    '[Bot Inbox] External mentions, due Bot Schedules, actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
     'Answer an item that waits for',
     'your answer with send_assignment_request using its answer_to value; otherwise use them as',
     'context. Do not repeat these summaries back verbatim.',
@@ -809,6 +869,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #sourcePolicy: BotSourcePolicyStore;
+  readonly #schedules: BotRuntimeOptions['schedules'];
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
@@ -857,6 +918,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#channels = options.channels;
     this.#sourcePolicy =
       options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
+    this.#schedules = options.schedules;
     this.#agents = options.agents;
     this.#memory = options.memory;
     this.#attachments = options.attachments;
@@ -975,17 +1037,23 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
+  admitScheduleFiring(botSlug: string): void {
+    if (this.#closed) return;
+    this.#checkHarvestReadiness(botSlug);
+  }
+
   admitExternalSource(botSlug: string, sourceEventId: string): void {
     if (this.#closed || !this.#externalMessaging?.inbound.available(botSlug, sourceEventId)) return;
     const row = this.#database.read((db) =>
       db
-        .prepare(`SELECT a.attempt_state, a.reason, e.channel_id, e.message_id FROM inbox_admissions a
+        .prepare(`SELECT a.attempt_state, a.reason, a.wake_mode, e.channel_id, e.message_id FROM inbox_admissions a
       JOIN source_events e USING(source_event_id) WHERE a.bot_slug = ? AND a.source_event_id = ?`)
         .get(botSlug, sourceEventId),
     ) as
       | {
           attempt_state: string;
           reason: string;
+          wake_mode: string | null;
           channel_id: string | null;
           message_id: string | null;
         }
@@ -1001,7 +1069,8 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#admitChannelMessage(row.channel_id, row.message_id, 'group-ordinary');
       return;
     }
-    if (!row || !['pending', 'retryable'].includes(row.attempt_state)) return;
+    if (!row || !['pending', 'retryable'].includes(row.attempt_state) || row.wake_mode === 'silent')
+      return;
     const active = this.#activeTurns.get(botSlug);
     if (
       (row.reason === 'group-mention' || row.reason === 'human-dm') &&
@@ -1326,6 +1395,7 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
                  json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions,
       json_extract(e.payload_json, '$.assignmentReply.sessionId') AS reply_session_id,
       json_extract(e.payload_json, '$.assignmentReply.sourceEventId') AS reply_source_event_id`;
     const candidates = database
@@ -1727,6 +1797,20 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#scheduleHarvest(botSlug);
       return;
     }
+    const scheduled = this.#database.read((database) =>
+      database
+        .prepare(`
+        SELECT 1 AS found FROM inbox_admissions a JOIN source_events e USING(source_event_id)
+         WHERE a.bot_slug = ? AND a.reason = 'schedule' AND a.attempt_state = 'pending'
+           AND e.observed_at IS NULL
+         LIMIT 1
+      `)
+        .get(botSlug),
+    );
+    if (scheduled !== undefined && this.#dmChannel(botSlug) !== undefined) {
+      this.#scheduleHarvest(botSlug);
+      return;
+    }
     const externalPending = this.#pendingExternalRows(botSlug);
     if (
       externalPending.some(
@@ -1890,7 +1974,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds,
         [...new Set([...includedIds, ...collected.eventIds])],
       );
-      this.#markReportsHandled(collected.eventIds, botSlug);
+      this.#markReportsHandled(collected.eventIds, botSlug, orchestrator.sessionId);
       this.#settleHarvestHandled(botSlug, includedIds);
       for (const digest of claimed.digests) {
         this.#digestRetryAt.delete(`${botSlug}:${digest.channelId}`);
@@ -2073,7 +2157,8 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.name') AS external_sender,
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
-                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id
+                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
            WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
@@ -2179,7 +2264,8 @@ class BotRuntimeImplementation implements BotRuntime {
                  json_extract(e.payload_json, '$.external.event.actor.name') AS external_sender,
                  json_extract(e.payload_json, '$.external.event.actor.id') AS external_sender_id,
                  json_extract(e.payload_json, '$.external.platform') AS external_platform,
-                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id`;
+                 json_extract(e.payload_json, '$.external.event.messageId') AS external_message_id,
+                 json_extract(e.payload_json, '$.external.event.mentions') AS external_mentions`;
     const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
       .all(botSlug, channelId, GROUP_PROMPT_CHANNEL_LIMIT) as unknown as DigestRow[];
@@ -2219,7 +2305,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
       ...context.rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${groupMessageBody(row).slice(0, GROUP_CONTEXT_BODY_LIMIT)}${groupMessageBody(row).length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${groupMessageBody(row).length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
       ),
       context.omittedCount > 0
         ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
@@ -2243,7 +2329,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
       ...rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${groupMessageBody(row).slice(0, 1000)}`,
       ),
       ...(omittedCount > 0
         ? [
@@ -2587,7 +2673,7 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       throw error;
     }
-    this.#markReportsHandled(collected.eventIds, bot.slug);
+    this.#markReportsHandled(collected.eventIds, bot.slug, orchestrator.sessionId);
     const handledAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
@@ -2829,11 +2915,11 @@ class BotRuntimeImplementation implements BotRuntime {
                   const destinationGrant = this.#grants.requireActive(bot.slug, input.grantId);
                   if (destinationGrant.orchestratorWrite !== true)
                     throw new Error('Destination requires Orchestrator write authorization');
-                  const ref = await this.#externalMessaging!.acquireFile(
-                    bot.slug,
-                    input.sourceEventId,
-                    input.attachmentId,
-                  );
+                  const ref = await (
+                    input.representation === 'playback'
+                      ? this.#externalMessaging!.prepareAudio
+                      : this.#externalMessaging!.acquireFile
+                  )(bot.slug, input.sourceEventId, input.attachmentId);
                   return saveAttachmentFile(input, {
                     botSlug: bot.slug,
                     grants: this.#grants,
@@ -2925,6 +3011,25 @@ class BotRuntimeImplementation implements BotRuntime {
             });
           },
         },
+        ...(this.#schedules === undefined
+          ? {}
+          : {
+              schedules: ((store) => ({
+                list: () => store.list(bot.slug),
+                create: (input: BotScheduleInput) => {
+                  markSideEffect();
+                  return store.create(bot.slug, input, 'personabot');
+                },
+                update: (id: string, change: BotScheduleChange) => {
+                  markSideEffect();
+                  return store.update(bot.slug, id, change, 'personabot');
+                },
+                remove: (id: string) => {
+                  markSideEffect();
+                  return store.remove(bot.slug, id, 'personabot');
+                },
+              }))(this.#schedules),
+            }),
         ...(observeMemory
           ? {
               memory: {
@@ -3324,10 +3429,10 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE source_events SET observed_at = NULL
-             WHERE source_kind IN ('memory-change', 'bridge-message')
+             WHERE source_kind IN ('memory-change', 'schedule', 'bridge-message')
                AND source_event_id IN (
                  SELECT source_event_id FROM inbox_admissions
-                  WHERE reason IN ('memory-change', 'group-mention', 'group-ordinary', 'human-dm') AND attempt_state = 'retryable'
+                  WHERE reason IN ('memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm') AND attempt_state = 'retryable'
                     AND side_effect_started_at IS NULL
                )
           `)
@@ -3335,7 +3440,7 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET observed_at = NULL
-             WHERE (reason IN ('memory-change', 'group-mention', 'group-ordinary') OR
+             WHERE (reason IN ('memory-change', 'schedule', 'group-mention', 'group-ordinary') OR
                     (reason = 'human-dm' AND source_event_id IN (
                       SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'
                     ))) AND attempt_state = 'retryable'
@@ -5284,7 +5389,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
       WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
     ) SELECT source_event_id, body, created_at, attempt_state FROM pending
-      WHERE reason = 'group-mention' OR (reason = 'human-dm' AND wake_mode = 'all') OR (reason = 'group-ordinary' AND (
+      WHERE (reason = 'group-mention' AND wake_mode IS NOT 'silent') OR (reason = 'human-dm' AND wake_mode = 'all') OR (reason = 'group-ordinary' AND (
         wake_mode = 'all' OR (wake_mode = 'digest' AND (pending_count >= wake_count OR
           (julianday(?) - julianday(first_at)) * 86400000 >= wake_interval_ms)) OR
         (? = 1 AND has_mention = 1 AND wake_mode IN ('digest', 'mentions'))))
@@ -5316,6 +5421,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    CASE WHEN e.source_kind = 'schedule' THEN e.payload_json END AS schedule_json,
                     json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') AS paired_report_id,
                     CASE WHEN a.stop_state = 'running' THEN a.open_ask_source_event_id END AS open_ask_id,
                     (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
@@ -5325,7 +5431,7 @@ class BotRuntimeImplementation implements BotRuntime {
                FROM source_events e
                LEFT JOIN assignments a ON a.session_id = e.assignment_session_id
               WHERE e.bot_slug = ?
-                AND e.source_kind IN ('assignment-report', 'assignment-lifecycle')
+                AND e.source_kind IN ('assignment-report', 'assignment-lifecycle', 'schedule')
                 AND e.observed_at IS NULL
               ORDER BY e.rowid DESC
               LIMIT 20`,
@@ -5593,7 +5699,7 @@ class BotRuntimeImplementation implements BotRuntime {
                      WHEN side_effect_started_at IS NULL THEN 'retryable'
                      ELSE 'needs-repair'
                    END
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
@@ -5604,21 +5710,29 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  #markReportsHandled(sourceEventIds: string[], botSlug?: string): void {
+  #markReportsHandled(sourceEventIds: string[], botSlug?: string, sessionId?: string): void {
     if (sourceEventIds.length === 0) return;
     const placeholders = sourceEventIds.map(() => '?').join(', ');
     this.#database.transaction(
-      (database) =>
+      (database) => {
         database
           .prepare(`
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state = 'running'
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
           `)
-          .run(this.#now().toISOString(), botSlug ?? null, botSlug ?? null, ...sourceEventIds),
-      ['bot-inbox'],
+          .run(this.#now().toISOString(), botSlug ?? null, botSlug ?? null, ...sourceEventIds);
+        if (sessionId !== undefined)
+          database
+            .prepare(`
+              UPDATE bot_schedule_firings SET session_id = ?
+               WHERE session_id IS NULL AND source_event_id IN (${placeholders})
+            `)
+            .run(sessionId, ...sourceEventIds);
+      },
+      ['bot-inbox', 'bot-schedules'],
     );
   }
 

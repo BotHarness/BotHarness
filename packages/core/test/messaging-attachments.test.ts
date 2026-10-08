@@ -8,6 +8,7 @@ import type { MessagingInboundEvent } from '../src/messaging/provider.js';
 import type { OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createTempRoot } from './helpers.js';
+import { encode } from 'silk-wasm';
 
 const cores: BotHarnessCore[] = [];
 afterEach(async () => {
@@ -49,18 +50,43 @@ const event: MessagingInboundEvent = {
 };
 async function fixture(
   onRun?: (run: OrchestratorAgentRun) => Promise<void>,
-  platform: 'feishu' | 'slack' = 'feishu',
+  platform: 'feishu' | 'slack' | 'weixin' | 'discord' = 'feishu',
+  image = false,
+  voice = false,
+  video = false,
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
-    platform === 'slack'
+    platform === 'slack' || platform === 'discord'
       ? {
           ...event,
           channel: platform,
           attachments: [{ ...attachment, messageId: event.messageId }],
           reply: slackReply,
         }
-      : event;
+      : platform === 'weixin'
+        ? {
+            ...event,
+            channel: platform,
+            attachments: [
+              {
+                ...attachment,
+                messageId: event.messageId,
+                ...(image ? { name: 'image', mediaType: 'image/unknown' } : {}),
+                ...(voice ? { name: 'voice.silk', mediaType: 'audio/unknown' } : {}),
+                ...(video ? { name: 'video.mp4', mediaType: 'video/unknown' } : {}),
+              },
+            ],
+            ...(voice ? { voice: { transcript: 'unavailable' as const, encodeType: 6 } } : {}),
+            ...(video
+              ? { video: { playLength: 7000, reportedSizeBytes: 48, itemId: 'video-item' } }
+              : {}),
+            conversation: { kind: 'dm', id: 'team' },
+            mentions: [],
+            mentionedAccount: false,
+            reply: { messageId: event.messageId, conversationId: 'team', actorId: 'human' },
+          }
+        : event;
   const home = realpathSync(createTempRoot('bh-bridge-files-'));
   const project = join(home, 'project');
   mkdirSync(project);
@@ -109,8 +135,20 @@ async function fixture(
     listTargets: async () => [
       {
         targetId: 'team',
-        kind: platform === 'slack' ? 'conversation' : 'group',
-        route: platform === 'slack' ? { channelId: 'team' } : { chatId: 'team' },
+        kind:
+          platform === 'weixin'
+            ? 'user'
+            : platform === 'slack'
+              ? 'conversation'
+              : platform === 'discord'
+                ? 'channel'
+                : 'group',
+        route:
+          platform === 'weixin'
+            ? { toUserId: 'team' }
+            : platform === 'slack' || platform === 'discord'
+              ? { channelId: 'team' }
+              : { chatId: 'team' },
       },
     ],
     describeBot: async () => ({
@@ -125,12 +163,19 @@ async function fixture(
         'reply-text-checked',
         'source-file-checked',
         'reply-file-checked',
+        ...(platform === 'weixin' ? ['reply-file-fence-checked'] : []),
+        ...(image ? ['source-image-checked', 'reply-image-fence-checked'] : []),
+        ...(voice ? ['source-voice-transcript-checked', 'source-voice-audio-checked'] : []),
+        ...(video ? ['source-video-checked', 'reply-video-fence-checked'] : []),
       ],
     }),
     sendChecked: async () => ({ sent: true }),
     replyChecked: async () => ({ sent: true }),
     consumeInbound: async (_id, input) => {
       expect(input.sourceFiles).toBe(true);
+      expect(input.sourceImages).toBe(image ? true : undefined);
+      expect(input.sourceVoiceAudio).toBe(voice ? true : undefined);
+      expect(input.sourceVideos).toBe(video ? true : undefined);
       receive = input;
       return () => {};
     },
@@ -183,7 +228,7 @@ async function fixture(
   };
 }
 
-it.each(['feishu', 'slack'] as const)(
+it.each(['feishu', 'slack', 'weixin', 'discord'] as const)(
   '%s trusted source reaches writable native files and a selected same-topic file reply without creating a Channel',
   async (platform) => {
     let grantId = '';
@@ -401,4 +446,213 @@ it('Slack source metadata survives canonical intake and refuses unrelated messag
     }),
   ).rejects.toThrow('untrusted-source');
   expect(fx.download).not.toHaveBeenCalled();
+});
+
+it('WeChat carries a current-authorization fence through upload and refuses a revoked final send', async () => {
+  const fx = await fixture(undefined, 'weixin');
+  const id = await fx.source();
+  const file = await fx.core.attachments.upload({
+    name: 'result.zip',
+    data: (async function* () {
+      yield Buffer.from('processed bytes');
+    })(),
+  });
+  let finalSends = 0;
+  fx.service.replyFileChecked = async (_bot, _route, _file, options) => {
+    expect(options.beforeSend?.()).toBe(true);
+    fx.core.externalMessaging.revoke('ada', fx.grant.id);
+    expect(options.beforeSend?.()).toBe(false);
+    if (options.beforeSend?.()) finalSends++;
+    throw Object.assign(new Error('revoked'), { code: 'stale-route' });
+  };
+  const result = await fx.core.externalMessaging.replyFile('ada', id, file);
+  expect(result.state).not.toBe('provider-accepted');
+  expect(finalSends).toBe(0);
+  await expect(fx.core.externalMessaging.replyFile('ada', id, file)).rejects.toThrow(
+    'source-unavailable',
+  );
+});
+
+it('WeChat preserves large-file metadata for inspection without treating it as an acquired artifact', async () => {
+  const fx = await fixture(undefined, 'weixin');
+  const incoming = {
+    ...fx.platformEvent,
+    attachments: [{ ...attachment, messageId: event.messageId, sizeBytes: 30 * 1024 * 1024 }],
+  };
+  const id = await fx.source(incoming);
+  expect(fx.core.externalMessaging.inbound.read('ada', id).event.attachments).toEqual(
+    incoming.attachments,
+  );
+  expect(fx.download).not.toHaveBeenCalled();
+  expect(fx.core.channels.list()).toEqual([]);
+});
+
+it('WeChat image input is capability-opted-in and native result MIME comes from canonical bytes', async () => {
+  const fx = await fixture(undefined, 'weixin', true);
+  const sourceId = await fx.source();
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4S8AAAAASUVORK5CYII=',
+    'base64',
+  );
+  const result = await fx.core.attachments.upload({
+    name: 'result.png',
+    data: (async function* () {
+      yield png;
+    })(),
+  });
+  expect(await fx.core.externalMessaging.replyFile('ada', sourceId, result)).toMatchObject({
+    state: 'provider-accepted',
+  });
+  expect(fx.reply.mock.calls[0]?.[2]).toMatchObject({ mediaType: 'image/png' });
+  expect(Buffer.from(fx.reply.mock.calls[0]![2].bytes)).toEqual(png);
+});
+
+it('WeChat raw audio and playback preserve separate file identities and the original source authority', async () => {
+  const fx = await fixture(undefined, 'weixin', false, true);
+  const silk = (await encode(Buffer.alloc(48000), 24000)).data;
+  fx.download.mockImplementation(async function* () {
+    yield Buffer.from(silk);
+  });
+  const id = await fx.source();
+  const raw = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(raw.mime).toBe('audio/silk');
+  expect(readFileSync(fx.core.attachments.fileTarget(raw.fileId!).path)).toEqual(Buffer.from(silk));
+  const playback = await fx.core.externalMessaging.prepareAudio('ada', id, attachment.id);
+  expect(playback.mime).toBe('audio/wav');
+  expect(playback.fileId).not.toBe(raw.fileId);
+  const wav = readFileSync(fx.core.attachments.fileTarget(playback.fileId!).path);
+  expect(wav.readUInt32LE(24)).toBe(24000);
+  expect(wav.readUInt16LE(22)).toBe(1);
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  await fx.restart();
+  const cached = await fx.core.externalMessaging.prepareAudio('ada', id, attachment.id);
+  expect(cached.fileId).toBe(playback.fileId);
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  fx.core.registry.create({ slug: 'other', displayName: 'Other' });
+  await expect(
+    fx.core.externalMessaging.prepareAudio('other', id, attachment.id),
+  ).rejects.toThrow();
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(fx.core.externalMessaging.prepareAudio('ada', id, attachment.id)).rejects.toThrow();
+  expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('unsupported native codec preserves original download and does not pretend to provide playable audio', async () => {
+  const fx = await fixture(undefined, 'weixin', false, true);
+  const id = await fx.source({
+    ...fx.platformEvent,
+    voice: { transcript: 'unavailable', encodeType: 5 },
+  });
+  await expect(
+    fx.core.externalMessaging.prepareAudio('ada', id, attachment.id),
+  ).rejects.toMatchObject({ code: 'audio-codec-unsupported' });
+  const raw = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(readFileSync(fx.core.attachments.fileTarget(raw.fileId!).path, 'utf8')).toBe(
+    'original bytes',
+  );
+  expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('the Orchestrator saves decoded audio as an independent writable working copy through the existing tool seam', async () => {
+  let destinationGrant = '';
+  let savedPath = '';
+  const fx = await fixture(
+    async (run) => {
+      const sourceId = fx.core.attention
+        .list({ botSlug: 'ada' })
+        .items.find((item) => item.sourceKind === 'bridge-message')!.id;
+      const saved = await run.externalMessaging!.saveFile({
+        sourceEventId: sourceId,
+        attachmentId: attachment.id,
+        grantId: destinationGrant,
+        destinationPath: 'voice.wav',
+        representation: 'playback',
+      });
+      savedPath = saved.path;
+      const working = readFileSync(saved.path);
+      expect(working.subarray(8, 12).toString()).toBe('WAVE');
+      expect(working.readUInt32LE(24)).toBe(24000);
+      expect(saved.source.mime).toBe('audio/wav');
+    },
+    'weixin',
+    false,
+    true,
+  );
+  const raw = Buffer.from((await encode(Buffer.alloc(48000), 24000)).data);
+  fx.download.mockImplementation(async function* () {
+    yield raw;
+  });
+  const grant = await fx.core.grants.create('ada', 'project');
+  destinationGrant = grant.id;
+  fx.core.grants.setOrchestratorWrite('ada', grant.id, true);
+  const sourceId = await fx.source();
+  expect(savedPath).toBe(join(fx.project, 'voice.wav'));
+  const original = await fx.core.externalMessaging.acquireFile('ada', sourceId, attachment.id);
+  expect(readFileSync(fx.core.attachments.fileTarget(original.fileId!).path)).toEqual(raw);
+  expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('WeChat video retains native metadata, acquires actual MP4 bytes, refuses changed-source metadata and fences native send capability', async () => {
+  const fx = await fixture(undefined, 'weixin', false, false, true);
+  const bytes = Buffer.from(
+    '000000186674797069736f6d0000020069736f6d6d703432000000086d646174',
+    'hex',
+  );
+  fx.download.mockImplementation(async function* () {
+    yield bytes;
+  });
+  const id = await fx.source();
+  expect(fx.core.externalMessaging.inbound.read('ada', id).event.video).toEqual(
+    fx.platformEvent.video,
+  );
+  const original = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(original.mime).toBe('video/mp4');
+  expect(original.size).toBe(bytes.length);
+  const result = await fx.core.attachments.upload({
+    name: 'result.mp4',
+    data: (async function* () {
+      yield bytes;
+    })(),
+  });
+  expect((await fx.core.externalMessaging.replyFile('ada', id, result)).state).toBe(
+    'provider-accepted',
+  );
+  expect(fx.reply.mock.calls[0]?.[1]).toEqual(fx.platformEvent.reply);
+  const describe = fx.service.describeBot;
+  fx.service.describeBot = async (account) => {
+    const value = await describe(account);
+    return {
+      ...value,
+      capabilities: value.capabilities.filter(
+        (capability) => capability !== 'reply-video-fence-checked',
+      ),
+    };
+  };
+  const alternate = await fx.core.attachments.upload({
+    name: 'alternate.mp4',
+    data: (async function* () {
+      yield Buffer.concat([bytes, Buffer.from('different')]);
+    })(),
+  });
+  expect(
+    (
+      await fx.core.externalMessaging.send(
+        'ada',
+        fx.grant.id,
+        'video-capability-refused',
+        'File reply: alternate.mp4',
+        id,
+        alternate,
+      )
+    ).state,
+  ).not.toBe('provider-accepted');
+  expect(fx.reply).toHaveBeenCalledTimes(1);
+  fx.service.describeBot = describe;
+  await expect(
+    fx.source({ ...fx.platformEvent, video: { ...fx.platformEvent.video, playLength: 8000 } }),
+  ).rejects.toThrow('source-conflict');
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(fx.core.externalMessaging.acquireFile('ada', id, attachment.id)).rejects.toThrow(
+    'source-unavailable',
+  );
 });

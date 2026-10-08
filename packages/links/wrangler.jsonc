@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // campaign short links on go.botharness.ai (ADR-0132)
+  "name": "botharness-links",
+  "account_id": "332e72d480d7cb3e60ee671d3ca0cad0",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-17",
+  // the admin chart bundle (pnpm build:assets); the Worker serves it after Access
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "go.botharness.ai", "custom_domain": true }],
+  "vars": {
+    "POSTHOG_HOST": "https://us.i.posthog.com",
+    "POSTHOG_KEY": "phc_CxrCyBuRHVSs996eyHXAeyJbyE8rJXgREbEYsfxUkR3J",
+    // fill from Zero Trust: team domain (<team>.cloudflareaccess.com) and the Access application AUD tag
+    "ACCESS_TEAM_DOMAIN": "late-truth-4da8.cloudflareaccess.com",
+    "ACCESS_AUD": "86b7f89e43c013ca318db4825f20cb40b3f65fd4c9e5d35cbd0e127000657d45",
+  },
+  "d1_databases": [
+    {
+      "binding": "LINKS_DB",
+      "database_name": "botharness-links",
+      // replace with the id printed by `wrangler d1 create botharness-links`
+      "database_id": "964d230d-3c1f-480e-9552-24aeaa79e5b8",
+      "migrations_dir": "migrations",
+    },
+  ],
+}

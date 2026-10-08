@@ -1,0 +1,67 @@
+{
+  "issue": 1061,
+  "timezone": "Asia/Tokyo",
+  "baseline": "9c8a13d045555c91e2cb41dcfb52bd5376c5b345",
+  "implementation": "3d148ddef54a55023c20bc17da6a0fb65656a325",
+  "finalRuntime": "c4d763e861a4b436b72e64943642943782697087",
+  "locale": "zh-CN",
+  "history": "identical five retained messages in matched light/dark pairs; six after fresh native message",
+  "screenshots": [
+    {
+      "file": "chips-before-light.png",
+      "capturedAt": "2026-10-06T16:15:51.170771+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "c1a6520bd8c4ec9d6946563ecd65114572759253dba033a4d5522e1a8f57d82e",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-before-dark.png",
+      "capturedAt": "2026-10-06T16:16:11.240174+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "94c433f3612ceb112933803c6fabb90afb4801e76a744629d323e557cae37153",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-after-light.png",
+      "capturedAt": "2026-10-06T16:22:36.415980+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "836f0e6d22784f6788bfcaecf8738202ae6574ccbac00470afa57dc5f620fdbc",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-after-dark.png",
+      "capturedAt": "2026-10-06T16:21:55.470976+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "38d2e361dad27582bec46ce0ac9235d5dfd9f18a266332296c12130f78d726e3",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-fresh-light.png",
+      "capturedAt": "2026-10-06T16:24:45.740502+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "9169f6729e058155737c2a2fb5268ea547790e20128bc1441b6bbada32def778",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-native-reply.png",
+      "capturedAt": "2026-10-06T16:24:56.518399+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "d41f48ecae291c8c3e86be90f1f28d8c2be98af11ef24b56d0017023a3aa3325",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "chips-final-recovery.png",
+      "capturedAt": "2026-10-06T16:29:12.507471+00:00",
+      "width": 65536,
+      "height": 4292542531,
+      "sha256": "de66d4a0c07ab3ff294d3922aa4e32802da728763b65567d3e34d817bd090267",
+      "kind": "actual browser screenshot"
+    }
+  ]
+}

@@ -50,6 +50,7 @@ export interface PersonaBotAvatarProps {
   indicator?: boolean | undefined;
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
+  surface?: 'portrait' | 'companion' | undefined;
 }
 
 export interface PersonaBotFacepileItem {
@@ -339,6 +340,7 @@ export function PersonaBotAvatar({
   attention,
   indicator = true,
   className,
+  surface = 'portrait',
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
@@ -359,6 +361,7 @@ export function PersonaBotAvatar({
       className={classes}
       style={{ width: size, height: size }}
       data-state={state}
+      data-surface={surface}
       data-effect={resolvedEffect}
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
@@ -377,6 +380,7 @@ export function PersonaBotAvatar({
             activity ?? EFFECT_ACTIVITY[resolvedEffect ?? 'generic-working'],
             attention?.approvalCount ?? 0,
           )}
+          surface={surface}
         />
       ) : (
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
@@ -402,6 +406,7 @@ export function personaBotActivityPreview(
 export function PersonaBotFacepile({
   items,
   renderAvatar,
+  indicator = true,
   size,
   max = 3,
   className,
@@ -409,6 +414,7 @@ export function PersonaBotFacepile({
 }: {
   items: readonly PersonaBotFacepileItem[];
   renderAvatar?: ((item: PersonaBotFacepileItem, avatar: ReactElement) => ReactElement) | undefined;
+  indicator?: boolean | undefined;
   size: number;
   max?: number | undefined;
   className?: string | undefined;
@@ -420,7 +426,15 @@ export function PersonaBotFacepile({
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
       {visible.map((item) => {
-        const avatar = <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />;
+        const avatar = (
+          <PersonaBotAvatar
+            key={item.personaBotId}
+            {...item}
+            size={size}
+            indicator={indicator}
+            t={t}
+          />
+        );
         return renderAvatar === undefined ? avatar : renderAvatar(item, avatar);
       })}
       {overflow > 0 ? (

@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { larkSetupState } from '../src/client/lark-setup-state.js';
 import type { MessagingSnapshot } from '../../core/src/messaging/outbound.js';
 
-it('does not trust a reply from another account, group or disabled identity', () => {
+it('trusts only a reply in a receiving conversation of this Bot’s bound, enabled app', () => {
   const account = {
     providerId: 'lark',
     ref: 'one',
@@ -21,6 +21,7 @@ it('does not trust a reply from another account, group or disabled identity', ()
     fingerprint: 'a',
     enabled: true,
     availability: 'available' as const,
+    newConversations: 'auto' as const,
     revision: 1,
     createdAt: 'now',
     grantCount: 1,
@@ -62,31 +63,25 @@ it('does not trust a reply from another account, group or disabled identity', ()
     intents: [],
     setup: { providerReady: true, receipts: [receipt] },
   };
-  expect(larkSetupState(snapshot, 'lark:one', 'group').complete).toBe(false);
-  receipt.grantId = 'grant';
-  expect(larkSetupState(snapshot, 'lark:one', 'group').complete).toBe(true);
-  snapshot.grants.push({
-    ...grant,
-    id: 'grant-b',
-    targetRef: 'another-group',
-    receiveScope: { kind: 'group', conversationId: 'oc-b' },
-  });
-  expect(larkSetupState(snapshot, 'lark:one', 'another-group').grants).toHaveLength(1);
-  expect(larkSetupState(snapshot, 'lark:one', 'another-group').complete).toBe(false);
   expect(larkSetupState(snapshot, 'lark:one').complete).toBe(false);
+  receipt.grantId = 'grant';
+  expect(larkSetupState(snapshot, 'lark:one').complete).toBe(true);
+  receipt.conversationId = 'oc-elsewhere';
+  expect(larkSetupState(snapshot, 'lark:one').complete).toBe(false);
+  receipt.conversationId = 'oc-qa';
   receipt.echoObserved = false;
-  expect(larkSetupState(snapshot, 'lark:one', 'group').complete).toBe(true);
+  expect(larkSetupState(snapshot, 'lark:one').complete).toBe(true);
   snapshot.setup!.providerReady = false;
-  expect(larkSetupState(snapshot, 'lark:one', 'group').complete).toBe(false);
+  expect(larkSetupState(snapshot, 'lark:one').complete).toBe(false);
   snapshot.setup!.providerReady = true;
   identity.enabled = false;
-  expect(larkSetupState(snapshot, 'lark:one', 'group').next).toBe('identity');
+  expect(larkSetupState(snapshot, 'lark:one').next).toBe('bind');
   identity.enabled = true;
   account.connected = false;
-  expect(larkSetupState(snapshot, 'lark:one', 'group').complete).toBe(false);
+  expect(larkSetupState(snapshot, 'lark:one').next).toBe('app');
   account.connected = true;
   grant.reception = 'off' as typeof grant.reception;
-  expect(larkSetupState(snapshot, 'lark:one', 'group').next).toBe('grant');
+  expect(larkSetupState(snapshot, 'lark:one').complete).toBe(false);
 });
 
 it('missing Provider, empty accounts and unknown state are never successful', () => {

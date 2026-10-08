@@ -41,27 +41,39 @@ argument. It uses the built Core Registry API for fixture setup, not SQL edits o
 a second store. All fixtures are newly created and disposable. Do not commit the
 launch JSON, credentials or other private Profile contents.
 
-## UI capture blocker and Human review
+## Windows UI review — 2026-10-08
 
-The browser tool previously refused this task's local QA surface and alternate
-navigation/capture. No alternate browser, screenshot utility, CDP or proxy was
-used. Actual before/after screenshots, native folder opening and visual Human QA
-remain pending; automated consent tests do not replace them.
+The integrated branch was built and run in an isolated Windows Profile. A separate
+checkout of main `006c0fa3d3cb690b1954338116f053c62620fdb6` supplied the baseline.
+Both Profiles used an English Bot named `Deletion review`, with no activity and two
+Memory commits. The baseline Profile has no deletion entry; the branch adds it
+below Share and export. Light and dark screenshots are committed under
+`docs/assets/pr/923-personabot-deletion/`.
 
-In the running QA Profile, open a disposable Bot's Profile and its Delete section.
-Verify in both themes:
+Verified through the rendered Client:
 
-1. The confirmation names the Bot and Memory path. The checkbox starts unchecked.
-2. Opening the Memory folder does not opt in to erasure. Cancel, reopen, and verify
-   a previously checked choice resets to unchecked.
-3. Ordinary deletion preserves Memory and historical DM/Session/Report views,
-   while controls cannot revive the deleted identity.
-4. For the second disposable Bot, explicitly check Memory erasure; the final label
-   includes Memory files, and the resulting state reports erasure honestly.
-5. Compare against the base Profile entry point, and capture matching before/after
-   screenshots. Failure/incomplete state has real API/cold-restart evidence; a rendered
-   failure-state review remains pending. Custom/shared-path ownership and overlap
-   refusal also have real Host API evidence and focused owner-module tests.
+- The confirmation identifies the Bot and exact Memory repository.
+- Memory erasure starts unchecked, and the final action explicitly says retain Memory.
+- Checking erasure changes both the scope explanation and final action label.
+- Cancel leaves the Bot active; reopening resets the checkbox to unchecked.
+- Opening Memory does not select erasure. Windows File Explorer opened the exact
+  disposable Profile/Bot Memory directory, showing its `.git` and Memory files.
+- The final action is readable in both themes using the shared danger-button tokens.
 
-A real native operating-system folder open has not been executed by these API
-scripts; `native-folder-target` only verifies its Host target metadata.
+The final destructive actions were exercised through the real authenticated Host
+API, including actual model execution and cold restart, rather than by clicking
+the rendered confirmation. No separate Human sign-off is claimed. The injected
+failure/retry and custom/shared-root refusal states have real Host evidence and
+focused tests; rendered failure-state capture remains unavailable in this run.
+
+The in-app browser did not apply the requested viewport override to the existing
+rendered tab: baseline images are 1280 × 800 and confirmation images 876 × 821.
+The theme, locale and selected Bot fixture match; images are original full-view
+captures, without resizing or compositing. The dialog has no predecessor, so its
+Before image intentionally shows the prior Profile entry point.
+
+The integrated Host E2E was repeated after rebuilding, including a cold restart.
+The local full Linux suite initially exposed a missing telemetry event, which was
+fixed with lifecycle coverage. Source-policy setup was repaired in the snapshot;
+remaining timing failures passed focused reruns with a bounded larger timeout.
+Do not interpret those reruns as a single clean full-suite execution.

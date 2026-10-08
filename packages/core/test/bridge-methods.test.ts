@@ -564,6 +564,76 @@ describe('bridge methods', () => {
     });
   });
 
+  it('sets a Bot Model Plan directly without a preset and rejects stale revisions', async () => {
+    const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
+    const pro = { provider: 'deepseek', model: 'pro' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (route.provider !== 'deepseek' || !['flash', 'pro'].includes(route.model))
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { root, registry, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const assignmentModels = [
+      { provider: 'deepseek', model: 'pro', allowedEfforts: [''], defaultEffort: '' },
+    ];
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 0,
+        orchestrator: flash,
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        plan: {
+          revision: 1,
+          sourcePresetId: '',
+          sourcePresetName: '',
+          orchestrator: flash,
+          assignmentDefault: pro,
+          assignmentModels,
+        },
+      },
+    });
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 0,
+        orchestrator: pro,
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 1,
+        orchestrator: { provider: 'other', model: 'x' },
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.modelPlan).toMatchObject({
+      revision: 1,
+      orchestrator: flash,
+    });
+  });
+
   it('preserves a template model set when an older editor omits the choices', async () => {
     const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
     const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
@@ -1153,6 +1223,7 @@ describe('bridge methods', () => {
             aggregateState: 'working',
             workspaces: ['/tmp/ada'],
             createdAt: expect.any(String),
+            standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
       },
@@ -1176,6 +1247,7 @@ describe('bridge methods', () => {
             aggregateState: 'idle',
             workspaces: [],
             createdAt: expect.any(String),
+            standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
       },
@@ -1251,6 +1323,7 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
           sessions: {},
@@ -1263,7 +1336,7 @@ describe('bridge methods', () => {
       roles: ['研究'],
       description: '数学与计算',
     });
-    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+    expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nBe kind.\n',
     );
   });
@@ -1286,7 +1359,7 @@ describe('bridge methods', () => {
 
     expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
     expect(existsSync(join(root, 'plain', 'memory'))).toBe(true);
-    expect(existsSync(join(root, 'plain', 'memory', 'PERSONA.md'))).toBe(false);
+    expect(existsSync(join(root, 'plain', 'memory', 'SOUL.md'))).toBe(false);
   });
 
   it('owns ID generation and reports malformed Human-facing fields', () => {
@@ -1362,15 +1435,55 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
           sessions: {},
         },
       },
     });
-    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+    expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nOriginal.\n',
     );
+  });
+
+  it('stores per-Bot standing limits and returns to the defaults', () => {
+    const { root, methods } = setup();
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    const updated = methods.standingLimitsSet({ slug: 'ada', soul: 8000, coreMemory: 1200 });
+
+    expect(updated.ok && updated.value.bot.standingLimits).toEqual({
+      soul: 8000,
+      coreMemory: 1200,
+    });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.standingLimits).toEqual({
+      soul: 8000,
+      coreMemory: 1200,
+    });
+
+    methods.standingLimitsSet({ slug: 'ada', soul: 5000, coreMemory: 3000 });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.standingLimits).toBeUndefined();
+  });
+
+  it('rejects standing limits outside the allowed range', () => {
+    const { methods } = setup();
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    for (const payload of [
+      { slug: 'ada', soul: 499, coreMemory: 3000 },
+      { slug: 'ada', soul: 5000, coreMemory: 50_001 },
+      { slug: 'ada', soul: 5000.5, coreMemory: 3000 },
+      { slug: 'ada', soul: '5000', coreMemory: 3000 },
+    ]) {
+      expect(methods.standingLimitsSet(payload)).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input' },
+      });
+    }
+    expect(
+      methods.standingLimitsSet({ slug: 'missing', soul: 5000, coreMemory: 3000 }),
+    ).toMatchObject({ ok: false, error: { code: 'not-found' } });
   });
 
   it('rejects unknown or malformed updates', () => {

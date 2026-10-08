@@ -20,6 +20,9 @@ export function channelBridgeRoutes(grant: MessagingGrant): ChannelBridgeRoute[]
   return [
     {
       ...channelBridgeConfiguration(grant),
+      ...(grant.platform === 'weixin' && grant.receiveScope?.kind === 'dm'
+        ? { collection: 'all' as const, collectionInheritance: 'custom' as const }
+        : {}),
       id: grant.id,
       channelId: grant.receiveTargetChannelId ?? null,
     },

@@ -138,4 +138,104 @@ describe('Agent-scoped native file Policy', () => {
       await providers.dispose();
     }
   });
+  it('reads images through the native registration with the scoped fs Provider and current Grant gate', async () => {
+    const ctx = new Context();
+    const reads: string[] = [];
+    let active = true;
+    const base = {
+      defaultMode: 'workspace-write',
+      workspaceRoot: '/memory',
+      overrideOf: () => 'workspace-write',
+      resolve: () => ({ mode: 'workspace-write', workspaceRoot: '/memory' }),
+    };
+    const providers = ctx.plugin({
+      name: 'test-native-image-capabilities',
+      apply(c: Context) {
+        c.provide('systemPrompt', {
+          tools: () => () => undefined,
+          section: () => () => undefined,
+          getSectionOrder: () => 1,
+        });
+        c.provide('sandboxPolicy', base);
+        c.provide('shellEnv', {});
+        c.provide('shell', { sandboxMode: 'workspace-write' });
+        c.provide('fs', {
+          sandboxMode: 'workspace-write',
+          resolve: async (path: string) => ({ displayPath: path, targetKey: path }),
+          stat: async () => ({ type: 'file', size: 4, version: 'v1' }),
+          readBytes: async (target: { displayPath: string }) => {
+            reads.push(target.displayPath);
+            return new Uint8Array([137, 80, 78, 71]);
+          },
+        });
+        c.provide('llm', {
+          resolveModelInfo: async () => ({ inputModalities: ['text', 'image'] }),
+        });
+        c.provide('attachments', {
+          imageLimits: {
+            mediaTypes: ['image/png'],
+            maxImageBytes: 1024,
+            maxMessageImageBytes: 1024,
+          },
+          saveImage: async () => ({
+            attachmentId: 'native-image',
+            mediaType: 'image/png',
+            bytes: 4,
+            width: 1,
+            height: 1,
+          }),
+        });
+      },
+    });
+    await providers.await();
+    const runtime = ctx.plugin(ToolRuntime, {});
+    await runtime.await();
+    const agent = {
+      session: {
+        id: 'native-image-agent',
+        header: { cwd: '/memory' },
+        requestHeader: () => ({ config: { provider: 'test', model: 'vision' } }),
+      },
+    } as Agent;
+    const scope = createScope(ctx, agent);
+    Object.assign(agent, { ctx: scope.ctx });
+    const dispose = await installOrchestratorFileTools(
+      scope.ctx,
+      agent,
+      undefined,
+      (name, args) => {
+        expect(name).toBe('read_image');
+        expect(args).toEqual({ file_path: '/authorized/result.png' });
+        if (!active) throw new Error('Grant revoked');
+        return '/authorized';
+      },
+    );
+    const execute = (id: string) =>
+      ctx.tools.execute({
+        agent,
+        callId: ToolCallId(id),
+        name: 'read_image',
+        arguments: { file_path: '/authorized/result.png' },
+        signal: new AbortController().signal,
+      });
+    try {
+      const result = await execute('image');
+      expect(result.isError, JSON.stringify(result)).not.toBe(true);
+      expect(result.content).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: 'image' })]),
+      );
+      expect(reads).toEqual(['/authorized/result.png']);
+      active = false;
+      expect((await execute('revoked')).isError).toBe(true);
+      expect(reads).toHaveLength(1);
+      await dispose();
+      expect((await execute('disposed')).isError).toBe(true);
+      expect(ctx.get('sandboxPolicy')).toBe(base);
+    } finally {
+      await dispose();
+      await scope.dispose();
+      await runtime.dispose();
+      await providers.dispose();
+    }
+  });
 });

@@ -16,7 +16,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const icon = (name: string) => (props: { className?: string }) =>
     createElement('span', { 'data-icon': name, className: props.className });
   return {
-    Button: (props: { children?: ReactNode }) => createElement('button', null, props.children),
+    Button: (props: { children?: ReactNode; disabled?: boolean }) =>
+      createElement('button', { disabled: props.disabled }, props.children),
     IconAgentPresetOutlineRegular: icon('IconAgentPresetOutlineRegular'),
     IconCheckOutlineRegular: icon('IconCheckOutlineRegular'),
     IconChevronDownOutlineRegular: icon('IconChevronDownOutlineRegular'),
@@ -24,6 +25,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconEditOutlineRegular: icon('IconEditOutlineRegular'),
     IconEllipsisOutlineRegular: icon('IconEllipsisOutlineRegular'),
     IconFolderOpenOutlineRegular: icon('IconFolderOpenOutlineRegular'),
+    IconGlobeOutlineRegular: icon('IconGlobeOutlineRegular'),
     IconNewChatOutlineRegular: icon('IconNewChatOutlineRegular'),
     IconPlusOutlineRegular: icon('IconPlusOutlineRegular'),
     IconSearchOutlineRegular: icon('IconSearchOutlineRegular'),
@@ -100,6 +102,8 @@ const DM_CHANNEL: ChannelSummary = {
   updatedAt: AT,
 };
 
+const NO_INSTALL = { installable: false, install: { phase: 'idle' as const } };
+
 function stubActions(): BridgeActions {
   return {
     deletionPreview: vi.fn(),
@@ -116,8 +120,24 @@ function stubActions(): BridgeActions {
     overviewUsage: vi.fn(async () => {
       throw new Error('unexpected Overview usage');
     }),
+    marketplaceList: vi.fn(async () => ({ bots: [] })),
+    marketplaceTopics: vi.fn(async () => []),
+    marketplaceDetail: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    marketplaceSubmit: vi.fn(async () => {
+      throw new Error('unexpected Marketplace submission');
+    }),
+    marketplaceChallenge: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    marketplaceReport: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
+    channelIngests: vi.fn(async (channelId) => ({ channelId, ingests: [], candidates: [] })),
+    channelIngest: vi.fn(async () => undefined),
     channelBridge: vi.fn(async () => undefined),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,
@@ -126,7 +146,12 @@ function stubActions(): BridgeActions {
     messagingSource: vi.fn(async () => {
       throw new Error('unexpected source read');
     }),
+    approvalRoute: vi.fn(async () => {}),
+    approvalTest: vi.fn(async () => {}),
+    approvalRetry: vi.fn(async () => {}),
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
+    messagingConversation: vi.fn(),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
     resolveWorkspaceGrantRequest: vi.fn(async () => undefined),
@@ -144,7 +169,7 @@ function stubActions(): BridgeActions {
     messagingSend: vi.fn(async () => {
       throw new Error('unexpected IM send');
     }),
-    modelCatalog: vi.fn(async () => []),
+    modelCatalog: vi.fn(async () => ({ models: [] })),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
     modelPlanState: vi.fn(async () => ({})),
@@ -157,11 +182,17 @@ function stubActions(): BridgeActions {
     applyModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset application');
     }),
+    setStandingLimits: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     customizeModelPlan: vi.fn(async () => {
       throw new Error('unexpected Model Plan customization');
     }),
     setModelPlanAssignments: vi.fn(async () => {
       throw new Error('unexpected Assignment model plan change');
+    }),
+    setModelPlan: vi.fn(async () => {
+      throw new Error('unexpected Model Plan change');
     }),
     listHostFolders: vi.fn(async () => ({
       path: '/',
@@ -177,6 +208,8 @@ function stubActions(): BridgeActions {
     memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
+    refreshGit: vi.fn(async () => undefined),
+    installGit: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
     openActivityCenter: vi.fn(async () => undefined),
@@ -232,7 +265,12 @@ function stubActions(): BridgeActions {
     memoryFileApplications: vi.fn(),
     memoryFileOpen: vi.fn(),
     memoryFileDownload: vi.fn(),
-    memorySnapshot: vi.fn(async () => ({ head: null, files: [], provisional: false })),
+    memorySnapshot: vi.fn(async () => ({
+      head: null,
+      files: [],
+      provisional: false,
+      standing: [],
+    })),
     memoryFile: vi.fn(async () => undefined),
     memoryHistory: vi.fn(async () => []),
     memoryDiff: vi.fn(async () => ''),
@@ -280,6 +318,19 @@ function stubActions(): BridgeActions {
       throw new Error('not configured');
     }),
     botSourcePolicies: vi.fn(async () => []),
+    botSchedules: vi.fn(async () => []),
+    createBotSchedule: vi.fn(async () => {
+      throw new Error('unexpected Bot Schedule create');
+    }),
+    updateBotSchedule: vi.fn(async () => {
+      throw new Error('unexpected Bot Schedule update');
+    }),
+    deleteBotSchedule: vi.fn(async () => undefined),
+    botScheduleHistory: vi.fn(async () => []),
+    runBotScheduleNow: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    botSchedulePreview: vi.fn(async () => []),
     setBotSourcePolicy: vi.fn(async () => undefined),
     resetBotSourcePolicy: vi.fn(async () => undefined),
     memoryRepair: vi.fn(async () => {
@@ -330,6 +381,10 @@ function stubActions(): BridgeActions {
     })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
+    openCreatedBot: vi.fn(async () => undefined),
+    importBotZip: vi.fn(async () => BOT),
+    botZipFiles: vi.fn(async () => ({ files: [], always: [] })),
+    exportBotZip: vi.fn(async () => undefined),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
     setHumanNickname: vi.fn(async () => true),
@@ -439,6 +494,7 @@ beforeEach(() => {
   store.select(undefined);
   store.setConfig(config());
   store.setRoster([], []);
+  store.setGit({ available: true, version: '2.47.1', source: 'system', ...NO_INSTALL });
   setRoster();
   prefs = {
     motionPreference: 'system',
@@ -803,12 +859,98 @@ describe('bot sidebar rows', () => {
       '创建 PersonaBot',
       '创建频道',
       '创建频道分组',
+      'Bot 市场',
     ]);
     expect(menu.items[0]?.['disabled']).toBeUndefined();
+    expect(
+      (menu.items[0]?.['submenu'] as Array<Record<string, unknown>>).map((item) => [
+        item['id'],
+        item['label'],
+      ]),
+    ).toEqual([
+      ['bot:empty', '从零创建'],
+      ['bot:git', '从 GitHub 导入'],
+      ['bot:zip', '从 zip 导入'],
+    ]);
     expect(markup).toContain('还没有 PersonaBot');
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');
     expect(markup).toContain('placeholder="搜索 Bot 或频道"');
+  });
+
+  it('blocks PersonaBot creation and explains why while Host Git is unusable', () => {
+    store.setGit({ available: false, reason: 'too-old', version: '2.20.1', ...NO_INSTALL });
+    const markup = renderSidebar();
+    const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
+
+    expect(markup).toContain('data-git-unavailable="too-old"');
+    expect(markup).toContain('需要 Git 才能创建 Bot');
+    expect(markup).toContain('Git 2.20.1 版本太旧，需要 2.28 或更新版本。');
+    expect(markup).toContain('href="https://botharness.ai/zh/docs/installation/#git"');
+    expect(markup).toMatch(/<button disabled="">创建第一个 PersonaBot<\/button>/);
+    expect(submenu.map((item) => [item['id'], item['disabled']])).toEqual([
+      ['bot:empty', true],
+      ['bot:git', true],
+      ['bot:zip', true],
+    ]);
+  });
+
+  it('names a missing Git and a Git that cannot run differently', () => {
+    store.setGit({ available: false, reason: 'missing', ...NO_INSTALL });
+    expect(renderSidebar()).toContain('这台电脑上没有找到 Git。');
+    store.setGit({ available: false, reason: 'unrunnable', ...NO_INSTALL });
+    expect(renderSidebar()).toContain('macOS 需要先安装命令行开发者工具');
+  });
+
+  it('offers a one-step Managed Git install and shows its progress and failures', () => {
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'idle' },
+    });
+    let markup = renderSidebar();
+    expect(markup).toContain('data-git-install="idle"');
+    expect(markup).toMatch(/<button[^>]*>安装 Git<\/button>/);
+    expect(markup).toContain('不需要管理员权限');
+    expect(markup).toContain('重新检测');
+
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'downloading', received: 12 * 1024 * 1024, total: 62 * 1024 * 1024 },
+    });
+    markup = renderSidebar();
+    expect(markup).toContain('正在下载 Git… 12.0 / 62.0 MB');
+    expect(markup).toMatch(/<progress[^>]*max="65011712"/);
+    expect(markup).toMatch(/<button disabled="">正在安装…<\/button>/);
+    expect(markup).not.toContain('重新检测');
+
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'failed', reason: 'network', detail: 'ENOTFOUND' },
+    });
+    markup = renderSidebar();
+    expect(markup).toContain('下载失败，请检查网络后重试。');
+    expect(markup).toMatch(/<button[^>]*>重试安装<\/button>/);
+  });
+
+  it('leaves out the install button where no pinned build exists', () => {
+    store.setGit({ available: false, reason: 'missing', ...NO_INSTALL });
+    const markup = renderSidebar();
+    expect(markup).not.toContain('安装 Git</button>');
+    expect(markup).toContain('安装或升级后重启 DeepSeek Harness');
+  });
+
+  it('shows no Git notice once Host Git is usable', () => {
+    const markup = renderSidebar();
+    const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
+
+    expect(markup).not.toContain('data-git-unavailable');
+    expect(submenu.every((item) => item['disabled'] === false)).toBe(true);
   });
 
   it('sorts the pinned grid independently and offers a pinned sort menu', () => {

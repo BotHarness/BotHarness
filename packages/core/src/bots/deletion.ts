@@ -8,6 +8,7 @@ import {
   type OperationalDatabaseModulePort,
 } from '../database/owner.js';
 import type { PersonaBotRegistry } from './registry.js';
+import type { TelemetryCapture } from '../telemetry/service.js';
 
 export interface MemoryOwnership {
   path: string;
@@ -140,6 +141,7 @@ export function createPersonaBotDeletions(options: {
   protectedPaths?: string[];
   stop(slug: string): Promise<void>;
   changed?(slug: string): void;
+  capture?: TelemetryCapture;
   log?(event: {
     module: 'bot-deletion';
     initiator: 'human';
@@ -318,6 +320,9 @@ export function createPersonaBotDeletions(options: {
         ...(eraseMemory ? { ownership: check(slug, reviewed.memoryDir, owner(slug)) } : {}),
       };
       write(state);
+      try {
+        options.capture?.('bot_deleted');
+      } catch {}
       return run(state);
     },
     async retry(slug) {

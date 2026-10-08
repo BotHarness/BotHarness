@@ -1,6 +1,8 @@
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createDshImProvider } from './messaging/dsh-im.js';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { createCompanionFeed, COMPANION_PATH, type CompanionFeed } from './companions/feed.js';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-agent';
@@ -15,6 +17,12 @@ import { nativeExecutionRoot } from './workspaces/grant-native-tools.js';
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
 import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from './memory/file-http.js';
 import {
+  BOT_ZIP_EXPORT_PATH,
+  BOT_ZIP_FILES_PATH,
+  BOT_ZIP_IMPORT_PATH,
+  createBotZipHttp,
+} from './bots/bot-zip-http.js';
+import {
   createAttachmentHttp,
   CHANNEL_ATTACHMENT_PATH,
   CHANNEL_ATTACHMENT_UPLOAD_PATH,
@@ -22,12 +30,31 @@ import {
 import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
+import { createMarketplaceClient } from './marketplace/client.js';
+import {
+  createReleaseService,
+  installedRelease,
+  type ReleaseInstaller,
+} from './release/service.js';
+import { createGitService } from './memory/managed-git.js';
+import { createProcessRestarter, type ReleaseRestarter } from './release/restart.js';
+import {
+  createTelemetryService,
+  installedDshVersion,
+  pluginStartedProperties,
+  telemetryDecision,
+  type TelemetryCapture,
+} from './telemetry/service.js';
+import { readDailyUsageCounts, startDailyUsage } from './telemetry/daily-usage.js';
+import { deliverPendingExceptions, installExceptionCapture } from './telemetry/exceptions.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/deletion.js';
+import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
+import { createProviderCredentialHealth } from './models/credential-health.js';
 import { createModelRouteReadiness } from './models/readiness.js';
-import { createBotAvatarHttp, BOT_AVATAR_PATH } from './bots/avatar-http.js';
+import { createBotAvatarHttp, botAvatarUrl, BOT_AVATAR_PATH } from './bots/avatar-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -47,6 +74,7 @@ import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
 import { cloneMemoryRepository } from './memory/clone.js';
+import { migrateLegacySouls } from './memory/soul.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import {
@@ -57,6 +85,7 @@ import {
 } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './runtime/source-policy.js';
+import { createBotScheduleStore, type BotScheduleStore } from './schedules/bot-schedules.js';
 import {
   createHumanAttentionQuery,
   createHumanAttentionDecisions,
@@ -111,6 +140,12 @@ import { installBotSubagentModelTools } from './runtime/subagent-model-tools.js'
 
 export const name = 'botharness-core';
 
+const installedPackage = installedRelease(import.meta.url);
+const runningRelease = {
+  version: installedPackage.version(),
+  ledgers: installedPackage.ledgers(),
+};
+
 export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel', 'llm'];
 
 export const PERSONA_SECTION_ORDER = 10400;
@@ -145,13 +180,17 @@ export interface BotHarnessConfig {
 
   agentPreset?: string;
   activityDetailConsumers?: string[];
+  marketplaceUrl?: string;
+  telemetry?: boolean;
 }
 
 export const DEFAULT_AGENT_PRESET = 'standard';
+export const DEFAULT_MARKETPLACE_URL = 'https://market.botharness.ai';
 
 export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
   agentPreset: DEFAULT_AGENT_PRESET,
+  telemetry: true,
 };
 
 export const Config = Schema.object({
@@ -162,6 +201,14 @@ export const Config = Schema.object({
   agentPreset: Schema.string()
     .default(DEFAULT_AGENT_PRESET)
     .description('PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）'),
+  marketplaceUrl: Schema.string()
+    .default(DEFAULT_MARKETPLACE_URL)
+    .description('Bot Marketplace 服务地址'),
+  telemetry: Schema.boolean()
+    .default(true)
+    .description(
+      '发送匿名使用统计（Anonymous usage telemetry）；DO_NOT_TRACK=1 或 BOTHARNESS_TELEMETRY=0 也会关闭',
+    ),
 });
 
 export interface BotHarnessCore {
@@ -191,10 +238,12 @@ export interface BotHarnessCore {
   channels: ChannelStore;
   attachments: AttachmentStore;
   live: ChannelLiveHub;
+  companions: CompanionFeed;
   roster: RosterStore;
   runtime: BotRuntime;
   attention: BotAttentionQuery;
   sourcePolicy: BotSourcePolicyStore;
+  schedules: BotScheduleStore;
   humanAttention: HumanAttentionQuery;
   humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
@@ -225,6 +274,7 @@ type BotAgentSetup = (
 export function createCore(
   options: {
     dshHome?: string;
+    companionProfileDir?: string | undefined;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
     saveReportSpill?: (input: {
@@ -242,6 +292,7 @@ export function createCore(
     onOutputCommitted?: (event: PersonaBotOutputCommitted) => void;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
+    capture?: TelemetryCapture;
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -271,6 +322,16 @@ export function createCore(
         }
       },
       cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
+      ...(options.capture === undefined ? {} : { capture: options.capture }),
+      syncDescriptor: (memoryDir, record, sync) => {
+        try {
+          syncBotDescriptor(memoryDir, record, sync);
+        } catch (error) {
+          options.warn?.(
+            `bot-descriptor-sync-failed slug=${record.slug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+          );
+        }
+      },
       initializeMemory: (memoryDir) => {
         const repository = ensureMemoryRepository({ memoryDir });
         return repository.ok
@@ -299,8 +360,13 @@ export function createCore(
     operationalDatabase.close();
     throw error;
   }
+  if (operationalDatabase.mode === 'ready') {
+    backfillBotDescriptors(registry, options.warn);
+    migrateLegacySouls(registry, options.warn);
+  }
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
+  let companions: CompanionFeed | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
@@ -310,6 +376,7 @@ export function createCore(
   const externalMessaging = createOutboundMessaging({
     onDefaultsChanged: () => live?.publishRosterCommitted(),
     onReceptionChanged: () => live?.publishRosterCommitted(),
+    ...(options.capture === undefined ? {} : { capture: options.capture }),
     attachments,
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
@@ -318,6 +385,7 @@ export function createCore(
     onShared: (slugs) => {
       for (const slug of slugs) runtime?.resumePendingDigests?.(slug);
     },
+    onIngested: (channelId, messageId) => runtime?.admitGroupMessage(channelId, messageId),
     recover: operationalDatabase.mode === 'ready',
     isBotActive: (slug) => {
       const bot = registry.get(slug);
@@ -342,6 +410,12 @@ export function createCore(
     botDisplayName: (botSlug) => registry.getHistorical(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => {
+      try {
+        const output = personaBotOutputCommitted(commit, ownership);
+        if (output !== undefined) companions?.publish(output);
+      } catch {
+        options.warn?.('companion-output-publication-failed');
+      }
       if (options.onOutputCommitted !== undefined) {
         try {
           const event = personaBotOutputCommitted(commit, ownership);
@@ -391,7 +465,7 @@ export function createCore(
       );
     refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
-      if (topics.some((topic) => topic === 'bindings' || topic === 'grants'))
+      if (topics.some((topic) => ['bindings', 'grants', 'bot-schedules'].includes(topic)))
         live?.publishRosterCommitted();
       if (
         topics.some((topic) =>
@@ -415,6 +489,36 @@ export function createCore(
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
+  companions = createCompanionFeed({
+    profileId: createHash('sha256')
+      .update(options.companionProfileDir ?? dshHome)
+      .digest('hex'),
+    bot: (slug) => {
+      const bot = registry.get(slug);
+      return bot === undefined
+        ? undefined
+        : {
+            slug,
+            name: bot.displayName,
+            paused: bot.paused === true,
+            ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatar === undefined
+              ? {}
+              : {
+                  avatar: bot.avatar.startsWith('data:image/')
+                    ? botAvatarUrl(slug, bot.avatar)
+                    : bot.avatar,
+                }),
+          };
+    },
+    activity: () =>
+      personaBotActivitySnapshot(
+        registry.list().map((bot) => bot.slug),
+        states,
+      ),
+    onActivity: (changed) => states.onActivity(() => changed()),
+    channel: (id) => channels.get(id),
+  });
   const memory = createMemoryService({
     registry,
     ownership,
@@ -457,7 +561,17 @@ export function createCore(
     for (const contribute of [...botAgentSetups]) contribute(agentCtx, agent, info);
   };
 
+  const schedules = createBotScheduleStore({
+    database: attachOperationalModule(operationalDatabase, 'bot-schedules'),
+    isBotActive: (slug) => {
+      const bot = registry.get(slug);
+      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
+    },
+    onAdmitted: (slug) => runtime?.admitScheduleFiring?.(slug),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   runtime = createBotRuntime({
+    schedules,
     assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
     beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
     database: operationalDatabase,
@@ -484,6 +598,7 @@ export function createCore(
   });
   if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
   const deletions = createPersonaBotDeletions({
+    ...(options.capture === undefined ? {} : { capture: options.capture }),
     protectedPaths: [dshHome],
     database: operationalDatabase,
     registry,
@@ -538,6 +653,7 @@ export function createCore(
     changed: () => live?.publishRosterCommitted(),
     log: (event) => options.warn?.(JSON.stringify(event)),
   });
+  if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
     rootDir,
@@ -574,10 +690,12 @@ export function createCore(
     channels,
     attention,
     sourcePolicy,
+    schedules,
     humanAttention,
     humanAttentionDecisions,
     attachments,
     live,
+    companions,
     roster,
     runtime,
   };
@@ -586,8 +704,65 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  const release = installedRelease(import.meta.url);
+  const telemetryChoice = telemetryDecision(config.telemetry);
+  const telemetryDir = join(dshHome, 'botharness');
+  const telemetry = createTelemetryService({
+    decision: telemetryChoice,
+    dataDir: telemetryDir,
+    log: (message) => ctx.logger.info(message),
+  });
+  const telemetryState = telemetry.status();
+  ctx.logger.info(
+    telemetryState.enabled
+      ? 'telemetry phase=enabled'
+      : `telemetry phase=disabled reason=${telemetryState.lockedBy ?? 'preference'}`,
+  );
+  ctx.effect(() => () => void telemetry.close(), 'botharness: telemetry');
+  telemetry.capture(
+    'plugin_started',
+    pluginStartedProperties({
+      pluginVersion: release.version(),
+      dshVersion: installedDshVersion(),
+      os: process.platform,
+      arch: process.arch,
+    }),
+  );
+  deliverPendingExceptions(telemetry, telemetryDir);
+  if (telemetryState.lockedBy === undefined)
+    ctx.effect(
+      () => installExceptionCapture({ dataDir: telemetryDir, enabled: () => telemetry.enabled }),
+      'botharness: telemetry exceptions',
+    );
+  const git = createGitService({ dshHome, log: (message) => ctx.logger.info(message) });
+  const resolvedGit = git.resolve();
+  ctx.logger.info(
+    resolvedGit.available
+      ? `git phase=resolved source=${resolvedGit.source} version=${resolvedGit.version}`
+      : `git phase=resolved unavailable=${resolvedGit.reason}`,
+  );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
-  const modelCatalog = createModelCatalog(ctx.llm);
+  const defaultModel = (ctx as unknown as { agentDefaultModel: DshDefaultModelHost })
+    .agentDefaultModel;
+  const providerCredentials = createProviderCredentialHealth();
+  const forgetCredentialFailures = (): void => providerCredentials.reset();
+  const events = ctx as unknown as {
+    on(event: string, listener: () => void): () => void;
+  };
+  for (const event of [
+    'credentials/reference-updated',
+    'credentials/record-updated',
+    'settings/document-updated',
+    'llm/adapters-updated',
+  ])
+    events.on(event, forgetCredentialFailures);
+  const modelCatalog = createModelCatalog(ctx.llm, {
+    credentials: providerCredentials,
+    defaultRoute: () => {
+      const selection = defaultModel.currentSelection();
+      return { provider: selection.provider, model: selection.model };
+    },
+  });
   const modelReadiness = createModelRouteReadiness(
     {
       get: (slug) => core.registry.get(slug),
@@ -598,7 +773,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
-    defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
+    defaultModel,
+    observeTurnFailure: (provider, code) => providerCredentials.observe(provider, code),
     resolveModelPlan: (slug) => core.registry.get(slug)?.modelPlan,
     hasSession: async (sessionId) => {
       const persistence = ctx.get('sessionPersistence') as unknown as
@@ -637,10 +813,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   let toolApproval: ChannelToolApproval | undefined;
   const core = createCore({
     dshHome,
+    companionProfileDir: (ctx.get('profileContext') as { dir: string } | undefined)?.dir,
     onOutputCommitted: (event) =>
       emitPersonaBotOutputCommitted(ctx, event, (message) => ctx.logger.warn(message)),
     activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
     activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
+    capture: (event, properties) => telemetry.capture(event, properties),
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
     saveReportSpill: async ({ sessionId, content }) => {
@@ -676,6 +854,19 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  if (core.operationalDatabase.mode === 'ready' && telemetryState.lockedBy === undefined) {
+    const usageDatabase = attachOperationalModule(core.operationalDatabase, 'telemetry');
+    ctx.effect(
+      () =>
+        startDailyUsage({
+          telemetry,
+          dataDir: telemetryDir,
+          counts: (since, until) => readDailyUsageCounts(usageDatabase, since, until),
+          log: (message) => ctx.logger.info(message),
+        }),
+      'botharness: telemetry daily usage',
+    );
+  }
   ctx.effect(() => () => core.roster.detach(), 'botharness: roster');
   ctx.effect(() => {
     const controller = new AbortController();
@@ -687,7 +878,9 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     return () => controller.abort();
   }, 'botharness: retained attachment migration');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
+  ctx.effect(() => () => core.schedules.close(), 'botharness: bot schedules');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
+  ctx.effect(() => () => core.companions.close(), 'botharness: Window Companion feed');
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
@@ -735,6 +928,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       warn: (message) => ctx.logger.warn(message),
     },
   );
+  ctx.effect(
+    () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
+    'botharness: approved IM tool controls',
+  );
   userQuestions = new ChannelUserQuestions(
     core.channels,
     core.ownership,
@@ -748,7 +945,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     async (request, next) => (await userQuestions.ask(request)) ?? next(),
     { global: true },
   );
-  const approvedCalls = new Set<symbol>();
+  const approvedCalls = new Map<symbol, (name: string, args: unknown) => boolean>();
+  ctx.effect(() => () => approvedCalls.clear(), 'botharness: one-call approval execution fences');
   ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
   ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
     global: true,
@@ -775,7 +973,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (computerTools.needsAuthorization?.(agent.session.id) !== true) return next();
         const authorizationScope = computerTools.authorizationScope?.();
         const computerApproval = ctx.get('approval') as ApprovalService | undefined;
-        const untrackComputer = toolApproval.track(execution);
+        const untrackComputer = toolApproval.track(execution, 'web-only');
         if (computerApproval === undefined || untrackComputer === undefined) {
           return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
         }
@@ -796,7 +994,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
               reason:
                 'Computer Target changed while awaiting Human approval; request a new action.',
             };
-          approvedCalls.add(execution.token);
+          const guard = toolApproval.executionGuard(agent, execution.callId);
+          if (!guard || !guard(execution.name, execution.arguments))
+            return { kind: 'deny', reason: 'Approval authority changed before execution' };
+          approvedCalls.set(execution.token, guard);
           return await next();
         } catch {
           return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -820,7 +1021,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (browserTools.needsAuthorization?.(agent.session.id) !== true) return next();
         const browserAuthorizationScope = browserTools.authorizationScope?.(agent.session.id);
         const browserApproval = ctx.get('approval') as ApprovalService | undefined;
-        const untrackBrowser = toolApproval.track(execution);
+        const untrackBrowser = toolApproval.track(execution, 'web-only');
         if (browserApproval === undefined || untrackBrowser === undefined) {
           return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
         }
@@ -841,7 +1042,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
               reason:
                 'Browser authority changed while awaiting Human approval; request a new action.',
             };
-          approvedCalls.add(execution.token);
+          const guard = toolApproval.executionGuard(agent, execution.callId);
+          if (!guard || !guard(execution.name, execution.arguments))
+            return { kind: 'deny', reason: 'Approval authority changed before execution' };
+          approvedCalls.set(execution.token, guard);
           return await next();
         } catch {
           return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -888,7 +1092,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }
         if (!toolApproval.validAfterDecision(agent, execution.callId))
           return { kind: 'deny', reason: 'Approval rule scope changed' };
-        approvedCalls.add(execution.token);
+        const guard = toolApproval.executionGuard(agent, execution.callId);
+        if (!guard || !guard(execution.name, execution.arguments))
+          return { kind: 'deny', reason: 'Approval authority changed before execution' };
+        approvedCalls.set(execution.token, guard);
         return await next();
       } catch {
         return { kind: 'deny', reason: 'Human approval is unavailable' };
@@ -900,7 +1107,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
 
   ctx.tools.guard(({ agent, name, arguments: args, token }) => {
-    const allowedOnce = approvedCalls.delete(token);
+    const approvalGuard = approvedCalls.get(token);
+    approvedCalls.delete(token);
+    if (approvalGuard && !approvalGuard(name, args))
+      return 'Approval authority or operation changed before execution';
+    const allowedOnce = approvalGuard !== undefined;
     return agent === undefined
       ? undefined
       : grantToolExecutionDenial(
@@ -930,79 +1141,111 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
 
   const developerModeTarget: { gate?: DeveloperModeSkillGate } = {};
-  registerBridge(
-    ctx,
-    createBridgeMethods({
-      warn: (message) => ctx.logger.warn(message),
-      registry: core.registry,
-      deletions: core.deletions,
-      modelPresets: core.modelPresets,
-      modelCatalog,
-      modelReadiness,
-      states: core.states,
-      runningSessionIds: () =>
-        new Set(
-          ctx.agents
-            .list()
-            .filter((agent) => agent.status === 'running')
-            .map((agent) => agent.id),
-        ),
-      channels: core.channels,
-      attachments: core.attachments,
-      ownership: core.ownership,
-      memory: core.memory,
-      ...(core.usage === undefined ? {} : { usage: core.usage }),
-      roster: core.roster,
-      runtime: core.runtime,
-      attention: core.attention,
-      sourcePolicy: core.sourcePolicy,
-      humanAttention: core.humanAttention,
-      humanAttentionDecisions: core.humanAttentionDecisions,
-      grants: core.grants,
-      externalMessaging: core.externalMessaging,
-      toolApproval,
-      userQuestions,
-      toolRules: core.toolRules,
-      assignmentAccess: core.assignmentAccess,
-      developerMode: {
-        set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
-      },
-      computerAccess: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessComputerTools') as unknown as
-            | { reconcileBot?: (slug: string) => Promise<void> }
-            | undefined;
-          const pending = provider?.reconcileBot?.(slug);
-          void pending?.catch((error: unknown) => {
-            ctx.logger.warn(
-              `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
-            );
-          });
-        },
-      },
-      browserAccess: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessBrowserTools') as unknown as
-            | { reconcileBot?: (slug: string) => Promise<void> }
-            | undefined;
-          const pending = provider?.reconcileBot?.(slug);
-          void pending?.catch((error: unknown) => {
-            ctx.logger.warn(
-              `botharness: Browser tool reconcile failed for ${slug}: ${String(error)}`,
-            );
-          });
-        },
-      },
-      browserProfile: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessBrowserTools') as unknown as
-            | { resetBot?: (slug: string) => void }
-            | undefined;
-          provider?.resetBot?.(slug);
-        },
-      },
+  const releaseInstaller: { current: ReleaseInstaller | undefined } = { current: undefined };
+  ctx.inject(['pluginManager'], (managerCtx) => {
+    managerCtx.effect(() => {
+      releaseInstaller.current = (
+        managerCtx as unknown as { pluginManager: ReleaseInstaller }
+      ).pluginManager;
+      return () => {
+        releaseInstaller.current = undefined;
+      };
+    }, 'botharness: release installer');
+  });
+  const releaseRestarter: { current: ReleaseRestarter | undefined } = { current: undefined };
+  ctx.inject(['appExit'], (exitCtx) => {
+    exitCtx.effect(() => {
+      releaseRestarter.current = createProcessRestarter({
+        exit: (exitCtx as unknown as { appExit: (code: number) => void }).appExit,
+      });
+      return () => {
+        releaseRestarter.current = undefined;
+      };
+    }, 'botharness: release restarter');
+  });
+  const bridgeMethods = createBridgeMethods({
+    warn: (message) => ctx.logger.warn(message),
+    registry: core.registry,
+    deletions: core.deletions,
+    modelPresets: core.modelPresets,
+    modelCatalog,
+    modelReadiness,
+    states: core.states,
+    runningSessionIds: () =>
+      new Set(
+        ctx.agents
+          .list()
+          .filter((agent) => agent.status === 'running')
+          .map((agent) => agent.id),
+      ),
+    channels: core.channels,
+    attachments: core.attachments,
+    ownership: core.ownership,
+    memory: core.memory,
+    ...(core.usage === undefined ? {} : { usage: core.usage }),
+    roster: core.roster,
+    runtime: core.runtime,
+    attention: core.attention,
+    sourcePolicy: core.sourcePolicy,
+    schedules: core.schedules,
+    humanAttention: core.humanAttention,
+    humanAttentionDecisions: core.humanAttentionDecisions,
+    grants: core.grants,
+    externalMessaging: core.externalMessaging,
+    toolApproval,
+    userQuestions,
+    toolRules: core.toolRules,
+    assignmentAccess: core.assignmentAccess,
+    marketplace: createMarketplaceClient({
+      baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
     }),
-  );
+    release: createReleaseService({
+      version: () => runningRelease.version,
+      ledgers: () => runningRelease.ledgers,
+      installer: () => releaseInstaller.current,
+      restarter: () => releaseRestarter.current,
+    }),
+    telemetry,
+    git,
+    developerMode: {
+      set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
+    },
+    computerAccess: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessComputerTools') as unknown as
+          | { reconcileBot?: (slug: string) => Promise<void> }
+          | undefined;
+        const pending = provider?.reconcileBot?.(slug);
+        void pending?.catch((error: unknown) => {
+          ctx.logger.warn(
+            `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
+          );
+        });
+      },
+    },
+    browserAccess: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessBrowserTools') as unknown as
+          | { reconcileBot?: (slug: string) => Promise<void> }
+          | undefined;
+        const pending = provider?.reconcileBot?.(slug);
+        void pending?.catch((error: unknown) => {
+          ctx.logger.warn(
+            `botharness: Browser tool reconcile failed for ${slug}: ${String(error)}`,
+          );
+        });
+      },
+    },
+    browserProfile: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessBrowserTools') as unknown as
+          | { resetBot?: (slug: string) => void }
+          | undefined;
+        provider?.resetBot?.(slug);
+      },
+    },
+  });
+  registerBridge(ctx, bridgeMethods);
 
   ctx.inject(['skills'], (skillsCtx) => {
     const skills = (
@@ -1063,6 +1306,16 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     connectionCtx.effect(
       () =>
         connection.fetch.register({
+          path: COMPANION_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: async (request) => core.companions.open(request),
+        }),
+      'botharness: authenticated Window Companion consumption',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
           path: MEMORY_FILE_DOWNLOAD_PATH,
           methods: ['GET'],
           requestBody: 'buffered',
@@ -1070,20 +1323,24 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: current Memory file download',
     );
-    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels, async (input) => {
-      const ref = await core.externalMessaging.acquireFile(
-        input.slug,
-        input.sourceEventId,
-        input.attachmentId,
-        input.signal,
-      );
-      const signal = AbortSignal.any([
-        input.signal,
-        core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
-      ]);
-      const downloaded = await core.attachments.download(ref.fileId!, ref.name, signal);
-      return downloaded;
-    });
+    const attachmentHttp = createAttachmentHttp(
+      core.attachments,
+      core.channels,
+      async (input) => {
+        const ref = await (
+          input.representation === 'playback'
+            ? core.externalMessaging.prepareAudio
+            : core.externalMessaging.acquireFile
+        )(input.slug, input.sourceEventId, input.attachmentId, input.signal);
+        const signal = AbortSignal.any([
+          input.signal,
+          core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
+        ]);
+        const downloaded = await core.attachments.download(ref.fileId!, ref.name, signal);
+        return downloaded;
+      },
+      (input) => core.externalMessaging.readChannelMedia(input),
+    );
     connectionCtx.effect(
       () =>
         connection.fetch.register({
@@ -1114,6 +1371,41 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           fetch: botAvatarHttp,
         }),
       'botharness: PersonaBot avatar',
+    );
+    const botZipHttp = createBotZipHttp({
+      registry: core.registry,
+      detail: (slug) => bridgeMethods.get({ slug }),
+      log: (message) => ctx.logger.info(message),
+    });
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_EXPORT_PATH,
+          methods: ['GET', 'POST'],
+          requestBody: 'buffered',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip export',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_FILES_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip file list',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_IMPORT_PATH,
+          methods: ['POST'],
+          requestBody: 'streaming',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip import',
     );
   });
   const toolDetails = createToolDetailIndex({
@@ -1158,6 +1450,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      try {
+        core.externalMessaging.approvals.result(session.id, event);
+      } catch {
+        ctx.logger.warn('approval-result-publication-failed');
+      }
       core.usage?.handleSessionEvent(session.id, event);
       handleCompactionEvent(
         {

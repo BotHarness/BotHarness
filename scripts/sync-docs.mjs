@@ -77,20 +77,35 @@ const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '01-system-context', caption: 'System context' },
   { name: '02-modules', caption: 'Deep modules and ownership' },
   { name: '03-boot', caption: 'Host boot, migration, and recovery' },
-  { name: '04-create-bot', caption: 'Messaging transaction and external side effects' },
+  {
+    name: '04-create-bot',
+    caption: 'Messaging transaction and external side effects',
+  },
   { name: '05-im-binding', caption: 'Orchestrator and Work control plane' },
   { name: '06-state', caption: 'Persistence, export, and restore boundaries' },
 ];
 
 const DSH_CONTEXT_DIAGRAMS_ZH = [
-  { name: '07-dsh-runtime-composition', caption: 'Runtime composition 与 lifecycle ownership' },
-  { name: '08-dsh-session-facts', caption: 'Durable fact、live notification 与 derived view' },
+  {
+    name: '07-dsh-runtime-composition',
+    caption: 'Runtime composition 与 lifecycle ownership',
+  },
+  {
+    name: '08-dsh-session-facts',
+    caption: 'Durable fact、live notification 与 derived view',
+  },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
 const DSH_CONTEXT_DIAGRAMS_EN = [
-  { name: '07-dsh-runtime-composition', caption: 'Runtime composition and lifecycle ownership' },
-  { name: '08-dsh-session-facts', caption: 'Durable facts, live notifications, and derived views' },
+  {
+    name: '07-dsh-runtime-composition',
+    caption: 'Runtime composition and lifecycle ownership',
+  },
+  {
+    name: '08-dsh-session-facts',
+    caption: 'Durable facts, live notifications, and derived views',
+  },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
@@ -184,8 +199,82 @@ export const PAGES = [
     },
   },
   {
-    slug: 'docs/channel-sidebar/groups',
+    slug: 'docs/channel-sidebar/schedules',
     order: 6,
+    en: {
+      source: 'docs/channel-sidebar/schedules.md',
+      title: 'Schedules',
+      description:
+        'Wake a Bot weekly, once, on cron or every few minutes, run a schedule now and lock it.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/schedules.zh.md',
+      title: '定时任务',
+      description: '按分钟、每天、每周、单次或 Cron 唤醒 Bot，立即运行，并锁定以防 Bot 修改。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/model',
+    order: 7,
+    en: {
+      source: 'docs/channel-sidebar/model.md',
+      title: 'Model',
+      description: 'Check and change the model a Bot uses for chat and new Assignments.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/model.zh.md',
+      title: '模型',
+      description: '查看并修改 Bot 日常对话与新任务使用的模型。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/wake-policy',
+    order: 8,
+    en: {
+      source: 'docs/channel-sidebar/wake-policy.md',
+      title: 'Wake policy',
+      description:
+        'Choose, per message source, whether a Bot wakes right away, after a digest or not at all.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/wake-policy.zh.md',
+      title: '唤醒策略',
+      description: '按消息来源设置 Bot 立即唤醒、汇总后唤醒或只记录。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/external-identities',
+    order: 9,
+    en: {
+      source: 'docs/channel-sidebar/external-identities.md',
+      title: 'External identities',
+      description:
+        'Bind who a Bot speaks as on external platforms, plus IM pairing and approval notifications.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/external-identities.zh.md',
+      title: '外部身份',
+      description: '绑定 Bot 在外部平台的发言身份，管理 IM 管理员配对与审批通知。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/external-connectors',
+    order: 10,
+    en: {
+      source: 'docs/channel-sidebar/external-connectors.md',
+      title: 'External connectors',
+      description:
+        'Authorize external conversations and choose which messages reach a Bot DM or Bot Inbox.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/external-connectors.zh.md',
+      title: '外部连接器',
+      description: '授权外部会话，选择哪些消息进入 Bot 私聊或 Bot 收件箱。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/groups',
+    order: 11,
     en: {
       source: 'docs/channel-sidebar/groups.md',
       title: 'Members and group management',
@@ -200,7 +289,7 @@ export const PAGES = [
   },
   {
     slug: 'docs/channel-sidebar/display',
-    order: 7,
+    order: 12,
     en: {
       source: 'docs/channel-sidebar/display.md',
       title: 'Display and layout',
@@ -326,6 +415,64 @@ export const PAGES = [
       source: 'docs/file-open.zh.md',
       title: '在 Host 上打开文件',
       description: '在系统软件中打开 Memory、Workspace 和消息文件。',
+    },
+  },
+  {
+    slug: 'docs/bot-zip',
+    order: 26,
+    en: {
+      source: 'docs/bot-zip.md',
+      title: 'Export and import a Bot',
+      description:
+        'Pack a Bot into a zip, choose its files and Git history, and import it as a new Bot.',
+    },
+    zh: {
+      source: 'docs/bot-zip.zh.md',
+      title: '导出与导入 Bot',
+      description: '把 Bot 打包成 zip，选择文件和 Git 历史，再导入成一个新的 Bot。',
+    },
+  },
+  {
+    slug: 'docs/share-bot',
+    order: 26,
+    en: {
+      source: 'docs/share-bot.md',
+      title: 'Share a Bot',
+      description: 'Publish a Bot’s Memory to GitHub and list it in the Bot Marketplace.',
+    },
+    zh: {
+      source: 'docs/share-bot.zh.md',
+      title: '分享 Bot',
+      description: '把 Bot 的 Memory 发布到 GitHub，并收录进 Bot 市场。',
+    },
+  },
+  {
+    slug: 'docs/soul-and-core-memory',
+    order: 27,
+    en: {
+      source: 'docs/soul-and-core-memory.md',
+      title: 'Bot Soul and Core Memory',
+      description:
+        'How SOUL.md and MEMORY.md start every Session, their size limits, and when edits apply.',
+    },
+    zh: {
+      source: 'docs/soul-and-core-memory.zh.md',
+      title: 'Bot 灵魂与核心记忆',
+      description: 'SOUL.md 与 MEMORY.md 如何进入每个 Session、字数上限，以及修改何时生效。',
+    },
+  },
+  {
+    slug: 'docs/update-deepseekbot',
+    order: 27,
+    en: {
+      source: 'docs/update-deepseekbot.md',
+      title: 'Update DeepSeekBot',
+      description: 'Install a new DeepSeekBot release from Bot settings and restart DSH.',
+    },
+    zh: {
+      source: 'docs/update-deepseekbot.zh.md',
+      title: '更新 DeepSeekBot',
+      description: '在 Bot 设置里安装新版本 DeepSeekBot，并重启 DSH。',
     },
   },
   {
@@ -602,8 +749,12 @@ function renderPage(variant, order, untranslated) {
   const { body } = stripFrontmatter(raw);
   const title = variant.configuredTitle ? variant.title : titleFrom(body, variant.title);
   return (
-    frontmatter({ title, description: variant.description, order, untranslated }) +
-    prepare(body, variant.diagrams, variant.lang)
+    frontmatter({
+      title,
+      description: variant.description,
+      order,
+      untranslated,
+    }) + prepare(body, variant.diagrams, variant.lang)
   );
 }
 
@@ -631,7 +782,9 @@ function syncPages() {
 const TOOL_COPY_ZH = {
   memory_read: {
     description: '读取当前 Session 所属 PersonaBot Memory 中的一份 Markdown 文件。',
-    parameters: { path: 'Memory 根目录下的相对 .md 路径，例如 customers/acme.md' },
+    parameters: {
+      path: 'Memory 根目录下的相对 .md 路径，例如 customers/acme.md',
+    },
   },
   memory_search: {
     description: '在当前 Session 所属 PersonaBot Memory 中执行不区分大小写的子字符串搜索。',

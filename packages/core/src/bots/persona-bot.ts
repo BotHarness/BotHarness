@@ -1,3 +1,5 @@
+import type { HttpsFallback } from '../memory/clone.js';
+import { isStandingLimits, type StandingLimits } from '../memory/soul.js';
 import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
 import { createHash } from 'node:crypto';
 import {
@@ -27,6 +29,8 @@ export interface PersonaBotRecord {
   computerAccess?: boolean;
   browserAccess?: boolean;
   browserProfile?: string;
+
+  standingLimits?: StandingLimits;
 }
 
 export interface CreatePersonaBotInput {
@@ -43,7 +47,7 @@ export interface CreatePersonaBotInput {
 }
 
 export type CreatePersonaBotResult =
-  | { ok: true; record: PersonaBotRecord }
+  | { ok: true; record: PersonaBotRecord; httpsFallback?: HttpsFallback }
   | {
       ok: false;
       reason:
@@ -55,6 +59,7 @@ export type CreatePersonaBotResult =
         | 'invalid-git-url'
         | 'git-clone-failed'
         | 'git-clone-timeout'
+        | 'invalid-zip'
         | 'memory-unavailable';
       detail?: string;
     };
@@ -139,6 +144,8 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
   if (record['modelPlan'] !== undefined && !isPersonaBotModelPlan(record['modelPlan']))
+    return false;
+  if (record['standingLimits'] !== undefined && !isStandingLimits(record['standingLimits']))
     return false;
   return true;
 }

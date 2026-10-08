@@ -1,5 +1,7 @@
+import { ExternalMessageText } from './external-message-text.js';
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import type { ReactElement, ReactNode } from 'react';
+import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -23,32 +25,20 @@ interface MessageView {
   at: string;
   text: string;
   mentions?: readonly Mention[];
-}
-
-function messageText(text: string, mentions: readonly Mention[]): ReactNode {
-  const named = mentions.filter((mention) => mention.key && mention.name);
-  if (!named.length) return text;
-  const keys = named
-    .map((mention) => mention.key.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'))
-    .sort((a, b) => b.length - a.length);
-  return text.split(new RegExp(`(${keys.join('|')})(?![\\w])`, 'gu')).map((part, index) => {
-    const mention = named.find((entry) => entry.key === part);
-    return mention ? (
-      <span className="bh-external-mention" title={mention.id} key={index}>
-        @{mention.name}
-      </span>
-    ) : (
-      part
-    );
-  });
+  voice?: ExternalSource['event']['voice'];
+  video?: ExternalSource['event']['video'];
+  quote?: ExternalSource['quote'];
+  nativeQuote?: ExternalSource['event']['quote'];
 }
 
 function MessageCard({
   message,
   t,
+  media,
 }: {
   message: MessageView;
   t: BotHarnessTranslate;
+  media?: ReactNode;
 }): ReactElement {
   const name = message.senderLabel ?? message.senderName ?? message.senderId;
   const date = new Date(message.at);
@@ -72,8 +62,82 @@ function MessageCard({
             {time}
           </time>
         </header>
+        {message.voice ? (
+          <div className="bh-external-message-head">
+            <Tag tone={message.voice.transcript === 'platform' ? 'info' : 'warning'}>
+              {t(
+                message.voice.transcript === 'platform'
+                  ? 'im.voiceTranscriptPlatform'
+                  : 'im.voiceTranscriptUnavailable',
+              )}
+            </Tag>
+            {message.voice.durationMs === undefined ? null : (
+              <span>
+                {t('im.voiceDuration', {
+                  seconds: new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
+                    message.voice.durationMs / 1000,
+                  ),
+                })}
+              </span>
+            )}
+          </div>
+        ) : null}
+        {message.nativeQuote ? (
+          <blockquote className="bh-external-quote">
+            <Tag tone={message.quote?.kind === 'unavailable' ? 'warning' : 'info'}>
+              {t(
+                message.quote?.kind === 'native'
+                  ? 'im.quoteNative'
+                  : message.quote?.kind === 'retained'
+                    ? 'im.quoteRetained'
+                    : 'im.quoteUnavailable',
+              )}
+            </Tag>
+            {message.quote?.text ? <p>{message.quote.text}</p> : null}
+            {message.nativeQuote.summary ? (
+              <p className="bh-external-context-hint">
+                {t('im.quoteSummary', { text: message.nativeQuote.summary })}
+              </p>
+            ) : null}
+            {message.nativeQuote.partial ? (
+              <p className="bh-external-context-hint">{t('im.quotePartial')}</p>
+            ) : null}
+            {message.nativeQuote.attachmentKind ? (
+              <p>{t('im.quoteAttachment', { kind: message.nativeQuote.attachmentKind })}</p>
+            ) : null}
+            {message.quote?.kind === 'unavailable' ? <p>{t('im.quoteUnavailableHint')}</p> : null}
+            <details className="bh-external-details">
+              <summary>{t('im.quoteDetails')}</summary>
+              <div className="bh-external-detail-body">
+                {message.nativeQuote.serverMessageId ? (
+                  <p>{t('im.quoteServerId', { id: message.nativeQuote.serverMessageId })}</p>
+                ) : null}
+                {message.nativeQuote.itemId ? (
+                  <p>{t('im.quoteItemId', { id: message.nativeQuote.itemId })}</p>
+                ) : null}
+                {message.quote?.sourceEventId ? (
+                  <p>Source Event: {message.quote.sourceEventId}</p>
+                ) : null}
+                {message.quote?.intentId ? (
+                  <p>
+                    {t('im.outboxId')}: {message.quote.intentId}
+                  </p>
+                ) : null}
+                {message.quote?.reason ? <p>{message.quote.reason}</p> : null}
+              </div>
+            </details>
+          </blockquote>
+        ) : null}
         <div className="bh-external-message-text">
-          {messageText(message.text, message.mentions ?? [])}
+          {media}
+          {media &&
+          (message.text.trim() === '[Image]' ||
+            (message.video && message.text.trim() === '[Video]')) ? null : message.voice
+              ?.transcript === 'unavailable' ? (
+            t('im.voiceTranscriptUnavailableHint')
+          ) : (
+            <ExternalMessageText text={message.text} mentions={message.mentions ?? []} />
+          )}
         </div>
         <details className="bh-external-details">
           <summary>{t('im.messageDetails')}</summary>
@@ -90,6 +154,21 @@ function MessageCard({
                 : message.senderId}
             </p>
             <p>{message.at}</p>
+            {message.voice?.encodeType === undefined ? null : (
+              <p>{t('im.voiceEncoding', { type: String(message.voice.encodeType) })}</p>
+            )}
+            {message.voice?.sampleRate === undefined ? null : (
+              <p>{t('im.voiceSampleRate', { rate: String(message.voice.sampleRate) })}</p>
+            )}
+            {message.voice?.bitsPerSample === undefined ? null : (
+              <p>{t('im.voiceBitsPerSample', { bits: String(message.voice.bitsPerSample) })}</p>
+            )}
+            {message.voice?.itemId ? (
+              <p>{t('im.voiceItemId', { id: message.voice.itemId })}</p>
+            ) : null}
+            {media && !message.mentions?.length ? (
+              <p className="bh-external-raw-text">{message.text}</p>
+            ) : null}
             {message.mentions?.length ? (
               <>
                 <p>
@@ -113,13 +192,16 @@ export function ExternalSourceContent({
   source,
   t,
   children,
+  messageMedia,
 }: {
   source: ExternalSource;
   t: BotHarnessTranslate;
   children?: ReactNode;
+  messageMedia?: ReactNode;
 }): ReactElement {
   const platform = externalPlatformLabel(source.platform, t);
   const hasThread = Boolean(source.event.reply.threadId ?? source.event.reply.rootId);
+  const latestRead = source.contextReads?.at(-1);
   const messages = [...(source.contextMessages ?? [])].sort((a, b) => a.at.localeCompare(b.at));
   return (
     <div className="bh-external-source-content">
@@ -221,24 +303,33 @@ export function ExternalSourceContent({
             at: source.at,
             text: source.body,
             mentions: source.event.mentions,
+            ...(source.quote ? { quote: source.quote } : {}),
+            ...(source.event.quote ? { nativeQuote: source.event.quote } : {}),
+            ...(source.event.voice ? { voice: source.event.voice } : {}),
+            ...(source.event.video ? { video: source.event.video } : {}),
           }}
           t={t}
+          media={messageMedia}
         />
         {children}
       </section>
       {source.contextReads?.length ? (
         <section aria-label={t('im.contextTitle')} className="bh-external-context">
           <h3>{t('im.contextTitle')}</h3>
-          <p className="bh-external-context-hint">{t('im.contextExplanation')}</p>
-          {source.contextReads.map((read, index) =>
-            read.outcome === 'refused' || read.incomplete ? (
-              <p className="bh-external-notice" key={`${read.at}:${index}`}>
-                {read.outcome === 'refused'
-                  ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
-                  : t('im.contextIncomplete', { count: String(read.omitted) })}
-              </p>
-            ) : null,
-          )}
+          <p className="bh-external-context-hint">
+            {t(
+              source.contextReads.at(-1)?.coverage === 'retained-local-sources'
+                ? 'im.contextRetainedExplanation'
+                : 'im.contextExplanation',
+            )}
+          </p>
+          {latestRead && (latestRead.outcome === 'refused' || latestRead.incomplete) ? (
+            <p className="bh-external-notice">
+              {latestRead.outcome === 'refused'
+                ? t('im.contextRefused', { reason: latestRead.reason ?? 'history-unavailable' })
+                : t('im.contextIncomplete', { count: String(latestRead.omitted) })}
+            </p>
+          ) : null}
           <details className="bh-external-details bh-external-audit">
             <summary>{t('im.readDetails', { count: String(source.contextReads.length) })}</summary>
             <div className="bh-external-detail-body">
@@ -250,6 +341,9 @@ export function ExternalSourceContent({
                       ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
                       : t('im.contextCount', { count: String(read.sourceEventIds.length) })}
                   </p>
+                  {read.outcome === 'read' && read.incomplete ? (
+                    <p>{t('im.contextIncomplete', { count: String(read.omitted) })}</p>
+                  ) : null}
                   <p>{read.sourceEventIds.join(', ')}</p>
                 </div>
               ))}
@@ -257,7 +351,14 @@ export function ExternalSourceContent({
           </details>
           <div className="bh-external-context-messages">
             {messages.map((message) => (
-              <MessageCard key={message.sourceEventId} message={message} t={t} />
+              <MessageCard
+                key={message.sourceEventId}
+                message={{
+                  ...message,
+                  senderLabel: externalSenderLabel({ ...message, platform: source.platform }, t),
+                }}
+                t={t}
+              />
             ))}
           </div>
         </section>

@@ -1,0 +1,30 @@
+{
+  "tables": {
+    "messaging_bindings": {
+      "count": 1,
+      "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+    },
+    "messaging_grants": {
+      "count": 1,
+      "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+    },
+    "source_events": {
+      "count": 22,
+      "sha256": "d667dabf19d0af52b77ec50b231daad2719d13b7c83a6d1516f131874a4c4e27"
+    },
+    "inbox_admissions": {
+      "count": 5,
+      "sha256": "cf723bb1a92c7a4e26c942192c23c981a360b2ebd53e6e2f3528039af3aeb484"
+    },
+    "messaging_outbox": {
+      "count": 3,
+      "sha256": "b3795a120caaa5aec98f359cdf2f0f8831c990d7d619a78dc2a24c676d524760"
+    },
+    "channel_placements": {
+      "count": 2,
+      "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+    }
+  },
+  "allRowsUnchanged": true,
+  "note": "The first latest-main startup added one native Memory-change Source Event and Admission (no external event or reply). This is the second, settled cold restart; all six tables are byte-identical."
+}

@@ -7,6 +7,7 @@ import { createMemoryAcceptance, type MemoryAcceptance } from './accepted.js';
 import { createMemoryGit } from './git.js';
 import { inspectMemoryRepository, type MemoryRepositoryInspection } from './repository.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
+import { DEFAULT_STANDING_LIMITS, type StandingLimits } from './soul.js';
 
 export interface MemoryAgentRef {
   session?: { id?: string };
@@ -86,13 +87,19 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     return storeForMemoryDir(memoryDir);
   };
 
+  const limitsForSession = (sessionId: string): StandingLimits => {
+    const owner = ownership.resolve(sessionId);
+    const record = owner === undefined ? undefined : registry.get(owner.botSlug);
+    return record?.standingLimits ?? DEFAULT_STANDING_LIMITS;
+  };
+
   const personaForSession = (sessionId: string | undefined): string => {
     if (sessionId === undefined || sessionId.length === 0) return '';
     const recorded = ownership.personaSnapshot(sessionId);
     if (recorded !== undefined) return recorded.body;
     const store = storeForSession(sessionId);
     if (store === undefined) return '';
-    const body = store.persona() ?? '';
+    const body = store.standingPrompt(limitsForSession(sessionId));
     const at = (options.now ?? (() => new Date()))().toISOString();
     return ownership.recordPersonaSnapshot(sessionId, body, at).body;
   };
@@ -105,7 +112,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     if (owner === undefined || owner.botSlug !== botSlug) return { refreshed: false };
     const store = storeForSession(sessionId);
     if (store === undefined) return { refreshed: false };
-    const current = store.persona() ?? '';
+    const current = store.standingPrompt(limitsForSession(sessionId));
     if (ownership.personaSnapshot(sessionId)?.body === current) return { refreshed: false };
     ownership.refreshPersonaSnapshot(
       sessionId,

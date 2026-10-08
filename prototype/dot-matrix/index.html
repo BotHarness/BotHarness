@@ -1,0 +1,479 @@
+<!doctype html>
+<!--
+  原型（用完即弃）—— 点阵 loading 动效，作为一个分层组件来设计。
+
+  从 prototype/avatar-hair 拆出来：点阵是一个独立问题。五层各自可替换，
+  每一层都是一张可以单独加项的表：
+
+    1  栅格 + 轮廓   cols/rows/silhouette  → 哪些格子存在、在哪
+    2  顺序          order                 → 每个格子的行进位置 0..1
+    3  亮包络        envelope              → 相位 → 亮度（停靠点表，线性插值）
+    4  字形          dot shape             → 单个点长什么样
+    5  渲染器        SVG 逐帧 / CSS 延迟     → 像素去哪
+
+  两条经验写在 dotmatrix.js 顶部：
+    · 亮包络必须是「停靠点之间线性插值」，绝不能把亮度量化成台阶 —— 台阶看得见，
+      读起来廉价。
+    · 点的「大小」承载亮度（缓慢呼吸）才是活着的感觉；只变不透明度像灯罩。
+      两种渲染器都能做，CSS 路径只要在 opacity 之外同时动 scale。
+
+  运行：直接打开本文件，或起一个静态服务：
+    python3 -m http.server 8898   （然后 http://localhost:8898/dot-matrix/）
+  无构建、无依赖。非生产代码，不要从这里 import。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE — 点阵 loading 动效</title>
+    <style>
+      :root {
+        --paper: #f2f0eb;
+        --ink: #16161a;
+        --muted: #6b6b73;
+        --line: #dcd9d1;
+        --accent: #e8483f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      .badge {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 60;
+        background: var(--accent);
+        color: #fff;
+        font:
+          600 11px/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        padding: 6px 10px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+      header.vh {
+        padding: 24px 32px 4px;
+        max-width: 920px;
+      }
+      header.vh h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      header.vh p {
+        margin: 0 0 8px;
+        color: var(--muted);
+        max-width: 78ch;
+      }
+      header.vh .look {
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 258px;
+        gap: 20px;
+        padding: 12px 32px 40px;
+        align-items: start;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      /* — 两条渲染路径，并排对照 — */
+      .compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .pane {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 14px 14px;
+      }
+      .pane h2 {
+        margin: 0 0 2px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .pane p {
+        margin: 0 0 10px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pane .hero {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 260px;
+        overflow: hidden;
+      }
+      /* width/height attributes drive the size; the viewBox is already tight */
+      .pane > .hero > svg {
+        display: block;
+        flex: none;
+        overflow: visible;
+        color: var(--ink);
+      }
+
+      /* — CSS 路径：字形 + opacity/scale keyframes + 每点 delay — */
+      /* A fixed box, sized from JS. It must NOT be a percentage or an
+         aspect-ratio of the pane: the grid tracks are absolute pixels, so a
+         box derived from the pane can be smaller than its own content and the
+         container grows on every adjustment. `overflow: hidden` is the belt to
+         that braces — a dot may never push the layout around. */
+      /* width/height are set from JS (the `size` prop). The box is fixed, so a
+         dot can never push the layout around; the geometry already reserves
+         room because dotSize is a fraction of the cell. */
+      .dmx-host {
+        display: grid;
+        place-content: center;
+        gap: 0;
+        width: 240px;
+        height: 240px;
+        max-width: 100%;
+        overflow: hidden;
+        flex: none;
+        color: var(--ink);
+      }
+      .dmx-host .ds-dot {
+        display: block;
+        background: currentColor;
+        transform-origin: center;
+        /* the glyph is a mask of the SAME path data the SVG path draws, so the
+           two renderers cannot disagree about the silhouette — and a five-point
+           star is expressible at all only because a mask is real geometry
+           rather than a border-radius */
+        -webkit-mask: var(--dm-mask) center / calc(var(--dm-fill, 1) * 100%) no-repeat;
+        mask: var(--dm-mask) center / calc(var(--dm-fill, 1) * 100%) no-repeat;
+        /* `scale` is animated, `transform` stays free for the glyph's own
+           rotation — separate properties, so they compose */
+        scale: var(--dm-s-min, 0.6);
+        animation: var(--dm-anim, dm-spiral) var(--dm-cycle, 1500ms) linear infinite;
+        /* a NEGATIVE delay seeds each cell partway into one shared cycle, so the
+           field is already in flight on the first painted frame and every cell
+           runs the identical keyframes — the per-cell value is one number */
+        animation-delay: calc(var(--o, 0) * var(--dm-seed, -0.95) * var(--dm-cycle, 1500ms));
+      }
+      .dmx-host[data-timing^='steps'] .ds-dot {
+        animation-timing-function: steps(3, end);
+      }
+
+      .dmx-gap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        font:
+          12px ui-monospace,
+          monospace;
+        text-align: center;
+        padding: 0 12px;
+      }
+
+      /* — 尺寸阶梯 — */
+      .sizes h2 {
+        margin: 0 0 2px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .sizes p {
+        margin: 0 0 12px;
+        font-size: 11px;
+        color: var(--muted);
+        max-width: 72ch;
+      }
+      .sizes .rows {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .sizes .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+      }
+      .sizes .row > .name {
+        font:
+          600 10px ui-monospace,
+          monospace;
+        color: var(--muted);
+        width: 76px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .sizes .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .sizes .px {
+        font:
+          10px ui-monospace,
+          monospace;
+        color: var(--muted);
+      }
+      .sizes .cell svg {
+        display: block;
+        color: var(--ink);
+        overflow: visible;
+      }
+      .sizes figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      .sizes figcaption {
+        font:
+          600 10px ui-monospace,
+          monospace;
+        color: var(--muted);
+      }
+      .sizes .gap-note {
+        font:
+          10px ui-monospace,
+          monospace;
+        color: var(--accent);
+        align-self: center;
+      }
+
+      /* — 右栏 — */
+      .ctl {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 14px;
+      }
+      .ctl .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .ctl label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ctl .row > span.val {
+        font:
+          11px ui-monospace,
+          monospace;
+        color: var(--muted);
+        min-width: 34px;
+        text-align: right;
+      }
+      /* the tick wrapper only exists to host the 紧贴 mark; without it the
+         slider would lose the flex sizing it had as a direct child of .row */
+      .ctl .row > .track {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+      }
+      .ctl .row > .track > .tick {
+        position: absolute;
+        top: 50%;
+        width: 1px;
+        height: 15px;
+        transform: translate(-50%, -50%);
+        background: var(--ink);
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .ctl .row > .track > .tick::after {
+        content: attr(data-label);
+        position: absolute;
+        left: 50%;
+        top: -13px;
+        transform: translateX(-50%);
+        font:
+          9px ui-monospace,
+          monospace;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .ctl .row > input[type='range'] {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        accent-color: var(--ink);
+      }
+      .ctl select {
+        font: inherit;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+      }
+      .ctl input[type='color'] {
+        width: 40px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: none;
+      }
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+      .note {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .note code {
+        font-size: 10px;
+      }
+      pre.state {
+        font:
+          11px/1.45 ui-monospace,
+          monospace;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 0;
+        max-height: 300px;
+        white-space: pre;
+        overflow: auto;
+      }
+      .gap-warn {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dmx-host .ds-dot {
+          animation: none;
+          opacity: calc(var(--dm-floor, 0.16) + var(--o, 0) * 0.8);
+        }
+      }
+      /* — polygon gallery: every glyph is vertices + two radii — */
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .gallery button {
+        font: inherit;
+        background: none;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 6px 4px 4px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        color: var(--muted);
+      }
+      .gallery button:hover {
+        border-color: var(--ink);
+      }
+      .gallery button[aria-pressed='true'] {
+        border-color: var(--accent);
+        color: var(--ink);
+        background: #fff6f5;
+      }
+      .gallery svg {
+        display: block;
+      }
+      .gallery .g-label {
+        font:
+          600 10px ui-monospace,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="badge">原型 · 用完即弃</div>
+    <header class="vh">
+      <h1>点阵 loading 动效</h1>
+      <p>
+        五层各自可替换的组件：栅格与轮廓决定哪些点存在，order 决定每个点的行进位置，
+        亮包络把相位变成亮度（停靠点表 + 线性插值），字形决定单点长什么样，最后交给 SVG 逐帧或 CSS
+        延迟两种渲染器之一。三个正交的设计问题——剪影、运动、字形——互不干扰，
+        每一项都只是一张可以单独加行的表。
+      </p>
+      <div class="look">
+        看点：左右两栏是同一份几何的两种渲染器 —— 换轮廓时它们必须一起变 · 把「点涨缩」拉到 0 和 1
+        对比（只变不透明度像灯罩，大小跟着呼吸才像活着）· 下方尺寸阶梯里 14px 那一档才是真正的决策面
+        · <code>columns</code> 在 CSS 那一栏留空：每点延迟只能偏移相位，移动的高光不是相位偏移
+      </div>
+    </header>
+    <main>
+      <section id="stage">
+        <div class="compare">
+          <div class="pane">
+            <h2>逐帧 SVG</h2>
+            <p>纯函数 field(options, t)。可 seek、可暂停，没有内部时钟；字形是 fillet 路径。</p>
+            <div class="hero" id="hero-svg"></div>
+          </div>
+          <div class="pane">
+            <h2>DOM + CSS</h2>
+            <p>
+              只有 <code>@keyframes</code>（同时动 opacity 和 scale）+ 每点
+              <code>animation-delay</code>。每帧零 JS；字形是 CSS class。
+            </p>
+            <div class="hero" id="hero-css"></div>
+          </div>
+        </div>
+        <div class="card sizes" id="sizes"></div>
+        <div class="card sizes" id="gallery-card" style="margin-top: 14px">
+          <h2>多边形字形</h2>
+          <p>
+            每个字形都是「顶点数 + 两个圆角」，不是一张查表。矩形和圆是同一组 4 个顶点
+            在不同圆角下的样子——圆角拉到内切半径，矩形就变成圆。星形是 5 组交替半径的
+            顶点，<b>内圆角</b>只作用在凹角上：0 是硬边星，拉高腰部变柔，0.5 就成了水滴。
+            下面的每一格都是真的 fillet 路径，CSS 那条用同一份 path data 做 mask。
+          </p>
+          <div class="gallery" id="gallery"></div>
+        </div>
+      </section>
+      <aside class="card ctl" id="rail"></aside>
+    </main>
+    <style id="dmx-keyframes"></style>
+    <script src="dotmatrix.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

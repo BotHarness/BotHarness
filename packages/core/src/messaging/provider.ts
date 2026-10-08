@@ -4,6 +4,7 @@ export interface MessagingAccount {
   name: string;
   fingerprint: string;
   connected: boolean;
+  unsupported?: 'checked-send';
 }
 
 export interface MessagingTarget {
@@ -22,6 +23,35 @@ export interface MessagingAttachment {
   mediaType?: string;
 }
 
+export type MessagingContentPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'attachment'; id: string };
+
+export interface MessagingVoice {
+  transcript: 'platform' | 'unavailable';
+  itemId?: string;
+  durationMs?: number;
+  encodeType?: number;
+  sampleRate?: number;
+  bitsPerSample?: number;
+}
+
+export interface MessagingVideo {
+  itemId?: string;
+  reportedSizeBytes?: number;
+  playLength?: number;
+}
+
+export interface MessagingQuote {
+  serverMessageId?: string;
+  itemId?: string;
+  text?: string;
+  summary?: string;
+  attachmentKind?: 'image' | 'audio' | 'file' | 'video';
+  partial?: { start: string; end: string; startIndex: number; endIndex: number; digest: string };
+}
+export type MessagingContextScope = MessagingHistoryScope | 'retained' | 'retained-nearby';
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu' | 'slack' | 'discord' | 'weixin';
@@ -36,6 +66,10 @@ export interface MessagingInboundEvent {
   at: string;
   text: string;
   attachments?: MessagingAttachment[];
+  contentParts?: MessagingContentPart[];
+  voice?: MessagingVoice;
+  video?: MessagingVideo;
+  quote?: MessagingQuote;
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }
@@ -72,6 +106,7 @@ export interface MessagingReceipt {
   version: 1;
   identityKind?: 'client-acknowledgement';
   messageId: string;
+  serverMessageId?: string;
   conversationId: string;
 }
 
@@ -84,6 +119,39 @@ export interface MessagingOwnEcho {
   conversationId: string;
   text: string;
   at: string;
+}
+
+export interface MessagingApprovalCard {
+  requestId: string;
+  title: string;
+  detail: string;
+  status:
+    | 'pending'
+    | 'web-required'
+    | 'allowed-once'
+    | 'rejected'
+    | 'expired'
+    | 'executed'
+    | 'execution-failed'
+    | 'execution-unknown'
+    | 'test';
+}
+
+export interface MessagingApprovalAction {
+  version: 1;
+  channel: 'feishu';
+  botId: string;
+  fingerprint: string;
+  actorId: string;
+  conversationId: string;
+  messageId: string;
+  requestId: string;
+  action: 'allowed-once' | 'rejected';
+}
+
+export interface MessagingApprovalAck {
+  accepted: true;
+  status: 'queued' | 'refused';
 }
 
 export interface MessagingProvider {
@@ -104,7 +172,17 @@ export interface MessagingProvider {
     signal: AbortSignal;
     onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
     onEcho?(event: MessagingOwnEcho, signal: AbortSignal): Promise<{ accepted: true }>;
+    onAction?(event: MessagingApprovalAction, signal: AbortSignal): Promise<MessagingApprovalAck>;
   }): Promise<() => void>;
+  approvalCard?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute | MessagingReceipt;
+    card: MessagingApprovalCard;
+    signal: AbortSignal;
+    beforeSend(): boolean;
+    update?: boolean;
+  }): Promise<{ sent?: true; updated?: true; receipt?: MessagingReceipt }>;
   qualifyReply?(input: {
     accountRef: string;
     fingerprint: string;
@@ -137,8 +215,9 @@ export interface MessagingProvider {
     accountRef: string;
     fingerprint: string;
     route: MessagingReplyRoute;
-    file: { id: string; name: string; bytes: Uint8Array };
+    file: { id: string; name: string; bytes: Uint8Array; mediaType?: string };
     signal: AbortSignal;
+    beforeSend?: () => boolean;
   }): Promise<{ accepted: true }>;
   post?(input: {
     accountRef: string;
@@ -148,6 +227,7 @@ export interface MessagingProvider {
     conversationId: string;
     text: string;
     signal: AbortSignal;
+    beforeSend?: () => boolean;
   }): Promise<{ accepted: true; receipt: MessagingReceipt }>;
   send(input: {
     accountRef: string;

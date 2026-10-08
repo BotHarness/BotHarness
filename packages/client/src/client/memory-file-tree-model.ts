@@ -5,7 +5,10 @@ export interface MemoryFileNode {
   children: MemoryFileNode[];
 }
 
-export function memoryFileTree(paths: readonly string[]): MemoryFileNode[] {
+export function memoryFileTree(
+  paths: readonly string[],
+  pinned: readonly string[] = [],
+): MemoryFileNode[] {
   const roots: MemoryFileNode[] = [];
   const directories = new Map<string, MemoryFileNode>();
   for (const path of paths) {
@@ -36,5 +39,12 @@ export function memoryFileTree(paths: readonly string[]): MemoryFileNode[] {
     for (const node of nodes) sort(node.children);
   };
   sort(roots);
-  return roots;
+  const rank = (node: MemoryFileNode): number => {
+    const index = node.kind === 'file' ? pinned.indexOf(node.path) : -1;
+    return index < 0 ? pinned.length : index;
+  };
+  return roots
+    .map((node, index) => ({ node, index }))
+    .sort((left, right) => rank(left.node) - rank(right.node) || left.index - right.index)
+    .map(({ node }) => node);
 }

@@ -1,0 +1,241 @@
+<!doctype html>
+<!--
+  PROTOTYPE (throwaway) — the avatar prototype rebuilt from scratch on three.js.
+
+  Independent of prototype/avatar-hair: no shared code, no build step, no
+  bundler. three.js comes from a pinned CDN URL through an import map, so this
+  file can be opened directly or served with any static server.
+
+  What the 2D version had to do by hand, and what this spike buys instead:
+    · silhouette →  a real mesh: blob = superellipsoid (one exponent knob)
+    · gaze / head turn →  rotate a group; the depth buffer handles occlusion
+    · hair patches →  curved shell meshes (hair cards as surfaces) per part
+    · terminator fade →  lights + MeshToonMaterial with a 3-step gradient map
+    · painter-order seams →  gone: opaque depth-sorted geometry
+    · texture noise →  per-strand vertex colours
+
+  Question: is a real 3D head easier to author and freer to push around than the
+  hand-projected SVG, and what does it cost us (crisp vector look, DOM
+  inspectability, zero deps, file:// / sandboxed-WebGL availability)?
+
+  Run: open this file, or serve it:
+    python3 -m http.server 8898   (then http://localhost:8898/avatar-three/)
+  Not production. Do not import from here.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE — 3D bot avatar (three.js)</title>
+    <style>
+      :root {
+        --paper: #f2f0eb;
+        --ink: #16161a;
+        --muted: #6b6b73;
+        --line: #dcd9d1;
+        --accent: #e8483f;
+        --ok: #2e9e63;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      .badge {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 60;
+        background: var(--accent);
+        color: #fff;
+        font:
+          600 11px/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        padding: 6px 10px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+      header.vh {
+        padding: 24px 32px 4px;
+      }
+      header.vh h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      header.vh p {
+        margin: 0 0 8px;
+        color: var(--muted);
+        max-width: 78ch;
+      }
+      header.vh .look {
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 268px;
+        gap: 20px;
+        padding: 12px 32px 32px;
+        align-items: start;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      #stage {
+        position: relative;
+        overflow: hidden;
+        aspect-ratio: 1 / 1;
+        width: 100%;
+      }
+      #stage canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      .view-label {
+        position: absolute;
+        font:
+          600 10px/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .hud {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        font:
+          10px/1.5 ui-monospace,
+          monospace;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 8px;
+        max-width: 60%;
+        white-space: pre;
+        pointer-events: none;
+      }
+      .hud b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .hud .pass {
+        color: var(--ok);
+      }
+      .hud .fail {
+        color: var(--accent);
+      }
+      .ctl {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 14px;
+      }
+      .ctl label,
+      .ctl .row > label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ctl .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .ctl .row > span.val {
+        font:
+          11px ui-monospace,
+          monospace;
+        color: var(--muted);
+        min-width: 30px;
+        text-align: right;
+      }
+      .ctl .row > input[type='range'] {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        accent-color: var(--ink);
+      }
+      .ctl select {
+        font: inherit;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+      }
+      .ctl input[type='color'] {
+        width: 40px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: none;
+      }
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 6px 0 0;
+      }
+      .note {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="badge">prototype · throwaway</div>
+    <header class="vh">
+      <h1>3D bot avatar — three.js, from scratch</h1>
+      <p>
+        One head mesh, one hair group, four cameras. The 2D version hand-projected every strand,
+        faded and culled them against the head, and had to paint layers in a fixed order; here a
+        turn is a <code>rotation.y</code> and the depth buffer does the rest. Hair parts (bangs /
+        sides / back / accent) are curved shell meshes, so a style is a handful of numbers and the
+        part list is still free to recombine.
+      </p>
+      <div class="look">
+        LOOK FOR: the back view is real geometry, not a reveal trick · hair cast shadow on the face
+        · one hair layer sitting on another · drag to turn the head · the HUD self-check
+      </div>
+    </header>
+    <main>
+      <section id="stage" class="card"></section>
+      <aside class="card ctl" id="rail"></aside>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

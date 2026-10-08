@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { withMentionNames } from '../messaging/mention-text.js';
 import type { ChannelMessageView } from './bot-runtime.js';
 
 export const CHANNEL_READ_OUTPUT_LIMIT = 12_000;
@@ -15,7 +16,10 @@ export function projectModelMessage(view: ChannelMessageView) {
     channelId: view.channelId,
     channelName: view.channelName,
     ...(view.actorNames === undefined ? {} : { actorNames: view.actorNames }),
-    message,
+    message:
+      message.bridgeOrigin?.mentions === undefined
+        ? message
+        : { ...message, body: withMentionNames(message.body, message.bridgeOrigin.mentions) },
   };
 }
 

@@ -1,0 +1,72 @@
+{
+  "issue": 1061,
+  "timezone": "Asia/Tokyo",
+  "viewport": "882 x 827, unchanged across BotHarness before/after pairs",
+  "nativeClip": "507 x 635, QA thread only",
+  "baseline": "a81ba50e953b20635ca38e0f182d18923f92a292",
+  "implementation": "ebf32245cb629ce9bf26d7566f38f1abfc9bd931",
+  "locale": "zh-CN",
+  "history": "identical four retained messages across every matched pair",
+  "screenshots": [
+    {
+      "file": "after-dark.jpg",
+      "capturedAt": "2026-10-06T15:53:50.453549+00:00",
+      "sha256": "3d4bcdf4190e6ee3de7971218d0f1bbea0790fc45581500bc2e06cdcabe1f1dd",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "after-light.jpg",
+      "capturedAt": "2026-10-06T15:54:12.642003+00:00",
+      "sha256": "123d59103e1aebb59ffcc13295ed4bd8540bf8e80ab4c5c7f37fcf7f148a3d61",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "after-source-dark.jpg",
+      "capturedAt": "2026-10-06T15:53:50.951281+00:00",
+      "sha256": "ae9883d04213378f6fc6ce7ad56775b4d8e4f7ee0d172a48b57bb1a6af96ff1b",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "after-source-light.jpg",
+      "capturedAt": "2026-10-06T15:54:12.169234+00:00",
+      "sha256": "bbeb79066ebdb27beec9459b6756f594299d3039d1e93e003312dd6bdda80c00",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "before-dark.jpg",
+      "capturedAt": "2026-10-06T15:49:46.328655+00:00",
+      "sha256": "5c7fd89ed4e69b7c906bba7b3e45aebb920596cc708a88f2c57f991025fd7e0b",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "before-light.jpg",
+      "capturedAt": "2026-10-06T15:47:44.029145+00:00",
+      "sha256": "8496dba56fe461b5b1f5fd6e650dbb92c8242d50c5d134164679f9fc04825750",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "before-source-dark.jpg",
+      "capturedAt": "2026-10-06T15:49:46.642147+00:00",
+      "sha256": "9c6eaaa94c8192ec1e89f779e61573a00cba907fcba290f951a49cd7c8ba50bb",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "before-source-light.jpg",
+      "capturedAt": "2026-10-06T15:48:23.842654+00:00",
+      "sha256": "be6581ab3452e4487d32dc5296cca5255029194e57eefbf9b2e98229897b2422",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "fresh-name-light.jpg",
+      "capturedAt": "2026-10-06T15:56:19.414490+00:00",
+      "sha256": "fe916d9b72227bcc717c7da8f39d8fa62316a8fc75059e920036091c92fa3d56",
+      "kind": "actual browser screenshot"
+    },
+    {
+      "file": "native-name-reply.jpg",
+      "capturedAt": "2026-10-06T15:56:38.189123+00:00",
+      "sha256": "0bad46d0ecae2bb320a22a886ac8ba5499d5eb6d159cd5387f1a77f72c080878",
+      "kind": "actual browser screenshot"
+    }
+  ]
+}

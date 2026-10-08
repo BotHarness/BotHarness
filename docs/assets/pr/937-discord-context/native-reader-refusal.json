@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-05T22:11:51.562Z",
+  "productionReaderNativeRefusal": "history-permission-denied",
+  "accountMatchesOriginalAdmittedSource": true,
+  "nativeMessageContentFlagsOff": true,
+  "nativeHistoryPageRequests": 0,
+  "allCanonicalRecordsExactlyUnchanged": true,
+  "limitation": "Direct production Provider reader against the live native account; not an Orchestrator bridge_read or positive E2E."
+}

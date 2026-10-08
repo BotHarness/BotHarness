@@ -7,7 +7,7 @@
 ### PersonaBot（持久机器人身份）
 
 **PersonaBot**：
-由 Host 拥有的一等 bot 实体：一种带 Git-backed Memory Repository、跨越 Session、Chat 与 Workspace，并可同时持有多个 Session 的持久身份。Persona 是 Memory 中的 optional 内容，而不是身份本身。
+由 Host 拥有的一等 bot 实体：一种带 Git-backed Memory Repository、跨越 Session、Chat 与 Workspace，并可同时持有多个 Session 的持久身份。它的 Soul 是 Memory 中的 optional 内容，而不是身份本身。
 _避免使用_：bot（单独使用）、agent、assistant、robot
 
 **Archived PersonaBot**：
@@ -30,17 +30,21 @@ _避免使用_：Bot slug、display name、handle、username
 PersonaBot 面向人的名称，也是 `@` 选择器显示的主要标签。名称可以重复；被选中的 mention token 会保留 PersonaBot ID。
 _避免使用_：identifier、slug、username
 
-**Role badge**：
-显示在 PersonaBot 名称旁的零个或多个岗位或职位标签。Role badge 只描述身份，不授予权限，也不用于识别 PersonaBot。
-_避免使用_：Bot tag、permission role、category
+**Bot Tag**：
+显示在 PersonaBot 名称旁的零个或多个标签，例如岗位或专长。Bot Tag 只做描述，不授予权限，也不用于识别 PersonaBot；分享 PersonaBot 时会随之带走。
+_避免使用_：role badge（历史用词）、裸用 tag、职位、permission role、category
 
-**Bot description**：
-由 Human 可选填写的简短自我介绍，用来说明 PersonaBot 是谁、负责什么或擅长什么。
-_避免使用_：Persona、role badge、system prompt
+**Bot Bio**：
+由 Human 可选填写、最多 160 字的自我介绍，说明 PersonaBot 是谁、负责什么或擅长什么；分享 PersonaBot 时会随之带走。
+_避免使用_：Bot description（历史用词）、裸用 bio、Soul、Bot Tag、system prompt
 
-**Persona**：
-用于描述人物特征、表达风格或长期指令的约定式 Memory 内容；它在 Session 首次组装 system prompt 时被冻结为快照并随该 Session 保持。它不是特殊文件类型，也没有专属写保护；获得授权的 Agent 与 Human 都可以创建、修改、改名或删除它，但对它的修改只对新 Session 生效，不会改写正在运行的 Session。
-_避免使用_：system prompt、character sheet、profile
+**Profile Banner**：
+PersonaBot Profile 头部、位于 Avatar 后方的宽幅头图。它要么是以 scene 与 seed 的 recipe 保存的生成像素场景（PersonaBot 创建时按 Display name 播种），要么是 Human 上传的图片；分享时随 PersonaBot 带走。Group 没有 Profile Banner。
+_避免使用_：cover、header、background、wallpaper
+
+**Soul**：
+「Bot 灵魂」。PersonaBot 的人格、语气与长期守则，保存在 Memory Repository 根目录的 `SOUL.md`；它与 Core Memory 一起在 Session 首次组装 system prompt 时冻结为快照并注入。它没有写保护，获得授权的 Agent 与 Human 都可以修改；修改只在新 Session 或下一次 compaction 时生效，不会改写正在运行的 prompt 前缀。
+_避免使用_：Persona、PERSONA.md、system prompt、character sheet、profile
 
 **Bot state**：
 一个 PersonaBot 当前的呈现状态，由其拥有的 Orchestrator 与 Assignment Session activity 投影而来。Orchestrator 活跃时优先呈现，只有在等待 Assignment 时才呈现后者；多个 Assignment 的 tool kind 相同则使用对应效果，不同则回退到通用 `working`，而 waiting 与 blocked attention 使用独立 indicator，不成为可配置 priority。
@@ -52,11 +56,11 @@ _避免使用_：profile picture、skin
 
 **Avatar Family**：
 形象家族：一类 Avatar 外形，其中相互兼容的外形选项可由 Human 组合。各家族以自身视觉语言表达同一 Bot state；某个外形选项只有在明确兼容时才跨家族共享。
-_避免使用_：Persona、Bot type、mode、skin
+_避免使用_：Soul、Bot type、mode、skin
 
 **Avatar Appearance**：
-保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Persona 和当前 Bot state。
-_避免使用_：Persona、pose、mood、skin
+保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
+_避免使用_：Soul、pose、mood、skin
 
 **Model Preset**：
 模型预设。Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
@@ -64,7 +68,7 @@ _避免使用_：DSH Agent preset、SoulSnapshot
 
 **PersonaBot Model Plan**：
 PersonaBot 模型方案。某个 PersonaBot 持有的模型预设快照或 Human 自定义选择，决定其 Orchestrator 路由与后续 Assignment 的模型选择。它属于运行配置，不属于 Soul 或 Memory。
-_避免使用_：Persona、DSH Agent preset、model usage
+_避免使用_：Soul、DSH Agent preset、model usage
 
 ### 支撑与执行
 
@@ -252,6 +256,14 @@ _避免使用_：knowledge base、vector store、RAG、database、context
 PersonaBot 拥有的普通 Git 仓库，在创建 PersonaBot 时自动生成，并作为其 Orchestrator Session 的 working directory。分支、合并与文件历史由 Git 管理；archive、export、restore 和 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
+**Managed Git**：
+「托管 Git」。Host 没有可用的系统 Git 时，BotHarness 应 Human 的请求装进 Profile 的便携 Git；此后 Host 的所有 Memory Repository 操作都用它，并让 Session 也能使用它。
+_避免使用_：bundled Git、内置 Git、嵌入式 Git
+
+**Core Memory**：
+「Bot 核心记忆」。PersonaBot 常驻的记忆，保存在 Memory Repository 根目录的 `MEMORY.md`：以一条一行的索引为主，告诉它自己记得什么，外加少量关键事实。它与 Soul 来自同一份冻结快照并注入每个 Session 的 system prompt，受 Human 为每个 PersonaBot 设置的字符上限约束；具体怎么组织，由 Human 与 PersonaBot 在沟通中沉淀。
+_避免使用_：memory tree、pinned memory、generated index、USER.md
+
 **Topic file**：
 Memory Repository 中专门记录某一主题（例如 customer、process 或 decision）的文件。这是一种组织约定，不限制仓库中的文件类型。
 _避免使用_：note、document、page、record
@@ -280,22 +292,18 @@ _避免使用_：accepted commit、auto-save、Git author、普通 Inbox 观察
 随 Source Event 接收、由 Host 管理的真实文件，其身份独立于当前字节内容和发送者最初上传的源文件。引用它的消息展示外部编辑后的当前内容；独立上传的文件彼此独立，只有 PersonaBot 显式保存在自己的 Memory 或 Workspace 中时才拥有单独副本。
 _避免使用_：upload、provider URL、per-Bot inbox copy、database blob
 
-### Soul（身份内容）与分享
-
-**Soul**：
-PersonaBot 可选择固化为 SoulSnapshot 的 Memory 内容；存在 Persona 内容时也包含在内。
-_避免使用_：character、profile、data
+### 分享
 
 **SoulSnapshot**：
-Soul 的不可变 content-addressed package：包含 `bot.md` manifest、setup instructions 与选定的 Memory 文件；它是 registry 存储、列出与导入的单元，不要求存在 Persona 文件。
+历史术语：由选定 Memory 文件（存在 Soul 时也包含在内）、`bot.md` manifest 与 setup instructions 组成的不可变 content-addressed package，原计划作为 registry 存储、列出与导入的单元。分享单元已由完整 Memory 仓库分享（ADR-0131）取代。
 _避免使用_：export、backup、bot zip、image
 
 **PersonaBot Export**：
-不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。默认仅包含 Soul；它绝不携带 credential 或 live authority。
+历史术语（ADR-0134 退役）：不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。单个 Bot 现在通过它的 Memory Git 仓库分享（ADR-0131），整份 Profile 通过 Profile Backup 迁移。
 _避免使用_：SoulSnapshot、database copy、live clone、registry version
 
 **Export Facet**：
-PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
+历史术语（随 PersonaBot Export 退役）：PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
 _避免使用_：arbitrary table dump、credential bundle、active permission
 
 **Messaging Archive**：
@@ -307,15 +315,19 @@ _避免使用_：Channel authority、database backup、live inbox
 _避免使用_：credential、Service Grant、automatic reconnect
 
 **Bot Marketplace**：
-harness 中打开、用于浏览、搜索和安装可分享 Bot 的 hosted catalog。第一阶段只列出 Indexed Repository；上传的 Bot 在后续阶段加入（ADR-0131）。
+harness 中打开、用于浏览、搜索和安装可分享 Bot 的 hosted catalog。只列出 Indexed Repository，没有账号，也没有上传的 Bot（ADR-0131、ADR-0135）。
 _避免使用_：store、hub、Soul registry
 
 **Indexed Repository**：
 带有 `botharness-bot` topic、被 Bot Marketplace 以引用方式列出并定期刷新的公开 GitHub 仓库。安装它即以其 Git URL 创建新的 PersonaBot；它不是 SoulSnapshot、Listing 或 Version。
 _避免使用_：submission、Listing、SoulSnapshot、mirror
 
+**Bot Zip**：
+单个 PersonaBot 的 Memory 文件打成的 `.zip`，附带 `.botharness/bot.json` 描述和头像，由 Human 导出后交给别人；导入时创建新的 PersonaBot。默认只含文件，只有整个 Bot 导出并勾选时才带 Git 历史。不含身份、Session、绑定或凭据（ADR-0135）。
+_避免使用_：PersonaBot Export、SoulSnapshot、backup
+
 **Soul registry**：
-存储、版本化并提供 SoulSnapshot 的 hosted service——即 marketplace backend，与 Host 的 PersonaBot registry 不同。
+历史术语（ADR-0019/0020）：原计划存储、版本化并提供 SoulSnapshot 的 hosted service，已由 Bot Marketplace（ADR-0131）取代。
 _避免使用_：hub、store、database
 
 **Listing**：
@@ -335,11 +347,11 @@ _避免使用_：username、account id
 _避免使用_：collection、bundle、pack、team
 
 **Export**：
-生成 PersonaBot Export。默认仅在其 SoulSnapshot 中选择 Persona 加上指定 Memory；operational Export Facet 必须显式选择。
+历史术语（随 PersonaBot Export 退役）：生成 PersonaBot Export。整份 Profile 用 Profile Backup，单个 Bot 用 Memory Git 仓库。
 _避免使用_：database dump、live clone、publish
 
 **Import**：
-从 SoulSnapshot 或 PersonaBot Export 创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
+从分享的 Memory Git 仓库（Git URL 或 Bot Marketplace 安装）创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
 _避免使用_：install、clone、pull、restore
 
 **Publish**：
@@ -421,8 +433,28 @@ Channel 不属于任何 Channel section 时的 membership state。未分组 Chan
 _避免使用_：default folder、inbox、fixed bottom bucket
 
 **Bridge**：
-从 external source 到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。
-_避免使用_：integration、connector、adapter
+从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
+_避免使用_：integration、adapter、裸用 connector
+
+**Conversation ingest**：
+外部会话接入。由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 PersonaBot 默认只获得「仅作上下文」的 Admission；接入的唤醒设置可改为攒够条数后唤醒或逐条唤醒，成员在该 Channel 中的唤醒策略优先。它列在「外部连接器」中，显示为外部会话；它不给任何 PersonaBot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
+_避免使用_：sync、mirror、用 Bridge 指代这条记录
+
+**App**：
+UI 上叫「应用」：一个已认证 Provider account 的名称，例如 Lark 应用、Slack 应用、Discord bot 或已配对的微信 Bot。一个应用最多绑定到一个 PersonaBot；一个 PersonaBot 可以绑定多个应用，包括同一平台的多个应用。「设置 → IM 应用」列出每个应用及使用它的 Bot。
+_避免使用_：UI 文案里的「IM账号」、connector、integration
+
+**Default traffic**：
+启用的外部身份 Binding 无需逐会话同意即可接收的消息：发给应用的私聊，以及合格 Provider 报告为 @ 该应用的群消息。谁能触达应用由平台决定；群里的普通文字、跟进的话题和 Channel 同步仍需显式开启。
+_避免使用_：全部消息、已授权流量、开放收件
+
+**Conversation entry**：
+一个 Binding 的单个会话流量所挂靠的锚点，存为 Messaging Grant。_隐式_ 条目在第一条被接收的默认流量消息或第一次主动发送时记录；_显式_ 条目来自保存的发送目标。_等待处理_ 的条目等 Human 决定（先问我，或达到上限），只保留元数据。_已屏蔽_ 的会话有一个按 Bot、应用指纹、会话类型和 ID 记录的持久屏蔽，直到 **再次允许** 前都会被拒绝。静音的条目照常接收，但不会唤醒 Bot。
+_避免使用_：授权（指隐式条目时）、投递目标、订阅
+
+**New-conversation mode**：
+Binding 对尚无条目的会话的处理方式：`auto`（自动接收，默认）记录隐式条目并接收消息；`ask`（先问我）把它放到等待处理。自动创建有上限：每个 Binding 每小时 20 个新条目、同时 500 个活跃条目。
+_避免使用_：白名单、审批模式、自动回复
 
 **Bot Inbox**：
 PersonaBot 层级的 view，包含被 admit 供其 attention 的 Source Event，无论 event 是否属于某个 Channel。它不是第二个 content store：读取是一项显式行为，也允许 ignore。
@@ -492,9 +524,13 @@ _避免使用_：message、retry attempt、delivery notification
 一种需要 Human resolution 的 Outbox state：provider request 已经开始，但在完成所有可用 reconciliation 后仍无法证明成功或失败；PersonaBot 不能自行安全 retry，也不能宣称成功。
 _避免使用_：failure、timeout、retryable error、success
 
+**Bot Schedule**：
+「定时任务」。由 PersonaBot 拥有的持久 Host rule，在计划时刻把一条 `schedule` Source Event admit 进它的 Bot Inbox。Human 与 PersonaBot 都可以管理；Human 锁定后 PersonaBot 只能查看。它挂在 PersonaBot 上，绝不绑定某个 Session。
+_避免使用_：cron job、DSH Schedule、timer、heartbeat、scheduled Assignment
+
 **Wake Policy**：
-确定性的 Host policy，决定已 admit 的 event 是立即 wake PersonaBot、并入 digest，还是不触发 automatic wake。
-_避免使用_：model decision、delivery mechanism、scheduler
+确定性的 Host policy，决定已 admit 的 event 是立即 wake PersonaBot、并入 digest，还是不触发 automatic wake。UI 上称为「唤醒策略 / Wake policy」；它从不通知 Human。
+_避免使用_：model decision、delivery mechanism、scheduler、提醒策略、attention policy、notification
 
 **Delivery Policy**：
 Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射为安全 step 处的 steer、下一次 harvest，或不唤醒。
@@ -526,7 +562,7 @@ _避免使用_：subscription、notification policy、caller claim
 
 **Channel reference**：
 Human 选中的现有 Channel 指针（Channel 引用），以稳定的 Channel ID 标识。它帮助被告知的 PersonaBot 找到 Channel，但不授予成员资格，也不披露对话内容或向成员发消息。
-_避免_：Channel 邀请、成员资格、手打的 #名称
+_避免使用_：Channel 邀请、成员资格、手打的 #名称
 
 **Group invitation**：
 Group 的 Bot 创建者向活跃的非成员 PersonaBot 发出的待处理入群邀请。只有受邀 Bot 接受后才成为 Channel membership；Bot 模式的默认自动接受可代为接受。接受前邀请不授予任何 read 或 send 权限。
@@ -534,7 +570,7 @@ _避免使用_：join request、成员授予、Channel 引用
 
 **Group join request**：
 尚未入群的 PersonaBot 请求加入被引用的 Group Channel 的待处理事实（入群申请）。只有获得授权的 Human 或该群的 Bot 创建者接受后，它才成为 Channel 成员。
-_避免_：邀请、自动入群、Channel 提及
+_避免使用_：邀请、自动入群、Channel 提及
 
 **Bot Channel subscription**：
 PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`all`（每条普通消息都成为 attention）、`digest`（普通消息按 count 与 interval 进入唤醒汇总；默认）、`mentions`（只有直接 @ 能到达 Bot）、或 `silent`（普通消息记录为 attention，但永不唤醒）。直接 @ 与 DM 永远可达；Human 可以覆盖该 preference，它独立于 membership 与 send authority。
@@ -665,7 +701,7 @@ DSH 原生 client 的左侧栏；在 Bot mode 中呈现 Roster。采用此名称
 _避免使用_：left sidebar、main sidebar、navigation
 
 **Channel sidebar**：
-Bot mode panel 中由当前所选 Channel 决定 scope 的右侧区域：group Channel 显示 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 Assignment、Memory、Bot Inbox 等 entry。它不是 DSH 原生、由 Session 决定 scope 的右侧栏。
+Bot mode panel 中由当前所选 Channel 决定 scope 的右侧区域：group Channel 显示 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 Assignment、Memory、Bot Inbox 等 entry，以及它的运行配置：Model Plan、Wake Policy、外部身份、外部连接器与审批。它不是 DSH 原生、由 Session 决定 scope 的右侧栏。
 _避免使用_：PersonaBot navigation、right panel、session panel、inspector、workbench
 
 **Channel body**：
@@ -677,12 +713,20 @@ Channel sidebar 中一个已注册、可折叠的 item，具有稳定 id、label
 _避免使用_：widget、card、tab、destination、Channel section
 
 **PersonaBot Profile**：
-单个 PersonaBot 的身份与活动 surface：Display name 与 Avatar、由其 owned Session 派生出的 token 用量与活动图表，以及 Memory commit 活跃度。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
-_避免使用_：account、dashboard、bot page、裸用 profile
+单个 PersonaBot 可分享的身份与只读活动 surface：身份会在分享 PersonaBot 时随之带走（Display name、Avatar、Profile Banner、Bot Tag、Bot Bio）；活动包括由其 owned Session 派生的 token 用量、来自 Bot Inbox Admission 的事件活跃度，以及 Memory commit 活跃度。Model Plan、Wake Policy、外部身份、Bridge、审批等运行配置不属于它，而在 Channel sidebar 中。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
+_避免使用_：account、dashboard、bot page、裸用 profile、settings page
 
 **Group Profile**：
-单个 Group Channel 基于已提交 Channel 消息的活动 surface，按天和作者展示消息数量，并区分 Human 与 PersonaBot 作者。群聊 header 打开弹层及 Channel body 详情；DM Channel 只有对应的 PersonaBot Profile。
+单个 Group Channel 的名称、头像，以及基于已提交 Channel 消息的活动 surface，按天和作者展示消息数量，并区分 Human 与 PersonaBot 作者；成员 Wake Policy、Bridge 等群配置在 Channel sidebar 中。群聊 header 打开弹层及 Channel body 详情；DM Channel 只有对应的 PersonaBot Profile。
 _避免使用_：PersonaBot token 用量、群管理侧栏、DM Channel Profile
+
+**Approver**：
+与某个 PersonaBot 完成配对、并由 Web Human 授予审批能力的外部 IM 用户。审批请求发往 Approval destination；任一 Approver 最先被接受的决定生效。看到请求、身处请求所在的群或同名都不构成权限，其他人的决定会被拒绝，不会到达 PersonaBot。
+_避免使用_：admin、moderator、group member、recipient
+
+**Approval destination**：
+从 PersonaBot 的外部连接器中选出的 IM 会话（私聊或群聊），Host 会把每个已提交的审批请求发到这里。收到请求不等于有权决定。
+_避免使用_：approver、notification channel、webhook
 
 **Profile popover**：
 PersonaBot 或 Group Profile 的紧凑形态，锚定在 Channel body header 的头像旁。它只显示 Human 为相应 scope 固定的 Profile Card，并提供进入 Profile view 的入口。
@@ -711,3 +755,21 @@ _避免使用_：whitelist、permissions、ACL
 **Credential reference**：
 指向由 DSH credentials service 保存的 Feishu App Secret 的引用；secret 本身永远不会进入 config、repo 或 log。
 _避免使用_：secret、API key、token
+
+### 遥测与推广活动
+
+**Telemetry**：
+Host 发送到项目分析服务的匿名产品使用事件，默认开启，可用插件配置 `telemetry: false`、`DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 关闭。从不包含名称、Memory、对话内容、路径或 IP 地址（ADR-0132）。
+_避免使用_：追踪、分析 SDK、崩溃上报器
+
+**Install ID**：
+插件安装首次启动时随机生成、附在其 Telemetry 上的标识。它标识一次安装而不是某个 Human，也从不与官网访客关联。
+_避免使用_：用户 ID、设备 ID、机器 ID
+
+**Campaign**：
+一次宣发（例如一次发布），把为它创建的 Campaign Link 归为一组；其 slug 即 `utm_campaign`。
+_避免使用_：广告、促销
+
+**Campaign Link**：
+`go.botharness.ai` 上对应 Campaign 中某一条帖子或视频的短链，带有平台和媒体类型；访问时重定向到官网并附上 UTM 参数，同时计入点击。
+_避免使用_：短网址、UTM 链接、邀请链接

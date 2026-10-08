@@ -1013,6 +1013,9 @@ it('enriches display names without changing canonical identity and preserves har
         .list({ botSlug: 'ada' })
         .items.find((item) => item.sourceKind === 'bridge-message')!;
       expect(run.inbox).toContain(`Message om-1 [Source Event ${source.id}]`);
+      expect(run.inbox).toContain('"@ou-bot Please reply in this topic"');
+      expect(run.inbox).toContain('{"role":"mentioned","id":"ou-bot"}');
+      expect(run.inbox).not.toContain('@_user_1');
       const page = await run.externalMessaging!.context(source.id, { scope: 'thread' });
       expect(page.messages[0]).toMatchObject({
         sourceEventId: source.id,
@@ -1081,6 +1084,7 @@ it('places one canonical external Source Event in a shared Channel, wakes only t
             messageId: 'om-1',
             sourceEventId: sourceId,
             senderId: 'ou-human',
+            senderName: 'Human sender',
             threadId: 'omt-topic',
           },
         });
@@ -1141,6 +1145,11 @@ it('places one canonical external Source Event in a shared Channel, wakes only t
   await fx.receive();
   await fx.idle();
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(fx.core.channels.readMessages(channelId)[0]?.bridgeOrigin).toMatchObject({
+    senderName: 'Human sender',
+    senderId: 'ou-human',
+    sourceEventId: sourceId!,
+  });
   expect(fx.runs.map((run) => run.bot.slug)).toEqual(['ada', 'bea']);
   expect(fx.replies).toHaveLength(1);
   expect(fx.query("SELECT * FROM inbox_admissions WHERE reason = 'group-mention'")).toHaveLength(1);
@@ -1885,7 +1894,7 @@ it('Channel Bridge pause survives reconnect, retains accepted reply authority an
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(2);
   expect(fx.runs).toHaveLength(2);
 });
-it('deleting a Channel Bridge retains history and Bot identity, removes intake without Inbox fallback and fences old source replies', async () => {
+it('deleting a Channel Bridge retains history and Bot identity, removes Channel intake, leaves later mentions to the bound app default traffic and fences old source replies', async () => {
   const fx = await fixture();
   const channelId = await addManagedBridge(fx);
   await fx.receive(managedEvent(fx));
@@ -1912,8 +1921,28 @@ it('deleting a Channel Bridge retains history and Bot identity, removes intake w
   expect(snapshot.grants[0]).not.toHaveProperty('receiveTargetChannelId');
   expect((await fx.core.externalMessaging.channelBridges(channelId)).sources).toHaveLength(1);
   await fx.restart();
-  expect(fx.subscriptions).toBe(0);
+  expect(fx.subscriptions).toBe(1);
+  await expect(
+    fx.receive(
+      event({
+        messageId: 'after-route-removal',
+        reply: { ...event().reply, messageId: 'after-route-removal' },
+      }),
+    ),
+  ).resolves.toEqual({ accepted: true });
+  expect(
+    attachOperationalModule(fx.core.operationalDatabase, 'messaging').read((db) =>
+      db
+        .prepare("SELECT count(*) AS n FROM source_events WHERE source_kind = 'bridge-message'")
+        .get(),
+    ),
+  ).toMatchObject({ n: 2 });
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(
+    fx.query(
+      "SELECT a.reason FROM inbox_admissions a JOIN source_events e USING(source_event_id) WHERE json_extract(e.payload_json, '$.external.event.messageId') = 'after-route-removal'",
+    ),
+  ).toEqual([{ reason: 'group-mention' }]);
 });
 it.each(['pause', 'delete'] as const)(
   'refuses delayed messages sent during %s after reactivation and restart, while accepting fresh messages',
@@ -2488,7 +2517,12 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
           id: sourceId,
           body: 'Share this Inbox fact',
           author: { kind: 'bridged', source: 'Alex' },
-          bridgeOrigin: { sourceEventId: sourceId, senderId: 'ou-human', messageId: 'om-1' },
+          bridgeOrigin: {
+            sourceEventId: sourceId,
+            senderId: 'ou-human',
+            messageId: 'om-1',
+            mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
+          },
         });
         expect(run.externalMessaging!.read(sourceId).event.actor.name).toBe('Alex');
         await expect(async () =>
@@ -2503,6 +2537,7 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
   await fx.receive(
     event({
       text: 'Share this Inbox fact',
+      mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
       actor: { kind: 'user', id: 'ou-human', name: 'Alex' },
       at: new Date().toISOString(),
     }),
@@ -2568,6 +2603,10 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
   expect(fx.core.externalMessaging.inbound.share('ada', sourceId, channelId).alreadyShared).toBe(
     true,
   );
+  expect(
+    fx.core.channels.readMessages(channelId).find((message) => message.id === sourceId)
+      ?.bridgeOrigin?.mentions,
+  ).toEqual([{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }]);
   expect(
     fx.core.channels.readMessages(channelId).filter((message) => message.id === sourceId),
   ).toHaveLength(1);
@@ -3816,3 +3855,51 @@ it.each(['receiving', 'unavailable'] as const)(
     }
   },
 );
+
+it('refuses an edited source on a continuation with source-conflict and preserves retained evidence', async () => {
+  const older = contextEvent('om-older', 'original retained body', true);
+  const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+    async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events:
+        query.cursor === undefined
+          ? [contextEvent('om-newer', 'first page')]
+          : [
+              contextEvent('om-new-on-refused-page', 'must roll back'),
+              { ...older, text: 'edited native body' },
+            ],
+      omitted: 0,
+      hasMore: query.cursor === undefined,
+      ...(query.cursor === undefined ? { nextCursor: 'page-2' } : {}),
+      coverage: 'provider-visible-human-text',
+    }),
+  );
+  const fx = await fixture({ history });
+  await fx.enable();
+  await fx.receive(older);
+  await fx.idle();
+  await fx.receive();
+  await fx.idle();
+  const anchor = fx.core.attention
+    .list({ botSlug: 'ada' })
+    .items.find((item) => item.summary === event().text)!.id;
+  const first = await fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+    scope: 'group',
+  });
+  await expect(
+    fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+      scope: 'group',
+      cursor: first.nextCursor!,
+    }),
+  ).rejects.toThrow('source-conflict');
+  expect(
+    fx.query("SELECT body FROM source_events WHERE body = 'original retained body'"),
+  ).toHaveLength(1);
+  expect(fx.query("SELECT body FROM source_events WHERE body = 'must roll back'")).toHaveLength(0);
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(2);
+  expect(fx.core.externalMessaging.inbound.read('ada', anchor).contextReads?.at(-1)).toMatchObject({
+    outcome: 'refused',
+    reason: 'source-conflict',
+  });
+});

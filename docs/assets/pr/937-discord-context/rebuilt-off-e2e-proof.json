@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-06T06:20:11.621315+00:00",
+  "profile": "fresh rebuilt QA authority",
+  "providerCommit": "1541d2972c72fcdc09f1fbcb26eedc48c15cf909",
+  "botharnessCommit": "634bdb9809a89658ca23fbc6ce4fd3533917cee1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "messageContent": false,
+  "nativeAppFlags": 0,
+  "sourceEventId": "im-4a471cc84cafd83936e5f4ac3b572fba24504198d3ace92d0778d275af492746",
+  "context": {
+    "callId": "call_00_Nd4a9hk2Ljt7c9cWcO7h7617",
+    "scope": "thread",
+    "isError": true,
+    "actualResult": "Error: history-permission-denied"
+  },
+  "reply": {
+    "callId": "call_00_yOj354e7Cs5CMcZVIwta0632",
+    "state": "provider-accepted",
+    "messageId": "1556913479259004980",
+    "referencedMessageId": "1556913434828996670",
+    "nativeThreadId": "1556622420222283798",
+    "botAuthorId": "1556613973846007899",
+    "text": "DISCORD-937-REBUILT-OFF:history-permission-denied"
+  },
+  "canonicalCountDelta": {
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "source_events": 1,
+    "inbox_admissions": 1,
+    "messaging_outbox": 1,
+    "channel_placements": 0
+  },
+  "unchangedTables": ["messaging_bindings", "messaging_grants", "channel_placements"],
+  "historyRowsRetained": 0,
+  "screenshots": ["rebuilt-off-thread-native.jpg", "rebuilt-message-content-off-native.jpg"],
+  "remainingAtCheckpoint": [
+    "successful continuation pagination",
+    "native edit source-conflict with whole-page rollback"
+  ]
+}

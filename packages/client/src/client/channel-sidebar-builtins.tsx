@@ -1,5 +1,5 @@
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -14,6 +14,12 @@ import {
 
 import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
+import { ModelPresetProfile } from './model-preset-profile.js';
+import { modelPlanOf, rememberModelPlan, subscribeModelPlans } from './model-plan-store.js';
+import type { ModelPlanStateView } from './bridge.js';
+import { useMountedResource } from './mounted-resource.js';
+import { WakePolicyBadge, WakePolicyEntry } from './wake-policy-entry.js';
+import { ExternalConnectorsEntry, ExternalIdentitiesEntry } from './external-entries.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
@@ -26,11 +32,34 @@ import { ExternalSourceContent } from './external-source-content.js';
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
+import { BotSchedulesEntry, BotSchedulesHeaderAction, ScheduleDialog } from './schedules-entry.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, ChannelSummary } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
+
+const INBOX_STATE_TONE = {
+  pending: 'warning',
+  processing: 'info',
+  observed: 'info',
+  deferred: 'neutral',
+  'needs-repair': 'danger',
+  handled: 'success',
+  ignored: 'quiet',
+} as const;
+
+function inboxIcon(item: BotAttentionItem): string {
+  if (item.sourceKind === 'schedule') return 'alarm-clock';
+  if (item.sourceKind === 'memory-change') return 'git-branch';
+  if (item.sourceKind === 'assignment-report' || item.assignmentSessionId !== undefined)
+    return 'list-checks';
+  if (item.externalOrigin !== undefined) return 'globe';
+  if (item.authorKind === 'human') return 'user';
+  if (item.authorKind === 'bot') return 'bot';
+  return 'inbox';
+}
 
 function GroupManagementEntry(props: ChannelSidebarEntryProps): ReactElement {
   const group = useClientState().conversation.channel;
@@ -234,13 +263,35 @@ function BotInboxItemRow({
   const [externalError, setExternalError] = useState(false);
   const [fileBusy, setFileBusy] = useState<string>();
   const [fileError, setFileError] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const fileRequest = useRef<AbortController>();
-  const download = async (attachmentId: string, name: string): Promise<void> => {
-    if (fileBusy !== undefined) return;
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [audioErrors, setAudioErrors] = useState<Record<string, boolean>>({});
+  const [audioPreviews, setAudioPreviews] = useState<Record<string, string>>({});
+  const [videoPreviews, setVideoPreviews] = useState<Record<string, string>>({});
+  const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const previewUrls = useRef(new Set<string>());
+  const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) return;
+    ++externalRequest.current;
+    fileRequest.current?.abort();
+    for (const url of previewUrls.current) URL.revokeObjectURL(url);
+    previewUrls.current.clear();
+  }, []);
+  const download = async (
+    attachmentId: string,
+    name: string,
+    preview: boolean | 'audio' | 'video' = false,
+  ): Promise<void> => {
+    if (fileRequest.current !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
     setFileBusy(attachmentId);
     setFileError(false);
+    if (preview === 'video') setVideoErrors((value) => ({ ...value, [attachmentId]: false }));
+    else if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: false }));
+    else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
     try {
       const response = await fetch(
         '/api/botharness/attachment?' +
@@ -248,6 +299,7 @@ function BotInboxItemRow({
             slug: item.botSlug,
             sourceEventId: item.id,
             attachmentId,
+            ...(preview === 'audio' ? { representation: 'playback' } : {}),
           }),
         {
           credentials: 'same-origin',
@@ -257,7 +309,22 @@ function BotInboxItemRow({
       if (!response.ok) throw new Error('Download unavailable');
       const blob = await response.blob();
       controller.signal.throwIfAborted();
+      if (preview === 'video' && blob.type !== 'video/mp4') throw new Error('Unsupported video');
+      if (preview === 'audio' && blob.type !== 'audio/wav') throw new Error('Unsupported audio');
+      if (
+        preview === true &&
+        !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(blob.type)
+      )
+        throw new Error('Unsupported image');
       const url = URL.createObjectURL(blob);
+      if (preview) {
+        previewUrls.current.add(url);
+        if (preview === 'video') setVideoPreviews((value) => ({ ...value, [attachmentId]: url }));
+        else if (preview === 'audio')
+          setAudioPreviews((value) => ({ ...value, [attachmentId]: url }));
+        else setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
+        return;
+      }
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = name;
@@ -266,7 +333,13 @@ function BotInboxItemRow({
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      if (!controller.signal.aborted) setFileError(true);
+      if (!controller.signal.aborted) {
+        if (preview === 'video') setVideoErrors((value) => ({ ...value, [attachmentId]: true }));
+        else if (preview === 'audio')
+          setAudioErrors((value) => ({ ...value, [attachmentId]: true }));
+        else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
+        else setFileError(true);
+      }
     } finally {
       if (fileRequest.current === controller) {
         fileRequest.current = undefined;
@@ -280,7 +353,9 @@ function BotInboxItemRow({
         .replace(/^Memory changed since your last turn:\s*/u, '')
         .replace(/^Working Memory changes since your last turn:\s*/u, '')
         .replace(/^\?\? /u, '')
-    : item.summary;
+    : item.externalOrigin?.voice?.transcript === 'unavailable'
+      ? t('im.voiceTranscriptUnavailableHint')
+      : item.summary;
   const author =
     item.externalOrigin !== undefined
       ? `${externalPlatformLabel(item.externalOrigin.platform, t)} · ${externalSenderLabel(item.externalOrigin, t)}`
@@ -288,24 +363,48 @@ function BotInboxItemRow({
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'
           ? t('inbox.assignment')
-          : item.authorKind === 'human'
-            ? t('main.author.human')
-            : item.authorKind === 'bot'
-              ? (bots.find((bot) => bot.slug === item.authorBotSlug)?.displayName ??
-                item.authorBotSlug ??
-                t('inbox.bot'))
-              : t('inbox.system');
+          : item.sourceKind === 'schedule'
+            ? t('inbox.schedule')
+            : item.authorKind === 'human'
+              ? t('main.author.human')
+              : item.authorKind === 'bot'
+                ? (bots.find((bot) => bot.slug === item.authorBotSlug)?.displayName ??
+                  item.authorBotSlug ??
+                  t('inbox.bot'))
+                : t('inbox.system');
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
+    if (item.scheduleId !== undefined) {
+      setScheduleOpen(true);
+      return;
+    }
     if (item.externalOrigin !== undefined) {
       const request = ++externalRequest.current;
+      fileRequest.current?.abort();
+      fileRequest.current = undefined;
+      setFileBusy(undefined);
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
+      setImagePreviews({});
+      setAudioPreviews({});
+      setAudioErrors({});
+      setVideoPreviews({});
+      setVideoErrors({});
+      setImageErrors({});
       setExternal(undefined);
       setExternalOpen(true);
       setExternalError(false);
       setFileError(false);
       try {
         const source = await actions.messagingSource(item.botSlug, item.id);
-        if (request === externalRequest.current) setExternal(source);
+        if (request !== externalRequest.current) return;
+        setExternal(source);
+        for (const file of source.event.attachments ?? []) {
+          if (request !== externalRequest.current) return;
+          if (file.mediaType?.startsWith('image/')) await download(file.id, file.name, true);
+          else if (source.event.video && file.mediaType?.startsWith('video/'))
+            await download(file.id, file.name, 'video');
+        }
       } catch {
         if (request === externalRequest.current) setExternalError(true);
       }
@@ -319,96 +418,232 @@ function BotInboxItemRow({
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
-  const content = (
-    <>
-      <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
-      <span className="bh-inbox-item-meta">
-        <span className="bh-inbox-item-author" title={author}>
-          {author}
-        </span>
-        {item.assignmentReportState === undefined ? null : (
-          <span>{t(`inbox.report.${item.assignmentReportState}`)}</span>
-        )}
-      </span>
-      {item.externalOrigin === undefined ? null : (
-        <span className="bh-inbox-item-meta bh-inbox-item-origin">
-          {item.externalOrigin.accountName} · {item.externalOrigin.conversationName}
-        </span>
-      )}
-      <span className="bh-inbox-item-footer">
-        <span className="bh-inbox-item-state" data-state={item.state}>
-          {t(`inbox.state.${item.state}`)}
-        </span>
-        <span className="bh-inbox-item-time">
-          {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
-        </span>
-      </span>
-      {!memoryChange && !item.sourceAvailable ? (
-        <span className="bh-inbox-item-meta">{t('inbox.sourceUnavailable')}</span>
-      ) : null}
-    </>
+  const imageAttachments =
+    external?.event.attachments?.filter((file) => file.mediaType?.startsWith('image/')) ?? [];
+  const videoAttachments = external?.event.video
+    ? (external.event.attachments?.filter((file) => file.mediaType?.startsWith('video/')) ?? [])
+    : [];
+  const unavailable = !memoryChange && !item.sourceAvailable;
+  const row = (
+    <SidebarCardRow
+      icon={inboxIcon(item)}
+      iconLabel={author}
+      title={summary || t('inbox.system')}
+      titleClassName="bh-inbox-item-summary"
+      hint={summary}
+      mainClassName={memoryChange ? 'bh-inbox-item bh-inbox-item-info' : 'bh-inbox-item'}
+      state={item.state}
+      muted={unavailable}
+      disabled={!item.sourceAvailable}
+      dialog={item.scheduleId !== undefined || item.externalOrigin !== undefined}
+      {...(memoryChange ? {} : { onClick: () => void open() })}
+      chips={
+        <>
+          {item.externalOrigin?.voice ? (
+            <Tag tone={item.externalOrigin.voice.transcript === 'platform' ? 'info' : 'warning'}>
+              {t(
+                item.externalOrigin.voice.transcript === 'platform'
+                  ? 'im.voiceTranscriptPlatform'
+                  : 'im.voiceTranscriptUnavailable',
+              )}
+            </Tag>
+          ) : null}
+          <Tag tone={INBOX_STATE_TONE[item.state]}>{t(`inbox.state.${item.state}`)}</Tag>
+          {item.assignmentReportState === undefined ? null : (
+            <Tag tone="outline">{t(`inbox.report.${item.assignmentReportState}`)}</Tag>
+          )}
+        </>
+      }
+      meta={
+        <>
+          <span className="bh-inbox-item-author" title={author}>
+            {author}
+          </span>
+          {item.externalOrigin === undefined ? null : (
+            <span className="bh-inbox-item-origin">
+              {item.externalOrigin.accountName} · {item.externalOrigin.conversationName}
+            </span>
+          )}
+          <span className="bh-inbox-item-time">
+            {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
+          </span>
+          {unavailable ? <span>{t('inbox.sourceUnavailable')}</span> : null}
+        </>
+      }
+    />
   );
-  if (memoryChange) return <div className="bh-inbox-item bh-inbox-item-info">{content}</div>;
   return (
     <>
-      <button
-        type="button"
-        className="bh-inbox-item"
-        data-state={item.state}
-        title={summary}
-        disabled={!item.sourceAvailable}
-        onClick={() => void open()}
-      >
-        {content}
-      </button>
+      {row}
+      {scheduleOpen && item.scheduleId !== undefined ? (
+        <ScheduleDialog
+          botSlug={item.botSlug}
+          scheduleId={item.scheduleId}
+          actions={actions}
+          t={t}
+          onClose={() => setScheduleOpen(false)}
+        />
+      ) : null}
       {externalOpen ? (
         <Modal
           open
           onClose={() => {
             ++externalRequest.current;
             fileRequest.current?.abort();
+            fileRequest.current = undefined;
+            setFileBusy(undefined);
+            for (const url of previewUrls.current) URL.revokeObjectURL(url);
+            previewUrls.current.clear();
+            setImagePreviews({});
+            setAudioPreviews({});
+            setAudioErrors({});
+            setVideoPreviews({});
+            setVideoErrors({});
+            setImageErrors({});
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
           className="bh-external-source-modal"
           closeLabel={t('common.close')}
         >
-          {externalError ? (
-            <p role="alert">{t('im.sourceError')}</p>
-          ) : external === undefined ? (
-            <p>{t('im.sourceLoading')}</p>
-          ) : (
-            <ExternalSourceContent source={external} t={t}>
-              {external.event.attachments?.map((file) => (
-                <div className="bh-external-source-file" key={file.id}>
-                  <span>
-                    {file.name}
-                    {file.sizeBytes !== undefined || file.mediaType ? (
-                      <small>
-                        {' '}
-                        ·{' '}
-                        {[
-                          file.mediaType,
-                          file.sizeBytes === undefined
-                            ? undefined
-                            : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
+          <div ref={previewLifecycle}>
+            {externalError ? (
+              <p role="alert">{t('im.sourceError')}</p>
+            ) : external === undefined ? (
+              <p>{t('im.sourceLoading')}</p>
+            ) : (
+              <ExternalSourceContent
+                source={external}
+                t={t}
+                messageMedia={
+                  imageAttachments.length || videoAttachments.length ? (
+                    <>
+                      {imageAttachments.map((file) => (
+                        <div className="bh-external-source-attachment" key={file.id}>
+                          {imagePreviews[file.id] ? (
+                            <img
+                              className="bh-external-source-image"
+                              src={imagePreviews[file.id]}
+                              alt={file.name}
+                            />
+                          ) : imageErrors[file.id] ? (
+                            <>
+                              <p role="alert">{t('im.fileError')}</p>
+                              <Button
+                                disabled={fileBusy !== undefined}
+                                onClick={() => void download(file.id, file.name, true)}
+                              >
+                                {t('im.imageRetry')}
+                              </Button>
+                            </>
+                          ) : (
+                            <span role="status">{t('im.fileDownloading')}</span>
+                          )}
+                        </div>
+                      ))}
+                      {videoAttachments.map((file) => (
+                        <div className="bh-external-source-video" key={file.id}>
+                          {videoPreviews[file.id] ? (
+                            <video
+                              controls
+                              preload="metadata"
+                              playsInline
+                              src={videoPreviews[file.id]}
+                              aria-label={t('im.videoPlayer')}
+                              onError={() =>
+                                setVideoErrors((value) => ({ ...value, [file.id]: true }))
+                              }
+                            />
+                          ) : null}
+                          {videoErrors[file.id] ? (
+                            <Button
+                              variant="primary"
+                              disabled={fileBusy !== undefined}
+                              onClick={() => void download(file.id, file.name, 'video')}
+                            >
+                              {fileBusy === file.id ? t('im.videoLoading') : t('im.videoRetry')}
+                            </Button>
+                          ) : !videoPreviews[file.id] && !videoErrors[file.id] ? (
+                            <span role="status">{t('im.videoLoading')}</span>
+                          ) : null}
+                          {videoErrors[file.id] ? (
+                            <p role="alert">{t('im.videoUnavailable')}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </>
+                  ) : undefined
+                }
+              >
+                {external.event.attachments?.map((file) => (
+                  <div className="bh-external-source-attachment" key={file.id}>
+                    {external.event.voice && file.mediaType?.startsWith('audio/') ? (
+                      <div className="bh-external-source-audio">
+                        {audioPreviews[file.id] ? (
+                          <audio
+                            controls
+                            preload="metadata"
+                            src={audioPreviews[file.id]}
+                            aria-label={t('im.voiceAudioPlayer')}
+                            onError={() =>
+                              setAudioErrors((value) => ({ ...value, [file.id]: true }))
+                            }
+                          />
+                        ) : null}
+                        {!audioPreviews[file.id] || audioErrors[file.id] ? (
+                          <Button
+                            variant="primary"
+                            disabled={fileBusy !== undefined}
+                            onClick={() => void download(file.id, 'voice.wav', 'audio')}
+                          >
+                            {fileBusy === file.id
+                              ? t('im.voiceAudioPreparing')
+                              : audioPreviews[file.id]
+                                ? t('im.voiceAudioRetry')
+                                : t('im.voiceAudioPrepare')}
+                          </Button>
+                        ) : null}
+                        <p>{t('im.voiceAudioHint')}</p>
+                        {audioErrors[file.id] ? (
+                          <p role="alert">{t('im.voiceAudioUnavailable')}</p>
+                        ) : null}
+                      </div>
                     ) : null}
-                  </span>
-                  <Button
-                    disabled={fileBusy !== undefined}
-                    onClick={() => void download(file.id, file.name)}
-                  >
-                    {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
-                  </Button>
-                </div>
-              ))}
-              {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
-            </ExternalSourceContent>
-          )}
+                    <div className="bh-external-source-file">
+                      <span>
+                        {file.name}
+                        {file.sizeBytes !== undefined || file.mediaType ? (
+                          <small>
+                            {' '}
+                            ·{' '}
+                            {[
+                              file.mediaType,
+                              file.sizeBytes === undefined
+                                ? undefined
+                                : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                        ) : null}
+                      </span>
+                      <Button
+                        disabled={fileBusy !== undefined}
+                        onClick={() => void download(file.id, file.name)}
+                      >
+                        {fileBusy === file.id
+                          ? t('im.fileDownloading')
+                          : t(
+                              external.event.voice ? 'im.voiceDownloadOriginal' : 'im.fileDownload',
+                            )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
+              </ExternalSourceContent>
+            )}
+          </div>
         </Modal>
       ) : null}
     </>
@@ -453,18 +688,24 @@ function BotInboxGroup({
         </span>
         <Tag tone="neutral">{items.length}</Tag>
       </summary>
-      {active.map((item) => (
-        <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
-      ))}
+      {active.length === 0 ? null : (
+        <SidebarCardList label={name}>
+          {active.map((item) => (
+            <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+          ))}
+        </SidebarCardList>
+      )}
       {history.length > 0 ? (
         <details className="bh-inbox-history">
           <summary>
             <IconChevronDownOutlineRegular className="bh-inbox-group-chevron" size={14} />
             <span>{t('inbox.handledHistory', { count: history.length })}</span>
           </summary>
-          {history.map((item) => (
-            <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
-          ))}
+          <SidebarCardList label={t('inbox.handledHistory', { count: history.length })}>
+            {history.map((item) => (
+              <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+            ))}
+          </SidebarCardList>
         </details>
       ) : null}
     </details>
@@ -536,6 +777,44 @@ function BotInboxBadge(): ReactElement {
   );
 }
 
+function ModelEntry({ botSlug, actions, t }: ChannelSidebarEntryProps): ReactElement {
+  if (botSlug === undefined) return <></>;
+  return <ModelPresetProfile key={botSlug} slug={botSlug} actions={actions} t={t} />;
+}
+
+function ModelBadge({ botSlug, actions }: ChannelSidebarEntryProps): ReactElement {
+  const plan = useSyncExternalStore(
+    subscribeModelPlans,
+    () => modelPlanOf(botSlug),
+    () => modelPlanOf(botSlug),
+  );
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    if (botSlug === undefined || modelPlanOf(botSlug) !== undefined) return;
+    let active = true;
+    void actions.modelPlanState(botSlug).then(
+      (state: ModelPlanStateView | undefined) => {
+        if (active) rememberModelPlan(botSlug, state?.plan);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug]);
+  const route = plan?.orchestrator;
+  return (
+    <span ref={mount} className="bh-channel-sidebar-summary">
+      {route === undefined ? null : (
+        <Tag tone="neutral">
+          {route.reasoningEffort === undefined
+            ? route.model
+            : `${route.model} · ${route.reasoningEffort}`}
+        </Tag>
+      )}
+    </span>
+  );
+}
+
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
   prefs?: BotModePrefs,
@@ -599,12 +878,55 @@ export function createChannelSidebarBuiltins(
         state.botInbox.items.length > 0,
     },
     {
+      id: 'schedules',
+      icon: 'alarm-clock',
+      label: t('entry.schedules'),
+      order: 16,
+      scope: 'personabot',
+      component: BotSchedulesEntry,
+      headerAction: BotSchedulesHeaderAction,
+    },
+    {
       id: 'workspace-grants',
       icon: 'folder-key',
       label: t('entry.workspaceGrants'),
       order: 20,
       scope: 'personabot',
       component: WorkspaceGrantsWithPrefs,
+    },
+    {
+      id: 'model',
+      icon: 'cpu',
+      label: t('entry.model'),
+      order: 25,
+      scope: 'personabot',
+      component: ModelEntry,
+      badge: ModelBadge,
+    },
+    {
+      id: 'wake-policy',
+      icon: 'bell-ring',
+      label: t('entry.wakePolicy'),
+      order: 26,
+      scope: 'personabot',
+      component: WakePolicyEntry,
+      badge: WakePolicyBadge,
+    },
+    {
+      id: 'external-identities',
+      icon: 'id-card',
+      label: t('entry.externalIdentities'),
+      order: 27,
+      scope: 'personabot',
+      component: ExternalIdentitiesEntry,
+    },
+    {
+      id: 'external-connectors',
+      icon: 'plug',
+      label: t('entry.externalConnectors'),
+      order: 28,
+      scope: 'personabot',
+      component: ExternalConnectorsEntry,
     },
     {
       id: 'members',

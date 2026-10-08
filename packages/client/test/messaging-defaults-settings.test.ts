@@ -80,6 +80,7 @@ it('keeps a dirty draft at its captured revision, refuses a stale save, and refr
         input: {
           platform: 'feishu',
           expectedRevision: 1,
+          newConversations: 'auto',
           collection: 'all',
           wake: 'digest',
           count: 5,
@@ -101,109 +102,116 @@ it('keeps a dirty draft at its captured revision, refuses a stale save, and refr
   }
 });
 
-it('keeps platform drafts and live revisions separate while switching and saving Slack', async () => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  const base = {
-    collection: 'mentions' as const,
-    wake: 'digest' as const,
-    count: 5,
-    intervalSeconds: 30,
-    identityEnabled: true,
-    revision: 0,
-    changedAt: '',
-  };
-  const remote: Record<string, typeof base & { platform: string }> = {
-    feishu: { ...base, platform: 'feishu' },
-    slack: { ...base, platform: 'slack' },
-  };
-  let stream: EventTarget | undefined;
-  class Events extends EventTarget {
-    constructor() {
-      super();
-      stream = this;
+it.each(['slack', 'discord'] as const)(
+  'keeps platform drafts and live revisions separate while switching and saving %s',
+  async (targetPlatform) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const base = {
+      collection: 'mentions' as const,
+      wake: 'digest' as const,
+      count: 5,
+      intervalSeconds: 30,
+      identityEnabled: true,
+      revision: 0,
+      changedAt: '',
+    };
+    const remote: Record<string, typeof base & { platform: string }> = {
+      feishu: { ...base, platform: 'feishu' },
+      slack: { ...base, platform: 'slack' },
+      discord: { ...base, platform: 'discord' },
+    };
+    let stream: EventTarget | undefined;
+    class Events extends EventTarget {
+      constructor() {
+        super();
+        stream = this;
+      }
+      close() {}
     }
-    close() {}
-  }
-  vi.stubGlobal('EventSource', Events);
-  const saves: unknown[] = [];
-  const call: BridgeCall = async (method, payload) => {
-    if (method === 'messagingDefaults')
-      return { ok: true, value: remote[String(payload.platform ?? 'feishu')] };
-    if (method === 'messagingDefaultsSet') {
-      saves.push(payload);
-      const input = payload.input as Record<string, unknown>;
-      const platform = String(input.platform);
-      remote[platform] = {
-        ...remote[platform]!,
-        count: Number(input.count),
-        revision: remote[platform]!.revision + 1,
-      };
-      return { ok: true, value: remote[platform] };
-    }
-    throw new Error(method);
-  };
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () =>
-      root.render(createElement(MessagingDefaultsSettings, { call, t: zhTranslate })),
-    );
-    const platform = container.querySelector<HTMLSelectElement>(
-      'select[aria-label="默认设置的平台"]',
-    )!;
-    const lark = container.querySelector<HTMLElement>('[role=region][aria-label="Lark / 飞书"]')!;
-    const slack = container.querySelector<HTMLElement>('[role=region][aria-label="Slack"]')!;
-    const collection = lark.querySelector<HTMLSelectElement>('select')!;
-    await act(async () => {
-      collection.value = 'all';
-      collection.dispatchEvent(new Event('change', { bubbles: true }));
-      platform.value = 'slack';
-      platform.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(slack.hidden).toBe(false);
-    expect(lark.hidden).toBe(true);
-    remote.slack = { ...remote.slack!, count: 2, revision: 1 };
-    await act(async () => stream!.dispatchEvent(new Event('roster/changed')));
-    expect(slack.querySelector<HTMLInputElement>('input[type=number]')!.value).toBe('2');
-    expect(collection.value).toBe('all');
-    expect(lark.textContent).toContain('当前全局版本：0');
-    await act(async () => {
-      const input = slack.querySelector<HTMLInputElement>('input[type=number]')!;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '3');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await act(async () =>
-      [...slack.querySelectorAll('button')]
-        .find((b) => b.textContent === '保存平台默认设置')!
-        .click(),
-    );
-    expect(saves).toEqual([
-      {
-        input: {
-          platform: 'slack',
-          expectedRevision: 1,
-          collection: 'mentions',
-          wake: 'digest',
-          count: 3,
-          intervalSeconds: 30,
-          identityEnabled: true,
+    vi.stubGlobal('EventSource', Events);
+    const saves: unknown[] = [];
+    const call: BridgeCall = async (method, payload) => {
+      if (method === 'messagingDefaults')
+        return { ok: true, value: remote[String(payload.platform ?? 'feishu')] };
+      if (method === 'messagingDefaultsSet') {
+        saves.push(payload);
+        const input = payload.input as Record<string, unknown>;
+        const platform = String(input.platform);
+        remote[platform] = {
+          ...remote[platform]!,
+          count: Number(input.count),
+          revision: remote[platform]!.revision + 1,
+        };
+        return { ok: true, value: remote[platform] };
+      }
+      throw new Error(method);
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(createElement(MessagingDefaultsSettings, { call, t: zhTranslate })),
+      );
+      const platform = container.querySelector<HTMLSelectElement>(
+        'select[aria-label="默认设置的平台"]',
+      )!;
+      const lark = container.querySelector<HTMLElement>('[role=region][aria-label="Lark / 飞书"]')!;
+      const slack = container.querySelector<HTMLElement>(
+        `[role=region][aria-label="${targetPlatform === 'slack' ? 'Slack' : 'Discord'}"]`,
+      )!;
+      const collection = lark.querySelector<HTMLSelectElement>('select')!;
+      await act(async () => {
+        collection.value = 'all';
+        collection.dispatchEvent(new Event('change', { bubbles: true }));
+        platform.value = targetPlatform;
+        platform.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(slack.hidden).toBe(false);
+      expect(lark.hidden).toBe(true);
+      remote[targetPlatform] = { ...remote[targetPlatform]!, count: 2, revision: 1 };
+      await act(async () => stream!.dispatchEvent(new Event('roster/changed')));
+      expect(slack.querySelector<HTMLInputElement>('input[type=number]')!.value).toBe('2');
+      expect(collection.value).toBe('all');
+      expect(lark.textContent).toContain('当前全局版本：0');
+      await act(async () => {
+        const input = slack.querySelector<HTMLInputElement>('input[type=number]')!;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '3');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () =>
+        [...slack.querySelectorAll('button')]
+          .find((b) => b.textContent === '保存平台默认设置')!
+          .click(),
+      );
+      expect(saves).toEqual([
+        {
+          input: {
+            platform: targetPlatform,
+            expectedRevision: 1,
+            newConversations: 'auto',
+            collection: 'mentions',
+            wake: 'digest',
+            count: 3,
+            intervalSeconds: 30,
+            identityEnabled: true,
+          },
         },
-      },
-    ]);
-    expect(remote.feishu!.revision).toBe(0);
-    await act(async () => {
-      platform.value = 'feishu';
-      platform.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(collection.value).toBe('all');
-    expect(
-      [...lark.querySelectorAll('button')].find((b) => b.textContent === '保存平台默认设置')!
-        .disabled,
-    ).toBe(false);
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-    vi.unstubAllGlobals();
-  }
-});
+      ]);
+      expect(remote.feishu!.revision).toBe(0);
+      await act(async () => {
+        platform.value = 'feishu';
+        platform.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(collection.value).toBe('all');
+      expect(
+        [...lark.querySelectorAll('button')].find((b) => b.textContent === '保存平台默认设置')!
+          .disabled,
+      ).toBe(false);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      vi.unstubAllGlobals();
+    }
+  },
+);

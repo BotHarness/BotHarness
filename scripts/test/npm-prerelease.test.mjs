@@ -3,12 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  awaitPublished,
   checkPackage,
   existingArtifact,
   distTagFor,
   publicationOrder,
+  publicationWaves,
+  publishInWaves,
   releaseVersion,
   verifyRelease,
 } from '../npm-prerelease.mjs';
@@ -163,5 +166,53 @@ describe('reviewed npm prerelease', () => {
     expect(() =>
       existingArtifact(artifact, { ...artifact, dist: { integrity: 'different' } }),
     ).toThrow('different bytes');
+  });
+  it('waits for a slow registry readback before confirming publication', async () => {
+    const artifact = { name: 'deepseekbot', version: '1.0.0', integrity: 'sha512-test' };
+    const published = { ...artifact, dist: { integrity: artifact.integrity } };
+    const reads = [undefined, undefined, published];
+    const read = async () => reads.shift();
+    const sleep = async () => {};
+    await expect(awaitPublished(artifact, { read, sleep, attempts: 5 })).resolves.toBe(3);
+    await expect(
+      awaitPublished(artifact, { read: async () => undefined, sleep, attempts: 2 }),
+    ).resolves.toBe(0);
+    await expect(
+      awaitPublished(artifact, {
+        read: async () => ({ ...artifact, dist: { integrity: 'different' } }),
+        sleep,
+      }),
+    ).rejects.toThrow('different bytes');
+  });
+  it('publishes dependencies together and the product only after every dependency is confirmed', async () => {
+    const entry = (name) => ({ artifact: { name } });
+    const packages = publicationOrder.map(entry);
+    const waves = publicationWaves(packages);
+    expect(waves.map((wave) => wave.map(({ artifact }) => artifact.name))).toEqual([
+      publicationOrder.slice(0, -1),
+      ['deepseekbot'],
+    ]);
+    expect(publicationWaves([entry('deepseekbot')])).toHaveLength(1);
+    const events = [];
+    const pending = new Map();
+    const run = publishInWaves(waves, ({ artifact }) => {
+      events.push(`start ${artifact.name}`);
+      return new Promise((done) => pending.set(artifact.name, done));
+    });
+    await Promise.resolve();
+    expect(events).toEqual(publicationOrder.slice(0, -1).map((name) => `start ${name}`));
+    for (const name of publicationOrder.slice(0, -1)) pending.get(name)();
+    await new Promise((done) => setTimeout(done, 0));
+    expect(events.at(-1)).toBe('start deepseekbot');
+    pending.get('deepseekbot')();
+    await run;
+    const product = vi.fn();
+    await expect(
+      publishInWaves(waves, async ({ artifact }) => {
+        if (artifact.name === '@botharness/core') throw new Error('core refused');
+        if (artifact.name === 'deepseekbot') product();
+      }),
+    ).rejects.toThrow('core refused');
+    expect(product).not.toHaveBeenCalled();
   });
 });

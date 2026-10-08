@@ -168,6 +168,14 @@ export function createRealAttachments(root: string, maxBytes: number) {
     }
   };
   const real = {
+    acquired(uploadId: string): ChannelAttachmentRef | undefined {
+      const id = 'file:' + uploadId;
+      if (lstatSync(join(directory(id), 'record.json'), { throwIfNoEntry: false }) === undefined)
+        return;
+      const { fd, ref } = opened(id);
+      closeSync(fd);
+      return ref;
+    },
     acquire: acquired,
     target,
     current(id: string): ChannelAttachmentRef {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -161,6 +161,54 @@ export function existingArtifact(artifact, remote) {
   return true;
 }
 
+async function registryVersion(name, version) {
+  const response = await fetch(
+    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}?readback=${Date.now()}`,
+    { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(10_000) },
+  );
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`Registry read failed (${response.status}): ${name}`);
+  return response.json();
+}
+
+export async function awaitPublished(
+  artifact,
+  {
+    read = registryVersion,
+    attempts = 240,
+    delayMs = 10_000,
+    sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {},
+) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (existingArtifact(artifact, await read(artifact.name, artifact.version))) return attempt;
+    if (attempt < attempts) {
+      if (attempt % 6 === 1)
+        console.log(
+          `Waiting for the registry to show ${artifact.name}@${artifact.version} (${attempt}/${attempts})`,
+        );
+      await sleep(delayMs);
+    }
+  }
+  return 0;
+}
+
+export function publicationWaves(packages) {
+  const product = publicationOrder.at(-1);
+  return [
+    packages.filter(({ artifact }) => artifact.name !== product),
+    packages.filter(({ artifact }) => artifact.name === product),
+  ].filter((wave) => wave.length);
+}
+
+export async function publishInWaves(waves, publish) {
+  for (const wave of waves) {
+    const results = await Promise.allSettled(wave.map((entry) => publish(entry)));
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed) throw failed.reason;
+  }
+}
+
 async function registryPreflight(packages) {
   const internal = new Set(publicationOrder);
   const checked = new Set();
@@ -260,20 +308,43 @@ async function main() {
     if (/^npm_config_.*(auth|token|password)/i.test(key)) delete env[key];
   delete env.NPM_TOKEN;
   delete env.NODE_AUTH_TOKEN;
+  const token = process.env.NPM_TOKEN;
   if (mode === 'publish') {
-    if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
-    env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
+    if (token) env['npm_config_//registry.npmjs.org/:_authToken'] = token;
+    else if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
+      throw new Error('Publication needs npm trusted publishing (GitHub OIDC) or NPM_TOKEN');
   }
   const npm = (args) =>
-    execFileSync('npm', [...args, ...npmConfig], {
-      cwd: directory,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+    new Promise((done, fail) => {
+      const child = spawn('npm', [...args, ...npmConfig], {
+        cwd: directory,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let stdout = '';
+      let output = '';
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk;
+        output += chunk;
+      });
+      child.stderr.on('data', (chunk) => {
+        output += chunk;
+      });
+      child.on('error', fail);
+      child.on('close', (status) => {
+        output = output.trim();
+        if (output) console.log(output.split('\n').slice(-40).join('\n'));
+        if (status !== 0)
+          fail(Object.assign(new Error(`npm ${args[0]} failed`), { status: status ?? 1 }));
+        else done(stdout);
+      });
     });
-  for (const { artifact } of release.packages) {
-    if (mode === 'publish' && existing.has(artifact.name)) {
+  const started = Date.now();
+  const elapsed = () => `${Math.round((Date.now() - started) / 1000)}s`;
+  await publishInWaves(publicationWaves(release.packages), async ({ artifact }) => {
+    if (existing.has(artifact.name)) {
       console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);
-      continue;
+      return;
     }
     const publishArgs = [
       'publish',
@@ -285,23 +356,27 @@ async function main() {
       '--ignore-scripts',
     ];
     if (mode !== 'publish') publishArgs.push('--dry-run');
-    npm(publishArgs);
+    await npm(publishArgs);
+    console.log(`npm ${mode} returned at ${elapsed()}: ${artifact.name}@${artifact.version}`);
     registryMetadata.delete(artifact.name);
-    if (
-      mode === 'publish' &&
-      !existingArtifact(artifact, await registryPackage(artifact.name, artifact.version))
-    )
+    if (mode === 'publish' && !(await awaitPublished(artifact)))
       throw new Error(
         `Registry has not confirmed ${artifact.name}; stop and inspect before retrying`,
       );
     console.log(
-      `${mode === 'publish' ? 'Published and read back' : 'Dry run passed'}: ${artifact.name}@${artifact.version}`,
+      `${mode === 'publish' ? 'Published and read back' : 'Dry run passed'} at ${elapsed()}: ${artifact.name}@${artifact.version}`,
     );
-  }
+  });
   if (mode === 'publish' && release.plan.distTag === 'latest') {
     for (const { artifact } of release.packages) {
       if (artifact.version !== release.plan.productVersion) continue;
-      npm(['dist-tag', 'add', `${artifact.name}@${artifact.version}`, 'next']);
+      if (!token) {
+        console.log(
+          `next not moved without NPM_TOKEN; run: npm dist-tag add ${artifact.name}@${artifact.version} next`,
+        );
+        continue;
+      }
+      await npm(['dist-tag', 'add', `${artifact.name}@${artifact.version}`, 'next']);
       console.log(`Moved next to ${artifact.name}@${artifact.version}`);
     }
   }

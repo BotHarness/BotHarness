@@ -7,7 +7,8 @@ import {
 } from './avatar.js';
 import { bridgeSourceLabel } from './bridge-source-label.js';
 import { GroupWakePolicyTable } from './group-wake-policy-table.js';
-import { ChannelBridgeTable } from './channel-bridge-table.js';
+import { ChannelBridgeList } from './channel-bridge-list.js';
+import { ConversationIngestRows } from './conversation-ingest-list.js';
 import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
 
@@ -249,7 +250,12 @@ export function GroupProfileView({
 }: GroupProfileProps & {
   actions: Pick<
     BridgeActions,
-    'channelBridges' | 'channelBridge' | 'groupWakePolicies' | 'setGroupWakePolicy'
+    | 'channelBridges'
+    | 'channelBridge'
+    | 'channelIngests'
+    | 'channelIngest'
+    | 'groupWakePolicies'
+    | 'setGroupWakePolicy'
   >;
   onTogglePin(id: string): void;
   onClose(): void;
@@ -301,14 +307,31 @@ export function GroupProfileView({
         actions={actions}
         t={t}
       />
-      <ChannelBridgeTable
-        key={channel.id}
-        channelId={channel.id}
-        channelName={channel.name}
-        botNames={botNames}
-        actions={actions}
-        t={t}
-      />
+      <section className="bh-profile-section" aria-label={t('bridge.title')}>
+        <header className="bh-identity-header">
+          <div>
+            <strong>{t('bridge.title')}</strong>
+            <p>{t('bridge.summary')}</p>
+          </div>
+        </header>
+        <ChannelBridgeList
+          key={channel.id}
+          channelId={channel.id}
+          channelName={channel.name}
+          botNames={botNames}
+          actions={actions}
+          t={t}
+          showEmpty={false}
+        >
+          <ConversationIngestRows
+            key={`ingest:${channel.id}`}
+            channelId={channel.id}
+            botNames={botNames}
+            actions={actions}
+            t={t}
+          />
+        </ChannelBridgeList>
+      </section>
     </div>
   );
 }

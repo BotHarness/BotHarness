@@ -166,3 +166,22 @@ it('refuses an unavailable external source without returning its provider error 
     error: { code: 'source-unavailable', message: 'Attachment source is unavailable' },
   });
 });
+
+it('selects playback explicitly and reports bounded codec refusal without leaking provider detail', async () => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'botharness-audio-http-'));
+  roots.push(rootDir);
+  const load = vi.fn(async (_input: { representation?: 'playback' }) => {
+    const error = new MessagingError('audio-codec-unsupported');
+    error.message = 'private media ticket';
+    throw error;
+  });
+  const handle = createAttachmentHttp(createAttachmentStore({ rootDir }), undefined, load);
+  const query = '?slug=ada&sourceEventId=voice&attachmentId=original&representation=playback';
+  const response = await handle(new Request(url(query)));
+  expect(load.mock.calls[0]?.[0]).toMatchObject({ representation: 'playback' });
+  expect(response.status).toBe(422);
+  expect(await response.text()).not.toContain('private media ticket');
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  expect((await handle(new Request(url(query.replace('playback', 'arbitrary'))))).status).toBe(400);
+  expect(load).toHaveBeenCalledTimes(1);
+});

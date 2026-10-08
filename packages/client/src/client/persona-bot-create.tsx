@@ -8,7 +8,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import { BridgeCallError, errorMessage } from './bridge.js';
+import { BridgeCallError, errorMessage, type CreatedBot } from './bridge.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
@@ -67,6 +67,7 @@ function Field({
 
 export function CreatePersonaBotModal({
   actions,
+  source = 'empty',
   sectionId,
   sectionName,
   t = zhTranslate,
@@ -74,6 +75,7 @@ export function CreatePersonaBotModal({
   onCreated,
 }: {
   actions: BridgeActions;
+  source?: 'empty' | 'git';
   sectionId?: string;
   sectionName?: string;
   t?: BotHarnessTranslate | undefined;
@@ -81,14 +83,12 @@ export function CreatePersonaBotModal({
   onCreated: () => void;
 }): ReactElement {
   const displayNameId = useId();
-  const sourceId = useId();
   const gitUrlId = useId();
   const roleId = useId();
   const descriptionId = useId();
   const personaId = useId();
   const personaPresetId = useId();
   const [displayName, setDisplayName] = useState('');
-  const [source, setSource] = useState<'empty' | 'git'>('empty');
   const [personaPreset, setPersonaPreset] = useState<'blank' | 'colleague' | 'roleplay'>('blank');
   const [personaDrafts, setPersonaDrafts] = useState(() => ({
     blank: '',
@@ -101,6 +101,7 @@ export function CreatePersonaBotModal({
   const [roles, setRoles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [cause, setCause] = useState<unknown | undefined>(undefined);
+  const [fallback, setFallback] = useState<CreatedBot | undefined>(undefined);
   const invalid =
     displayName.trim().length === 0 || (source === 'git' && gitUrl.trim().length === 0);
 
@@ -133,9 +134,10 @@ export function CreatePersonaBotModal({
         sectionId,
       )
       .then(
-        () => {
+        (created) => {
           setCreating(false);
-          onCreated();
+          if (created.httpsFallback === undefined) onCreated();
+          else setFallback(created);
         },
         (rejection: unknown) => {
           setCause(rejection);
@@ -143,6 +145,45 @@ export function CreatePersonaBotModal({
         },
       );
   };
+
+  if (fallback?.httpsFallback !== undefined) {
+    const { from, to, reason, detail } = fallback.httpsFallback;
+    const done = (): void => {
+      void actions.openCreatedBot(fallback, sectionId).finally(onCreated);
+    };
+    return (
+      <Modal
+        open
+        onClose={done}
+        closeLabel={t('common.close')}
+        title={t('bot.create.httpsFallback.title')}
+        footer={
+          <Button variant="primary" onClick={done} data-https-fallback-done>
+            {t('bot.create.httpsFallback.done')}
+          </Button>
+        }
+      >
+        <div className="bh-personabot-form" data-https-fallback>
+          <span>{t('bot.create.httpsFallback.body')}</span>
+          <pre className="bh-https-fallback-code">
+            <code>{from}</code>
+          </pre>
+          <span className="bh-https-fallback-caption" data-https-fallback-reason={reason}>
+            {t(`bot.create.httpsFallback.reason.${reason}`)}
+            {detail === undefined ? null : (
+              <span className="bh-https-fallback-detail">
+                {t('bot.create.httpsFallback.detail', { detail })}
+              </span>
+            )}
+          </span>
+          <span>{t('bot.create.httpsFallback.now')}</span>
+          <pre className="bh-https-fallback-code">
+            <code>{to}</code>
+          </pre>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -153,8 +194,10 @@ export function CreatePersonaBotModal({
       closeLabel={t('common.close')}
       title={
         sectionName === undefined
-          ? t('bot.create.title')
-          : t('bot.create.inSection', { name: sectionName })
+          ? t(source === 'git' ? 'bot.create.gitTitle' : 'bot.create.title')
+          : t(source === 'git' ? 'bot.create.gitInSection' : 'bot.create.inSection', {
+              name: sectionName,
+            })
       }
       description={t('bot.create.description')}
       footer={
@@ -171,17 +214,6 @@ export function CreatePersonaBotModal({
       }
     >
       <div className="bh-personabot-form">
-        <SegmentedControl
-          id={sourceId}
-          label={t('bot.create.source.label')}
-          value={source}
-          options={[
-            { value: 'empty', label: t('bot.create.source.empty') },
-            { value: 'git', label: t('bot.create.source.git') },
-          ]}
-          disabled={creating}
-          onChange={setSource}
-        />
         {source === 'git' ? (
           <Field
             id={gitUrlId}

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-05T21:05:33.977Z",
+  "scope": "Development-source checked Discord mention intake and original-channel/existing-public-thread reply only",
+  "runtime": {
+    "botHarnessBase": "4092e93de0e62d9f48ff8d1c69bc125ebf543c69",
+    "adapterSourceSha256": "28ee8a799090223d5ad2e2284096cd3eff463cc17da552000505efcfc5a9ed51",
+    "dsh": "0.2.0-rc.1",
+    "providerMerge": "1a605b11fa8d321110540de42d58a77bdcd60f13",
+    "providerCandidateTree": "8cf705ea474cdef8e658f7756ee48d5c936bd404",
+    "provider": {
+      "runtimeFiles": 394,
+      "runtimeSha256": "69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e"
+    }
+  },
+  "nativeIdentityPair": {
+    "at": "2026-10-05T20:41:54.637Z",
+    "checks": [
+      {
+        "name": "new-real-App-Bot-with-original-binding-fingerprint",
+        "code": "rebind-required",
+        "actualHostIdentityOperation": true,
+        "registeredProviderNativeAccountInspection": true
+      },
+      {
+        "name": "original-real-App-Bot-with-new-native-fingerprint",
+        "code": "rebind-required",
+        "actualHostIdentityOperation": true,
+        "registeredProviderNativeAccountInspection": true
+      }
+    ],
+    "twoActualNativeAccountsConnected": true,
+    "distinctRealAppAndBot": true,
+    "canonicalBindingsGrantsOutboxExactlyUnchanged": true,
+    "noNewAdmission": true,
+    "noIdentityOrGrantForBoundaryAccount": true,
+    "noNativeInstallation": true,
+    "counts": {
+      "admissions": 39,
+      "intents": 34
+    }
+  },
+  "identityRecovery": {
+    "at": "2026-10-05T20:43:55.349Z",
+    "marker": "DISCORD-855-NATIVE-IDENTITY-RECOVERED-OK",
+    "oneAdmission": true,
+    "oneIntent": true,
+    "actualModelBridgeReplyCalls": 1,
+    "actualModelOutcome": "provider-accepted",
+    "nativeOriginalBotReplies": 1,
+    "originalChannel": true,
+    "originalBindingsAndGrantsExactlyUnchanged": true,
+    "allHistoricalIntentsExactlyRetained": true,
+    "originalProfilePatch": true,
+    "boundaryBotHasNoGuildInstallations": true,
+    "counts": {
+      "admissions": 40,
+      "intents": 35
+    }
+  },
+  "wrongGuild": {
+    "at": "2026-10-05T20:56:00.549Z",
+    "marker": "DISCORD-855-WRONG-GUILD-INTAKE",
+    "nativeSourceExists": true,
+    "realOriginalBotMention": true,
+    "sourceInActualDifferentGuild": true,
+    "nativeViewAndReplyPermissionsPreverified": true,
+    "oneRealGatewayEventConsumed": true,
+    "canonicalBindingsGrantsIntentsAdmissionsSourcesPlacementsExactlyUnchanged": true,
+    "nativeBotReplies": 0,
+    "counts": {
+      "admissions": 40,
+      "intents": 35
+    },
+    "receiverBefore": 1,
+    "receiverAfter": 2
+  },
+  "guildRecovery": {
+    "at": "2026-10-05T21:03:16.171Z",
+    "marker": "DISCORD-855-WRONG-GUILD-RECOVERED-OK",
+    "oneAdmission": true,
+    "oneIntent": true,
+    "actualModelBridgeReplyCalls": 1,
+    "actualModelOutcome": "provider-accepted",
+    "nativeOriginalBotReplies": 1,
+    "originalChannel": true,
+    "originalBindingsAndGrantsExactlyUnchanged": true,
+    "allHistoricalIntentsExactlyRetained": true,
+    "originalProfilePatch": true,
+    "boundaryBotHasNoGuildInstallations": true,
+    "counts": {
+      "admissions": 41,
+      "intents": 36
+    },
+    "wrongGuildVerified": true
+  },
+  "final": {
+    "wrongGuildStillHasNoCanonicalSource": true,
+    "wrongGuildStillHasNoNativeBotReply": true,
+    "sourceCountIncreasedOnlyForFreshAuthorizedRecovery": true,
+    "placementsUnchanged": true,
+    "bothQaAccountsConnected": true,
+    "latestBoundaryTokenNativelyVerifiedAndCredentialsRefreshed": true,
+    "originalBindingGrantAndProfileUnchanged": true,
+    "historicalOutcomesExactlyRetained": true,
+    "exactOriginalPermissionsRestored": true,
+    "noAutomaticResend": true,
+    "noLocalBridgePlacements": true,
+    "onlyOriginalThread": true,
+    "counts": {
+      "admissions": 41,
+      "intents": 36
+    }
+  },
+  "limits": [
+    "Cross-account Host operations use actual native inspected App/Bot pair fingerprints; no Token swap or separately varied app/user fields is claimed.",
+    "Wrong-guild intake used the original QA Bot with verified native membership and reply permission, but no BotHarness Grant.",
+    "Gateway resume evidence remains bounded to the recorded replay order; gapPossible is true and no backfill is claimed.",
+    "Other Discord capability rows, product Provider pin, release and deployment remain separate."
+  ]
+}

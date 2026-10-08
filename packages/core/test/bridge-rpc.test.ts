@@ -79,16 +79,23 @@ describe('bridge typert service', () => {
       'messagingDefaultsSet',
       'channelBridges',
       'channelBridge',
+      'channelIngests',
+      'channelIngest',
       'messagingChannelTarget',
       'messagingReceive',
       'messagingGroupPolicy',
       'messagingThreadPolicy',
       'messagingSource',
       'messagingIdentity',
+      'approvalRoute',
+      'approvalTest',
+      'approvalRetry',
+      'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',
       'messagingRevoke',
+      'messagingConversation',
       'messagingSend',
       'modelCatalog',
       'modelPresets',
@@ -98,6 +105,7 @@ describe('bridge typert service', () => {
       'modelPlan',
       'modelPlanCustomize',
       'modelPlanAssignmentsSet',
+      'modelPlanSet',
       'list',
       'activitySnapshot',
       'get',
@@ -194,8 +202,30 @@ describe('bridge typert service', () => {
       'computerAccessSet',
       'browserAccessSet',
       'browserProfileSet',
+      'standingLimitsSet',
       'botAvatarSet',
       'botAppearanceSet',
+      'marketplaceList',
+      'marketplaceSubmit',
+      'marketplaceTopics',
+      'marketplaceDetail',
+      'marketplaceChallenge',
+      'marketplaceReport',
+      'releaseInfo',
+      'releaseUpdate',
+      'releaseInstall',
+      'releaseRestart',
+      'telemetryStatus',
+      'telemetrySet',
+      'gitStatus',
+      'gitInstall',
+      'scheduleList',
+      'scheduleCreate',
+      'scheduleUpdate',
+      'scheduleDelete',
+      'scheduleHistory',
+      'scheduleRunNow',
+      'schedulePreview',
     ]);
   });
 
@@ -229,6 +259,26 @@ describe('bridge typert service', () => {
       'roles',
       'description',
     ]);
+    expect(parameterNames(service.marketplaceList)).toEqual(['query']);
+    expect(parameterNames(service.marketplaceTopics)).toEqual([]);
+    expect(parameterNames(service.marketplaceDetail)).toEqual(['id']);
+    expect(parameterNames(service.marketplaceSubmit)).toEqual(['url', 'altcha']);
+    expect(parameterNames(service.marketplaceChallenge)).toEqual([]);
+    expect(parameterNames(service.marketplaceReport)).toEqual(['id', 'altcha', 'reason']);
+    expect(parameterNames(service.releaseInfo)).toEqual(['since']);
+    expect(parameterNames(service.releaseUpdate)).toEqual([]);
+    expect(parameterNames(service.releaseInstall)).toEqual(['version']);
+    expect(parameterNames(service.releaseRestart)).toEqual([]);
+    expect(parameterNames(service.telemetryStatus)).toEqual([]);
+    expect(parameterNames(service.telemetrySet)).toEqual(['enabled']);
+    expect(parameterNames(service.gitStatus)).toEqual([]);
+    expect(parameterNames(service.scheduleList)).toEqual(['slug']);
+    expect(parameterNames(service.scheduleCreate)).toEqual(['slug', 'input']);
+    expect(parameterNames(service.scheduleUpdate)).toEqual(['slug', 'id', 'change']);
+    expect(parameterNames(service.scheduleDelete)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.scheduleHistory)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.scheduleRunNow)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.schedulePreview)).toEqual(['trigger']);
     expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);

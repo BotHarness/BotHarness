@@ -25,7 +25,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 function render(
   author: ChannelMessage['author'],
   body: string,
-  options: Pick<ChannelMessage, 'format' | 'streaming' | 'attachments' | 'sessionFailure'> = {},
+  options: Pick<
+    ChannelMessage,
+    'format' | 'streaming' | 'attachments' | 'sessionFailure' | 'bridgeOrigin'
+  > = {},
 ) {
   return renderToStaticMarkup(
     createElement(ChannelMessageBody, {
@@ -39,6 +42,47 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it.each([
+    ['discord', '<@123>', '<@123>next <@123> <@999>', '@QA <Bot>next @QA <Bot> <@999>'],
+    ['feishu', '@_user_1', '@_user_1 @_user_10 @_user_1', '@QA <Bot> @_user_10 @QA <Bot>'],
+    ['slack', '<@U123>', '<@U123> next <@U123>', '@QA <Bot> next @QA <Bot>'],
+  ])(
+    'renders checked %s native mentions as inert chips with literal unknown text',
+    (platform, key, body, expected) => {
+      const bridgeOrigin = {
+        sourceEventId: 'native-source',
+        platform,
+        conversationId: 'conversation',
+        conversationName: 'QA',
+        messageId: 'native-message',
+        senderId: 'sender',
+        mentions: [{ id: 'native-id', key, name: 'QA <Bot>' }],
+      };
+      const html = render({ kind: 'bridged', source: 'Sender' }, body, {
+        format: 'text',
+        bridgeOrigin,
+      });
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      expect(container.textContent).toBe(expected);
+      expect(container.querySelectorAll('.bh-external-mention')).toHaveLength(2);
+      expect(container.querySelector('.bh-external-mention')?.getAttribute('title')).toBe(
+        'native-id',
+      );
+      expect(container.querySelector('button, script, [data-bot-id], [data-human-id]')).toBeNull();
+      expect(body).not.toContain('@QA <Bot>');
+      expect(render({ kind: 'human' }, body, { format: 'text', bridgeOrigin })).not.toContain(
+        'bh-external-mention',
+      );
+      expect(
+        render({ kind: 'bridged', source: 'Sender' }, body, {
+          format: 'text',
+          bridgeOrigin: { ...bridgeOrigin, mentions: [{ id: 'native-id', key, name: '   ' }] },
+        }),
+      ).not.toContain('bh-external-mention');
+    },
+  );
+
   it.each(['/chosen/project', null])(
     'uses the native picker on a browse capability refusal and authorizes only a chosen path %s',
     async (path) => {

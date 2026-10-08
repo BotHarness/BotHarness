@@ -6,12 +6,18 @@ import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 import type { PersonaBotActivityState } from './avatar.js';
 import type { AvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
+import type { GitAvailability } from './bridge.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
 
 export type ClientMode = 'dsh' | 'bot';
 
 export type ClientStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+export interface StandingLimitsView {
+  soul: number;
+  coreMemory: number;
+}
 
 export interface BotSummary {
   slug: string;
@@ -23,6 +29,7 @@ export interface BotSummary {
   appearanceUnsupported?: true;
   paused?: boolean;
   deleted?: boolean;
+  standingLimits?: StandingLimitsView;
   aggregateState: string;
   activity?: PersonaBotToolActivity;
   attention?: PersonaBotAttention;
@@ -149,6 +156,7 @@ export interface SessionFailureCard {
 
 export interface ChannelMessage {
   bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
+  bridgeMedia?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeMedia'];
   id: string;
   at: string;
   author: ChannelAuthor;
@@ -341,6 +349,7 @@ export interface BotAttentionItem {
   assignmentSessionId?: string;
   assignmentPurpose?: string;
   assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
+  scheduleId?: string;
   externalOrigin?: {
     platform: string;
     accountName: string;
@@ -348,6 +357,14 @@ export interface BotAttentionItem {
     conversationId: string;
     senderId: string;
     senderName?: string;
+    voice?: {
+      transcript: 'platform' | 'unavailable';
+      itemId?: string;
+      durationMs?: number;
+      encodeType?: number;
+      sampleRate?: number;
+      bitsPerSample?: number;
+    };
   };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
@@ -401,6 +418,7 @@ export interface ClientState {
     error: string | undefined;
   };
   activitySync: 'live' | 'stale';
+  git: GitAvailability | undefined;
 }
 
 export interface PersonaBotActivitySnapshot {
@@ -425,6 +443,7 @@ export interface ClientStore {
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
   applyActivity(snapshot: PersonaBotActivitySnapshot): void;
   setActivitySync(sync: ClientState['activitySync']): void;
+  setGit(git: GitAvailability): void;
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
@@ -568,6 +587,7 @@ export function createStore(): ClientStore {
     overview: { status: 'idle', value: undefined, error: undefined },
     humanInbox: initialHumanInbox(),
     activitySync: 'live',
+    git: undefined,
   };
   const listeners = new Set<() => void>();
   let activity: PersonaBotActivitySnapshot | undefined;
@@ -628,6 +648,9 @@ export function createStore(): ClientStore {
     },
     setActivitySync(activitySync) {
       if (state.activitySync !== activitySync) update({ activitySync });
+    },
+    setGit(git) {
+      update({ git });
     },
     upsertBot(incoming) {
       const bot = withActivity(incoming);

@@ -1,3 +1,5 @@
+import type { HttpsFallback } from '../memory/clone.js';
+import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type {
@@ -6,8 +8,28 @@ import type {
   MessagingDefaultsPlatform,
 } from '../messaging/defaults.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
+import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
+import type {
+  MarketplaceDetail,
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceQuery,
+  MarketplaceTopic,
+} from '../marketplace/client.js';
+import type { AltchaChallenge } from '../marketplace/altcha.js';
+import type {
+  ReleaseInfo,
+  ReleaseInstall,
+  ReleaseRestart,
+  ReleaseUpdate,
+} from '../release/service.js';
+import type { TelemetryStatus } from '../telemetry/service.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -53,6 +75,13 @@ import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { BotAttentionPage, BotAttentionState } from '../runtime/attention.js';
+import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleFiring,
+  BotScheduleInput,
+  BotScheduleTrigger,
+} from '../schedules/bot-schedules.js';
 import type { BotSourcePolicy } from '../runtime/source-policy.js';
 import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
 import type {
@@ -65,6 +94,7 @@ import type {
   MemoryWorkingKind,
   MemoryRepairEvent,
 } from '../memory/accepted.js';
+import type { GitStatus } from '../memory/managed-git.js';
 import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
 import type { ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
@@ -90,6 +120,7 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     'invalid-git-url': Record<string, never>;
     'git-clone-failed': Record<string, never>;
     'git-clone-timeout': Record<string, never>;
+    'marketplace-unavailable': Record<string, never>;
   }
 }
 
@@ -167,6 +198,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
   }
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot> {
+    return unwrapAsync(this.methods.channelIngests({ channelId }));
+  }
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelIngest({ channelId, input }));
+  }
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.channelBridge({ channelId, input }));
   }
@@ -175,6 +212,27 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   messagingSource(slug: string, sourceEventId: string): Promise<{ source: ExternalSource }> {
     return unwrapAsync(this.methods.messagingSource({ slug, sourceEventId }));
+  }
+  approvalRoute(
+    slug: string,
+    pairingId: string | null,
+    expectedRevision: number,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.approvalRoute({ slug, pairingId, expectedRevision }));
+  }
+  approvalTest(
+    slug: string,
+  ): Promise<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }> {
+    return unwrapAsync(this.methods.approvalTest({ slug }));
+  }
+  approvalRetry(
+    slug: string,
+    id: string,
+  ): Promise<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }> {
+    return unwrapAsync(this.methods.approvalRetry({ slug, id }));
+  }
+  pairingReview(slug: string, input: PairingReviewInput): Promise<{ pairing: PairingRequest }> {
+    return unwrapAsync(this.methods.pairingReview({ slug, input }));
   }
   messagingIdentity(
     slug: string,
@@ -213,6 +271,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   messagingRevoke(slug: string, grantId: string): Promise<{ revoked: true }> {
     return unwrapAsync(this.methods.messagingRevoke({ slug, grantId }));
   }
+  messagingConversation(
+    slug: string,
+    input: MessagingConversationInput,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingConversation({ slug, input }));
+  }
   messagingSend(
     slug: string,
     grantId: string,
@@ -222,7 +286,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
-  modelCatalog(): Promise<{ models: ModelCatalogEntry[] }> {
+  modelCatalog(): Promise<{
+    models: ModelCatalogEntry[];
+    default?: ModelRoute;
+  }> {
     return unwrapAsync(this.methods.modelCatalog({}));
   }
 
@@ -287,6 +354,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  modelPlanSet(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRoute,
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
+  ): Promise<{ plan: PersonaBotModelPlan }> {
+    return unwrapAsync(
+      this.methods.modelPlanSet({
+        slug,
+        expectedRevision,
+        orchestrator,
+        assignmentDefault,
+        assignmentModels,
+      }),
+    );
+  }
+
   list(query?: string): { bots: PersonaBotSummary[] } {
     return unwrap(this.methods.list({ query }));
   }
@@ -328,7 +413,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     gitUrl: string,
     roles?: string[],
     description?: string,
-  ): Promise<{ bot: PersonaBotDetail }> {
+  ): Promise<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }> {
     return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
   }
 
@@ -371,6 +456,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   browserProfileSet(slug: string, profile: string): { bot: PersonaBotDetail } {
     return unwrap(this.methods.browserProfileSet({ slug, profile }));
+  }
+
+  standingLimitsSet(slug: string, soul: number, coreMemory: number): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.standingLimitsSet({ slug, soul, coreMemory }));
   }
 
   botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
@@ -855,6 +944,96 @@ export class BotharnessBridgeService extends TypertRemoteService {
   developerModeSet(enabled: boolean): { accepted: boolean } {
     return unwrap(this.methods.developerModeSet({ enabled }));
   }
+
+  async marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage> {
+    return unwrapAsync(this.methods.marketplaceList(query ?? {}));
+  }
+
+  async marketplaceSubmit(url: string, altcha: string): Promise<{ bot: MarketplaceEntry }> {
+    return unwrapAsync(this.methods.marketplaceSubmit({ url, altcha }));
+  }
+
+  async marketplaceChallenge(): Promise<AltchaChallenge> {
+    return unwrapAsync(this.methods.marketplaceChallenge());
+  }
+
+  async marketplaceReport(
+    id: string,
+    altcha: string,
+    reason?: string,
+  ): Promise<{ received: true }> {
+    return unwrapAsync(
+      this.methods.marketplaceReport({ id, altcha, ...(reason === undefined ? {} : { reason }) }),
+    );
+  }
+
+  async marketplaceTopics(): Promise<MarketplaceTopic[]> {
+    return unwrapAsync(this.methods.marketplaceTopics());
+  }
+
+  async marketplaceDetail(id: string): Promise<MarketplaceDetail> {
+    return unwrapAsync(this.methods.marketplaceDetail({ id }));
+  }
+
+  async releaseInfo(since?: string): Promise<ReleaseInfo> {
+    return unwrap(this.methods.releaseInfo(since === undefined ? {} : { since }));
+  }
+
+  async releaseUpdate(): Promise<ReleaseUpdate> {
+    return unwrapAsync(this.methods.releaseUpdate());
+  }
+
+  async releaseInstall(version: string): Promise<ReleaseInstall> {
+    return unwrapAsync(this.methods.releaseInstall({ version }));
+  }
+
+  async releaseRestart(): Promise<ReleaseRestart> {
+    return unwrapAsync(this.methods.releaseRestart({}));
+  }
+
+  telemetryStatus(): TelemetryStatus {
+    return unwrap(this.methods.telemetryStatus());
+  }
+
+  gitStatus(): GitStatus {
+    return unwrap(this.methods.gitStatus());
+  }
+
+  gitInstall(): GitStatus {
+    return unwrap(this.methods.gitInstall());
+  }
+
+  telemetrySet(enabled: boolean): TelemetryStatus {
+    return unwrap(this.methods.telemetrySet({ enabled }));
+  }
+
+  scheduleList(slug: string): { schedules: BotSchedule[] } {
+    return unwrap(this.methods.scheduleList({ slug }));
+  }
+
+  scheduleCreate(slug: string, input: BotScheduleInput): { schedule: BotSchedule } {
+    return unwrap(this.methods.scheduleCreate({ ...input, slug }));
+  }
+
+  scheduleUpdate(slug: string, id: string, change: BotScheduleChange): { schedule: BotSchedule } {
+    return unwrap(this.methods.scheduleUpdate({ ...change, slug, id }));
+  }
+
+  scheduleDelete(slug: string, id: string): { removed: boolean } {
+    return unwrap(this.methods.scheduleDelete({ slug, id }));
+  }
+
+  scheduleHistory(slug: string, id: string): { firings: BotScheduleFiring[] } {
+    return unwrap(this.methods.scheduleHistory({ slug, id }));
+  }
+
+  scheduleRunNow(slug: string, id: string): { firing: BotScheduleFiring } {
+    return unwrap(this.methods.scheduleRunNow({ slug, id }));
+  }
+
+  schedulePreview(trigger: BotScheduleTrigger): { occurrences: string[] } {
+    return unwrap(this.methods.schedulePreview({ trigger }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -862,16 +1041,23 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
+  'channelIngests',
+  'channelIngest',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
   'messagingThreadPolicy',
   'messagingSource',
   'messagingIdentity',
+  'approvalRoute',
+  'approvalTest',
+  'approvalRetry',
+  'pairingReview',
   'messagingSnapshot',
   'messagingTargets',
   'messagingAuthorize',
   'messagingRevoke',
+  'messagingConversation',
   'messagingSend',
   'modelCatalog',
   'modelPresets',
@@ -881,6 +1067,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'modelPlan',
   'modelPlanCustomize',
   'modelPlanAssignmentsSet',
+  'modelPlanSet',
   'list',
   'activitySnapshot',
   'get',
@@ -977,8 +1164,30 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'computerAccessSet',
   'browserAccessSet',
   'browserProfileSet',
+  'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'marketplaceList',
+  'marketplaceSubmit',
+  'marketplaceTopics',
+  'marketplaceDetail',
+  'marketplaceChallenge',
+  'marketplaceReport',
+  'releaseInfo',
+  'releaseUpdate',
+  'releaseInstall',
+  'releaseRestart',
+  'telemetryStatus',
+  'telemetrySet',
+  'gitStatus',
+  'gitInstall',
+  'scheduleList',
+  'scheduleCreate',
+  'scheduleUpdate',
+  'scheduleDelete',
+  'scheduleHistory',
+  'scheduleRunNow',
+  'schedulePreview',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

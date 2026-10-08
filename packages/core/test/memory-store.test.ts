@@ -90,20 +90,16 @@ describe('memory store write', () => {
     expect(store.read('topics/new.md')?.summary).toBe('New note');
   });
 
-  it('refuses to write MEMORY.md and PERSONA.md', async () => {
+  it('writes SOUL.md and MEMORY.md like any other Memory file', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
 
-    await expect(store.write({ path: 'MEMORY.md', body: 'x', summary: 'hack' })).rejects.toThrow(
-      /MEMORY\.md/,
-    );
-    await expect(store.write({ path: 'PERSONA.md', body: 'x', summary: 'hack' })).rejects.toThrow(
-      /PERSONA\.md/,
-    );
-    await expect(store.write({ path: 'memory.MD', body: 'x', summary: 'hack' })).rejects.toThrow(
-      /MEMORY\.md/i,
-    );
-    expect(readdirSync(join(root, '.git')).length).toBeGreaterThan(0);
+    await store.write({ path: 'MEMORY.md', body: '- [Acme](acme.md)\n', summary: 'Index' });
+    await store.write({ path: 'SOUL.md', body: 'Be kind.\n', summary: 'Soul' });
+
+    expect(store.read('MEMORY.md')?.body).toBe('- [Acme](acme.md)\n');
+    expect(store.standingPrompt()).toContain('## Soul (SOUL.md)');
+    expect(store.standingPrompt()).toContain('- [Acme](acme.md)');
   });
 });
 
@@ -153,18 +149,16 @@ describe('memory store jail', () => {
   });
 });
 
-describe('memory store persona', () => {
-  it('returns the persona body and refuses writes', async () => {
+describe('memory store standing prompt', () => {
+  it('renders the legacy persona as the Soul section', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    expect(store.persona()).toBeUndefined();
+    expect(store.standingPrompt()).toBe('');
 
     writeFileSync(join(root, 'PERSONA.md'), '# Persona\n\nBe kind.\n');
-    expect(store.persona()).toBe('# Persona\n\nBe kind.\n');
-
-    await expect(
-      store.write({ path: 'PERSONA.md', body: 'evil', summary: 'takeover' }),
-    ).rejects.toThrow(/PERSONA\.md/);
+    expect(store.standingPrompt()).toBe(
+      '## Soul (PERSONA.md) [0% — 19/5,000 chars]\n\n# Persona\n\nBe kind.',
+    );
   });
 });
 
@@ -226,14 +220,14 @@ describe('memory store search', () => {
     ]);
   });
 
-  it('searches bodies only, ignoring front-matter and the reserved files', async () => {
+  it('searches bodies only, ignoring front-matter and including the standing files', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
     await store.write({ path: 'a.md', body: 'plain body\n', summary: 'Zebra summary' });
-    writeFileSync(join(root, 'PERSONA.md'), 'zebra persona\n');
+    writeFileSync(join(root, 'SOUL.md'), 'zebra soul\n');
     writeFileSync(join(root, 'MEMORY.md'), 'zebra index\n');
 
-    expect(await store.search('zebra')).toEqual([]);
+    expect((await store.search('zebra')).map((hit) => hit.path)).toEqual(['MEMORY.md', 'SOUL.md']);
     expect(await store.search('plain')).toEqual([{ path: 'a.md', line: 6, excerpt: 'plain body' }]);
   });
 

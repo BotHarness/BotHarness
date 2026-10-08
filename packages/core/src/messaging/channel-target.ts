@@ -62,12 +62,23 @@ export function bridgeChannel(
 }
 
 export function projectBridgeMessage(source: ExternalSource, body: string): ChannelMessage {
+  const senderName = source.event.actor.name?.trim() || undefined;
   return {
     id: source.id,
     at: source.at,
     body,
     format: 'text',
-    author: { kind: 'bridged', source: source.event.actor.name ?? source.event.actor.id },
+    ...(source.event.attachments?.some((item) => item.mediaType?.startsWith('image/'))
+      ? {
+          bridgeMedia: {
+            items: source.event.attachments
+              .filter((item) => item.mediaType?.startsWith('image/'))
+              .map((item) => ({ id: item.id, kind: 'image' as const, name: item.name })),
+            ...(source.event.contentParts ? { parts: source.event.contentParts } : {}),
+          },
+        }
+      : {}),
+    author: { kind: 'bridged', source: senderName ?? source.event.actor.id },
     bridgeOrigin: {
       sourceEventId: source.id,
       platform: source.platform,
@@ -75,6 +86,10 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
       conversationName: source.conversationName,
       messageId: source.event.messageId,
       senderId: source.event.actor.id,
+      ...(senderName ? { senderName } : {}),
+      ...(source.event.mentions.length
+        ? { mentions: source.event.mentions.map((mention) => ({ ...mention })) }
+        : {}),
       ...(source.event.reply.threadId ? { threadId: source.event.reply.threadId } : {}),
     },
   };
@@ -83,10 +98,11 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
 export function placeBridgeSource(
   db: DatabaseSync,
   source: ExternalSource,
-  botSlug: string,
+  botSlug: string | undefined,
 ): { channelId: string; message: ChannelMessage; revision: number } | undefined {
   if (!source.localChannelId) return;
-  bridgeChannel(db, source.localChannelId, botSlug);
+  if (botSlug === undefined) humanBridgeChannel(db, source.localChannelId);
+  else bridgeChannel(db, source.localChannelId, botSlug);
   const prior = db
     .prepare(
       'SELECT channel_id FROM channel_placements WHERE source_event_id = ? AND channel_id = ?',

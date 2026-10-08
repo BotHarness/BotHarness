@@ -30,7 +30,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
+      # The docs site is built once, inside apps/docs/test/changelog-public-surfaces.test.ts,
+      # so the slides it embeds are synced first instead of running pnpm docs:build again.
+      - run: pnpm slides:build
       - run: pnpm test
       - run: pnpm build
       - run: git diff --exit-code -- packages/computer/lib/client.js packages/computer/lib/client.js.map packages/browser/lib/client.js packages/browser/lib/client.js.map
-      - run: pnpm docs:build

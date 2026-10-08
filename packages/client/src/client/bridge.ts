@@ -1,3 +1,6 @@
+import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import { parsePublicAttention } from './activity-attention.js';
 import {
   isAvatarAppearance,
@@ -23,12 +26,36 @@ import type {
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
 import type { OverviewMemory } from '../../../core/src/memory/overview.js';
+import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleFiring,
+  BotScheduleInput,
+  BotScheduleTrigger,
+} from '../../../core/src/schedules/bot-schedules.js';
+import {
+  parseMarketplaceDetail,
+  parseMarketplacePage,
+  parseMarketplaceSubmission,
+  parseMarketplaceTopics,
+  type MarketplaceDetail,
+  type MarketplaceEntry,
+  type MarketplacePage,
+  type MarketplaceQuery,
+  type MarketplaceTopic,
+} from '../../../core/src/marketplace/client.js';
+import { parseChallenge, type AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
@@ -57,6 +84,7 @@ import type {
   ChannelMessage,
   ChannelSummary,
   OwnedSessionSummary,
+  StandingLimitsView,
   UserQuestionAnswerItem,
 } from './store.js';
 import {
@@ -113,6 +141,12 @@ export interface ModelCatalogEntryView {
   modelName: string;
   efforts: { id: string; name: string }[];
   defaultEffort?: string;
+  credential?: 'missing' | 'invalid';
+}
+
+export interface ModelCatalogView {
+  models: ModelCatalogEntryView[];
+  default?: ModelRouteView;
 }
 
 export interface ModelPresetView {
@@ -142,10 +176,18 @@ export async function loadActivitySnapshot(
   return unwrap(call, 'activitySnapshot', {}, signal);
 }
 
-export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogEntryView[]> {
+export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogView> {
   const value = asRecord(await unwrap(call, 'modelCatalog', {}));
   if (!Array.isArray(value?.['models'])) throw new Error('Invalid model catalog');
-  return value['models'] as ModelCatalogEntryView[];
+  const fallback = asRecord(value['default']);
+  return {
+    models: value['models'] as ModelCatalogEntryView[],
+    ...(typeof fallback?.['provider'] === 'string' && typeof fallback['model'] === 'string'
+      ? {
+          default: { provider: fallback['provider'], model: fallback['model'] },
+        }
+      : {}),
+  };
 }
 
 export async function loadModelPresets(call: BridgeCall): Promise<ModelPresetView[]> {
@@ -183,9 +225,15 @@ export async function createModelPreset(
   name: string,
   orchestrator: ModelRouteView,
   assignmentDefault: ModelRouteView,
+  assignmentModels?: AssignmentModelOptionView[],
 ): Promise<ModelPresetView> {
   const value = asRecord(
-    await unwrap(call, 'modelPresetCreate', { name, orchestrator, assignmentDefault }),
+    await unwrap(call, 'modelPresetCreate', {
+      name,
+      orchestrator,
+      assignmentDefault,
+      ...(assignmentModels === undefined ? {} : { assignmentModels }),
+    }),
   );
   if (asRecord(value?.['preset']) === undefined) throw new Error('Invalid Model Preset result');
   return value!['preset'] as ModelPresetView;
@@ -257,6 +305,7 @@ export interface CreatePersonaBotInput {
   roles: string[];
   description?: string;
   gitUrl?: string;
+  origin?: 'marketplace';
 }
 
 export interface BotSourcePolicyView {
@@ -338,6 +387,122 @@ export async function loadBotSourcePolicies(
       throw new Error('invalid Bot source policy');
     return policy as unknown as BotSourcePolicyView;
   });
+}
+
+export type {
+  BotSchedule as BotScheduleView,
+  BotScheduleChange,
+  BotScheduleFiring as BotScheduleFiringView,
+  BotScheduleInput,
+  BotScheduleTrigger,
+} from '../../../core/src/schedules/bot-schedules.js';
+
+function isScheduleTrigger(value: unknown): boolean {
+  const trigger = asRecord(value);
+  if (trigger?.['kind'] === 'every') return Number.isSafeInteger(trigger['everySeconds']);
+  if (typeof trigger?.['timeZone'] !== 'string') return false;
+  if (trigger['kind'] === 'cron') return typeof trigger['expression'] === 'string';
+  if (typeof trigger['time'] !== 'string') return false;
+  if (trigger['kind'] === 'daily') return true;
+  if (trigger['kind'] === 'weekly')
+    return (
+      Array.isArray(trigger['weekdays']) &&
+      trigger['weekdays'].every((day) => Number.isSafeInteger(day))
+    );
+  return trigger['kind'] === 'once' && typeof trigger['date'] === 'string';
+}
+
+function parseScheduleFiring(value: unknown): BotScheduleFiring {
+  const firing = asRecord(value);
+  if (
+    typeof firing?.['id'] !== 'string' ||
+    typeof firing['scheduleId'] !== 'string' ||
+    !['planned', 'manual'].includes(String(firing['trigger'])) ||
+    typeof firing['occurrenceAt'] !== 'string' ||
+    typeof firing['firedAt'] !== 'string' ||
+    !['pending', 'observed', 'handled', 'coalesced', 'skipped'].includes(String(firing['state']))
+  )
+    throw new Error('invalid Bot Schedule firing');
+  return firing as unknown as BotScheduleFiring;
+}
+
+function parseSchedule(value: unknown): BotSchedule {
+  const schedule = asRecord(value);
+  if (
+    typeof schedule?.['id'] !== 'string' ||
+    typeof schedule['botSlug'] !== 'string' ||
+    typeof schedule['title'] !== 'string' ||
+    typeof schedule['prompt'] !== 'string' ||
+    !isScheduleTrigger(schedule['trigger']) ||
+    typeof schedule['enabled'] !== 'boolean' ||
+    !['human', 'personabot'].includes(String(schedule['creator'])) ||
+    typeof schedule['locked'] !== 'boolean' ||
+    (schedule['nextRunAt'] !== undefined && typeof schedule['nextRunAt'] !== 'string')
+  )
+    throw new Error('invalid Bot Schedule');
+  if (schedule['lastFiring'] !== undefined) parseScheduleFiring(schedule['lastFiring']);
+  return schedule as unknown as BotSchedule;
+}
+
+export async function loadBotSchedules(call: BridgeCall, slug: string): Promise<BotSchedule[]> {
+  const raw = asRecord(await unwrap(call, 'scheduleList', { slug }))?.['schedules'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot Schedules');
+  return raw.map(parseSchedule);
+}
+
+export async function createBotSchedule(
+  call: BridgeCall,
+  slug: string,
+  input: BotScheduleInput,
+): Promise<BotSchedule> {
+  return parseSchedule(
+    asRecord(await unwrap(call, 'scheduleCreate', { slug, input }))?.['schedule'],
+  );
+}
+
+export async function updateBotSchedule(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+  change: BotScheduleChange,
+): Promise<BotSchedule> {
+  return parseSchedule(
+    asRecord(await unwrap(call, 'scheduleUpdate', { slug, id, change }))?.['schedule'],
+  );
+}
+
+export async function deleteBotSchedule(call: BridgeCall, slug: string, id: string): Promise<void> {
+  await unwrap(call, 'scheduleDelete', { slug, id });
+}
+
+export async function loadBotScheduleHistory(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<BotScheduleFiring[]> {
+  const raw = asRecord(await unwrap(call, 'scheduleHistory', { slug, id }))?.['firings'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot Schedule history');
+  return raw.map(parseScheduleFiring);
+}
+
+export async function runBotScheduleNow(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<BotScheduleFiring> {
+  return parseScheduleFiring(
+    asRecord(await unwrap(call, 'scheduleRunNow', { slug, id }))?.['firing'],
+  );
+}
+
+export async function previewBotSchedule(
+  call: BridgeCall,
+  trigger: BotScheduleTrigger,
+): Promise<string[]> {
+  const raw = asRecord(await unwrap(call, 'schedulePreview', { trigger }))?.['occurrences'];
+  if (!Array.isArray(raw) || !raw.every((value) => typeof value === 'string'))
+    throw new Error('invalid Bot Schedule preview');
+  return raw as string[];
 }
 
 export async function setBotSourcePolicy(
@@ -440,7 +605,27 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
         : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
     ...(record['deleted'] === true ? { deleted: true } : {}),
+    ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
+  const limits = asRecord(value);
+  const soul = limits?.['soul'];
+  const coreMemory = limits?.['coreMemory'];
+  if (typeof soul !== 'number' || typeof coreMemory !== 'number') return undefined;
+  return { standingLimits: { soul, coreMemory } };
+}
+
+export async function setStandingLimits(
+  call: BridgeCall,
+  slug: string,
+  limits: StandingLimitsView,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'standingLimitsSet', { slug, ...limits }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('Invalid PersonaBot result');
+  return bot;
 }
 
 export function parseBotSummaries(value: unknown): BotSummary[] {
@@ -902,6 +1087,52 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       return undefined;
     bridgeOrigin = origin as NonNullable<ChannelMessage['bridgeOrigin']>;
   }
+  let bridgeMedia: ChannelMessage['bridgeMedia'];
+  if (record['bridgeMedia'] !== undefined) {
+    const media = asRecord(record['bridgeMedia']);
+    if (
+      !bridgeOrigin ||
+      !media ||
+      Object.keys(media).some((key) => !['items', 'parts'].includes(key)) ||
+      !Array.isArray(media['items']) ||
+      media['items'].length > 32
+    )
+      return;
+    const ids = new Set<string>();
+    for (const raw of media['items']) {
+      const item = asRecord(raw);
+      if (
+        !item ||
+        item['kind'] !== 'image' ||
+        typeof item['id'] !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(item['id']) ||
+        typeof item['name'] !== 'string' ||
+        ids.has(item['id']) ||
+        Object.keys(item).some((key) => !['id', 'kind', 'name'].includes(key))
+      )
+        return;
+      ids.add(item['id']);
+    }
+    if (media['parts'] !== undefined) {
+      if (!Array.isArray(media['parts']) || media['parts'].length > 256) return;
+      for (const raw of media['parts']) {
+        const part = asRecord(raw);
+        if (
+          !part ||
+          Object.keys(part).some(
+            (key) => !(part['kind'] === 'text' ? ['kind', 'text'] : ['kind', 'id']).includes(key),
+          ) ||
+          (part['kind'] === 'text'
+            ? typeof part['text'] !== 'string' || part['text'].length > 16000
+            : part['kind'] !== 'attachment' ||
+              typeof part['id'] !== 'string' ||
+              !ids.has(part['id']))
+        )
+          return;
+      }
+    }
+    bridgeMedia = media as NonNullable<ChannelMessage['bridgeMedia']>;
+  }
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
   const replyTo = record['replyTo'];
@@ -921,9 +1152,13 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       replyTo !== decision['requestMessageId']
     )
       return undefined;
+    const actor =
+      decision['actor'] === undefined ? undefined : parseToolApprovalActor(decision['actor']);
+    if (decision['actor'] !== undefined && !actor) return undefined;
     toolApprovalDecision = {
       requestMessageId: decision['requestMessageId'],
       outcome: decision['outcome'],
+      ...(actor ? { actor } : {}),
     };
   }
   let userQuestionResolution: ChannelMessage['userQuestionResolution'];
@@ -1115,6 +1350,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(bridgeOrigin === undefined ? {} : { bridgeOrigin }),
+    ...(bridgeMedia === undefined ? {} : { bridgeMedia }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(replyToPreview === undefined ? {} : { replyToPreview }),
   };
@@ -1200,11 +1436,57 @@ export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
 }
 
+export async function botExists(call: BridgeCall, slug: string): Promise<boolean> {
+  const bots = asRecord(await unwrap(call, 'list', {}))?.['bots'];
+  if (!Array.isArray(bots))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  const identities = bots.map((entry) => asRecord(entry)?.['slug']);
+  if (!identities.every((identity) => typeof identity === 'string' && identity.length > 0))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  return identities.includes(slug);
+}
+
+export type SshFailureReason =
+  | 'auth'
+  | 'host-key'
+  | 'unreachable'
+  | 'ssh-missing'
+  | 'timeout'
+  | 'other';
+
+const SSH_FAILURE_REASONS: readonly SshFailureReason[] = [
+  'auth',
+  'host-key',
+  'unreachable',
+  'ssh-missing',
+  'timeout',
+  'other',
+];
+
+export interface HttpsFallback {
+  from: string;
+  to: string;
+  reason: SshFailureReason;
+  detail?: string;
+}
+
+export type CreatedBot = BotSummary & { httpsFallback?: HttpsFallback };
+
+function parseHttpsFallback(value: unknown): HttpsFallback | undefined {
+  const item = asRecord(value);
+  if (typeof item?.['from'] !== 'string' || typeof item['to'] !== 'string') return undefined;
+  const reason = SSH_FAILURE_REASONS.find((known) => known === item['reason']) ?? 'other';
+  const detail = item['detail'];
+  return typeof detail === 'string' && detail.length > 0
+    ? { from: item['from'], to: item['to'], reason, detail }
+    : { from: item['from'], to: item['to'], reason };
+}
+
 export async function createPersonaBot(
   call: BridgeCall,
   input: CreatePersonaBotInput,
   signal?: AbortSignal,
-): Promise<BotSummary> {
+): Promise<CreatedBot> {
   const value = await unwrap(
     call,
     input.gitUrl === undefined ? 'create' : 'createFromGit',
@@ -1213,7 +1495,163 @@ export async function createPersonaBot(
   );
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
+  const httpsFallback = parseHttpsFallback(asRecord(value)?.['httpsFallback']);
+  return httpsFallback === undefined ? bot : { ...bot, httpsFallback };
+}
+
+function botZipUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(`./api/botharness/${path}`, document.baseURI);
+  url.search = new URLSearchParams(params).toString();
+  return url.href;
+}
+
+async function botZipError(response: Response): Promise<BridgeCallError> {
+  let code = response.status === 413 ? 'too-large' : 'unavailable';
+  let message = `Bot zip request failed (${response.status})`;
+  try {
+    const error = asRecord(asRecord(await response.json())?.['error']);
+    if (typeof error?.['code'] === 'string') code = error['code'];
+    if (typeof error?.['message'] === 'string') message = error['message'];
+  } catch {}
+  return new BridgeCallError(code, message);
+}
+
+function attachmentFileName(header: string | null, fallback: string): string {
+  const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(header ?? '')?.[1];
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {}
+  }
+  return fallback;
+}
+
+export async function importBotZip(file: File, signal?: AbortSignal): Promise<BotSummary> {
+  const response = await fetch(botZipUrl('bot-zip/import', { name: file.name }), {
+    method: 'POST',
+    headers: { 'content-type': 'application/zip' },
+    body: file,
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const bot = parseBotSummary(asRecord(await response.json())?.['bot']);
+  if (bot === undefined) throw new Error('invalid Bot zip import response');
   return bot;
+}
+
+export interface BotZipFileListing {
+  files: Array<{ path: string; size: number }>;
+  always: string[];
+}
+
+export async function loadBotZipFiles(
+  slug: string,
+  signal?: AbortSignal,
+): Promise<BotZipFileListing> {
+  const response = await fetch(botZipUrl('bot-zip/files', { slug }), {
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const value = asRecord(await response.json());
+  const files: BotZipFileListing['files'] = [];
+  for (const item of Array.isArray(value?.['files']) ? value['files'] : []) {
+    const entry = asRecord(item);
+    if (typeof entry?.['path'] === 'string' && typeof entry['size'] === 'number') {
+      files.push({ path: entry['path'], size: entry['size'] });
+    }
+  }
+  const always = Array.isArray(value?.['always'])
+    ? value['always'].filter((path): path is string => typeof path === 'string')
+    : [];
+  return { files, always };
+}
+
+export interface BotZipExportChoice {
+  include?: readonly string[];
+  history?: boolean;
+}
+
+export async function downloadBotZip(
+  slug: string,
+  fallbackName: string,
+  choice: BotZipExportChoice = {},
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; name: string }> {
+  const { include } = choice;
+  const query = include === undefined ? { slug, ...(choice.history ? { history: '1' } : {}) } : {};
+  const response = await fetch(botZipUrl('bot-zip', query), {
+    credentials: 'same-origin',
+    ...(include === undefined
+      ? {}
+      : {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug, include }),
+        }),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  return {
+    blob: await response.blob(),
+    name: attachmentFileName(response.headers.get('content-disposition'), `${fallbackName}.zip`),
+  };
+}
+
+export async function loadMarketplacePage(
+  call: BridgeCall,
+  query: MarketplaceQuery = {},
+): Promise<MarketplacePage> {
+  const page = parseMarketplacePage(await unwrap(call, 'marketplaceList', { query }));
+  if (page === undefined) throw new Error('invalid marketplaceList response');
+  return page;
+}
+
+export async function loadMarketplaceDetail(
+  call: BridgeCall,
+  id: string,
+): Promise<MarketplaceDetail> {
+  const detail = parseMarketplaceDetail(await unwrap(call, 'marketplaceDetail', { id }));
+  if (detail === undefined) throw new Error('invalid marketplaceDetail response');
+  return detail;
+}
+
+export async function loadMarketplaceTopics(call: BridgeCall): Promise<MarketplaceTopic[]> {
+  const topics = parseMarketplaceTopics({ topics: await unwrap(call, 'marketplaceTopics', {}) });
+  if (topics === undefined) throw new Error('invalid marketplaceTopics response');
+  return topics;
+}
+
+export async function loadMarketplaceChallenge(call: BridgeCall): Promise<AltchaChallenge> {
+  const challenge = parseChallenge(await unwrap(call, 'marketplaceChallenge', {}));
+  if (challenge === undefined) throw new Error('invalid marketplaceChallenge response');
+  return challenge;
+}
+
+export async function submitMarketplaceRepository(
+  call: BridgeCall,
+  url: string,
+  altcha: string,
+): Promise<MarketplaceEntry> {
+  const result = parseMarketplaceSubmission(
+    await unwrap(call, 'marketplaceSubmit', { url, altcha }),
+  );
+  if (result === undefined) throw new Error('invalid marketplaceSubmit response');
+  return result.bot;
+}
+
+export async function reportMarketplaceBot(
+  call: BridgeCall,
+  id: string,
+  altcha: string,
+  reason?: string,
+): Promise<void> {
+  await unwrap(call, 'marketplaceReport', {
+    id,
+    altcha,
+    ...(reason === undefined ? {} : { reason }),
+  });
 }
 
 export async function loadChannels(
@@ -1286,6 +1724,128 @@ function parseHumanIdentity(value: unknown): LocalHumanIdentity {
     defaultDisplayName: name,
     displayName: item['displayName'] as string,
   };
+}
+
+export type TelemetryLock = 'config' | 'DO_NOT_TRACK' | 'BOTHARNESS_TELEMETRY';
+
+export interface TelemetryStatus {
+  enabled: boolean;
+  preference: boolean;
+  lockedBy?: TelemetryLock;
+}
+
+const TELEMETRY_LOCKS: readonly TelemetryLock[] = [
+  'config',
+  'DO_NOT_TRACK',
+  'BOTHARNESS_TELEMETRY',
+];
+
+export function parseTelemetryStatus(value: unknown): TelemetryStatus {
+  const item = asRecord(value);
+  if (typeof item?.['enabled'] !== 'boolean') throw new Error('invalid telemetry status');
+  const lockedBy = TELEMETRY_LOCKS.find((lock) => lock === item['lockedBy']);
+  return {
+    enabled: item['enabled'],
+    preference: item['preference'] !== false,
+    ...(lockedBy === undefined ? {} : { lockedBy }),
+  };
+}
+
+export type GitUnavailableReason = 'missing' | 'unrunnable' | 'too-old';
+
+export type GitInstallFailure = 'unsupported' | 'network' | 'checksum' | 'unpack' | 'unrunnable';
+
+export type GitInstallState =
+  | { phase: 'idle' }
+  | { phase: 'downloading'; received: number; total?: number }
+  | { phase: 'verifying' }
+  | { phase: 'unpacking' }
+  | { phase: 'failed'; reason: GitInstallFailure; detail?: string };
+
+export type GitAvailability = (
+  | { available: true; version: string; source: 'system' | 'managed' }
+  | { available: false; reason: GitUnavailableReason; version?: string }
+) & { installable: boolean; install: GitInstallState };
+
+const GIT_UNAVAILABLE_REASONS: readonly GitUnavailableReason[] = [
+  'missing',
+  'unrunnable',
+  'too-old',
+];
+
+const GIT_INSTALL_FAILURES: readonly GitInstallFailure[] = [
+  'unsupported',
+  'network',
+  'checksum',
+  'unpack',
+  'unrunnable',
+];
+
+function parseGitInstall(value: unknown): GitInstallState {
+  const item = asRecord(value);
+  const phase = item?.['phase'];
+  if (phase === 'downloading') {
+    const received = typeof item?.['received'] === 'number' ? item['received'] : 0;
+    const total = typeof item?.['total'] === 'number' ? item['total'] : undefined;
+    return { phase, received, ...(total === undefined ? {} : { total }) };
+  }
+  if (phase === 'verifying' || phase === 'unpacking') return { phase };
+  if (phase === 'failed') {
+    const reason = GIT_INSTALL_FAILURES.find((candidate) => candidate === item?.['reason']);
+    const detail = typeof item?.['detail'] === 'string' ? item['detail'] : undefined;
+    return {
+      phase,
+      reason: reason ?? 'unpack',
+      ...(detail === undefined ? {} : { detail }),
+    };
+  }
+  return { phase: 'idle' };
+}
+
+export function gitInstalling(git: GitAvailability | undefined): boolean {
+  const phase = git?.install.phase;
+  return phase === 'downloading' || phase === 'verifying' || phase === 'unpacking';
+}
+
+export function parseGitAvailability(value: unknown): GitAvailability {
+  const item = asRecord(value);
+  const version = typeof item?.['version'] === 'string' ? item['version'] : undefined;
+  const extra = {
+    installable: item?.['installable'] === true,
+    install: parseGitInstall(item?.['install']),
+  };
+  if (item?.['available'] === true && version !== undefined) {
+    const source = item['source'] === 'managed' ? 'managed' : 'system';
+    return { available: true, version, source, ...extra };
+  }
+  const reason = GIT_UNAVAILABLE_REASONS.find((candidate) => candidate === item?.['reason']);
+  if (item?.['available'] !== false || reason === undefined) throw new Error('invalid Git status');
+  return { available: false, reason, ...(version === undefined ? {} : { version }), ...extra };
+}
+
+export async function loadGitAvailability(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<GitAvailability> {
+  return parseGitAvailability(await unwrap(call, 'gitStatus', {}, signal));
+}
+
+export async function startGitInstall(call: BridgeCall): Promise<GitAvailability> {
+  return parseGitAvailability(await unwrap(call, 'gitInstall', {}));
+}
+
+export async function loadTelemetryStatus(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<TelemetryStatus> {
+  return parseTelemetryStatus(await unwrap(call, 'telemetryStatus', {}, signal));
+}
+
+export async function setTelemetryPreference(
+  call: BridgeCall,
+  enabled: boolean,
+): Promise<TelemetryStatus> {
+  return parseTelemetryStatus(await unwrap(call, 'telemetrySet', { enabled }));
 }
 
 export async function loadHumanIdentity(
@@ -1939,6 +2499,7 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     'assignmentSessionId',
     'assignmentPurpose',
     'authorBotSlug',
+    'scheduleId',
   ])
     if (row[key] !== undefined && typeof row[key] !== 'string') return undefined;
   if (
@@ -2371,10 +2932,34 @@ export interface GroupProfileActivity {
   authors: GroupProfileAuthorActivity[];
 }
 
+export interface MemoryStandingUsage {
+  path: string;
+  role: 'soul' | 'coreMemory';
+  chars: number;
+  limit: number;
+}
+
 export interface MemorySnapshot {
   head: string | null;
   files: string[];
   provisional: boolean;
+  standing: MemoryStandingUsage[];
+}
+
+function parseStandingUsage(value: unknown): MemoryStandingUsage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): MemoryStandingUsage[] => {
+    const row = asRecord(entry);
+    if (
+      row === undefined ||
+      typeof row['path'] !== 'string' ||
+      (row['role'] !== 'soul' && row['role'] !== 'coreMemory') ||
+      typeof row['chars'] !== 'number' ||
+      typeof row['limit'] !== 'number'
+    )
+      return [];
+    return [{ path: row['path'], role: row['role'], chars: row['chars'], limit: row['limit'] }];
+  });
 }
 
 function parseMemoryCommit(value: unknown): MemoryAcceptedCommit {
@@ -2409,7 +2994,12 @@ export async function loadMemorySnapshot(
     typeof snapshot['provisional'] !== 'boolean'
   )
     throw new Error('invalid Memory snapshot');
-  return snapshot as unknown as MemorySnapshot;
+  return {
+    head: snapshot['head'],
+    files: snapshot['files'] as string[],
+    provisional: snapshot['provisional'],
+    standing: parseStandingUsage(snapshot['standing']),
+  };
 }
 
 export async function loadWorkspaceFileTarget(
@@ -2901,12 +3491,98 @@ export async function loadChannelBridges(
     throw new BridgeCallError('invalid-response', 'Invalid Channel Bridge snapshot');
   return value as unknown as ChannelBridgeSnapshot;
 }
+export async function loadChannelIngests(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ConversationIngestSnapshot> {
+  const value = asRecord(await unwrap(call, 'channelIngests', { channelId }));
+  if (
+    !value ||
+    value['channelId'] !== channelId ||
+    !Array.isArray(value['ingests']) ||
+    !value['ingests'].every((item) => {
+      const row = asRecord(item);
+      const conversation = asRecord(row?.['conversation']);
+      const wake = asRecord(row?.['wake']);
+      return (
+        row &&
+        conversation &&
+        wake &&
+        ['id', 'channelId', 'platform', 'accountName', 'intakeAfter'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        typeof conversation['id'] === 'string' &&
+        typeof conversation['name'] === 'string' &&
+        typeof row['enabled'] === 'boolean' &&
+        Number.isInteger(row['revision']) &&
+        ['mentions', 'digest', 'all'].includes(String(wake['mode'])) &&
+        ['waiting', 'receiving', 'paused', 'unavailable'].includes(String(row['state']))
+      );
+    }) ||
+    !Array.isArray(value['candidates']) ||
+    !value['candidates'].every((item) => {
+      const row = asRecord(item);
+      return (
+        row &&
+        ['bindingId', 'botSlug', 'platform', 'accountName'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        Array.isArray(row['conversations'])
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid external conversation snapshot');
+  return value as unknown as ConversationIngestSnapshot;
+}
+export async function manageChannelIngest(
+  call: BridgeCall,
+  channelId: string,
+  input: ConversationIngestInput,
+): Promise<void> {
+  await unwrap(call, 'channelIngest', { channelId, input });
+}
 export async function manageChannelBridge(
   call: BridgeCall,
   channelId: string,
   input: ChannelBridgeInput,
 ): Promise<void> {
   await unwrap(call, 'channelBridge', { channelId, input });
+}
+export async function setApprovalRoute(
+  call: BridgeCall,
+  slug: string,
+  pairingId: string | null,
+  expectedRevision: number,
+): Promise<void> {
+  await unwrap(call, 'approvalRoute', { slug, pairingId, expectedRevision });
+}
+export async function testApprovalRoute(call: BridgeCall, slug: string): Promise<void> {
+  await unwrap(call, 'approvalTest', { slug });
+}
+export async function retryApprovalNotification(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<void> {
+  await unwrap(call, 'approvalRetry', { slug, id });
+}
+
+export async function reviewPairing(
+  call: BridgeCall,
+  slug: string,
+  input: PairingReviewInput,
+): Promise<PairingRequest> {
+  const value = asRecord(await unwrap(call, 'pairingReview', { slug, input }));
+  const pairing = asRecord(value?.['pairing']);
+  if (
+    !pairing ||
+    pairing['botSlug'] !== slug ||
+    typeof pairing['id'] !== 'string' ||
+    !Array.isArray(pairing['capabilities']) ||
+    typeof pairing['revision'] !== 'number'
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid pairing review');
+  return pairing as unknown as PairingRequest;
 }
 export async function loadMessagingSnapshot(
   call: BridgeCall,
@@ -3055,6 +3731,13 @@ export async function setMessagingGroupPolicy(
 ): Promise<void> {
   await unwrap(call, 'messagingGroupPolicy', { slug, grantId, policy });
 }
+export async function manageMessagingConversation(
+  call: BridgeCall,
+  slug: string,
+  input: MessagingConversationInput,
+): Promise<void> {
+  await unwrap(call, 'messagingConversation', { slug, input });
+}
 export async function setMessagingReceive(
   call: BridgeCall,
   slug: string,
@@ -3120,7 +3803,7 @@ export async function readMessagingSource(
             (asRecord(file)?.['sizeBytes'] === undefined ||
               (Number.isSafeInteger(asRecord(file)?.['sizeBytes']) &&
                 Number(asRecord(file)?.['sizeBytes']) > 0 &&
-                Number(asRecord(file)?.['sizeBytes']) <= 25 * 1024 * 1024)) &&
+                Number(asRecord(file)?.['sizeBytes']) <= Number.MAX_SAFE_INTEGER)) &&
             (asRecord(file)?.['mediaType'] === undefined ||
               typeof asRecord(file)?.['mediaType'] === 'string'),
         ))) ||
@@ -3138,7 +3821,7 @@ export async function readMessagingSource(
           path &&
           strings(path, ['routeId', 'grantId', 'reason', 'mode']) &&
           (path['channelId'] === null || typeof path['channelId'] === 'string') &&
-          ['group-mention', 'group-ordinary'].includes(String(path['reason'])) &&
+          ['group-mention', 'group-ordinary', 'human-dm'].includes(String(path['reason'])) &&
           ['all', 'immediate', 'digest', 'mentions', 'silent', 'context', 'conditional'].includes(
             String(path['mode']),
           ) &&
@@ -3163,7 +3846,13 @@ export async function readMessagingSource(
         const read = asRecord(value);
         return (
           strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
-          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(
+            String(read?.['scope']),
+          ) &&
+          (read?.['coverage'] === undefined ||
+            ['provider-visible-human-text', 'retained-local-sources'].includes(
+              String(read['coverage']),
+            )) &&
           ['read', 'refused'].includes(String(read?.['outcome'])) &&
           typeof read?.['incomplete'] === 'boolean' &&
           Number.isInteger(read?.['omitted']) &&
@@ -3436,4 +4125,25 @@ export async function loadOverviewMemory(
   )
     throw new Error('invalid Overview Memory');
   return value as unknown as OverviewMemory;
+}
+
+export async function setModelPlan(
+  call: BridgeCall,
+  slug: string,
+  expectedRevision: number,
+  orchestrator: ModelRouteView,
+  assignmentDefault: ModelRouteView,
+  assignmentModels: AssignmentModelOptionView[],
+): Promise<ModelPlanView> {
+  const value = asRecord(
+    await unwrap(call, 'modelPlanSet', {
+      slug,
+      expectedRevision,
+      orchestrator,
+      assignmentDefault,
+      assignmentModels,
+    }),
+  );
+  if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
+  return value!['plan'] as ModelPlanView;
 }

@@ -2,11 +2,11 @@
 
 Install the **DeepSeekBot** plugin in DeepSeek Harness (DSH), enable it and create your first PersonaBot. You install one product package; Core, Client and the qualified IM Provider arrive with it.
 
-This guide uses the public npm prerelease **`deepseekbot@0.1.0-alpha.1`**, verified with **DSH `0.2.0-rc.1`**. It is an early preview. Screenshots show a clean Profile using the Chinese DSH interface; the captions name the corresponding controls. No repository checkout or local build is required.
+This guide installs the public npm package **`deepseekbot`**, verified with **DSH `0.2.0-rc.1`**. Screenshots show a clean Profile using the Chinese DSH interface; the captions name the corresponding controls. No repository checkout or local build is required.
 
 ## 1. Open Plugins
 
-Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Follow [API and Bot model setup](/docs/model-setup) to configure a provider first; apply a model preset in the Bot Profile after creating the Bot.
+Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Follow [API and Bot model setup](/docs/model-setup) to configure a provider first; after creating the Bot, choose its models under **Model** in the DM's Channel sidebar.
 
 Click **Plugins (插件)** in the left sidebar, then **Add plugin (添加插件)**.
 
@@ -17,18 +17,18 @@ Click **Plugins (插件)** in the left sidebar, then **Add plugin (添加插件)
 Paste this exact value into **Package name or address (包名或地址)**:
 
 ```text
-deepseekbot@0.1.0-alpha.1
+deepseekbot
 ```
 
 Keep **npm official registry (npm 官方源)** as the installation source and click **Install (安装)**. Wait for the installation task to finish.
 
-![Add plugin dialog with the exact npm package version](/guides/install/02-install-source-zh.webp)
+![Add plugin dialog with the npm package name filled in](/guides/install/02-install-source-zh.webp)
 
-_This field imports the package source. It is not a file-upload picker. The pinned version makes the installation repeatable._
+_This field imports the package source. It is not a file-upload picker. The package name alone installs the latest release (the screenshot shows an earlier pinned version); add `@<version>` to pin one._
 
 ## 3. Enable the installed plugin
 
-The completed task shows **Installed (已安装)**, the package name and version **`0.1.0-alpha.1`**. Click **Enable now (立即启用)**. If you closed the task, return to Plugins and turn on **Enable deepseekbot (启用 deepseekbot)**.
+The completed task shows **Installed (已安装)**, the package name and the installed version. Click **Enable now (立即启用)**. If you closed the task, return to Plugins and turn on **Enable deepseekbot (启用 deepseekbot)**.
 
 ![Actual successful installation showing version and Enable now](/guides/install/03-installed-zh.webp)
 
@@ -44,7 +44,7 @@ Click **Bot mode (Bot 模式)**, then **Create your first PersonaBot (创建第�
 
 ![Create PersonaBot dialog with a tutorial Bot name](/guides/install/06-create-bot-zh.webp)
 
-Open the new Bot's DM and click its header name/avatar → **View details → Model preset**. Choose Orchestrator and Assignment models, then **Create and apply**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
+Open the new Bot's DM, expand **Model** in the Channel sidebar on the right and click **Main model**. Choose the main model and task model, then **Save**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
 
 ![A real model reply in the freshly installed product after a cold restart](/guides/install/07-local-reply-zh.webp)
 
@@ -56,17 +56,35 @@ See [Settings guide](/docs/settings) for appearance, concurrency, persona, atten
 
 The initial installation has no IM accounts connected. After the local DM works, follow [Connect a Bot to Lark / Feishu](/docs/lark-connection). App credentials, external identity binding and group authorization are separate steps; installing the plugin does not authorize external groups.
 
+## Git
+
+Bot mode needs Git 2.28 or newer on the computer that runs DSH, because each Bot's memory is a Git repository. When Git is missing or too old, Bot mode says so at the top of the roster and turns off creating and importing Bots until Git works.
+
+The quickest fix is the **Install Git** button in that notice. It downloads a portable Git (about 65 MB) into the DeepSeek Harness data folder, checks it against a pinned checksum, and starts using it right away. It needs no admin rights and does not change the Git installed on your computer. DeepSeekBot downloads it from `media.botharness.ai` first and from GitHub if that fails. A usable system Git always takes priority, so installing Git yourself later replaces it on the next DeepSeek Harness start.
+
+To install Git yourself instead:
+
+- **macOS**: run `xcode-select --install` in Terminal and follow the prompt, or install Git with Homebrew (`brew install git`).
+- **Windows**: install [Git for Windows](https://git-scm.com/download/win) with the default options.
+- **Linux**: install the `git` package with your distribution's package manager, for example `sudo apt install git`. Ubuntu 20.04 ships Git 2.25; use the [git-core PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa) for a newer one.
+
+After installing it yourself, restart DeepSeek Harness and click **Check again** in Bot mode.
+
+The **Git** row in DeepSeekBot settings shows the Git version in use and whether it is your system Git or the Managed Git.
+
+When you import a Bot from an SSH address such as `git@github.com:owner/repo.git` and the Host has no SSH key for it, DeepSeekBot retries once with the matching HTTPS address and tells you it switched. The Bot then syncs over HTTPS. Addresses with a custom SSH port are not converted.
+
 ## Other installation methods
 
 The [official DSH packaging reference](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) also supports CLI installation into a named Profile:
 
 ```bash
-dsh plugin --profile <your-profile> add deepseekbot@0.1.0-alpha.1
+dsh plugin --profile <your-profile> add deepseekbot
 ```
 
 Use the Profile you actually start. Enable the plugin in that Profile's Plugins page afterward.
 
-To import the same precompiled archive, download the [public npm tarball](https://registry.npmjs.org/deepseekbot/-/deepseekbot-0.1.0-alpha.1.tgz). In the Web interface, enter its **absolute path on the machine running DSH** in Package name or address; a path on a different browser machine is not a Host path. With the CLI you can instead use `dsh plugin --profile <your-profile> add ./deepseekbot-0.1.0-alpha.1.tgz` from the download directory.
+To import the same precompiled archive, download the public npm tarball with `npm pack deepseekbot`, which saves `deepseekbot-<version>.tgz` in the current directory. In the Web interface, enter its **absolute path on the machine running DSH** in Package name or address; a path on a different browser machine is not a Host path. With the CLI you can instead use `dsh plugin --profile <your-profile> add ./deepseekbot-<version>.tgz` from the download directory.
 
 ## If installation does not finish
 

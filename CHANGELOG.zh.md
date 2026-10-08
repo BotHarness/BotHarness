@@ -5,23 +5,132 @@
 
 ## [Unreleased]
 
-明确的 PersonaBot 删除与可选记忆清除，以及官网使用教程。
+微信原始语音可准备播放，可读取原生引用与本地保留上下文，原生视频可通过受检查的媒体链路播放与回传；Discord 默认设置可独立保存并由 Profile 继承；Bot 可以导出为 zip，在别处导入成新的 Bot。
 
 ### Breaking Changes
 
-- PersonaBot 删除引入 Profile schema Generation 57；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
+- PersonaBot 删除引入 Profile schema Generation 66；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
 ### Added
 
 - Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
+- 群频道可以接入外部会话：在频道 Profile 的「外部连接器」中点 **接入外部会话**，选一个已绑定的应用和它已知的一个群，之后这个群里的每条消息都会出现在频道里。成员 Bot 默认只把这些消息当作上下文，只有被 @ 时才会被唤醒；接入的唤醒设置可以改成攒够条数后唤醒或每条立即唤醒，成员在频道里单独设置的唤醒策略仍然优先。每一行显示状态和最后一条消息的时间，可以用开关暂停，**删除** 后不再接收新消息，已接入的消息保留（[#1145](https://github.com/BotHarness/BotHarness/issues/1145)，[ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 私聊已绑定的 Slack 应用，消息现在会进入 Bot 收件箱，Bot 直接在私聊里回复，不开 thread；Discord 应用也重新出现在 **绑定应用** 里。开发用的 IM Provider 换到新的 dsh-im 版本，包含 Slack 私聊接收、Discord checked 发送，以及 Slack/Discord 回复里的 checked @（[#1125](https://github.com/BotHarness/BotHarness/issues/1125)、[外部身份指南](docs/channel-sidebar/external-identities.md)）。
+
+- 从侧栏 Bot 菜单可显示透明像素窗口伙伴，在 Harness 页面之间保留，跟随真实 Activity 和新的 Human–Bot 私聊回复，支持拖拽姿态缓动、连续惯性下落与柔和落地，以及悬浮阅读列表；减少动效时关闭下落和姿态效果。重启恢复本地选择，不重播历史消息；首个切片支持一个伙伴，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- 一个 Bot 可以绑定同一平台的多个应用，例如两个飞书应用：每个应用的私聊和 @ 都进入同一个收件箱，并通过收到消息的应用回复。**绑定应用** 列出所有已连接的应用，已被 Bot 使用的应用置灰并注明是哪个 Bot；外部身份按平台列出这个 Bot 的应用。Bot 在同一个群里有两个应用时，转发来源的回复会明确拒绝（[#1110](https://github.com/BotHarness/BotHarness/issues/1110)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- **编辑外部身份** 里的会话列表现在可以管理：会话分为 **等待处理**、**活跃**、**已静音**、**已屏蔽**。**静音** 后消息照常进入收件箱但不唤醒 Bot，**规则** 单独调整一个群的收件和唤醒，**屏蔽**（需确认）会取消未发出的回复，重启、解绑再绑定后依然有效；**再次允许** 从下一条消息重新开始，不补收。新增 **新会话** 设置，可选 **自动接收** 或 **先问我**；等待中的会话只记录名称和次数，不保存消息内容。每个应用每小时最多自动加入 20 个新会话、最多 500 个活跃会话，超出时进入等待并显示原因（[#1109](https://github.com/BotHarness/BotHarness/issues/1109)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- Slack、Discord 和个人微信也能一步绑定：**绑定应用** 后，私聊 Slack 或 Discord 应用、或在频道里 @ 它，消息直接进入 Bot 收件箱并在原话题回复；个人微信只接收扫码者本人的私聊，其他联系人和群不会进入。绑定弹窗对所有平台显示真实接收状态，已记下的群会话跟随平台全局默认的群收件和唤醒设置（[#1112](https://github.com/BotHarness/BotHarness/issues/1112)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- 绑定飞书应用就能收发：外部身份里的 **绑定身份** 改为 **绑定应用**，绑定后私聊这个应用、或在群里 @ 它，消息直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存投递目标、授权会话或打开收件开关。第一条消息会自动记下会话，应用行显示会话数，点开可查看只读会话列表；绑定后弹窗显示真实的接收状态。`/pair` 仍由配对处理，已有授权的行为不变，所有已绑定应用升级后都默认自动接收新会话（[#1108](https://github.com/BotHarness/BotHarness/issues/1108)，[ADR-0142](docs/adr/0142-a-bound-app-admits-its-direct-messages-and-mentions.md)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
+
+- AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。
+
+- 个人微信已授权扫码者私聊支持受控主动文字报告，复用纯外部 Outbox、发送前授权检查及私有上下文缺失的恢复提示；Profile 可显式投递，客户端确认和实际返回的原生服务器消息 ID 分开记录，不宣称送达或已读回执（[#910](https://github.com/BotHarness/BotHarness/issues/910)，[指南](docs/wechat-connection.md)）。
+
+- 个人微信扫码者私聊支持频道连接器，可明确投递到本地 DM／群聊或仅进入 Bot Inbox；多个目标引用同一 Source Event，各成员独立设置唤醒。共享阅读者对外回复仍需自己的身份和授权，不代表支持原生微信群或话题（[#909](https://github.com/BotHarness/BotHarness/issues/909)）。
+
+- 新增候选 Lark 图片预览，在原 Channel 气泡保留原生图文顺序，按可见区域加载、点击放大并复查当前 Channel／来源授权，图片接收开关贯通到账号接收器；停止接收保留已取得图片，解绑／撤销则拒绝受影响路径（[#1021](https://github.com/BotHarness/BotHarness/issues/1021), [教程](docs/lark-connection.md)）。
+- PersonaBot 可读取微信原生引用正文，或从当前授权私聊的本地保留记录解析缺失引用；来源详情区分原生、本地解析与不可用，本地上下文支持有界 cursor 续页，不宣称微信远端历史能力（[#908](https://github.com/BotHarness/BotHarness/issues/908)，[指南](docs/wechat-connection.md)）。
+- 新增 Lark 私聊 `/pair` 申请、认证 Web 审核、显式选择当前 Bot 的能力及重启后保留的撤销记录；配对消息不进入 Bot Inbox 或 Memory，IM 决策控件由后续切片接入（[#1027](https://github.com/BotHarness/BotHarness/issues/1027)、[guide](docs/lark-connection.md)、[ADR-0136](docs/adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)）。
+- 新增个人微信受控视频链路，可按需播放／下载来源视频，并用 Bot 自己的身份发送原生视频回复，保留私密路由与当前授权；浏览器播放和工具读取不代表模型已理解视频（[#907](https://github.com/BotHarness/BotHarness/issues/907)，[指南](docs/wechat-connection.md)）。
+- 微信原生语音可下载原文件，支持的 SILK 音频可显式准备播放或保存独立 WAV 工作副本；解码有大小、时间限制并校验当前来源授权，语音识别和原生语音回复仍是独立能力（[#906](https://github.com/BotHarness/BotHarness/issues/906)、[指南](docs/wechat-connection.md)）。
+- Discord 支持独立的外部平台默认设置，涵盖群收件、普通消息唤醒阈值与继承身份的启停。Profile 自定义选项保持独立，恢复继承使用当前 Discord 默认值；升级保留已有 Lark/Slack 历史和覆盖项（[#1016](https://github.com/BotHarness/BotHarness/issues/1016)）。
+- Bot 现在可以打包成 zip 交给别人。「创建 PersonaBot」变成二级菜单：「从零创建」「从 GitHub 导入」「从 zip 导入」。Bot 资料页新增「分享与导出」，先提醒检查密码和个人信息，再把 Bot 的 Memory 文件（包括还没提交的修改）连同 `.botharness/bot.json` 和头像打包下载；Git 历史、会话、IM 绑定和凭证都不会放进去。从 zip 导入会先显示第三方内容提示，然后创建一个新的 Bot，只有一个初始提交，名称、岗位和头像来自 zip；不安全的路径、损坏的文件和超过 100 MB 的 zip 会被拒绝，不留下任何半成品（[#1062](https://github.com/BotHarness/BotHarness/issues/1062)，[ADR-0135](docs/adr/0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md)）。
+- 导出 zip 时可以选择文件：导出窗口列出 Bot 的全部 Memory 文件和文件夹，默认全选，可展开、折叠、全选或全不选，取消勾选的文件不会进入 zip；`.botharness/bot.json` 和头像始终包含（[#1063](https://github.com/BotHarness/BotHarness/issues/1063)）。
+- 导出 zip 时可以勾选「包含 Git 历史」，带上所有分支、标签和提交记录；只有全选文件时才可用。导入这样的 zip 会保留这些分支、标签和历史并切到导出时的分支，不带远程地址和原机器的 Git 配置（[#1064](https://github.com/BotHarness/BotHarness/issues/1064)）。
+- 新增[导出与导入 Bot](docs/bot-zip.md)教程：zip 里有什么、导出时选择文件和 Git 历史、从 zip 导入，以及分享前和导入前的安全提醒；「分享 Bot」和「记忆文件」教程链接到它（[#1065](https://github.com/BotHarness/BotHarness/issues/1065)）。
+- Bot 模式会在创建 Bot 之前检查 Host 上的 Git。没有 Git、Git 无法运行（例如 macOS 未安装命令行工具时的占位程序）或版本低于 2.28 时，名册顶部会说明原因并链接到安装教程新增的 [Git 一节](docs/installation.md#git)，在「重新检测」找到可用的 Git 之前禁用创建和导入 Bot；创建时仍遇到不可用的 Git，会报告为缺少 Git，而不是笼统的记忆错误（[#1096](https://github.com/BotHarness/BotHarness/issues/1096)，[ADR-0140](docs/adr/0140-the-host-falls-back-to-a-managed-git.md)）。
+- Bot 模式现在可以帮你安装 Git：Host 上的 Git 不可用时，点 **安装 Git** 会把固定版本的便携版 Git 下载到 DeepSeek Harness 数据目录（先从 `media.botharness.ai`，失败再从 GitHub），校验 SHA-256 后立即启用，不用重启，也不需要管理员权限；Orchestrator 的 Shell 也会用同一个 Git。每次启动时仍优先使用可用的系统 Git（[#1097](https://github.com/BotHarness/BotHarness/issues/1097)，[Git 一节](docs/installation.md#git)）。
+- 从 SSH 地址导入 Bot 现在会自动改用 HTTPS：克隆 `git@host:owner/repo` 或 `ssh://git@host/owner/repo` 失败时，Host 会用对应的 HTTPS 地址重试一次并告诉你已经切换，之后这个 Bot 通过 HTTPS 同步；HTTPS 也失败时显示原来的 SSH 错误。DeepSeekBot 设置新增 **Git** 一行，显示正在使用的 Git 版本以及是系统 Git 还是托管 Git（[#1098](https://github.com/BotHarness/BotHarness/issues/1098)，[Git 一节](docs/installation.md#git)）。
+
+### Changed
+
+- **新会话** 也成了平台默认设置：飞书、Slack、Discord 的全局 IM 默认设置里各有一个 **新会话** 选项（不改就是 **自动接收**），每个已绑定应用都跟随它，除非你为这个应用单独选择。已经设为 **先问我** 的应用保持不变（[#1134](https://github.com/BotHarness/BotHarness/issues/1134)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+- 「外部连接器」不再提供 **添加外部连接器** 和 **授权外部会话**（同步正在围绕“接入任意应用的会话”重新设计），只列出已有的同步，并保留 **保存发送目标（高级）** 给不能直接发往会话的应用。会话行会显示已同步到哪里，操作按钮（**静音**、**规则**、**屏蔽**）单独一行并各带说明提示。Lark 配置引导缩减为三步（连接应用、绑定、发消息验证），Lark、Slack、微信连接教程围绕 **绑定应用** 重写（[#1113](https://github.com/BotHarness/BotHarness/issues/1113)、[Lark 教程](docs/lark-connection.md)、[外部连接器说明](docs/channel-sidebar/external-connectors.md)）。
+
+- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
+- Bot 的 IM 设置从 Profile 移到私聊 Channel sidebar 的两个新分区。**外部身份** 每个已绑定身份一行，显示可用状态和启用开关，下面是 **绑定身份**、Lark 配置引导、IM 管理员配对和 Lark 审批通知。**外部连接器** 每个连接器一行，显示状态和启用开关，下面是 **添加外部连接器** 和外部会话授权。点击一行打开弹窗修改，选项与原来一致。**频道连接器** 改名为 **外部连接器**。SOUL.md 和 MEMORY.md 的常驻记忆上限变成 **记忆文件** 下的一行，点击打开弹窗。迁移后的表单统一使用共享的下拉框、输入框和复选框（[#1085](https://github.com/BotHarness/BotHarness/issues/1085)，[外部身份教程](docs/channel-sidebar/external-identities.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+
+### Fixed
+
+- 取消窗口伙伴钉选会清除其 Activity 连接异常提示；成功加载 Bot 名单后，会清理已删除 Bot 的恢复钉选，网络失败仍保留用户钉选偏好（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- 窗口伙伴向左右拖动时，身体按惯性落后于抓取点；落地贴住窗口内容区底边，不再保留底部间隙（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- Bot 读到的 IM @ 改成名字，不再是平台占位符：飞书的 `@_user_1` 和 Slack 的 `<@U…>` 以 `@名字` 交给模型（平台没给名字时用 `@ID`），每条外部消息还列出发送人和被 @ 的人及其平台 ID。Bot 在 `bridge_reply` 正文任意位置写 `<@ID>`，就能在飞书、Slack 或 Discord 上 @ 这条消息的发送人或其中被 @ 的人（Slack 和 Discord 通过 IM Provider 的 checked @ 提醒，旧版 Provider 退回 `@名字` 文字）；其他 ID 或 @ 标记按纯文本发出（[#1126](https://github.com/BotHarness/BotHarness/issues/1126)）。
+- **绑定应用** 不再隐藏 IM 插件暂时不支持的应用。插件缺少受检发送能力的 Discord 应用现在会置灰显示，并注明 **需要更新 IM 插件后才能绑定**，不会再悄悄从列表里消失（[#1123](https://github.com/BotHarness/BotHarness/issues/1123)）。
+- **绑定应用** 不再列出已经绑定到这个 Bot 的应用，它们已经显示在「外部身份」里（[#1127](https://github.com/BotHarness/BotHarness/issues/1127)）。
+
+- 模型弹窗不再提供跑不起来的路由：某个提供方在真实对话里因没有 API key 或 key 无效而失败后，它的模型排到最后，标为 **需要配置 key** 或 **key 无效**，不能选择或保存；DSH 的凭证、设置或适配器变化后恢复。没有 Model Plan 的 Bot 打开弹窗时默认选中 DSH 默认模型，而不是目录里的第一个（[#1124](https://github.com/BotHarness/BotHarness/issues/1124)）。
+- 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
+
 ### Documentation
 
-- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
+- 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括 AppData 物理路径、隔离 Profile 的包管理器版本锁定、真实 Shell 退出证据及进程时间戳保护。双语 [Lark 指南](docs/lark-connection.md)记录准确候选源码经 Human 点击允许一次／拒绝的真实核验；此次文档更新不改变运行行为（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
-## [1.0.0] - 2026-10-05
+- 记录开发来源 Discord 共享 Channel 在一个绑定成员、Message Content OFF 下的资格验证，包含原 thread 模型回复、重叠去重及暂停／重启／恢复证据（[#1054](https://github.com/BotHarness/BotHarness/issues/1054)，[英文验证](docs/dev/verification/discord-1054-shared-channel.md)、[中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)）。
 
-DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，以及飞书、Slack、Discord 和微信身份，作为一个插件装进 DSH。
+## [1.1.0] - 2026-10-06
+
+PersonaBot 可设置并自行管理定时任务，每个会话都会带上 Bot 的 Soul 与核心记忆，Channel 侧栏各分区统一为卡片样式，微信支持语音转写和图片；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；插件会发送可关闭的匿名使用统计；Bot 设置可一键安装 DeepSeekBot 更新并重启 DSH。
+
+### Added
+
+- 增加个人微信语音来源候选链路，使用平台提供的转写，在 Bot Inbox 区分有转写与缺少转写；不增加 ASR 或音频播放，真实原生语音 → 模型 → 原私聊回复已由 Human 确认（[#905](https://github.com/BotHarness/BotHarness/issues/905)）。
+- 增加源码预览微信图片链路，支持 Inbox 原消息气泡内自动加载的 checked 图片预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
+- PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。
+- DeepSeekBot 现在会在创建 Bot 时，自动在它的 Memory 里写入 `.botharness/bot.json`，之后改名称、岗位或头像时同步更新；已有的 Bot 会在下次启动时补上。分享出去的 Bot 在 Bot 市场里显示的名称、岗位和头像，和侧栏里一致（[#966](https://github.com/BotHarness/BotHarness/issues/966)、[教程](docs/share-bot.md)）。
+- DeepSeekBot 由 DSH 后台发送匿名使用统计，只关联一个随机安装 ID：`plugin_started`（插件和 DSH 版本、操作系统、架构），`bot_created`、`bot_archived`、`bot_deleted`、`marketplace_bot_installed`、`connector_enabled`（只含连接器类型）、`avatar_edited`，每天一次的 `daily_usage` 汇总（PersonaBot、会话和消息数量及统计时长），以及 BotHarness 后台未处理错误的 `$exception` 报告（错误类型和只保留包内文件名的调用栈，从不含错误信息或文件路径）；Bot 模式会弹出一次说明，并链接隐私说明和源码。可在 Bot 设置中关掉「匿名使用统计」开关，立即生效、无需重启，并会被记住；在 core 插件配置中设置 `telemetry: false`，或设置 `DO_NOT_TRACK=1`、`BOTHARNESS_TELEMETRY=0`，会强制关闭并锁定该开关（[#951](https://github.com/BotHarness/BotHarness/issues/951)，[#952](https://github.com/BotHarness/BotHarness/issues/952)，[ADR-0132](docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md)，[教程](docs/settings.md)）。
+- PersonaBot 可以自己管理定时任务：让 Bot「每小时检查一下 X」或「每天早上总结」，它会自己创建定时任务，侧栏里标为 Bot 创建；它也可以修改或删除你没有锁定的任务。你可以在任务行或编辑弹窗里锁定任务；每个 Bot 最多同时启用 20 个；Bot 改动后侧栏立即刷新；Orchestrator 中 DSH 自带的 `schedule_*` 工具会被拒绝，确保每个 Bot 只有一套定时任务（[#961](https://github.com/BotHarness/BotHarness/issues/961)）。
+- 定时任务新增每周（选择星期几）、单次（指定日期和时间，触发后自动停用）和 5 段 Cron 三种频率，均按任务自己的时区计算；编辑弹窗会预览接下来三次触发时间，Bot 的定时任务工具也支持这些频率；任务行上的「立即运行」会马上唤醒 Orchestrator，且不改变下一次计划时间。新增[定时任务使用指南](docs/channel-sidebar/schedules.md)，说明各种频率、立即运行、暂停与锁定（[#962](https://github.com/BotHarness/BotHarness/issues/962)）。
+- Bot 设置可以通过 DSH 的插件管理一键安装新版本 DeepSeekBot。Web 版装完点「立即重启」，`dsh web` 会在同一个终端里重启，页面自动重新连接；DSH Desktop 会提示退出后重新打开。插件管理不可用或安装失败时，会显示原因和手动更新命令。新增[更新 DeepSeekBot](docs/update-deepseekbot.md)教程，说明每一步（[#986](https://github.com/BotHarness/BotHarness/issues/986)）。
+
+### Changed
+
+- Channel 侧栏的会话、Bot 收件箱和工作区授权改用与定时任务相同的卡片行：每行带图标、状态 chip 和说明行；来自定时任务的收件箱条目现在可以点开对应的定时任务（[#972](https://github.com/BotHarness/BotHarness/issues/972)）。
+- Channel 侧栏的电脑和浏览器分区也改用相同的卡片行：状态卡片显示目标（本机或 Docker）、运行中、需要设置、已暂停等状态 chip 和对应操作，浏览器打开的标签页也以卡片行列出（[#975](https://github.com/BotHarness/BotHarness/issues/975)）。
+- Bot Profile 的头像区合并为一个「头像」分区，并排提供「设计像素头像」和「上传图片」两种方式，并标出正在使用的那种；去掉了重复的「更换头像」按钮，顶部分隔线上下留出空白（[#985](https://github.com/BotHarness/BotHarness/issues/985)）。
+- PersonaBot 的人格文件改名为 `SOUL.md`（Soul），每个 Session 开始时还会带上 Core Memory `MEMORY.md`，新对话一开始就知道 Bot 记得什么。两者在整个 Session 内冻结，并带字符用量标注（默认上限 5,000 和 3,000 字符）；新建的 Bot 会附带一份简短的 `MEMORY.md` 模板，已有的 `PERSONA.md` 会在下次启动时改名为 `SOUL.md`（[#988](https://github.com/BotHarness/BotHarness/issues/988)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
+- 每个 Bot 的资料页新增「常驻记忆上限」，可分别设置 `SOUL.md` 和 `MEMORY.md` 的字符上限，并显示约合多少汉字和英文单词，从下一个 Session 开始生效。Memory 面板把这两个文件置顶，带「常驻」标记和当前用量，超限时标红；Memory 搜索现在也能搜到它们（[#989](https://github.com/BotHarness/BotHarness/issues/989)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
+
+### Fixed
+
+- 带明确私聊 Chat ID 的 Lark 用户目标可以将未 @ 的私聊消息送进同一个 PersonaBot Inbox，并以绑定身份回复；未提供该标识的目标仍只支持发送（[#996](https://github.com/BotHarness/BotHarness/issues/996)）。
+
+### Documentation
+
+- 记录开发来源 Discord 文件候选的真实模型保存／处理／导入／原 thread 结果、独立原件不变／输出字节证据及临时工作区写权限清理（[#1002](https://github.com/BotHarness/BotHarness/issues/1002)，[verification](docs/dev/verification/discord-1002-source-files.md)）。
+- 新增教程 [Bot 灵魂与核心记忆](docs/soul-and-core-memory.md)：说明 `SOUL.md` 与 `MEMORY.md` 为什么在每个 Session 开始时冻结注入、两个文件分别代表什么、为什么没有 `USER.md`、字符上限及中英文的大致篇幅和 token 量、如何修改上限、超限时的样子、修改何时生效，以及如何和 Bot 一起塑造 `MEMORY.md`（[#990](https://github.com/BotHarness/BotHarness/issues/990)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
+- GitHub 与 npm 的 README 补充定时任务、Bot 市场和更新提示，新增依据本 Ledger 整理的「版本亮点」，并换成高清截图表格，所有头像均为 BotPixel 像素头像（[#984](https://github.com/BotHarness/BotHarness/issues/984)）。
+- 记录隔离 Discord nearby 上下文候选的准确原生来源范围、五分钟窗口、稀疏 Human 文本最小条数与有界续页；真实模型稀疏续页、canonical 留存、原 thread 回复和临时权限恢复已独立验证，产品提升仍另行管理（[#981](https://github.com/BotHarness/BotHarness/issues/981)，[指南](docs/dev/guides/im-provider-integration.md)）。
+- 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
+
+## [1.0.2] - 2026-10-06
+
+Bot 模式会在安装和升级后显示更新内容并检查 npm 上的新版本；上下文读取保留准确的 `source-conflict` 拒绝；新增分享 Bot 教程，说明如何把 Bot 发布到 Bot 市场。
+
+### Added
+
+- 首次安装后进入 Bot 模式会显示当前版本的更新日志，升级后会显示上次查看以来的所有版本；Bot 设置显示当前版本，可从 npm 检查新版本并查看其更新内容和更新命令，也可打开官网更新日志（[#947](https://github.com/BotHarness/BotHarness/issues/947)）。
+
+### Fixed
+
+- 上下文读取遇到原生历史与留存证据不同时，现保留准确的 `source-conflict` 拒绝；冲突页整体回滚，不替换原来源（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
+
+### Documentation
+
+- 新增[分享 Bot](docs/share-bot.md)教程：发布前检查 Memory、一键复制让 Bot 自己发布到 GitHub 的提示词、收录进 Bot 市场，以及 `.botharness/bot.json` 说明（[#958](https://github.com/BotHarness/BotHarness/issues/958)）。
+
+## [1.0.1] - 2026-10-05
+
+DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像、飞书、Slack、Discord 和微信身份，以及首片 Bot 市场，作为一个插件装进 DSH。1.0.0 未作为产品发布。
 
 ### Breaking Changes
 
@@ -36,6 +145,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 自定义 `BotAgentAdapter` 需让 Orchestrator 的 `channels.contacts(input?)` 返回 `{ outputLimit, contacts, nextCursor? }`，稳定 ID 字段从 `slug` 改为 `botId`；`list_bot_contacts` Tool 也返回该有界页，消费方需处理续页（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
 ### Added
+
+- 增加微信扫码绑定者文件进入既有附件与 Bot Inbox 链路、结果文件回到原私聊的能力；下载有界且保持私有，上传后再次检查授权（[#903](https://github.com/BotHarness/BotHarness/issues/903)，[连接指南](docs/wechat-connection.md)）。
 
 - 增加个人微信扫码绑定者文本进入既有 Bot Inbox 与本身份回复链路，使用明确私聊授权和私有来源续接信息；源码版与本机安装产品的真实收发已验证，Human QA 已通过（[#878](https://github.com/BotHarness/BotHarness/issues/878)，[ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md)，[连接指南](docs/wechat-connection.md)）。
 
@@ -288,8 +399,17 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 将 DM 与 group Channel composer 重构为响应式 floating island，支持多行输入，并提供可访问、仅消费投影的 PersonaBot activity region（[#129](https://github.com/BotHarness/BotHarness/issues/129)）。
 - 为独立的 DeepSeekBot 与 DSH Skill release train 新增确定性、只读的 GitHub Release draft 准备流程（[指南](docs/agents/changelog.md#preparing-a-github-release-draft)、[#103](https://github.com/BotHarness/BotHarness/issues/103)）。
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
+- 侧栏 **+** 菜单新增 Bot 市场：贴入带 `botharness-bot` 话题的公开 GitHub 仓库即可收录，可浏览已收录的 Bot，并在显示最新提交与第三方风险提示的确认后安装为新的 PersonaBot（[#916](https://github.com/BotHarness/BotHarness/issues/916)，[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
+- 给仓库加上 `botharness-bot` 话题后，无需贴链接，下一次每日定时发现就会把它收录进 Bot 市场；已收录条目每小时刷新，移除话题、归档、删除或改为私有会隐藏条目，仓库改名或转移仍保留同一条目（[#917](https://github.com/BotHarness/BotHarness/issues/917)）。
+- Bot 市场支持按最近更新或 Star 数排序，可按相关度搜索名称、描述、话题和 README（支持中文），并可点话题标签筛选（[#918](https://github.com/BotHarness/BotHarness/issues/918)）。
+- 在 Bot 市场点开条目会显示详情：README 按 GitHub 的样子渲染（相对路径的图片和链接按收录时的提交解析，脚本、事件属性和不安全链接会被移除），并显示 Star、更新时间、话题、GitHub 链接和安装按钮（[#919](https://github.com/BotHarness/BotHarness/issues/919)）。
+- Bot 作者可以在仓库提交 `.botharness/bot.json`，共享显示名称、角色标签和头像（生成头像配方，或仓库里的 PNG、JPEG、WebP 图片）；Bot 市场会显示该名称和标签，安装时从克隆下来的仓库应用头像。无效的描述文件会被忽略（[#920](https://github.com/BotHarness/BotHarness/issues/920)）。
+- 在 Bot 市场贴入仓库或举报 Bot 时，会先在本机完成一次自托管的工作量证明验证（ALTCHA，不依赖第三方验证码），近期请求越多验证越慢，并按来源和仓库限流。每个条目都有**举报**按钮，可选填理由；足够多不同来源的举报会先把条目隐藏，等管理员复核恢复，被屏蔽的仓库不会再进入市场。原始 IP 地址不会被保存（[#921](https://github.com/BotHarness/BotHarness/issues/921)）。
+- Bot 市场 Worker 提供有文档、带版本号的公开只读 API（`/v1/bots`、`/v1/bots/{id}`、`/v1/topics`）供产品官网使用，CORS 只放行 deepseekbot.botharness.ai 和它的本地开发地址，成功响应公开缓存一分钟（[#922](https://github.com/BotHarness/BotHarness/issues/922)）。
 
 ### Changed
+
+- Channel 顶部 Profile 入口与底部活动区头像不再重复显示提醒徽标和活动点阵；左侧 sidebar 标记与活动详情仍保留（[#928](https://github.com/BotHarness/BotHarness/issues/928)）。
 
 - DeepSeekBot 以正式版本发布在 npm `latest` 标签，`next` 同步指向它；可用 `dsh plugin --profile web add deepseekbot` 安装，或在桌面端「添加插件」里输入 `deepseekbot`（[#895](https://github.com/BotHarness/BotHarness/pull/895)、[发布指南](docs/npm-prerelease.md)）。
 
@@ -549,6 +669,7 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
 
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
+- 将 checked IM 的来源不存在与回复权限拒绝保留为明确失败，避免误记为结果未知；真正未知的发送与历史已记录结果保持原状（[#855](https://github.com/BotHarness/BotHarness/issues/855)）。
 
 ### Documentation
 
@@ -619,6 +740,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 记录规划中的 PersonaBot DM 导航，并将 application-defined Work 概念统一更名为 Assignment、Assignment Session、Assignment Agent 与 Assignment Directory；这是一项设计语言更新，不代表 UI 或 runtime 已经实现（[#109](https://github.com/BotHarness/BotHarness/pull/109)）。
 - 发布双语 Development status 页面，将 DeepSeekBot 与 DSH Skill 的 release train 和 Changelog 明确分开（[#105](https://github.com/BotHarness/BotHarness/issues/105)）。
 - 将 Memory 明确为 optional Git-backed Cordis Service，使 DM → Orchestrator → Assignment 主链不依赖 Persona 或 Memory（[ADR-0047](docs/adr/0047-memory-is-an-optional-git-backed-service.md)、[#74](https://github.com/BotHarness/BotHarness/issues/74)）。
+- 通过真实原生 App／Bot 身份与错误服务器拒绝、新消息恢复和截图，完成开发源码 Discord @ 收件／回复首片资格验证；其他能力与产品 Provider 固定版本仍独立管理（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](docs/dev/verification/discord-855-mention-reply.md)）。
+- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [Development] - 2026-09-20
 

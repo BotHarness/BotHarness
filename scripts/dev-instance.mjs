@@ -25,6 +25,13 @@ import {
   resolveDevSecret,
 } from './dev-secret.mjs';
 import { pnpmCommand } from './dev-package-manager.mjs';
+import {
+  resolveAxModel,
+  axModelEnvironment,
+  assertInstalledGoModel,
+  axModelPatch,
+  axRuntimeWorkspace,
+} from './dev-model.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function dshCommand(worktree) {
@@ -185,14 +192,28 @@ function launch(options) {
     tmpdir(),
     `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}-${options.port}.log`,
   );
-  const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
+  const env = {
+    BOTHARNESS_TELEMETRY: '0',
+    ...process.env,
+    DSH_HOME: options.home,
+    ...devSecretEnvironment(),
+    ...axModelEnvironment(options.axModel),
+  };
   const runtime = options.runtime ?? options.worktree;
   const [command, cli] = dshCommand(runtime);
 
   const logFd = openSync(logPath, 'w');
   const child = spawn(
     command,
-    [cli, '--profile', options.profile, '--port', String(options.port), '--no-open'],
+    [
+      cli,
+      '--profile',
+      options.profile,
+      ...(options.modelPatch ? ['--patch', options.modelPatch] : []),
+      '--port',
+      String(options.port),
+      '--no-open',
+    ],
     { env, cwd: runtime, detached: true, stdio: ['ignore', logFd, logFd] },
   );
   child.unref();
@@ -248,10 +269,17 @@ async function verifyPluginLayer(url, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const secret = resolveDevSecret();
+  options.axModel = resolveAxModel();
   mkdirSync(options.home, { recursive: true });
-  if (options.productArtifacts) {
-    verifiedProductArtifacts(options.productArtifacts);
-    options.runtime = join(options.home, 'packaged-cli');
+  if (options.productArtifacts || options.axModel) {
+    const version = options.productArtifacts
+      ? verifiedProductArtifacts(options.productArtifacts).dsh
+      : JSON.parse(readFileSync(join(options.worktree, 'package.json'), 'utf8')).devDependencies[
+          '@deepseek-ai/dsh'
+        ];
+    if (options.axModel && version !== '0.2.0-rc.1')
+      throw new Error('AX Go session qualification requires DSH 0.2.0-rc.1');
+    options.runtime = join(options.home, options.productArtifacts ? 'packaged-cli' : 'ax-cli');
     mkdirSync(options.runtime, { recursive: true });
     const runtimeWorkspace = join(options.runtime, 'pnpm-workspace.yaml');
     if (!existsSync(runtimeWorkspace))
@@ -259,16 +287,30 @@ async function main() {
         runtimeWorkspace,
         "packages: [.]\nallowBuilds:\n  '@deepseek-ai/dsh-subprocess-local': true\n  '@google/genai': false\n  koffi: true\n  node-pty: true\n  protobufjs: false\n",
       );
+    if (options.axModel)
+      writeFileSync(runtimeWorkspace, axRuntimeWorkspace(readFileSync(runtimeWorkspace, 'utf8')));
     writeFileSync(
       join(options.runtime, 'package.json'),
-      `${JSON.stringify({ name: 'botharness-packaged-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': verifiedProductArtifacts(options.productArtifacts).dsh } }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'botharness-isolated-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': version } }, null, 2)}\n`,
     );
     const [command, args] = pnpmCommand(['install']);
     run(command, args, { cwd: options.runtime });
   }
-  ensureProfile(options);
+  const profileDir = ensureProfile(options);
+  if (options.axModel) {
+    const runtime = options.runtime ?? options.worktree;
+    await assertInstalledGoModel(runtime, options.axModel.model);
+    const [command, cli] = dshCommand(runtime);
+    const dump = run(command, [cli, '--profile', options.profile, '--dump-config'], {
+      env: { ...process.env, DSH_HOME: options.home },
+      cwd: runtime,
+    });
+    options.modelPatch = join(profileDir, 'botharness-ax-model.patch.yml');
+    writeFileSync(options.modelPatch, axModelPatch(dump, options.axModel.model));
+  }
   const profileCredential = profileDeepSeekCredential(options.home) !== undefined;
-  if (secret === undefined && !profileCredential) console.error(devSecretInstructions());
+  if (!options.axModel && secret === undefined && !profileCredential)
+    console.error(devSecretInstructions());
   const { child, logPath } = launch(options);
   const url = await waitForToken(logPath);
   const health = await verifyPluginLayer(url, options);
@@ -285,11 +327,21 @@ async function main() {
     home: options.home,
     worktree: options.worktree,
     secret:
+      options.axModel?.source ??
       secret?.source ??
       (profileCredential
         ? 'DSH profile credentials (verify with a real model call)'
         : 'missing (model calls will fail)'),
     health,
+    ...(options.axModel
+      ? {
+          model: {
+            provider: options.axModel.provider,
+            model: options.axModel.model,
+            usability: 'verify with a real DM reply',
+          },
+        }
+      : {}),
     ...(options.imProvider
       ? { imProvider: { source: qualifiedImProvider.source, upstreamReleased: false } }
       : {}),
@@ -311,6 +363,10 @@ async function main() {
     console.log(`  DSH_HOME : ${summary.home}`);
     console.log(`  worktree : ${summary.worktree}`);
     console.log(`  secret   : ${summary.secret}`);
+    if (summary.model)
+      console.log(
+        `  model    : ${summary.model.provider}/${summary.model.model} (${summary.model.usability})`,
+      );
     console.log(`  plugin   : ${health.ok ? 'ready' : `unhealthy (HTTP ${health.status})`}`);
     console.log(`  log      : ${summary.log}`);
     console.log(`  stop     : ${summary.stop}`);

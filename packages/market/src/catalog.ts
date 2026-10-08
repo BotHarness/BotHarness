@@ -1,0 +1,300 @@
+import type { D1Database } from './d1.js';
+import { BOT_TOPIC, parseRepositoryUrl, type GitHubClient } from './github.js';
+import { prepareReadme } from './readme.js';
+import { createRepositoryStore, isEligible, type RepositoryRow } from './repositories.js';
+
+export interface MarketplaceEntry {
+  id: string;
+  owner: string;
+  name: string;
+  fullName: string;
+  displayName: string | null;
+  roles: string[];
+  description: string | null;
+  topics: string[];
+  stars: number;
+  pushedAt: string;
+  htmlUrl: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  headCommit: { sha: string; committedAt: string } | null;
+}
+
+export type SubmissionRefusal =
+  | 'invalid-repository-url'
+  | 'repository-not-found'
+  | 'repository-private'
+  | 'repository-archived'
+  | 'repository-missing-topic'
+  | 'repository-blocked'
+  | 'upstream-unavailable';
+
+export type SubmissionResult =
+  | { ok: true; entry: MarketplaceEntry }
+  | { ok: false; code: SubmissionRefusal };
+
+export interface MarketplacePage {
+  bots: MarketplaceEntry[];
+  nextCursor?: string;
+}
+
+export const DEFAULT_PAGE_SIZE = 30;
+export const MAX_PAGE_SIZE = 50;
+
+function stringList(value: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function entryFromRow(row: RepositoryRow): MarketplaceEntry {
+  const topics = stringList(row.topics).filter((topic) => topic !== BOT_TOPIC);
+  return {
+    id: row.node_id,
+    owner: row.owner,
+    name: row.name,
+    fullName: `${row.owner}/${row.name}`,
+    displayName: row.display_name,
+    roles: stringList(row.roles),
+    description: row.description,
+    topics,
+    stars: row.stars,
+    pushedAt: row.pushed_at,
+    htmlUrl: row.html_url,
+    cloneUrl: row.clone_url,
+    defaultBranch: row.default_branch,
+    headCommit:
+      row.head_sha !== null && row.head_committed_at !== null
+        ? { sha: row.head_sha, committedAt: row.head_committed_at }
+        : null,
+  };
+}
+
+export type BrowseSort = 'updated' | 'stars';
+
+export const SEARCH_RESULT_LIMIT = 200;
+export const MAX_QUERY_LENGTH = 100;
+
+export type Cursor =
+  | { mode: 'updated'; key: string; nodeId: string }
+  | { mode: 'stars'; key: number; nodeId: string }
+  | { mode: 'search'; offset: number };
+
+export function encodeCursor(cursor: Cursor): string {
+  return btoa(
+    JSON.stringify(
+      cursor.mode === 'search'
+        ? [cursor.mode, cursor.offset]
+        : [cursor.mode, cursor.key, cursor.nodeId],
+    ),
+  );
+}
+
+export function decodeCursor(cursor: string): Cursor | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(atob(cursor));
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(parsed)) return undefined;
+  const [mode, key, nodeId] = parsed as unknown[];
+  if (
+    mode === 'search' &&
+    parsed.length === 2 &&
+    Number.isSafeInteger(key) &&
+    (key as number) > 0
+  ) {
+    return { mode, offset: key as number };
+  }
+  if (parsed.length !== 3 || typeof nodeId !== 'string') return undefined;
+  if (mode === 'updated' && typeof key === 'string') return { mode, key, nodeId };
+  if (mode === 'stars' && Number.isSafeInteger(key)) return { mode, key: key as number, nodeId };
+  return undefined;
+}
+
+export interface ListOptions {
+  limit?: number;
+  cursor?: string;
+  sort?: BrowseSort;
+  query?: string;
+  topic?: string;
+}
+
+export interface TopicCount {
+  topic: string;
+  count: number;
+}
+
+function ftsQuery(terms: readonly string[]): string {
+  return terms.map((term) => `"${term.replaceAll('"', '""')}"`).join(' ');
+}
+
+export interface MarketplaceDetail {
+  bot: MarketplaceEntry;
+  readme: string | null;
+  commitSha: string | null;
+}
+
+export interface Catalog {
+  submit(url: string): Promise<SubmissionResult>;
+  detail(id: string): Promise<MarketplaceDetail | undefined>;
+  list(options: ListOptions): Promise<MarketplacePage | undefined>;
+  topics(): Promise<TopicCount[]>;
+}
+
+export function createCatalog(deps: {
+  db: D1Database;
+  github: GitHubClient;
+  now: () => Date;
+}): Catalog {
+  const { db, github } = deps;
+
+  const store = createRepositoryStore(deps);
+
+  return {
+    async submit(url) {
+      const locator = parseRepositoryUrl(url);
+      if (locator === undefined) return { ok: false, code: 'invalid-repository-url' };
+      const lookup = await github.repository(locator);
+      if (!lookup.ok) {
+        return {
+          ok: false,
+          code: lookup.reason === 'not-found' ? 'repository-not-found' : 'upstream-unavailable',
+        };
+      }
+      const repository = lookup.value;
+      const existing = await store.find(repository.nodeId);
+      if (existing?.visibility === 'blocked') return { ok: false, code: 'repository-blocked' };
+      if (repository.private) return { ok: false, code: 'repository-private' };
+      if (!isEligible(repository)) {
+        if (existing !== null) await store.index(repository, undefined);
+        return {
+          ok: false,
+          code: repository.archived ? 'repository-archived' : 'repository-missing-topic',
+        };
+      }
+      const commit = await github.headCommit(
+        { owner: repository.owner, name: repository.name },
+        repository.defaultBranch,
+      );
+      if (!commit.ok && commit.reason === 'unavailable') {
+        return { ok: false, code: 'upstream-unavailable' };
+      }
+      const row = await store.index(repository, commit.ok ? commit.value : null);
+      if (row === null) return { ok: false, code: 'upstream-unavailable' };
+      if (row.visibility !== 'listed') return { ok: false, code: 'repository-blocked' };
+      return { ok: true, entry: entryFromRow(row) };
+    },
+
+    async list(options) {
+      const limit = Math.min(Math.max(options.limit ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+      const sort = options.sort ?? 'updated';
+      const query = options.query?.trim() ?? '';
+      const cursor = options.cursor === undefined ? undefined : decodeCursor(options.cursor);
+      if (options.cursor !== undefined && cursor === undefined) return undefined;
+      const topicClause =
+        options.topic === undefined
+          ? ''
+          : ' AND EXISTS (SELECT 1 FROM json_each(r.topics) WHERE json_each.value = ?)';
+      const topicValues = options.topic === undefined ? [] : [options.topic];
+
+      if (query.length > 0) {
+        if (cursor !== undefined && cursor.mode !== 'search') return undefined;
+        const offset = cursor?.mode === 'search' ? cursor.offset : 0;
+        const take = Math.min(limit, SEARCH_RESULT_LIMIT - offset);
+        if (take <= 0) return { bots: [] };
+        const terms = query.split(/\s+/u).filter((term) => term.length > 0);
+        const statement = terms.every((term) => [...term].length >= 3)
+          ? db
+              .prepare(
+                `SELECT r.* FROM indexed_repositories_fts f
+                 JOIN indexed_repositories r ON r.rowid = f.rowid
+                 WHERE indexed_repositories_fts MATCH ? AND r.visibility = 'listed'${topicClause}
+                 ORDER BY bm25(indexed_repositories_fts, 10.0, 4.0, 4.0, 1.0), r.node_id
+                 LIMIT ? OFFSET ?`,
+              )
+              .bind(ftsQuery(terms), ...topicValues, take + 1, offset)
+          : db
+              .prepare(
+                `SELECT r.* FROM indexed_repositories r
+                 WHERE r.visibility = 'listed'${terms
+                   .map(
+                     () =>
+                       " AND instr(lower(r.name || ' ' || coalesce(r.description, '') || ' ' || r.topics || ' ' || coalesce(r.readme, '')), lower(?)) > 0",
+                   )
+                   .join('')}${topicClause}
+                 ORDER BY r.stars DESC, r.node_id DESC
+                 LIMIT ? OFFSET ?`,
+              )
+              .bind(...terms, ...topicValues, take + 1, offset);
+        const { results } = await statement.all<RepositoryRow>();
+        const bots = results.slice(0, take).map(entryFromRow);
+        const next = offset + take;
+        return results.length > take && next < SEARCH_RESULT_LIMIT
+          ? { bots, nextCursor: encodeCursor({ mode: 'search', offset: next }) }
+          : { bots };
+      }
+
+      if (cursor !== undefined && cursor.mode !== sort) return undefined;
+      const column = sort === 'stars' ? 'r.stars' : 'r.pushed_at';
+      const after =
+        cursor === undefined ? '' : ` AND (${column} < ? OR (${column} = ? AND r.node_id < ?))`;
+      const afterValues = cursor === undefined ? [] : [cursor.key, cursor.key, cursor.nodeId];
+      const { results } = await db
+        .prepare(
+          `SELECT r.* FROM indexed_repositories r
+           WHERE r.visibility = 'listed'${topicClause}${after}
+           ORDER BY ${column} DESC, r.node_id DESC
+           LIMIT ?`,
+        )
+        .bind(...topicValues, ...afterValues, limit + 1)
+        .all<RepositoryRow>();
+      const page = results.slice(0, limit);
+      const last = page.at(-1);
+      if (results.length <= limit || last === undefined) return { bots: page.map(entryFromRow) };
+      return {
+        bots: page.map(entryFromRow),
+        nextCursor: encodeCursor(
+          sort === 'stars'
+            ? { mode: 'stars', key: last.stars, nodeId: last.node_id }
+            : { mode: 'updated', key: last.pushed_at, nodeId: last.node_id },
+        ),
+      };
+    },
+
+    async detail(id) {
+      const row = await store.find(id);
+      if (row === null || row.visibility !== 'listed') return undefined;
+      const ref = row.head_sha ?? row.default_branch;
+      return {
+        bot: entryFromRow(row),
+        readme:
+          row.readme === null
+            ? null
+            : prepareReadme(row.readme, { owner: row.owner, name: row.name, ref }),
+        commitSha: row.head_sha,
+      };
+    },
+
+    async topics() {
+      const { results } = await db
+        .prepare(
+          `SELECT json_each.value AS topic, count(*) AS count
+           FROM indexed_repositories r, json_each(r.topics)
+           WHERE r.visibility = 'listed' AND json_each.value <> ?
+           GROUP BY json_each.value
+           ORDER BY count DESC, topic
+           LIMIT 30`,
+        )
+        .bind(BOT_TOPIC)
+        .all<TopicCount>();
+      return results;
+    },
+  };
+}

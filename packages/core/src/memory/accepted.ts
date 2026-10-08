@@ -25,6 +25,12 @@ import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
+import {
+  DEFAULT_STANDING_LIMITS,
+  STANDING_FILES,
+  standingUsage,
+  type StandingUsage,
+} from './soul.js';
 import { toMemoryRelativePath, resolveMemoryPath } from './jail.js';
 import { createMemoryRecovery, type MemoryRecoveryCheckpoint } from './recovery.js';
 
@@ -74,6 +80,7 @@ export interface MemoryAcceptedSnapshot {
   head: string | null;
   files: string[];
   provisional: boolean;
+  standing: StandingUsage[];
 }
 
 export interface MemoryChangeDelta {
@@ -533,7 +540,7 @@ function safeGit(root: string, args: string[]): string {
 }
 
 const PERSONA_FROZEN_SENTENCE =
-  'PERSONA.md changed on disk; your frozen session copy still applies — the file version reaches new Sessions.';
+  'SOUL.md or MEMORY.md changed on disk; your frozen Session copy still applies — the file version reaches new Sessions and the next compaction.';
 
 function truncateUtf8(text: string, maxBytes: number): string {
   const encoded = new TextEncoder().encode(text);
@@ -558,10 +565,15 @@ function finishAnnotation(details: string[]): string | undefined {
 
 function personaDiffersAcrossHeads(root: string, oldHead: string, newHead: string): boolean {
   return (
-    safeGit(root, ['diff', '--name-only', '-z', oldHead, newHead, '--', 'PERSONA.md']).replaceAll(
-      '\0',
-      '',
-    ).length > 0
+    safeGit(root, [
+      'diff',
+      '--name-only',
+      '-z',
+      oldHead,
+      newHead,
+      '--',
+      ...STANDING_FILES,
+    ]).replaceAll('\0', '').length > 0
   );
 }
 
@@ -637,10 +649,11 @@ function buildTurnChange(
     );
   }
   if (details.length === 0) return undefined;
+  const standing = (path: string): boolean => STANDING_FILES.includes(path);
   const personaChanged =
-    committedNames.includes('PERSONA.md') ||
-    changed.some((file) => file.path === 'PERSONA.md') ||
-    cleared.some((file) => file.path === 'PERSONA.md');
+    committedNames.some(standing) ||
+    changed.some((file) => standing(file.path)) ||
+    cleared.some((file) => standing(file.path));
   if (personaChanged) {
     details.push(PERSONA_FROZEN_SENTENCE);
   }
@@ -1088,7 +1101,7 @@ export function createMemoryAcceptance(options: {
             .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ?')
             .get(input.sourceEventId, input.botSlug),
         )) ||
-      (!['human-message', 'assignment-report', 'assignment-lifecycle'].includes(
+      (!['human-message', 'assignment-report', 'assignment-lifecycle', 'schedule'].includes(
         source?.source_kind ?? '',
       ) &&
         !(
@@ -1251,6 +1264,10 @@ export function createMemoryAcceptance(options: {
         head: head(root),
         files: listCurrentFiles(root),
         provisional: repairing,
+        standing: standingUsage(
+          root,
+          registry.get(botSlug)?.standingLimits ?? DEFAULT_STANDING_LIMITS,
+        ),
       };
     },
     readAccepted(botSlug, path) {

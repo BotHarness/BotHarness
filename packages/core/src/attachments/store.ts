@@ -42,6 +42,7 @@ export interface AttachmentStore {
     load(): Promise<AsyncIterable<Uint8Array>>;
   }): Promise<ChannelAttachmentRef>;
   current(ref: ChannelAttachmentRef): ChannelAttachmentRef;
+  acquired(uploadId: string): ChannelAttachmentRef | undefined;
   fileTarget(fileId: string): { path: string; relativePath: string; kind: 'file' };
   has(ref: ChannelAttachmentRef): boolean;
   download(
@@ -72,6 +73,20 @@ export function sniffAttachmentMime(b: Uint8Array): string {
   if (b.length >= 3 && b[0] === 255 && b[1] === 216 && b[2] === 255) return 'image/jpeg';
   if (b.length >= 6 && ['GIF87a', 'GIF89a'].includes(ascii(0, 6))) return 'image/gif';
   if (b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') return 'audio/wav';
+  if (
+    b.length >= 10 &&
+    (ascii(0, 9) === '#!SILK_V3' || (b[0] === 2 && ascii(1, 10) === '#!SILK_V3'))
+  )
+    return 'audio/silk';
+  if (
+    b.length >= 16 &&
+    ascii(4, 8) === 'ftyp' &&
+    new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(0) >= 16 &&
+    new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(0) <= b.byteLength &&
+    ['isom', 'iso2', 'mp41', 'mp42', 'avc1'].includes(ascii(8, 12))
+  )
+    return 'video/mp4';
   if (b.length >= 5 && ascii(0, 5) === '%PDF-') return 'application/pdf';
   if (b.length === 0) return 'application/octet-stream';
   try {
@@ -177,6 +192,7 @@ export function createAttachmentStore(options: {
     maxBytes,
     upload: (input) => real.upload(input),
     acquire: (input) => real.acquire(input),
+    acquired: (id) => real.acquired(id),
     fileTarget: (id) => real.target(id),
     current(ref) {
       return ref.fileId === undefined

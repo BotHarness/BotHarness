@@ -29,6 +29,7 @@ export interface BotAttentionItem {
   assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
   assignmentTurn?: number;
   relatedReportSourceEventId?: string;
+  scheduleId?: string;
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;
@@ -39,6 +40,7 @@ export interface BotAttentionItem {
     conversationId: string;
     senderId: string;
     senderName?: string;
+    voice?: NonNullable<ExternalSource['event']['voice']>;
   };
   summary: string;
 }
@@ -75,6 +77,8 @@ interface AttentionRow {
   assignment_report_state: string | null;
   assignment_turn: number | null;
   related_report_source_event_id: string | null;
+  schedule_id: string | null;
+  available_schedule_id: string | null;
   body: string;
   payload_json: string | null;
   created_at: string;
@@ -125,6 +129,8 @@ export function createBotAttentionQuery(
                  json_extract(e.payload_json, '$.assignmentReport.state') AS assignment_report_state,
                  COALESCE(json_extract(e.payload_json, '$.assignmentReport.turn'), json_extract(e.payload_json, '$.assignmentLifecycle.turn')) AS assignment_turn,
                  json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') AS related_report_source_event_id,
+                 CASE WHEN e.source_kind = 'schedule' THEN json_extract(e.payload_json, '$.schedule.id') END AS schedule_id,
+                 schedule.schedule_id AS available_schedule_id,
                  e.body, e.payload_json, e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
                  json_extract(e.payload_json, '$.author.slug') AS author_slug,
                  CASE
@@ -145,6 +151,9 @@ export function createBotAttentionQuery(
               WHERE p2.source_event_id = e.source_event_id AND member.value = a.bot_slug)
           LEFT JOIN assignments assignment
             ON assignment.session_id = e.assignment_session_id AND assignment.bot_slug = a.bot_slug
+          LEFT JOIN bot_schedules schedule
+            ON e.source_kind = 'schedule' AND schedule.bot_slug = a.bot_slug
+              AND schedule.schedule_id = json_extract(e.payload_json, '$.schedule.id')
           WHERE a.bot_slug = ?
         )
         SELECT * FROM attention
@@ -186,6 +195,7 @@ export function createBotAttentionQuery(
                   conversationName: external.conversationName,
                   conversationId: external.event.conversation.id,
                   senderId: external.event.actor.id,
+                  ...(external.event.voice ? { voice: external.event.voice } : {}),
                   ...(external.event.actor.name ? { senderName: external.event.actor.name } : {}),
                 },
               }),
@@ -216,9 +226,11 @@ export function createBotAttentionQuery(
           ...(row.related_report_source_event_id === null
             ? {}
             : { relatedReportSourceEventId: row.related_report_source_event_id }),
+          ...(row.schedule_id === null ? {} : { scheduleId: row.schedule_id }),
           sourceAvailable:
             (channel !== undefined && row.placed_message_id !== null) ||
             row.available_assignment_session_id !== null ||
+            row.available_schedule_id !== null ||
             external !== undefined,
           authorKind,
           ...(authorKind === 'bot' && row.author_slug !== null

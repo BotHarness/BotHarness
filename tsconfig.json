@@ -29,6 +29,10 @@
     "packages/core/src",
     "packages/deepseekbot/src",
     "packages/browser/src",
+    "packages/market/src",
+    "packages/ingest/src",
+    "packages/links/src",
+    "packages/links-cli/src",
     "packages/*/test",
     "*.config.ts"
   ]

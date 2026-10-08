@@ -107,7 +107,12 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-const snapshot = (...files: string[]): MemorySnapshot => ({ head: SHA, files, provisional: false });
+const snapshot = (...files: string[]): MemorySnapshot => ({
+  head: SHA,
+  files,
+  provisional: false,
+  standing: [],
+});
 const graph = (subject = 'Retained history'): MemoryGitGraph => ({
   head: SHA,
   currentBranch: 'main',

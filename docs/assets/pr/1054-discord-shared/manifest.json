@@ -1,0 +1,125 @@
+{
+  "issue": 1054,
+  "provenance": "Real Chrome capture; no image edits. Before/after show configuration states of the same existing UI, not a new UI implementation. All images contain synthetic QA content only.",
+  "runtime": "ab63a528072771cdb29233137bdb48b210f93434; cold input a81ba50e953b20635ca38e0f182d18923f92a292 (test-only delta)",
+  "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+  "images": [
+    {
+      "file": "before-light.jpg",
+      "sha256": "6412c231a674c71958212a4521fef96fbb33302a4634d7bf1d68e93d625170ad",
+      "purpose": "before-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:44:14.887704+09:00"
+    },
+    {
+      "file": "before-dark.jpg",
+      "sha256": "2186aa835fb5c91f707b1dae0aef766bd6955032ca0259212757f90c0f3c73f7",
+      "purpose": "before-dark",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:44:39.650516+09:00"
+    },
+    {
+      "file": "after-light.jpg",
+      "sha256": "b24883e98dbbd55a5a29828b6cc073980ee61c95598da443b2df937d709bcb27",
+      "purpose": "after-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:46:01.806935+09:00"
+    },
+    {
+      "file": "after-dark.jpg",
+      "sha256": "48c5712371bc5784cdf3e00529c561a25f5d2b24911bd0f9bf90f2bfb77e7974",
+      "purpose": "after-dark",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:45:21.078093+09:00"
+    },
+    {
+      "file": "shared-channel-light.jpg",
+      "sha256": "68611a98beb9083bdcdce2d1d1db341bbc72e7a06dbb43ea118f941d5d791799",
+      "purpose": "shared-channel-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:51:20.485003+09:00"
+    },
+    {
+      "file": "source-light.jpg",
+      "sha256": "039dd790e739433fae87e2519b0dd6be573eb1c9548e30cee2854d045473e4f2",
+      "purpose": "source-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:52:04.334767+09:00"
+    },
+    {
+      "file": "source-dark.jpg",
+      "sha256": "702ae3a7d3d6e5ed6ee07d398431998613dab49b6308777f53bc6c1f7be369ff",
+      "purpose": "source-dark",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-07",
+      "capturedAt": "2026-10-07T00:00:53.124786+09:00"
+    },
+    {
+      "file": "paused-light.jpg",
+      "sha256": "4bb1db5b023c8df1c411d6a9cf01e9c7bf78d3e8281d01310e1f8fbcbb20b4b5",
+      "purpose": "paused-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:56:29.206352+09:00"
+    },
+    {
+      "file": "edit-light.jpg",
+      "sha256": "4baf7d020bfa25354259520ef1dc9274f145deee20082c1fcd225f6bc38e4a13",
+      "purpose": "edit-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:59:20.749269+09:00"
+    },
+    {
+      "file": "native-reply.jpg",
+      "sha256": "017ae35b302805d42690733d35a747842537f47eda75716c2db6257d8dda2445",
+      "purpose": "native-reply",
+      "locale": "zh-CN",
+      "viewport": "590x820 QA-only clip from 1230x820",
+      "captureDate": "2026-10-06",
+      "capturedAt": "2026-10-06T23:57:48.098216+09:00"
+    },
+    {
+      "file": "recovery-light.jpg",
+      "sha256": "cb93a03649aee187372c6d2ebd896e3f8892de98e956ff8165797ad17943ed41",
+      "purpose": "recovery-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-07",
+      "capturedAt": "2026-10-07T00:02:32.756764+09:00"
+    },
+    {
+      "file": "recovery-dark.jpg",
+      "sha256": "04b17e2930e498b679e8d2201ded7641a396f14ffd6a8e686a1c6bc498a6aa50",
+      "purpose": "recovery-dark",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-07",
+      "capturedAt": "2026-10-07T00:00:44.553992+09:00"
+    },
+    {
+      "file": "restored-light.jpg",
+      "sha256": "c1dc81912e311363c0d7a5438758cbbc1e22f968acc4cf8ef2d8f96cfbbc9ae1",
+      "purpose": "restored-light",
+      "locale": "zh-CN",
+      "viewport": "1230x820",
+      "captureDate": "2026-10-07",
+      "capturedAt": "2026-10-07T00:02:01.547894+09:00"
+    }
+  ]
+}
