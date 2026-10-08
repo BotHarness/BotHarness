@@ -21,6 +21,10 @@ export interface ChannelQuestionRequest {
 export type ChannelQuestionStatus = 'pending' | 'submitted' | 'answered' | 'expired';
 
 export interface TimedQuestionPort {
+  bind?(
+    agent: Agent,
+    channelId: string,
+  ): ((deliver: () => boolean) => Promise<boolean>) | undefined;
   read(
     agent: Agent,
     callId: string,
@@ -51,6 +55,7 @@ type Pending = {
   callId?: string;
   deferred: boolean;
   submitted: boolean;
+  deliverNative?: ((deliver: () => boolean) => Promise<boolean>) | undefined;
 };
 
 function validAnswer(questions: AskUserQuestionItem[], answer: AskUserQuestionAnswer): boolean {
@@ -181,6 +186,9 @@ export class ChannelUserQuestions {
       ...(callId === undefined ? {} : { callId }),
       deferred: false,
       submitted: false,
+      ...(callId === undefined || this.#timed?.bind === undefined
+        ? {}
+        : { deliverNative: this.#timed.bind(agent, channelId) }),
     };
     this.#pending.set(message.id, pending);
     request.signal?.addEventListener('abort', pending.abort, { once: true });
@@ -281,7 +289,24 @@ export class ChannelUserQuestions {
       if (pending.deferred && pending.callId !== undefined) {
         if (this.#timed?.read(pending.agent, pending.callId)?.state !== 'continued') return false;
         try {
-          pending.submitted = this.#timed.answer(pending.agent, pending.callId, answer);
+          const submit = (): boolean => {
+            const owner = this.#ownership.resolve(pending.agent.session.id);
+            if (
+              this.#pending.get(messageId) !== pending ||
+              !this.#isLive(pending.agent) ||
+              owner?.rootRole !== 'orchestrator' ||
+              owner.botSlug !== botSlug ||
+              this.#timed?.read(pending.agent, pending.callId!)?.state !== 'continued'
+            )
+              return false;
+            return this.#timed.answer(pending.agent, pending.callId!, answer);
+          };
+          pending.submitted =
+            pending.deliverNative === undefined
+              ? this.#timed.bind === undefined
+                ? submit()
+                : false
+              : await pending.deliverNative(submit);
           return pending.submitted;
         } catch {
           this.#warn(`botharness.channel_question.late_answer_refused request=${messageId}`);
@@ -316,6 +341,10 @@ export class ChannelUserQuestions {
       return true;
     } finally {
       pending.deciding = false;
+      if (pending.deferred && pending.submitted)
+        void this.reconcileSession(pending.agent.session.id).catch(() =>
+          this.#warn('user-question-reconciliation-failed'),
+        );
     }
   }
 

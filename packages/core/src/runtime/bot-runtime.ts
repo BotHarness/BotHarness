@@ -198,6 +198,7 @@ export interface OrchestratorAssignmentAccess {
 }
 
 export interface OrchestratorAgentRun {
+  acceptNativeInput?: () => boolean;
   requireContent?(): void;
   sessionId: string;
   resume: boolean;
@@ -438,6 +439,10 @@ export type DmMessageAdmission =
   | { admitted: false; reason: DmAdmissionFailure };
 
 export interface BotRuntime {
+  bindNativeQuestionInput?(
+    sessionId: string,
+    channelId: string,
+  ): ((deliver: () => boolean) => Promise<boolean>) | undefined;
   originalAttachmentRoot?(
     sessionId: string,
     path: string,
@@ -2524,6 +2529,75 @@ class BotRuntimeImplementation implements BotRuntime {
     if (changed) this.#channels.admissionChanged?.(channelId, messageId);
   }
 
+  bindNativeQuestionInput(
+    sessionId: string,
+    channelId: string,
+  ): ((deliver: () => boolean) => Promise<boolean>) | undefined {
+    const owner = this.#ownership.resolve(sessionId);
+    const sources = owner === undefined ? undefined : this.#turnSources.get(owner.botSlug);
+    const sourceEventId = sources?.values().next().value;
+    if (owner?.rootRole !== 'orchestrator' || sourceEventId === undefined) return undefined;
+    const sourceIds = [...(sources ?? [])];
+    const channel = this.#channels.get(channelId);
+    if (channel?.type !== 'dm' || channel.botSlug !== owner.botSlug) return undefined;
+    return (deliver) => {
+      let accept!: (value: boolean) => void;
+      const accepted = new Promise<boolean>((resolve) => {
+        accept = resolve;
+      });
+      const done = this.#enqueue(owner.botSlug, async () => {
+        try {
+          const bot = this.#registry.get(owner.botSlug);
+          const current = this.#ownership.resolve(sessionId);
+          const dm = this.#channels.get(channelId);
+          if (
+            this.#closed ||
+            bot === undefined ||
+            bot.paused === true ||
+            current?.rootRole !== 'orchestrator' ||
+            current.botSlug !== owner.botSlug ||
+            !this.#ownership.contentAvailable(sessionId) ||
+            dm?.type !== 'dm' ||
+            dm.botSlug !== owner.botSlug
+          )
+            return;
+          this.#database.read((db) => {
+            for (const id of sourceIds) requireSourceEffects(db, id, owner.botSlug);
+          });
+          await this.#runOrchestratorTurn(
+            bot,
+            { sessionId, resume: true },
+            sourceEventId,
+            channelId,
+            '',
+            [],
+            false,
+            () => this.#markSideEffectStarted(sourceEventId),
+            [],
+            [],
+            () => {
+              const result = deliver();
+              accept(result);
+              return result;
+            },
+            sourceIds,
+          );
+        } finally {
+          accept(false);
+        }
+      });
+      void done.catch(() => {
+        accept(false);
+        this.#warn?.('native-question-input-run-failed');
+      });
+      void done.then(
+        () => accept(false),
+        () => accept(false),
+      );
+      return accepted;
+    };
+  }
+
   #enqueue(turnKey: string, task: () => Promise<void>): Promise<void> {
     const previous = this.#tails.get(turnKey) ?? Promise.resolve();
     let run: Promise<void>;
@@ -2761,10 +2835,17 @@ class BotRuntimeImplementation implements BotRuntime {
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
     wakeEventIds: readonly string[] = [sourceEventId],
+    acceptNativeInput?: () => boolean,
+    nativeSourceIds: readonly string[] = [],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
     this.#requireExecution?.(bot.slug);
-    const turnSources = new Set([sourceEventId, ...wakeEventIds, ...reportEventIds]);
+    const turnSources = new Set([
+      sourceEventId,
+      ...wakeEventIds,
+      ...reportEventIds,
+      ...nativeSourceIds,
+    ]);
     this.#turnSources.set(bot.slug, turnSources);
     const typingSources = [sourceEventId, ...inboxUnits.map((unit) => unit.sourceEventId)];
     for (const unit of inboxUnits) {
@@ -2854,6 +2935,7 @@ class BotRuntimeImplementation implements BotRuntime {
       processing = this.#externalMessaging?.beginProcessing(bot.slug, typingSources);
       if (processing) this.#typingTurns.set(bot.slug, processing);
       await this.#agents.runOrchestrator({
+        ...(acceptNativeInput === undefined ? {} : { acceptNativeInput }),
         requireContent: () =>
           this.#database.read((db) => {
             for (const id of new Set([...turnSources, ...readAdmissions]))
