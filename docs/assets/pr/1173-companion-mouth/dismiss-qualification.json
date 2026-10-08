@@ -1,0 +1,27 @@
+{
+  "runtimeCode": "4776990c2bf82f8dc97578c440afa1fe9b15196f",
+  "package": "@botharness/pixel-avatar@0.2.0",
+  "kind": "real-isolated-DSH-native-committed-DM",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "theme": "light",
+  "canonicalReplies": 1,
+  "canonicalBodyLength": 1170,
+  "observedMouthStates": ["saved", "half-open", "closed", "open"],
+  "actualAction": "Existing bubble close focused, then native Enter; no synthetic click or handler invocation",
+  "restoration": {
+    "samples": 27,
+    "mouth": "saved",
+    "remainingCards": 0,
+    "companionStillMounted": true
+  },
+  "recording": "Continuous silent official MCP WebM; normal container remux only",
+  "limits": [
+    "Earlier native mouse close returned an unstructured tool error; no cause or mouse qualification is claimed.",
+    "An earlier combined dismiss/unpin run lost its page, and stop error masked its in-memory report. It is excluded; this separate successful run saves each phase and stops cleanly.",
+    "This verifies local bubble playback cancellation, not native model/Session cancellation.",
+    "Unpin, hidden/background, stale/offscreen, unsupported rigs/images, performance and Human mouth hand-feel acceptance remain separate."
+  ]
+}
