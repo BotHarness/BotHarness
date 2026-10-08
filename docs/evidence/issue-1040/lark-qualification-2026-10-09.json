@@ -142,9 +142,27 @@
     },
     "sameThreeSourcesAndStates": true,
     "comparison": "Post-merge light/dark, not pre-feature before/after",
-    "hotLifecycleFailure": "SlotAssemblyError: scope 'session-maybe' rendered without an installed adapter",
     "recoveredAfterReload": true,
-    "rootCauseVerified": false
+    "rootCauseVerified": false,
+    "firstObservedFailure": {
+      "code": "SlotAssemblyError: scope 'session-maybe' rendered without an installed adapter",
+      "at": "2026-10-08T18:48:24.290Z",
+      "beforeQaWindow": true,
+      "trigger": "unverified"
+    },
+    "timelineCorrection": "The first saved scope failure predates the QA window; the prior Provider hot-lifecycle attribution was unsupported.",
+    "isolatedAudit": {
+      "configuredImAccounts": 0,
+      "activeIdentities": 0,
+      "reloadAndModeSwitchCycles": 10,
+      "newConsoleErrors": 0,
+      "originalFailureReproduced": false,
+      "causalAttribution": "unresolved"
+    },
+    "humanReactionFollowup": {
+      "glanceAndDoneReportedOnBotReplies": true,
+      "exactOriginalMessageCapture": false
+    }
   },
   "blockedDm": {
     "marker": "BH1040-R3-BLOCKED",
@@ -153,11 +171,19 @@
     "sendBeforeCutoffConfirmed": false,
     "providerArrivalProven": false,
     "noMatchingAdmissionObserved": true,
-    "qualified": false
+    "qualified": false,
+    "humanReportedSendTime": {
+      "date": "2026-10-09",
+      "time": "03:59",
+      "timezone": "Asia/Tokyo",
+      "precision": "minute"
+    },
+    "sentAfterQaCutoff": true,
+    "qualificationExclusion": "Human-reported send time is after the QA cutoff and production restoration."
   },
   "limitations": [
     "Platform accepted feedback requests do not prove actual reaction rendering; group original-message capture is still missing.",
-    "Blocked-message absence cannot prove rejection without confirmed in-window send and provider arrival.",
+    "The blocked test was sent after the QA window; it cannot qualify the isolated receiver block behavior.",
     "A no-IM cold restart proves retained state only; live receiver Host restart remains pending.",
     "Other remaining acceptance cases in the runbook are not qualified by this window.",
     "The browser Discord restoration marker targeted BotHarness Cloud QA; production recovery is supported by the Human confirmation in the known working conversation.",
