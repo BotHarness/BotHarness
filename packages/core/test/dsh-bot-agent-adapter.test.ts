@@ -673,9 +673,11 @@ describe('DSH Bot Agent adapter', () => {
             },
       );
       let available = false;
+      const observeTurnFailure = vi.fn();
       const adapter = createDshBotAgentAdapter({
         agents: host,
         hasSession: async () => false,
+        observeTurnFailure,
         prepareModelRoute: async () => {
           if (!available) throw new Error('Model route unavailable; select a Model Preset');
         },
@@ -765,6 +767,7 @@ describe('DSH Bot Agent adapter', () => {
         model: 'deepseek-reasoner',
         reasoningEffort: 'high',
       });
+      expect(observeTurnFailure.mock.calls).toEqual(code === undefined ? [] : [['deepseek', code]]);
       await adapter.close();
     },
   );

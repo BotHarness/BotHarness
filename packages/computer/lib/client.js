@@ -1078,6 +1078,86 @@ window.__ModuleLoader__.load({
 				["path", { d: "M6.38 18.7 4 21" }],
 				["path", { d: "M17.64 18.67 20 21" }]
 			],
+			"bell-ring": [
+				["path", { d: "M10.268 21a2 2 0 0 0 3.464 0" }],
+				["path", { d: "M22 8c0-2.3-.8-4.3-2-6" }],
+				["path", { d: "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" }],
+				["path", { d: "M4 2C2.8 3.7 2 5.7 2 8" }]
+			],
+			cpu: [
+				["path", { d: "M12 20v2" }],
+				["path", { d: "M12 2v2" }],
+				["path", { d: "M17 20v2" }],
+				["path", { d: "M17 2v2" }],
+				["path", { d: "M2 12h2" }],
+				["path", { d: "M2 17h2" }],
+				["path", { d: "M2 7h2" }],
+				["path", { d: "M20 12h2" }],
+				["path", { d: "M20 17h2" }],
+				["path", { d: "M20 7h2" }],
+				["path", { d: "M7 20v2" }],
+				["path", { d: "M7 2v2" }],
+				["rect", {
+					x: "4",
+					y: "4",
+					width: "16",
+					height: "16",
+					rx: "2"
+				}],
+				["rect", {
+					x: "8",
+					y: "8",
+					width: "8",
+					height: "8",
+					rx: "1"
+				}]
+			],
+			"id-card": [
+				["path", { d: "M13 19a4 4 0 00-8 0" }],
+				["path", { d: "M16 10h2" }],
+				["path", { d: "M16 14h2" }],
+				["circle", {
+					cx: "9",
+					cy: "12",
+					r: "3"
+				}],
+				["rect", {
+					x: "2",
+					y: "5",
+					width: "20",
+					height: "14",
+					rx: "2"
+				}]
+			],
+			plug: [
+				["path", { d: "M12 22v-5" }],
+				["path", { d: "M15 8V2" }],
+				["path", { d: "M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" }],
+				["path", { d: "M9 8V2" }]
+			],
+			ruler: [
+				["path", { d: "M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" }],
+				["path", { d: "m14.5 12.5 2-2" }],
+				["path", { d: "m11.5 9.5 2-2" }],
+				["path", { d: "m8.5 6.5 2-2" }],
+				["path", { d: "m17.5 15.5 2-2" }]
+			],
+			compass: [["circle", {
+				cx: "12",
+				cy: "12",
+				r: "10"
+			}], ["path", { d: "m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" }]],
+			"user-check": [
+				["path", { d: "m16 11 2 2 4-4" }],
+				["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+				["circle", {
+					cx: "9",
+					cy: "7",
+					r: "4"
+				}]
+			],
+			"shield-check": [["path", { d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" }], ["path", { d: "m9 12 2 2 4-4" }]],
+			plus: [["path", { d: "M5 12h14" }], ["path", { d: "M12 5v14" }]],
 			user: [["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }], ["circle", {
 				cx: "12",
 				cy: "7",
@@ -1323,14 +1403,15 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/client/src/client/sidebar-card.tsx
-		function SidebarCardList({ label, className, children }) {
+		function SidebarCardList({ label, className, listRef, children }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+				ref: listRef,
 				className: className === void 0 ? "bh-card-list" : "bh-card-list " + className,
 				"aria-label": label,
 				children
 			});
 		}
-		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state }) {
+		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state, anchor }) {
 			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 				className: "bh-card-icon",
 				role: iconLabel === void 0 ? void 0 : "img",
@@ -1362,6 +1443,7 @@ window.__ModuleLoader__.load({
 				className: "bh-card-row",
 				"data-muted": muted === true ? "true" : void 0,
 				"data-state": state,
+				"data-anchor": anchor,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: "bh-card-line",
 					children: [onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {

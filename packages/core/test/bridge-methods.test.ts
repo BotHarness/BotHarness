@@ -564,6 +564,76 @@ describe('bridge methods', () => {
     });
   });
 
+  it('sets a Bot Model Plan directly without a preset and rejects stale revisions', async () => {
+    const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
+    const pro = { provider: 'deepseek', model: 'pro' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (route.provider !== 'deepseek' || !['flash', 'pro'].includes(route.model))
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { root, registry, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const assignmentModels = [
+      { provider: 'deepseek', model: 'pro', allowedEfforts: [''], defaultEffort: '' },
+    ];
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 0,
+        orchestrator: flash,
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        plan: {
+          revision: 1,
+          sourcePresetId: '',
+          sourcePresetName: '',
+          orchestrator: flash,
+          assignmentDefault: pro,
+          assignmentModels,
+        },
+      },
+    });
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 0,
+        orchestrator: pro,
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.modelPlanSet({
+        slug: 'ada',
+        expectedRevision: 1,
+        orchestrator: { provider: 'other', model: 'x' },
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.modelPlan).toMatchObject({
+      revision: 1,
+      orchestrator: flash,
+    });
+  });
+
   it('preserves a template model set when an older editor omits the choices', async () => {
     const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
     const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };

@@ -206,4 +206,4 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 
 实际相关 Orchestrator／Assignment 处理（含已接受 steer）由 Runtime 取得进程内 handle。同一私聊的共享 handle 保持一个原生生命周期，最后一个处理者结束才清理；排队 follow-up 的接受不等于执行。初次发送和每次续期检查自己的当前 Binding／Grant／Registration 与来源 lease；关闭、撤销、替换会使活跃工作失效。授权丢失后仍用原始票据，在独立有界取消期限内清理。五秒续期间隔、十分钟上限限制活跃状态；原生请求失败不阻止消息处理。
 
-只持久化身份偏好；接口接受的活跃状态不是 durable 消息、送达／已读回执或客户端显示证明。请求中、已接受、不可用及清理未确认的诊断应消除私有字段，并区分证据含义。用 Human 操作的微信录屏证明真实显示，以及完成／停止／失败后清理，再在打包产品重复验证。自动生命周期覆盖必要，但不能替代这些观察。参见 [ADR-0142](../../adr/0142-wechat-typing-follows-owned-processing-leases.md) 和[候选指南](../../wechat-connection.zh.md#13-bot-工作时请求微信原生输入状态)。原生 E2E 和产物晋级仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪。
+只持久化身份偏好；接口接受的活跃状态不是 durable 消息、送达／已读回执或客户端显示证明。请求中、已接受、不可用及清理未确认的诊断应消除私有字段，并区分证据含义。用 Human 操作的微信录屏证明真实显示，以及完成／停止／失败后清理，再在打包产品重复验证。自动生命周期覆盖必要，但不能替代这些观察。参见 [ADR-0144](../../adr/0144-wechat-typing-follows-owned-processing-leases.md) 和[候选指南](../../wechat-connection.zh.md#13-bot-工作时请求微信原生输入状态)。原生 E2E 和产物晋级仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪。

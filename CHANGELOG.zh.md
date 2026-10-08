@@ -9,10 +9,23 @@
 
 ### Added
 
+- 群频道可以接入外部会话：在频道 Profile 的「外部连接器」中点 **接入外部会话**，选一个已绑定的应用和它已知的一个群，之后这个群里的每条消息都会出现在频道里。成员 Bot 默认只把这些消息当作上下文，只有被 @ 时才会被唤醒；接入的唤醒设置可以改成攒够条数后唤醒或每条立即唤醒，成员在频道里单独设置的唤醒策略仍然优先。每一行显示状态和最后一条消息的时间，可以用开关暂停，**删除** 后不再接收新消息，已接入的消息保留（[#1145](https://github.com/BotHarness/BotHarness/issues/1145)，[ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 私聊已绑定的 Slack 应用，消息现在会进入 Bot 收件箱，Bot 直接在私聊里回复，不开 thread；Discord 应用也重新出现在 **绑定应用** 里。开发用的 IM Provider 换到新的 dsh-im 版本，包含 Slack 私聊接收、Discord checked 发送，以及 Slack/Discord 回复里的 checked @（[#1125](https://github.com/BotHarness/BotHarness/issues/1125)、[外部身份指南](docs/channel-sidebar/external-identities.md)）。
+
+- 从侧栏 Bot 菜单可显示透明像素窗口伙伴，在 Harness 页面之间保留，跟随真实 Activity 和新的 Human–Bot 私聊回复，支持拖拽姿态缓动、连续惯性下落与柔和落地，以及悬浮阅读列表；减少动效时关闭下落和姿态效果。重启恢复本地选择，不重播历史消息；首个切片支持一个伙伴，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- 一个 Bot 可以绑定同一平台的多个应用，例如两个飞书应用：每个应用的私聊和 @ 都进入同一个收件箱，并通过收到消息的应用回复。**绑定应用** 列出所有已连接的应用，已被 Bot 使用的应用置灰并注明是哪个 Bot；外部身份按平台列出这个 Bot 的应用。Bot 在同一个群里有两个应用时，转发来源的回复会明确拒绝（[#1110](https://github.com/BotHarness/BotHarness/issues/1110)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- **编辑外部身份** 里的会话列表现在可以管理：会话分为 **等待处理**、**活跃**、**已静音**、**已屏蔽**。**静音** 后消息照常进入收件箱但不唤醒 Bot，**规则** 单独调整一个群的收件和唤醒，**屏蔽**（需确认）会取消未发出的回复，重启、解绑再绑定后依然有效；**再次允许** 从下一条消息重新开始，不补收。新增 **新会话** 设置，可选 **自动接收** 或 **先问我**；等待中的会话只记录名称和次数，不保存消息内容。每个应用每小时最多自动加入 20 个新会话、最多 500 个活跃会话，超出时进入等待并显示原因（[#1109](https://github.com/BotHarness/BotHarness/issues/1109)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- Slack、Discord 和个人微信也能一步绑定：**绑定应用** 后，私聊 Slack 或 Discord 应用、或在频道里 @ 它，消息直接进入 Bot 收件箱并在原话题回复；个人微信只接收扫码者本人的私聊，其他联系人和群不会进入。绑定弹窗对所有平台显示真实接收状态，已记下的群会话跟随平台全局默认的群收件和唤醒设置（[#1112](https://github.com/BotHarness/BotHarness/issues/1112)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- 绑定飞书应用就能收发：外部身份里的 **绑定身份** 改为 **绑定应用**，绑定后私聊这个应用、或在群里 @ 它，消息直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存投递目标、授权会话或打开收件开关。第一条消息会自动记下会话，应用行显示会话数，点开可查看只读会话列表；绑定后弹窗显示真实的接收状态。`/pair` 仍由配对处理，已有授权的行为不变，所有已绑定应用升级后都默认自动接收新会话（[#1108](https://github.com/BotHarness/BotHarness/issues/1108)，[ADR-0142](docs/adr/0142-a-bound-app-admits-its-direct-messages-and-mentions.md)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
 - 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
 
 - AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。
-- 新增微信原生输入状态源码预览候选，随已授权扫码者私聊的实际处理启动，有界续期并在处理结束或授权失效时清理，身份设置可单独关闭；原生客户端显示和打包产品验证仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪（[指南](docs/wechat-connection.md)、[ADR-0142](docs/adr/0142-wechat-typing-follows-owned-processing-leases.md)）。
+- 新增微信原生输入状态源码预览候选，随已授权扫码者私聊的实际处理启动，有界续期并在处理结束或授权失效时清理，身份设置可单独关闭；原生客户端显示和打包产品验证仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪（[指南](docs/wechat-connection.md)、[ADR-0144](docs/adr/0144-wechat-typing-follows-owned-processing-leases.md)）。
 
 - 个人微信已授权扫码者私聊支持受控主动文字报告，复用纯外部 Outbox、发送前授权检查及私有上下文缺失的恢复提示；Profile 可显式投递，客户端确认和实际返回的原生服务器消息 ID 分开记录，不宣称送达或已读回执（[#910](https://github.com/BotHarness/BotHarness/issues/910)，[指南](docs/wechat-connection.md)）。
 
@@ -30,9 +43,26 @@
 - 新增[导出与导入 Bot](docs/bot-zip.md)教程：zip 里有什么、导出时选择文件和 Git 历史、从 zip 导入，以及分享前和导入前的安全提醒；「分享 Bot」和「记忆文件」教程链接到它（[#1065](https://github.com/BotHarness/BotHarness/issues/1065)）。
 - Bot 模式会在创建 Bot 之前检查 Host 上的 Git。没有 Git、Git 无法运行（例如 macOS 未安装命令行工具时的占位程序）或版本低于 2.28 时，名册顶部会说明原因并链接到安装教程新增的 [Git 一节](docs/installation.md#git)，在「重新检测」找到可用的 Git 之前禁用创建和导入 Bot；创建时仍遇到不可用的 Git，会报告为缺少 Git，而不是笼统的记忆错误（[#1096](https://github.com/BotHarness/BotHarness/issues/1096)，[ADR-0140](docs/adr/0140-the-host-falls-back-to-a-managed-git.md)）。
 - Bot 模式现在可以帮你安装 Git：Host 上的 Git 不可用时，点 **安装 Git** 会把固定版本的便携版 Git 下载到 DeepSeek Harness 数据目录（先从 `media.botharness.ai`，失败再从 GitHub），校验 SHA-256 后立即启用，不用重启，也不需要管理员权限；Orchestrator 的 Shell 也会用同一个 Git。每次启动时仍优先使用可用的系统 Git（[#1097](https://github.com/BotHarness/BotHarness/issues/1097)，[Git 一节](docs/installation.md#git)）。
+- 从 SSH 地址导入 Bot 现在会自动改用 HTTPS：克隆 `git@host:owner/repo` 或 `ssh://git@host/owner/repo` 失败时，Host 会用对应的 HTTPS 地址重试一次并告诉你已经切换，之后这个 Bot 通过 HTTPS 同步；HTTPS 也失败时显示原来的 SSH 错误。DeepSeekBot 设置新增 **Git** 一行，显示正在使用的 Git 版本以及是系统 Git 还是托管 Git（[#1098](https://github.com/BotHarness/BotHarness/issues/1098)，[Git 一节](docs/installation.md#git)）。
+
+### Changed
+
+- 「外部连接器」不再提供 **添加外部连接器** 和 **授权外部会话**（同步正在围绕“接入任意应用的会话”重新设计），只列出已有的同步，并保留 **保存发送目标（高级）** 给不能直接发往会话的应用。会话行会显示已同步到哪里，操作按钮（**静音**、**规则**、**屏蔽**）单独一行并各带说明提示。Lark 配置引导缩减为三步（连接应用、绑定、发消息验证），Lark、Slack、微信连接教程围绕 **绑定应用** 重写（[#1113](https://github.com/BotHarness/BotHarness/issues/1113)、[Lark 教程](docs/lark-connection.md)、[外部连接器说明](docs/channel-sidebar/external-connectors.md)）。
+
+- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
+- Bot 的 IM 设置从 Profile 移到私聊 Channel sidebar 的两个新分区。**外部身份** 每个已绑定身份一行，显示可用状态和启用开关，下面是 **绑定身份**、Lark 配置引导、IM 管理员配对和 Lark 审批通知。**外部连接器** 每个连接器一行，显示状态和启用开关，下面是 **添加外部连接器** 和外部会话授权。点击一行打开弹窗修改，选项与原来一致。**频道连接器** 改名为 **外部连接器**。SOUL.md 和 MEMORY.md 的常驻记忆上限变成 **记忆文件** 下的一行，点击打开弹窗。迁移后的表单统一使用共享的下拉框、输入框和复选框（[#1085](https://github.com/BotHarness/BotHarness/issues/1085)，[外部身份教程](docs/channel-sidebar/external-identities.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
 
 ### Fixed
 
+- 取消窗口伙伴钉选会清除其 Activity 连接异常提示；成功加载 Bot 名单后，会清理已删除 Bot 的恢复钉选，网络失败仍保留用户钉选偏好（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- 窗口伙伴向左右拖动时，身体按惯性落后于抓取点；落地贴住窗口内容区底边，不再保留底部间隙（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- Bot 读到的 IM @ 改成名字，不再是平台占位符：飞书的 `@_user_1` 和 Slack 的 `<@U…>` 以 `@名字` 交给模型（平台没给名字时用 `@ID`），每条外部消息还列出发送人和被 @ 的人及其平台 ID。Bot 在 `bridge_reply` 正文任意位置写 `<@ID>`，就能在飞书、Slack 或 Discord 上 @ 这条消息的发送人或其中被 @ 的人（Slack 和 Discord 通过 IM Provider 的 checked @ 提醒，旧版 Provider 退回 `@名字` 文字）；其他 ID 或 @ 标记按纯文本发出（[#1126](https://github.com/BotHarness/BotHarness/issues/1126)）。
+- **绑定应用** 不再隐藏 IM 插件暂时不支持的应用。插件缺少受检发送能力的 Discord 应用现在会置灰显示，并注明 **需要更新 IM 插件后才能绑定**，不会再悄悄从列表里消失（[#1123](https://github.com/BotHarness/BotHarness/issues/1123)）。
+- **绑定应用** 不再列出已经绑定到这个 Bot 的应用，它们已经显示在「外部身份」里（[#1127](https://github.com/BotHarness/BotHarness/issues/1127)）。
+
+- 模型弹窗不再提供跑不起来的路由：某个提供方在真实对话里因没有 API key 或 key 无效而失败后，它的模型排到最后，标为 **需要配置 key** 或 **key 无效**，不能选择或保存；DSH 的凭证、设置或适配器变化后恢复。没有 Model Plan 的 Bot 打开弹窗时默认选中 DSH 默认模型，而不是目录里的第一个（[#1124](https://github.com/BotHarness/BotHarness/issues/1124)）。
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
 
 ### Documentation

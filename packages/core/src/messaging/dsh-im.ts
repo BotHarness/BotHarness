@@ -13,6 +13,7 @@ import type {
   MessagingTypingState,
   MessagingTypingLease,
 } from './provider.js';
+import { mentionTags } from './mention-text.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
 
 interface DshImTarget {
@@ -108,6 +109,7 @@ export interface DshImOutboundService {
       signal: AbortSignal;
       receipt?: true;
       beforeSend?: () => boolean;
+      mentionUserIds?: string[];
     },
   ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
   historyChecked?(
@@ -320,7 +322,7 @@ export function createDshImProvider(
   )
     return undefined;
   const host = service as DshImOutboundService;
-  const account = async (ref: string) => {
+  const describe = async (ref: string) => {
     let info;
     try {
       info = await host.describeBot(ref);
@@ -335,8 +337,7 @@ export function createDshImProvider(
       info.version !== 1 ||
       info.botId !== ref ||
       info.channel !== platform ||
-      !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '') ||
-      !info.capabilities.includes('proactive-text-checked')
+      !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '')
     )
       throw new MessagingError('provider-incompatible');
     return {
@@ -351,7 +352,15 @@ export function createDshImProvider(
       info.capabilities.includes('typing-lifecycle-checked')
         ? { typingSupported: true }
         : {}),
+      ...(info.capabilities.includes('proactive-text-checked')
+        ? {}
+        : { unsupported: 'checked-send' as const }),
     };
+  };
+  const account = async (ref: string) => {
+    const value = await describe(ref);
+    if (value.unsupported) throw new MessagingError('provider-incompatible');
+    return value;
   };
   const targets = async (ref: string) =>
     (await host.listTargets(ref)).map((target) => ({
@@ -392,7 +401,7 @@ export function createDshImProvider(
     id: `dsh-im/${platform}`,
     async accounts() {
       const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
-      const result = await Promise.allSettled(bots.map((bot) => account(bot.botId)));
+      const result = await Promise.allSettled(bots.map((bot) => describe(bot.botId)));
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
@@ -809,9 +818,27 @@ export function createDshImProvider(
           },
           async reply(input: Parameters<NonNullable<MessagingProvider['reply']>>[0]) {
             try {
-              const result = await host.replyChecked!(input.accountRef, input.route, input.text, {
+              const tags =
+                platform === 'slack' || platform === 'discord'
+                  ? mentionTags(input.text)
+                  : { mentions: [], render: () => input.text };
+              const checkedMentions =
+                tags.mentions.length > 0 &&
+                (await host.describeBot(input.accountRef)).capabilities.includes(
+                  'reply-mention-checked',
+                );
+              const text =
+                tags.mentions.length === 0
+                  ? input.text
+                  : tags.render((mention) =>
+                      checkedMentions ? `<@${mention.id}>` : `@${mention.name || mention.id}`,
+                    );
+              const result = await host.replyChecked!(input.accountRef, input.route, text, {
                 expectedFingerprint: input.fingerprint,
                 signal: input.signal,
+                ...(checkedMentions
+                  ? { mentionUserIds: [...new Set(tags.mentions.map((mention) => mention.id))] }
+                  : {}),
                 ...(host.replyReceiptVersion === 1 ? { receipt: true as const } : {}),
                 ...(host.replyFenceVersion === 1 && input.beforeSend
                   ? { beforeSend: input.beforeSend }

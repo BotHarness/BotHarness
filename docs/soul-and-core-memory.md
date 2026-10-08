@@ -49,11 +49,13 @@ This content is part of every Session. Because it doesn't change during a Sessio
 
 ### Change the limits
 
-1. In the Bot DM, click the Bot's name at the top, then click **View details** in the profile card.
-2. Under **Standing memory limits**, enter the character limits for Soul and Core Memory. Any whole number from 500 to 50,000 works; the approximate size in Chinese characters and English words is shown below each field.
-3. Click **Save limits**. **Restore defaults** sets them back to 5,000 and 3,000.
+1. In the Bot DM, open **Memory files** in the Channel sidebar on the right.
+2. Below the file tree, click the **Standing memory limits** row (it shows the current values, such as `SOUL.md 5,000 · MEMORY.md 3,000`, and a **Customized** chip after a change). In the dialog, enter the character limits for Soul and Core Memory. Any whole number from 500 to 50,000 works; the approximate size in Chinese characters and English words is shown below each field.
+3. Click **Save limits**. **Restore defaults** sets them back to 5,000 and 3,000; **Cancel** closes without saving.
 
 ![Standing memory limits in the Bot details](/guides/soul-and-core-memory/03-limits-zh.webp)
+
+_Screenshot shows the earlier Profile layout; the limits now live in the sidebar's Memory files entry._
 
 The limits belong to this Bot only.
 

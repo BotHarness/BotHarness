@@ -433,8 +433,28 @@ Channel 不属于任何 Channel section 时的 membership state。未分组 Chan
 _避免使用_：default folder、inbox、fixed bottom bucket
 
 **Bridge**：
-从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。UI 上称为「外部连接器 / External connector」；PersonaBot 自己的外部身份是另一回事。
+从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
 _避免使用_：integration、adapter、裸用 connector
+
+**Conversation ingest**：
+外部会话接入。由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 PersonaBot 默认只获得「仅作上下文」的 Admission；接入的唤醒设置可改为攒够条数后唤醒或逐条唤醒，成员在该 Channel 中的唤醒策略优先。它列在「外部连接器」中，显示为外部会话；它不给任何 PersonaBot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
+_避免使用_：sync、mirror、用 Bridge 指代这条记录
+
+**App**：
+UI 上叫「应用」：一个已认证 Provider account 的名称，例如 Lark 应用、Slack 应用、Discord bot 或已配对的微信 Bot。一个应用最多绑定到一个 PersonaBot；一个 PersonaBot 可以绑定多个应用，包括同一平台的多个应用。「设置 → IM 应用」列出每个应用及使用它的 Bot。
+_避免使用_：UI 文案里的「IM账号」、connector、integration
+
+**Default traffic**：
+启用的外部身份 Binding 无需逐会话同意即可接收的消息：发给应用的私聊，以及合格 Provider 报告为 @ 该应用的群消息。谁能触达应用由平台决定；群里的普通文字、跟进的话题和 Channel 同步仍需显式开启。
+_避免使用_：全部消息、已授权流量、开放收件
+
+**Conversation entry**：
+一个 Binding 的单个会话流量所挂靠的锚点，存为 Messaging Grant。_隐式_ 条目在第一条被接收的默认流量消息或第一次主动发送时记录；_显式_ 条目来自保存的发送目标。_等待处理_ 的条目等 Human 决定（先问我，或达到上限），只保留元数据。_已屏蔽_ 的会话有一个按 Bot、应用指纹、会话类型和 ID 记录的持久屏蔽，直到 **再次允许** 前都会被拒绝。静音的条目照常接收，但不会唤醒 Bot。
+_避免使用_：授权（指隐式条目时）、投递目标、订阅
+
+**New-conversation mode**：
+Binding 对尚无条目的会话的处理方式：`auto`（自动接收，默认）记录隐式条目并接收消息；`ask`（先问我）把它放到等待处理。自动创建有上限：每个 Binding 每小时 20 个新条目、同时 500 个活跃条目。
+_避免使用_：白名单、审批模式、自动回复
 
 **Bot Inbox**：
 PersonaBot 层级的 view，包含被 admit 供其 attention 的 Source Event，无论 event 是否属于某个 Channel。它不是第二个 content store：读取是一项显式行为，也允许 ignore。

@@ -19,7 +19,20 @@ import {
   type MessagingDefaults,
   type MessagingDefaultsInput,
 } from './defaults.js';
-import type { GroupReceptionPolicy } from './group-policy.js';
+import { initializeGroupReceptionPolicy, type GroupReceptionPolicy } from './group-policy.js';
+import {
+  admissionBound,
+  listBlocks,
+  listHeld,
+  readBlock,
+  readHeld,
+  removeBlock,
+  removeHeld,
+  writeBlock,
+  type BlockedConversation,
+  type HeldConversation,
+  type MessagingConversationInput,
+} from './conversations.js';
 import { bridgeChannel, humanBridgeChannel } from './channel-target.js';
 import {
   channelBridgeRoutes,
@@ -112,6 +125,9 @@ export interface MessagingGrant {
   receptionInheritance?: 'inherit' | 'custom';
   channelBridge?: ChannelBridgeConfiguration;
   bridgeRoutes?: ChannelBridgeRoute[];
+  origin?: 'explicit' | 'implicit';
+  muted?: boolean;
+  preferenceRevision?: number;
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -157,6 +173,12 @@ export interface OutboxIntent {
   reason?: string;
 }
 
+export type MessagingApp = MessagingAccount & {
+  providerId: string;
+  boundBotSlug?: string;
+  bindingId?: string;
+};
+
 export interface MessagingSnapshot {
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
@@ -177,16 +199,19 @@ export interface MessagingSnapshot {
   pairings?: PairingRequest[];
   pairingReceivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   channelTargets?: { id: string; name: string }[];
-  accounts: (MessagingAccount & { providerId: string })[];
+  accounts: MessagingApp[];
   grants: (MessagingGrant & {
     availability: 'available' | 'unavailable' | 'rebind-required';
     reception: ReturnType<InboundMessaging['status']>;
     canReceive?: boolean;
     canPost?: boolean;
+    lastMessageAt?: string;
     groupPolicy?: GroupReceptionPolicy;
     threadPolicies?: ThreadReceptionView[];
     ordinaryDelivery?: 'verified' | 'unverified';
   })[];
+  heldConversations?: HeldConversation[];
+  blockedConversations?: BlockedConversation[];
   intents: OutboxIntent[];
 }
 
@@ -224,6 +249,7 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  apps(): Promise<MessagingApp[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   authorize(input: {
@@ -235,6 +261,7 @@ export interface OutboundMessaging {
     targetDigest: string;
   }): Promise<MessagingGrant>;
   revoke(botSlug: string, grantId: string): void;
+  conversation(botSlug: string, input: MessagingConversationInput): Promise<void>;
   send(
     botSlug: string,
     grantId: string,
@@ -269,6 +296,7 @@ export function createOutboundMessaging(options: {
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
+  onIngested?(channelId: string, messageId: string): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -311,6 +339,24 @@ export function createOutboundMessaging(options: {
     if (provider(id).token !== token) throw new MessagingError('provider-unavailable');
   };
   const binding = (id: string) => database.read((db) => readMessagingIdentity(db, id));
+  const revokePendingIntents = (db: DatabaseSync, grantId: string, at: string) => {
+    const pending = db
+      .prepare("SELECT id FROM messaging_outbox WHERE grant_id = ? AND state = 'pending'")
+      .all(grantId) as unknown as { id: string }[];
+    for (const row of pending) {
+      const intent = readIntent(row.id);
+      db.prepare('UPDATE messaging_outbox SET state = ?, body = ? WHERE id = ?').run(
+        'grant-revoked',
+        JSON.stringify({
+          ...intent,
+          state: 'grant-revoked',
+          reason: 'grant-revoked',
+          settledAt: at,
+        }),
+        row.id,
+      );
+    }
+  };
   const enabledBinding = (id: string, revision?: number) =>
     database.read((db) => assertMessagingIdentity(db, id, revision));
   const bounded = async <T>(work: Promise<T>): Promise<T> => {
@@ -336,7 +382,9 @@ export function createOutboundMessaging(options: {
     const account = await bounded(
       entry.provider.inspectAccount
         ? entry.provider.inspectAccount(value.accountRef)
-        : entry.provider.accounts().then((rows) => rows.find((r) => r.ref === value.accountRef)),
+        : entry.provider
+            .accounts()
+            .then((rows) => rows.find((r) => r.ref === value.accountRef && !r.unsupported)),
     );
     current(value.providerId, entry.token);
     if (!account || account.ref !== value.accountRef || account.fingerprint !== value.fingerprint)
@@ -441,6 +489,20 @@ export function createOutboundMessaging(options: {
       ['grants'],
     );
   };
+  const inspectImplicit = async (registered: MessagingProvider, value: MessagingGrant) => {
+    if (!registered.inspectAccount || !value.receiveScope)
+      throw new MessagingError('capability-unavailable');
+    const account = await bounded(registered.inspectAccount(value.accountRef));
+    return {
+      account,
+      target: {
+        ref: value.targetRef,
+        name: value.targetName,
+        digest: value.targetDigest,
+        receiveScope: value.receiveScope,
+      },
+    };
+  };
   const check = async (value: MessagingGrant) => {
     active(value.botSlug);
     if (value.revokedAt !== undefined) throw new MessagingError('grant-revoked');
@@ -449,7 +511,10 @@ export function createOutboundMessaging(options: {
     const entry = provider(value.providerId);
     let inspected;
     try {
-      inspected = await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
+      inspected =
+        value.origin === 'implicit'
+          ? await inspectImplicit(entry.provider, value)
+          : await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
     } catch (error) {
       current(value.providerId, entry.token);
       if (error instanceof MessagingError && error.code === 'rebind-required') suspend(value);
@@ -498,6 +563,7 @@ export function createOutboundMessaging(options: {
     ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.onShared ? { onShared: options.onShared } : {}),
+    ...(options.onIngested ? { onIngested: options.onIngested } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const sourceForReply = (botSlug: string, sourceEventId: string, value: MessagingGrant) => {
@@ -657,15 +723,9 @@ export function createOutboundMessaging(options: {
             current(input.providerId, account.token);
             const prior = db
               .prepare(
-                'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND ((provider_id = ? AND (account_ref = ? OR fingerprint = ?)) OR (bot_slug = ? AND platform = ?))',
+                'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND provider_id = ? AND (account_ref = ? OR fingerprint = ?)',
               )
-              .get(
-                input.providerId,
-                input.accountRef,
-                input.fingerprint,
-                botSlug,
-                account.platform,
-              );
+              .get(input.providerId, input.accountRef, input.fingerprint);
             if (prior) throw new MessagingError('binding-conflict');
             const id = randomUUID();
             db.prepare(
@@ -723,6 +783,7 @@ export function createOutboundMessaging(options: {
         if (account.platform !== value.platform) throw new MessagingError('rebind-required');
         for (const row of scopes) {
           const g = JSON.parse(row.body) as MessagingGrant;
+          if (g.origin === 'implicit') continue;
           const entry = provider(g.providerId);
           const checked = await bounded(entry.provider.inspect(g.accountRef, g.targetRef));
           current(g.providerId, entry.token);
@@ -761,7 +822,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, new_conversations = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -778,6 +839,9 @@ export function createOutboundMessaging(options: {
               : latest.typingEnabled) === false
               ? 0
               : 1,
+            input.kind === 'update'
+              ? (input.newConversations ?? latest.newConversations)
+              : latest.newConversations,
             value.id,
           );
           if (input.kind === 'unbind') {
@@ -1073,17 +1137,19 @@ export function createOutboundMessaging(options: {
         )
           continue;
         sourceForReply(botSlug, sourceEventId, value);
-        const registered = provider(value.providerId);
-        const targets = await bounded(registered.provider.targets(value.accountRef));
-        current(value.providerId, registered.token);
-        if (
-          !targets.some(
-            (target) =>
-              target.ref === value.targetRef &&
-              target.receiveScope?.conversationId === source.event.conversation.id,
+        if (value.origin !== 'implicit') {
+          const registered = provider(value.providerId);
+          const targets = await bounded(registered.provider.targets(value.accountRef));
+          current(value.providerId, registered.token);
+          if (
+            !targets.some(
+              (target) =>
+                target.ref === value.targetRef &&
+                target.receiveScope?.conversationId === source.event.conversation.id,
+            )
           )
-        )
-          continue;
+            continue;
+        }
         const entry = await check(value);
         if (entry.inspected.target.receiveScope?.conversationId === source.event.conversation.id)
           matches.push(value);
@@ -1120,7 +1186,7 @@ export function createOutboundMessaging(options: {
     },
     async post(botSlug, grantId, requestId, text) {
       const value = grant(botSlug, grantId);
-      if (provider(value.providerId).provider.post === undefined)
+      if (value.origin === 'implicit' || provider(value.providerId).provider.post === undefined)
         throw new MessagingError('capability-unavailable');
       return service.send(botSlug, grantId, requestId, text, undefined, undefined, true);
     },
@@ -1160,7 +1226,7 @@ export function createOutboundMessaging(options: {
             .filter(
               (route) =>
                 route.channelId === channelId ||
-                (current.type === 'dm' && route.channelId === null),
+                (current.type === 'dm' && route.channelId === null && g.origin !== 'implicit'),
             )
             .map((route) => ({
               ...source(g),
@@ -1181,7 +1247,7 @@ export function createOutboundMessaging(options: {
           .map(source),
       };
     },
-    async snapshot(botSlug) {
+    async apps() {
       const accounts = (
         await Promise.allSettled(
           [...providers.values()].map(async (entry) =>
@@ -1192,6 +1258,30 @@ export function createOutboundMessaging(options: {
           ),
         )
       ).flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+      const bindings = database.read((db) =>
+        db
+          .prepare(
+            'SELECT id, bot_slug, provider_id, account_ref, fingerprint FROM messaging_bindings WHERE revoked_at IS NULL',
+          )
+          .all(),
+      ) as {
+        id: string;
+        bot_slug: string;
+        provider_id: string;
+        account_ref: string;
+        fingerprint: string;
+      }[];
+      return accounts.map((account) => {
+        const bound = bindings.find(
+          (b) =>
+            b.provider_id === account.providerId &&
+            (b.account_ref === account.ref || b.fingerprint === account.fingerprint),
+        );
+        return bound ? { ...account, boundBotSlug: bound.bot_slug, bindingId: bound.id } : account;
+      });
+    },
+    async snapshot(botSlug) {
+      const accounts = await service.apps();
       const rows = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')
@@ -1228,6 +1318,12 @@ export function createOutboundMessaging(options: {
           return {
             ...latest,
             availability,
+            reception:
+              availability === 'available'
+                ? inbound.pairingReception(id)
+                : availability === 'paused'
+                  ? ('off' as const)
+                  : ('unavailable' as const),
             grantCount: scopes.length,
             scopes: scopes.map((g) => g.targetName),
             ...(latest.platform === 'weixin'
@@ -1257,6 +1353,7 @@ export function createOutboundMessaging(options: {
             try {
               const checked = await check(value);
               canPost =
+                value.origin !== 'implicit' &&
                 checked.provider.post !== undefined &&
                 checked.inspected.target.receiveScope !== undefined;
               canReceive =
@@ -1270,8 +1367,21 @@ export function createOutboundMessaging(options: {
             }
           }
           const current = grant(botSlug, value.id);
+          const lastMessageAt =
+            current.origin === 'implicit'
+              ? (
+                  database.read((db) =>
+                    db
+                      .prepare(
+                        "SELECT max(created_at) AS at FROM source_events WHERE source_kind = 'bridge-message' AND json_extract(payload_json, '$.external.grantId') = ?",
+                      )
+                      .get(current.id),
+                  ) as { at: string | null }
+                ).at
+              : null;
           return {
             ...current,
+            ...(lastMessageAt ? { lastMessageAt } : {}),
             availability,
             reception: inbound.status(value.id),
             canReceive,
@@ -1368,16 +1478,17 @@ export function createOutboundMessaging(options: {
         approvals: approvals.snapshot(botSlug),
         pairingReceivers: identities
           .filter((i) => i.platform === 'feishu' && !i.revokedAt)
-          .map((i) => ({
-            name: i.name,
-            status:
-              i.availability === 'available'
-                ? inbound.pairingReception(i.id)
-                : i.availability === 'paused'
-                  ? 'off'
-                  : 'unavailable',
-          })),
+          .map((i) => ({ name: i.name, status: i.reception ?? 'unavailable' })),
         grants,
+        heldConversations: database.read((db) =>
+          identities.flatMap((identity) => listHeld(db, identity.id)),
+        ),
+        blockedConversations: database
+          .read((db) => listBlocks(db, botSlug))
+          .map((block) => {
+            const owner = identities.find((identity) => identity.fingerprint === block.fingerprint);
+            return owner ? { ...block, bindingId: owner.id } : block;
+          }),
         channelTargets,
         intents,
         setup: {
@@ -1412,16 +1523,9 @@ export function createOutboundMessaging(options: {
           active(input.botSlug);
           const existing = db
             .prepare(
-              'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND ((provider_id = ? AND account_ref = ?) OR (provider_id = ? AND fingerprint = ?) OR (bot_slug = ? AND platform = ?))',
+              'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND provider_id = ? AND (account_ref = ? OR fingerprint = ?)',
             )
-            .get(
-              input.providerId,
-              input.accountRef,
-              input.providerId,
-              input.fingerprint,
-              input.botSlug,
-              inspected.account.platform,
-            );
+            .get(input.providerId, input.accountRef, input.fingerprint);
           let reusable: MessagingIdentity | undefined;
           if (existing !== undefined) {
             reusable = readMessagingIdentity(db, (existing as { id: string }).id);
@@ -1452,6 +1556,7 @@ export function createOutboundMessaging(options: {
             targetName: inspected.target.name,
             revision: 1,
             createdAt: at,
+            origin: 'explicit',
           };
           if (!reusable)
             db.prepare(
@@ -1491,22 +1596,7 @@ export function createOutboundMessaging(options: {
             grantId,
           );
 
-          const pending = db
-            .prepare("SELECT id FROM messaging_outbox WHERE grant_id = ? AND state = 'pending'")
-            .all(grantId) as unknown as { id: string }[];
-          for (const row of pending) {
-            const intent = readIntent(row.id);
-            db.prepare('UPDATE messaging_outbox SET state = ?, body = ? WHERE id = ?').run(
-              'grant-revoked',
-              JSON.stringify({
-                ...intent,
-                state: 'grant-revoked',
-                reason: 'grant-revoked',
-                settledAt: revokedAt,
-              }),
-              row.id,
-            );
-          }
+          revokePendingIntents(db, grantId, revokedAt);
         },
         ['grants', 'bindings', 'outbox'],
       );
@@ -1514,6 +1604,132 @@ export function createOutboundMessaging(options: {
       typing.invalidate((candidate) => candidate.grantId === grantId);
       for (const attempt of inFlight.values())
         if (attempt.fileGrantId === grantId) attempt.controller.abort();
+    },
+    async conversation(botSlug, input) {
+      active(botSlug);
+      if (input.kind === 'mute') {
+        transaction(
+          (db) => {
+            const value = grant(botSlug, input.grantId);
+            if (value.revokedAt !== undefined || !value.receiveScope)
+              throw new MessagingError('grant-revoked');
+            if ((value.preferenceRevision ?? 0) !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            const next: MessagingGrant = {
+              ...value,
+              muted: input.muted,
+              preferenceRevision: input.expectedRevision + 1,
+            };
+            db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+              JSON.stringify(next),
+              value.id,
+            );
+          },
+          ['grants'],
+        );
+        inbound.startEntry(input.grantId);
+        return;
+      }
+      if (input.kind === 'block') {
+        transaction(
+          (db) => {
+            const value = grant(botSlug, input.grantId);
+            if (value.revokedAt !== undefined || !value.receiveScope)
+              throw new MessagingError('grant-revoked');
+            if (value.revision !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            const at = now();
+            const revision = value.revision + 1;
+            db.prepare(
+              'UPDATE messaging_grants SET body = ?, revoked_at = ?, revision = ? WHERE id = ?',
+            ).run(JSON.stringify({ ...value, revokedAt: at, revision }), at, revision, value.id);
+            revokePendingIntents(db, value.id, at);
+            const conversation = {
+              kind: value.receiveScope.kind,
+              id: value.receiveScope.conversationId,
+            };
+            writeBlock(db, {
+              botSlug,
+              fingerprint: value.fingerprint,
+              conversation,
+              name: value.targetName,
+              blockedAt: at,
+            });
+            removeHeld(db, value.bindingId, conversation);
+          },
+          ['grants', 'outbox'],
+        );
+        inbound.revoke(input.grantId);
+        for (const attempt of inFlight.values())
+          if (attempt.fileGrantId === input.grantId) attempt.controller.abort();
+        inbound.startEntry(input.grantId);
+        return;
+      }
+      const created = transaction(
+        (db) => {
+          const identity = readMessagingIdentity(db, input.bindingId);
+          if (identity.botSlug !== botSlug || identity.revokedAt)
+            throw new MessagingError('identity-unbound');
+          const held = readHeld(db, input.bindingId, input.conversation);
+          const blocked = readBlock(db, botSlug, identity.fingerprint, input.conversation);
+          if (input.kind === 'block-held') {
+            if (!held || held.revision !== input.expectedRevision)
+              throw new MessagingError('conversation-stale');
+            writeBlock(db, {
+              botSlug,
+              fingerprint: identity.fingerprint,
+              conversation: input.conversation,
+              name: held.name,
+              blockedAt: now(),
+            });
+            removeHeld(db, input.bindingId, input.conversation);
+            return undefined;
+          }
+          const source = input.from === 'held' ? held : blocked;
+          if (!source || source.revision !== input.expectedRevision)
+            throw new MessagingError('conversation-stale');
+          if (!identity.enabled) throw new MessagingError('identity-paused');
+          const existing = db
+            .prepare(
+              `SELECT 1 FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL
+                AND json_extract(body, '$.receiveScope.kind') = ?
+                AND json_extract(body, '$.receiveScope.conversationId') = ?`,
+            )
+            .get(input.bindingId, input.conversation.kind, input.conversation.id);
+          if (existing) throw new MessagingError('conversation-stale');
+          if (admissionBound(db, input.bindingId, new Date(now())) === 'active-limit')
+            throw new MessagingError('conversation-limit');
+          const at = now();
+          const value: MessagingGrant = {
+            id: randomUUID(),
+            bindingId: identity.id,
+            botSlug,
+            providerId: identity.providerId,
+            accountRef: identity.accountRef,
+            accountName: identity.name,
+            fingerprint: identity.fingerprint,
+            platform: identity.platform,
+            targetRef: '',
+            targetName: source.name,
+            targetDigest: '',
+            revision: 1,
+            createdAt: at,
+            receiveAfter: at,
+            receiveScope: { kind: input.conversation.kind, conversationId: input.conversation.id },
+            origin: 'implicit',
+          };
+          db.prepare(
+            'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',
+          ).run(value.id, value.bindingId, botSlug, 1, at, JSON.stringify(value));
+          if (input.conversation.kind === 'group') initializeGroupReceptionPolicy(db, value.id);
+          removeHeld(db, input.bindingId, input.conversation);
+          removeBlock(db, botSlug, identity.fingerprint, input.conversation);
+          return value.id;
+        },
+        ['grants', 'bindings'],
+      );
+      if (created !== undefined) inbound.startEntry(created);
+      else options.onReceptionChanged?.();
     },
     async send(botSlug, grantId, requestId, text, sourceEventId, file, report = false) {
       active(botSlug);
@@ -1555,6 +1771,8 @@ export function createOutboundMessaging(options: {
           ? undefined
           : sourceForReply(botSlug, sourceEventId, acceptedGrant);
       if (file && source?.grantId !== grantId) throw new MessagingError('capability-unavailable');
+      if (acceptedGrant.origin === 'implicit' && source === undefined)
+        throw new MessagingError('capability-unavailable');
       const acceptedEntry = await check(acceptedGrant);
       const acceptedIdentity = acceptedEntry.identityRevision;
       const replyRoute =

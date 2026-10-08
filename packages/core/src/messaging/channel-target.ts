@@ -98,10 +98,11 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
 export function placeBridgeSource(
   db: DatabaseSync,
   source: ExternalSource,
-  botSlug: string,
+  botSlug: string | undefined,
 ): { channelId: string; message: ChannelMessage; revision: number } | undefined {
   if (!source.localChannelId) return;
-  bridgeChannel(db, source.localChannelId, botSlug);
+  if (botSlug === undefined) humanBridgeChannel(db, source.localChannelId);
+  else bridgeChannel(db, source.localChannelId, botSlug);
   const prior = db
     .prepare(
       'SELECT channel_id FROM channel_placements WHERE source_event_id = ? AND channel_id = ?',

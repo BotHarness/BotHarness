@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react';
-import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Checkbox, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   PairingCapability,
   PairingRequest,
@@ -34,7 +34,6 @@ export function PairingSettings({
   return (
     <section className="bh-im-pairing" aria-label={t('pairing.title')}>
       <div className="bh-im-actions">
-        <strong>{t('pairing.title')}</strong>
         <Button size="sm" variant="toolbar" disabled={busy} onClick={() => void refresh()}>
           {t('pairing.refresh')}
         </Button>
@@ -124,20 +123,17 @@ function PairingRow({
           <fieldset disabled={busy} className="bh-im-pairing-capabilities">
             <legend>{t('pairing.approve')}</legend>
             {capabilities.map((capability) => (
-              <label key={capability}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(capability)}
-                  onChange={(event) =>
-                    setSelected((value) =>
-                      event.target.checked
-                        ? [...value, capability]
-                        : value.filter((item) => item !== capability),
-                    )
-                  }
-                />
-                {t(labels[capability])}
-              </label>
+              <Checkbox
+                key={capability}
+                label={t(labels[capability])}
+                checked={selected.includes(capability)}
+                disabled={busy}
+                onChange={(checked) =>
+                  setSelected((value) =>
+                    checked ? [...value, capability] : value.filter((item) => item !== capability),
+                  )
+                }
+              />
             ))}
           </fieldset>
           <div className="bh-im-actions">

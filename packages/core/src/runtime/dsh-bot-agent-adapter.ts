@@ -29,6 +29,13 @@ import {
 } from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
 import {
+  withInlineMentions,
+  mentionPeople,
+  withMentionNames,
+  withoutMentionMarkup,
+} from '../messaging/mention-text.js';
+import type { MessagingInboundEvent } from '../messaging/provider.js';
+import {
   BOT_SCHEDULE_ENABLED_LIMIT,
   BotScheduleError,
   type BotScheduleTrigger,
@@ -41,6 +48,15 @@ import type {
   BotAgentAdapter,
   OrchestratorAgentRun,
 } from './bot-runtime.js';
+
+function withContextMentionNames<
+  T extends { text: string; mentions?: MessagingInboundEvent['mentions'] },
+>(messages: T[]): T[] {
+  return messages.map((message) => ({
+    ...message,
+    text: withMentionNames(message.text, message.mentions),
+  }));
+}
 
 function groupCommandResult(
   channel: { id: string; name: string },
@@ -141,6 +157,8 @@ export interface DshBotAgentAdapterOptions {
   onOrchestratorFileSetup?: (agentCtx: Context, agent: Agent) => Promise<() => Promise<void>>;
 
   onAgentSetup?: (agentCtx: Context, agent: Agent, info: BotAgentSetupInfo) => void;
+
+  observeTurnFailure?: (provider: string, code: string) => void;
 }
 
 export interface BotAgentSetupInfo {
@@ -207,6 +225,7 @@ function requireCompletedTurn(
   fromSeq: SessionLogOffset,
   cancelledTurn?: AssignmentAgentRun['cancelledTurn'],
   failedTurn?: AssignmentAgentRun['failedTurn'],
+  observeFailure?: (code: string) => void,
 ): { turn: number; endSeq: number } {
   const turnEnd = handle.agent.session
     .snapshotEvents(fromSeq)
@@ -220,6 +239,7 @@ function requireCompletedTurn(
     cancelledTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
   if (reason.kind === 'error') {
     failedTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
+    observeFailure?.(reason.error.code);
     const routeNeedsRepair =
       [
         'MISSING_CREDENTIAL',
@@ -245,6 +265,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #defaultModel: DshDefaultModelHost;
   readonly #resolveModelPlan: ((botSlug: string) => PersonaBotModelPlan | undefined) | undefined;
   readonly #prepareModelRoute: DshBotAgentAdapterOptions['prepareModelRoute'];
+  readonly #observeTurnFailure: DshBotAgentAdapterOptions['observeTurnFailure'];
   readonly #hasSession: DshBotAgentAdapterOptions['hasSession'];
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
@@ -276,6 +297,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#defaultModel = options.defaultModel;
     this.#resolveModelPlan = options.resolveModelPlan;
     this.#prepareModelRoute = options.prepareModelRoute;
+    this.#observeTurnFailure = options.observeTurnFailure;
     this.#hasSession = options.hasSession;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
@@ -330,7 +352,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
       await handle.agent.whenIdle();
-      requireCompletedTurn(handle, fromSeq);
+      const provider = selection?.current?.provider;
+      requireCompletedTurn(handle, fromSeq, undefined, undefined, (code) => {
+        if (provider !== undefined) this.#observeTurnFailure?.(provider, code);
+      });
     } finally {
       this.#drafts.end(run.sessionId);
       if (this.#runs.get(run.sessionId) === entry) this.#runs.delete(run.sessionId);
@@ -424,7 +449,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       accepted?.();
       await handle.agent.whenIdle();
       if (this.#stopping.has(run.sessionId)) return;
-      const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn, run.failedTurn);
+      const provider = this.#assignmentSelections.get(run.sessionId)?.current?.provider;
+      const completion = requireCompletedTurn(
+        handle,
+        fromSeq,
+        run.cancelledTurn,
+        run.failedTurn,
+        (code) => {
+          if (provider !== undefined) this.#observeTurnFailure?.(provider, code);
+        },
+      );
       run.completedTurn?.(completion);
       if (run.resume === true) return;
       if (!entry.reported) {
@@ -1105,7 +1139,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging?.post)
               throw new Error('bridge_post: unavailable');
             return JSON.stringify(
-              await active.run.externalMessaging.post(args.grant_id, args.request_id, args.text),
+              await active.run.externalMessaging.post(
+                args.grant_id,
+                args.request_id,
+                withoutMentionMarkup(args.text),
+              ),
             );
           },
         }),
@@ -1154,7 +1192,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_read: unavailable');
-            return JSON.stringify(active.run.externalMessaging.read(args.source_event_id));
+            const source = active.run.externalMessaging.read(args.source_event_id);
+            return JSON.stringify({
+              ...source,
+              body: withMentionNames(source.body, source.event.mentions),
+              ...(source.contextMessages === undefined
+                ? {}
+                : { contextMessages: withContextMentionNames(source.contextMessages) }),
+            });
           },
         }),
       );
@@ -1363,21 +1408,23 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_context: unavailable');
-            return JSON.stringify(
-              await active.run.externalMessaging.context(
-                args.source_event_id,
-                {
-                  scope: args.scope,
-                  ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-                  ...(args.before_count === undefined ? {} : { beforeCount: args.before_count }),
-                  ...(args.after_count === undefined ? {} : { afterCount: args.after_count }),
-                  ...(args.max_characters === undefined
-                    ? {}
-                    : { maxCharacters: args.max_characters }),
-                },
-                context.signal,
-              ),
+            const result = await active.run.externalMessaging.context(
+              args.source_event_id,
+              {
+                scope: args.scope,
+                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+                ...(args.before_count === undefined ? {} : { beforeCount: args.before_count }),
+                ...(args.after_count === undefined ? {} : { afterCount: args.after_count }),
+                ...(args.max_characters === undefined
+                  ? {}
+                  : { maxCharacters: args.max_characters }),
+              },
+              context.signal,
             );
+            return JSON.stringify({
+              ...result,
+              messages: withContextMentionNames(result.messages),
+            });
           },
         }),
       );
@@ -1482,7 +1529,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             text: {
               type: 'string',
               required: true,
-              description: 'Plain text reply, at most 4000 characters.',
+              description:
+                'Plain text reply, at most 4000 characters. To @ the sender or someone the source mentioned, write <@ID> anywhere in the text with their id from the source people list (Lark, Slack and Discord); any other id is sent as plain text.',
             },
           },
           output: {
@@ -1493,9 +1541,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_reply: unavailable');
-            return JSON.stringify(
-              await active.run.externalMessaging.reply(args.source_event_id, args.text),
-            );
+            const messaging = active.run.externalMessaging;
+            const source = /<@!?[A-Za-z0-9_-]+>/u.test(args.text)
+              ? messaging.read(args.source_event_id)
+              : undefined;
+            const text =
+              source === undefined
+                ? withoutMentionMarkup(args.text)
+                : withInlineMentions(
+                    source.platform,
+                    args.text,
+                    mentionPeople(source.event.actor, source.event.mentions),
+                  );
+            return JSON.stringify(await messaging.reply(args.source_event_id, text));
           },
         }),
       );

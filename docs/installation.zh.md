@@ -6,7 +6,7 @@
 
 ## 1. 打开插件管理器
 
-启动 DSH 并打开 Web 界面。尚未安装 DSH 时，先按 [DSH 官方入门文档](https://deepseek-harness.github.io/deepseek-harness/)准备环境。先按 [API 与 Bot 模型教程](/zh/docs/model-setup) 配置 Provider；创建 Bot 后还需要在其 Profile 应用模型预设。
+启动 DSH 并打开 Web 界面。尚未安装 DSH 时，先按 [DSH 官方入门文档](https://deepseek-harness.github.io/deepseek-harness/)准备环境。先按 [API 与 Bot 模型教程](/zh/docs/model-setup) 配置 Provider；创建 Bot 后还需要在其私聊侧栏的 **模型** 中选择模型。
 
 点击左侧 **插件**，再点击 **添加插件**。
 
@@ -44,13 +44,13 @@ _这里通过来源地址导入插件，没有文件上传选择器。只填包�
 
 ![填写教程助手名称的创建窗口](/guides/install/06-create-bot-zh.webp)
 
-打开新 Bot 的 DM，点击顶部名称 / 头像 → **查看详细 → 模型预设**，选择 Orchestrator 与 Assignment 模型并点击 **创建并应用**。完整表单说明见 [API 与 Bot 模型](/zh/docs/model-setup)。返回 DM 后发送一句问候。收到回复才能确认模型也能正常使用。模型凭据在 DSH 中配置，npm 安装不会提供模型凭据。
+打开新 Bot 的 DM，在右侧 Channel sidebar 展开 **模型**，点击 **主模型**，选择主模型与执行模型后点击 **保存**。完整表单说明见 [API 与 Bot 模型](/zh/docs/model-setup)。返回 DM 后发送一句问候。收到回复才能确认模型也能正常使用。模型凭据在 DSH 中配置，npm 安装不会提供模型凭据。
 
 ![公开安装包冷启动后，在网页 DM 中收到真实模型回复](/guides/install/07-local-reply-zh.webp)
 
 _本次验证从网页 DM 发送消息，在安装并冷启动后的产品中收到真实模型回复。聊天平台账号仍未连接。_
 
-图标、并发上限、人格、提醒策略、侧栏与工作区授权等参数见 [设置指南](/zh/docs/settings)。
+图标、并发上限、人格、唤醒策略、侧栏与工作区授权等参数见 [设置指南](/zh/docs/settings)。
 
 ## 5. 连接聊天平台
 
@@ -69,6 +69,10 @@ Bot 的记忆是一个 Git 仓库，所以运行 DSH 的电脑需要 Git 2.28 �
 - **Linux**：用发行版的包管理器安装 `git`，例如 `sudo apt install git`。Ubuntu 20.04 自带的是 Git 2.25，需要更新版本时可以用 [git-core PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa)。
 
 自己装好后重启 DeepSeek Harness，在 Bot 模式里点 **重新检测**。
+
+DeepSeekBot 设置里的 **Git** 一行会显示正在使用的 Git 版本，以及它是系统 Git 还是托管 Git。
+
+从 SSH 地址（例如 `git@github.com:owner/repo.git`）导入 Bot 时，如果这台电脑没有对应的 SSH 密钥，DeepSeekBot 会自动改用对应的 HTTPS 地址重试一次，并告诉你已经切换；之后这个 Bot 通过 HTTPS 同步。带自定义 SSH 端口的地址不会转换。
 
 ## 其他导入方式
 

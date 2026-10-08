@@ -1,22 +1,98 @@
 // @vitest-environment jsdom
 import { act, createElement, type ReactNode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { describe, expect, it, vi } from 'vitest';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
-  Button: ({
-    children,
-    onClick,
-    disabled,
-  }: {
-    children: ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => createElement('button', { onClick, disabled }, children),
-  IconChevronRightOutlineRegular: () => null,
-}));
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
+  const { createElement, forwardRef } = await import('react');
+  return {
+    Button: ({
+      children,
+      onClick,
+      disabled,
+      'aria-label': label,
+    }: {
+      children: ReactNode;
+      onClick?: () => void;
+      disabled?: boolean;
+      'aria-label'?: string;
+    }) => createElement('button', { onClick, disabled, 'aria-label': label }, children),
+    Tag: ({ children }: { children: ReactNode }) => createElement('span', null, children),
+    Checkbox: ({
+      label,
+      checked,
+      disabled,
+      onChange,
+    }: {
+      label: string;
+      checked: boolean;
+      disabled?: boolean;
+      onChange: (next: boolean) => void;
+    }) =>
+      createElement(
+        'label',
+        null,
+        createElement('input', {
+          type: 'checkbox',
+          checked,
+          disabled,
+          onChange: (event: { target: { checked: boolean } }) => onChange(event.target.checked),
+        }),
+        label,
+      ),
+    SegmentedControl: ({
+      value,
+      options,
+      onChange,
+      label,
+    }: {
+      value: string;
+      options: { value: string; label: string }[];
+      onChange: (next: string) => void;
+      label: string;
+    }) =>
+      createElement(
+        'div',
+        { role: 'tablist', 'aria-label': label },
+        options.map((option) =>
+          createElement(
+            'button',
+            {
+              key: option.value,
+              role: 'tab',
+              'aria-selected': option.value === value,
+              onClick: () => onChange(option.value),
+            },
+            option.label,
+          ),
+        ),
+      ),
+    Input: (props: import('react').InputHTMLAttributes<HTMLInputElement>) =>
+      createElement('span', null, createElement('input', props)),
+    IconChevronDownOutlineRegular: () => null,
+    MenuSurface: forwardRef<
+      HTMLDivElement,
+      import('react').HTMLAttributes<HTMLDivElement> & { compact?: boolean }
+    >(({ compact: _compact, ...props }, ref) => createElement('div', { ...props, ref })),
+    useAnchoredPosition: () => ({ top: 0, left: 0 }),
+    useDismissOnOutsidePointer: () => undefined,
+    Modal: ({
+      open,
+      title,
+      children,
+      footer,
+    }: {
+      open: boolean;
+      title: string;
+      children?: ReactNode;
+      footer?: ReactNode;
+    }) =>
+      open ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer) : null,
+  };
+});
 
 import type { BridgeActions } from '../src/client/actions.js';
+import type { ModelPlanView, ModelPresetView } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
 import { ModelPresetProfile } from '../src/client/model-preset-profile.js';
 
@@ -27,79 +103,110 @@ function translate(key: string, params?: Record<string, unknown>): string {
   return text;
 }
 
-describe('Model Preset Profile', () => {
-  it.each([false, true])(
-    'refreshes repair guidance after Assignment updates (resolved: %s)',
-    async (resolved) => {
-      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-      const route = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
-      let plan = {
-        revision: 1,
-        sourcePresetId: '',
-        sourcePresetName: '',
-        orchestrator: route,
-        assignmentDefault: route,
-        appliedAt: '',
-      };
-      const repair = { code: 'route-unavailable', message: 'Orchestrator route cannot run' };
-      let updated = false;
-      const modelPlanState = vi.fn(async () => ({
-        plan,
-        repair: updated && resolved ? undefined : repair,
-      }));
-      const actions = {
-        modelPlanState,
-        modelPresets: vi.fn(async () => []),
-        modelCatalog: vi.fn(async () => [
-          {
-            provider: 'deepseek',
-            providerName: 'DeepSeek',
-            model: 'flash',
-            modelName: 'Flash',
-            efforts: [{ id: 'low', name: 'Low' }],
-          },
-        ]),
-        setModelPlanAssignments: vi.fn(async () => {
-          updated = true;
-          plan = { ...plan, revision: 2 };
-          return plan;
-        }),
-      } as unknown as BridgeActions;
-      const container = document.createElement('div');
-      document.body.append(container);
-      const root = createRoot(container);
-      try {
-        await act(async () =>
-          root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
-        );
-        const details = container.querySelector<HTMLDetailsElement>('details')!;
-        await act(async () => {
-          details.open = true;
-          details.dispatchEvent(new Event('toggle'));
-        });
-        const before = modelPlanState.mock.calls.length;
-        const save = Array.from(container.querySelectorAll('button')).find(
-          (button) => button.textContent === 'Save Assignment model choices',
-        )!;
-        await act(async () => save.click());
-        expect(modelPlanState.mock.calls.length).toBeGreaterThan(before);
-        expect(container.querySelector('[role="alert"]')?.textContent ?? '').toContain(
-          resolved ? '' : 'The current model cannot run',
-        );
-        if (resolved) expect(container.querySelector('[role="alert"]')).toBeNull();
-        expect(container.querySelector('summary')?.textContent).toContain(
-          resolved ? 'Revision 2' : 'Select an available model',
-        );
-      } finally {
-        await act(async () => root.unmount());
-        container.remove();
-      }
-    },
-  );
+const catalog = [
+  {
+    provider: 'deepseek',
+    providerName: 'DeepSeek',
+    model: 'flash',
+    modelName: 'Flash',
+    efforts: [
+      { id: 'low', name: 'Low' },
+      { id: 'high', name: 'High' },
+    ],
+  },
+  {
+    provider: 'deepseek',
+    providerName: 'DeepSeek',
+    model: 'pro',
+    modelName: 'Pro',
+    efforts: [],
+  },
+  {
+    provider: 'kimi',
+    providerName: 'Moonshot',
+    model: 'k2',
+    modelName: 'Kimi K2',
+    efforts: [],
+  },
+];
 
-  it('explains an ambiguous legacy model before the settings are expanded', async () => {
-    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    const actions = {
+let root: Root | undefined;
+let container: HTMLDivElement | undefined;
+
+afterEach(async () => {
+  if (root !== undefined) await act(async () => root!.unmount());
+  container?.remove();
+  root = undefined;
+  container = undefined;
+  document.body.innerHTML = '';
+});
+
+async function render(actions: BridgeActions): Promise<HTMLDivElement> {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+  );
+  return container;
+}
+
+const cards = (host: HTMLElement): string =>
+  host.querySelector('.bh-model-entry .bh-card-list')?.textContent ?? '';
+
+async function openEditor(host: HTMLElement): Promise<void> {
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('.bh-model-entry button.bh-card-main')?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+function button(text: string): HTMLButtonElement {
+  const found = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) => candidate.textContent === text,
+  );
+  if (found === undefined) throw new Error(`No button ${text}`);
+  return found;
+}
+
+function combobox(label: string): HTMLInputElement {
+  const found = document.querySelector<HTMLInputElement>(
+    `input[role="combobox"][aria-label="${label}"]`,
+  );
+  if (found === null) throw new Error(`No combobox ${label}`);
+  return found;
+}
+
+async function choose(label: string, query: string, option: string): Promise<void> {
+  const input = combobox(label);
+  await act(async () => input.focus());
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, query);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const match = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')].find(
+    (candidate) => candidate.textContent?.startsWith(option),
+  );
+  if (match === undefined) throw new Error(`No option ${option} for ${query}`);
+  await act(async () => match.click());
+}
+
+function presetPlan(preset: ModelPresetView, revision: number): ModelPlanView {
+  return {
+    revision,
+    sourcePresetId: preset.id,
+    sourcePresetName: preset.name,
+    orchestrator: preset.orchestrator,
+    assignmentDefault: preset.assignmentDefault,
+    ...(preset.assignmentModels === undefined ? {} : { assignmentModels: preset.assignmentModels }),
+    appliedAt: '',
+  };
+}
+
+describe('Model entry', () => {
+  it('explains an ambiguous legacy model before the editor opens', async () => {
+    const host = await render({
       modelPlanState: vi.fn(async () => ({
         repair: {
           code: 'legacy-ambiguous',
@@ -107,320 +214,299 @@ describe('Model Preset Profile', () => {
           message: 'Choose a provider',
         },
       })),
-      modelPresets: vi.fn(async () => []),
-    } as unknown as BridgeActions;
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    try {
-      await act(async () =>
-        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
-      );
-      expect(container.querySelector('details')?.open).toBe(false);
-      expect(container.querySelector('summary')?.textContent).toContain(
-        'Select an available model',
-      );
-      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-        'shared-model matches multiple providers',
-      );
-    } finally {
-      await act(async () => root.unmount());
-      container.remove();
-    }
-  });
-
-  it('keeps a switched plan and its custom draft when an older detail load finishes later', async () => {
-    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
-    const low = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
-    const assignment = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
-    const presets = [
-      { id: 'high', name: 'High', revision: 1, orchestrator: high, assignmentDefault: assignment },
-      { id: 'low', name: 'Economy', revision: 1, orchestrator: low, assignmentDefault: assignment },
-    ];
-    let plan = {
-      revision: 1,
-      sourcePresetId: 'high',
-      sourcePresetName: 'High',
-      orchestrator: high,
-      assignmentDefault: assignment,
-      appliedAt: '',
-    };
-    const originalPlan = plan;
-    let finishStaleLoad!: (value: typeof plan) => void;
-    const staleLoad = new Promise<typeof plan>((resolve) => {
-      finishStaleLoad = resolve;
-    });
-    let planReads = 0;
-    const actions = {
-      modelPlanState: vi.fn(async () => ({ plan: await (++planReads === 2 ? staleLoad : plan) })),
-      modelPresets: vi.fn(async () => presets),
-      modelCatalog: vi.fn(async () => [
-        {
-          provider: 'deepseek',
-          providerName: 'DeepSeek',
-          model: 'flash',
-          modelName: 'Flash',
-          efforts: [
-            { id: 'low', name: 'Low' },
-            { id: 'high', name: 'High' },
-          ],
-        },
-      ]),
-      applyModelPreset: vi.fn(async (_slug: string, id: string) => {
-        plan = {
-          ...plan,
-          revision: 2,
-          sourcePresetId: id,
-          sourcePresetName: 'Economy',
-          orchestrator: low,
-        };
-        return plan;
-      }),
-    } as unknown as BridgeActions;
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    try {
-      await act(async () =>
-        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
-      );
-      const details = container.querySelector<HTMLDetailsElement>('details')!;
-      await act(async () => {
-        details.open = true;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      });
-      expect(planReads).toBe(2);
-
-      const quick = container.querySelector<HTMLSelectElement>('.bh-model-preset-quick select')!;
-      await act(async () => {
-        quick.value = 'low';
-        quick.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-      const switchButton = Array.from(container.querySelectorAll('button')).find(
-        (button) => button.textContent === 'Switch',
-      )!;
-      await act(async () => switchButton.click());
-      expect(container.querySelector('summary')?.textContent).toContain('Economy');
-
-      await act(async () => finishStaleLoad(originalPlan));
-      expect(quick.value).toBe('low');
-      expect(
-        container.querySelectorAll<HTMLSelectElement>('.bh-model-preset-custom select')[1]?.value,
-      ).toBe('low');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
-    } finally {
-      await act(async () => root.unmount());
-      container.remove();
-    }
-  });
-
-  it('switches a Bot quickly, edits only the template, and saves a custom Bot snapshot', async () => {
-    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
-    const low = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
-    const assignment = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
-    const presets = [
-      {
-        id: 'high',
-        name: 'High',
-        revision: 1,
-        orchestrator: high,
-        assignmentDefault: assignment,
-        createdAt: '',
-      },
-      {
-        id: 'low',
-        name: 'Economy',
-        revision: 1,
-        orchestrator: low,
-        assignmentDefault: assignment,
-        createdAt: '',
-      },
-    ];
-    let plan = {
-      revision: 1,
-      sourcePresetId: 'high',
-      sourcePresetName: 'High',
-      orchestrator: high,
-      assignmentDefault: assignment,
-      appliedAt: '',
-    };
-    const applyModelPreset = vi.fn(async (_slug: string, id: string) => {
-      const preset = presets.find((item) => item.id === id)!;
-      plan = {
-        ...plan,
-        revision: plan.revision + 1,
-        sourcePresetId: id,
-        sourcePresetName: preset.name,
-        orchestrator: preset.orchestrator,
-      };
-      return plan;
-    });
-    const updateModelPreset = vi.fn(
-      async (id: string, revision: number, name: string, orchestrator: typeof high) => {
-        const index = presets.findIndex((item) => item.id === id);
-        if (presets[index]?.revision !== revision) {
-          throw new Error('Model Preset changed; select Edit selected preset again before saving');
-        }
-        presets[index] = { ...presets[index]!, name, revision: revision + 1, orchestrator };
-        return presets[index]!;
-      },
+    } as unknown as BridgeActions);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(cards(host)).toContain('Select an available model');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'shared-model matches multiple providers',
     );
-    const customizeModelPlan = vi.fn(async (_slug: string, orchestrator: typeof high) => {
-      plan = {
-        ...plan,
-        revision: plan.revision + 1,
-        sourcePresetId: '',
-        sourcePresetName: '',
-        orchestrator,
-      };
-      return plan;
-    });
-    const setModelPlanAssignments = vi.fn(
+  });
+
+  it('sets the main and task models directly without any preset', async () => {
+    let plan: ModelPlanView | undefined;
+    const setModelPlan = vi.fn(
       async (
         _slug: string,
         _revision: number,
-        assignmentDefault: typeof assignment,
-        assignmentModels: Array<{
-          provider: string;
-          model: string;
-          allowedEfforts: string[];
-          defaultEffort: string;
-        }>,
+        orchestrator: ModelPlanView['orchestrator'],
+        assignmentDefault: ModelPlanView['assignmentDefault'],
+        assignmentModels: NonNullable<ModelPlanView['assignmentModels']>,
       ) => {
         plan = {
-          ...plan,
-          revision: plan.revision + 1,
+          revision: 1,
           sourcePresetId: '',
           sourcePresetName: '',
+          orchestrator,
           assignmentDefault,
+          assignmentModels,
+          appliedAt: '',
         };
-        return { ...plan, assignmentModels };
+        return plan;
       },
     );
-    const modelPlan = vi.fn(async () => plan);
-    const actions = {
-      modelPlan,
-      modelPlanState: vi.fn(async () => ({ plan: await modelPlan() })),
+    const host = await render({
+      modelPlanState: vi.fn(async () => (plan === undefined ? {} : { plan })),
+      modelPresets: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
+      setModelPlan,
+    } as unknown as BridgeActions);
+    expect(cards(host)).toContain('Not set. Click to choose a model');
+    await openEditor(host);
+    expect(document.querySelector('.bh-model-preset-source')).toBeNull();
+
+    await choose('Main model', 'flash', 'Flash');
+    await act(async () =>
+      document
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Main model · Reasoning effort"] button:last-child',
+        )!
+        .click(),
+    );
+    await choose('Task model', 'moon', 'Kimi K2');
+    await act(async () => button('Save').click());
+
+    expect(setModelPlan).toHaveBeenCalledExactlyOnceWith(
+      'ada',
+      0,
+      { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+      { provider: 'kimi', model: 'k2' },
+      [{ provider: 'kimi', model: 'k2', allowedEfforts: [''], defaultEffort: '' }],
+    );
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(cards(host)).toContain('Main model');
+    expect(cards(host)).toContain('flash · high');
+    expect(cards(host)).toContain('Task model');
+    expect(cards(host)).toContain('k2 · Default');
+  });
+
+  it('preselects the DSH default model and offers keyless providers as unpickable', async () => {
+    const k2 = { provider: 'kimi', model: 'k2' };
+    const setModelPlan = vi.fn(async (): Promise<ModelPlanView> => ({
+      revision: 1,
+      sourcePresetId: '',
+      sourcePresetName: '',
+      orchestrator: k2,
+      assignmentDefault: k2,
+      appliedAt: '',
+    }));
+    await render({
+      modelPlanState: vi.fn(async () => ({})),
+      modelPresets: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({
+        models: [
+          { ...catalog[0]!, credential: 'missing' as const },
+          { ...catalog[1]!, credential: 'missing' as const },
+          catalog[2]!,
+        ],
+        default: { provider: 'kimi', model: 'k2' },
+      })),
+      setModelPlan,
+    } as unknown as BridgeActions);
+    await openEditor(document.body);
+
+    expect(combobox('Main model').value).toBe('Kimi K2');
+    expect(combobox('Task model').value).toBe('Kimi K2');
+    await act(async () => combobox('Main model').focus());
+    await act(async () => {
+      const input = combobox('Main model');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    expect(options.map((option) => [option.textContent, option.disabled])).toEqual([
+      ['Kimi K2Moonshot', false],
+      ['FlashDeepSeek · needs an API key', true],
+      ['ProDeepSeek · needs an API key', true],
+    ]);
+
+    await act(async () => button('Save').click());
+    expect(setModelPlan).toHaveBeenCalledWith(
+      'ada',
+      0,
+      { provider: 'kimi', model: 'k2' },
+      { provider: 'kimi', model: 'k2' },
+      [
+        {
+          provider: 'kimi',
+          model: 'k2',
+          allowedEfforts: [''],
+          defaultEffort: '',
+        },
+      ],
+    );
+  });
+
+  it('fills from a preset, applies it untouched, and unlinks it after an edit', async () => {
+    const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
+    const pro = { provider: 'deepseek', model: 'pro' };
+    const presets: ModelPresetView[] = [
+      {
+        id: 'daily',
+        name: 'Daily',
+        revision: 1,
+        orchestrator: flash,
+        assignmentDefault: pro,
+        createdAt: '',
+      } as ModelPresetView,
+      {
+        id: 'deep',
+        name: 'Deep',
+        revision: 1,
+        orchestrator: { ...flash, reasoningEffort: 'high' },
+        assignmentDefault: pro,
+        createdAt: '',
+      } as ModelPresetView,
+    ];
+    let plan = presetPlan(presets[0]!, 1);
+    const applyModelPreset = vi.fn(async (_slug: string, id: string) => {
+      plan = presetPlan(
+        presets.find((preset) => preset.id === id)!,
+        plan.revision + 1,
+      );
+      return plan;
+    });
+    const setModelPlan = vi.fn(async () => {
+      plan = { ...plan, revision: plan.revision + 1, sourcePresetId: '', sourcePresetName: '' };
+      return plan;
+    });
+    const host = await render({
+      modelPlanState: vi.fn(async () => ({ plan })),
       modelPresets: vi.fn(async () => presets),
-      modelCatalog: vi.fn(async () => [
-        {
-          provider: 'deepseek',
-          providerName: 'DeepSeek',
-          model: 'flash',
-          modelName: 'Flash',
-          efforts: [
-            { id: 'low', name: 'Low' },
-            { id: 'high', name: 'High' },
-          ],
-        },
-        {
-          provider: 'deepseek',
-          providerName: 'DeepSeek',
-          model: 'pro',
-          modelName: 'Pro',
-          efforts: [{ id: 'off', name: 'Off' }],
-        },
-      ]),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
       applyModelPreset,
-      updateModelPreset,
-      customizeModelPlan,
-      setModelPlanAssignments,
-    } as unknown as BridgeActions;
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    const button = (text: string): HTMLButtonElement => {
-      const found = Array.from(container.querySelectorAll('button')).find(
-        (item) => item.textContent === text,
-      );
-      if (found === undefined) throw new Error(`Missing button: ${text}`);
-      return found;
+      setModelPlan,
+    } as unknown as BridgeActions);
+    expect(cards(host)).toContain('Daily');
+
+    await openEditor(host);
+    expect(document.querySelector('.bh-model-preset-source')?.textContent).toContain(
+      'Using preset “Daily”',
+    );
+    await choose('Fill from a preset', 'dee', 'Deep');
+    expect(document.querySelector('.bh-model-preset-source')?.textContent).toContain(
+      'Using preset “Deep”',
+    );
+    await act(async () => button('Save').click());
+    expect(applyModelPreset).toHaveBeenCalledExactlyOnceWith('ada', 'deep');
+    expect(setModelPlan).not.toHaveBeenCalled();
+    expect(cards(host)).toContain('Deep');
+    expect(cards(host)).toContain('flash · high');
+
+    await openEditor(host);
+    await act(async () =>
+      document
+        .querySelector<HTMLButtonElement>('[aria-label="Main model · Reasoning effort"] button')!
+        .click(),
+    );
+    expect(document.querySelector('.bh-model-preset-source')?.textContent).toContain('No preset');
+    await act(async () => button('Save').click());
+    expect(setModelPlan).toHaveBeenCalledWith(
+      'ada',
+      2,
+      { provider: 'deepseek', model: 'flash' },
+      pro,
+      [{ provider: 'deepseek', model: 'pro', allowedEfforts: [''], defaultEffort: '' }],
+    );
+    expect(cards(host)).not.toContain('Deep');
+  });
+
+  it('saves the current settings as a new preset and links the Bot to it', async () => {
+    const route = { provider: 'deepseek', model: 'pro' };
+    let plan: ModelPlanView = {
+      revision: 3,
+      sourcePresetId: '',
+      sourcePresetName: '',
+      orchestrator: route,
+      assignmentDefault: route,
+      appliedAt: '',
     };
-    try {
-      await act(async () =>
-        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+    const presets: ModelPresetView[] = [];
+    const createModelPreset = vi.fn(
+      async (
+        name: string,
+        orchestrator: ModelPlanView['orchestrator'],
+        assignmentDefault: ModelPlanView['assignmentDefault'],
+        assignmentModels: ModelPlanView['assignmentModels'],
+      ) => {
+        const preset = {
+          id: 'mine',
+          name,
+          revision: 1,
+          orchestrator,
+          assignmentDefault,
+          assignmentModels,
+          createdAt: '',
+        } as ModelPresetView;
+        presets.push(preset);
+        return preset;
+      },
+    );
+    const applyModelPreset = vi.fn(async () => {
+      plan = presetPlan(presets[0]!, 4);
+      return plan;
+    });
+    const host = await render({
+      modelPlanState: vi.fn(async () => ({ plan })),
+      modelPresets: vi.fn(async () => [...presets]),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
+      createModelPreset,
+      applyModelPreset,
+    } as unknown as BridgeActions);
+    await openEditor(host);
+    await choose('Add an allowed model', 'kimi', 'Kimi K2');
+    expect(document.querySelector('.bh-model-allowed')?.textContent).toContain('Kimi K2');
+    await act(async () => button('Save as preset').click());
+    const name = document.querySelector<HTMLInputElement>('input[aria-label="Preset name"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        name,
+        'My setup',
       );
-      expect(container.querySelector('.bh-model-preset-quick')).not.toBeNull();
-      expect(container.querySelector('summary')?.textContent).toContain('High');
-      const quick = container.querySelector<HTMLSelectElement>('.bh-model-preset-quick select')!;
-      await act(async () => {
-        quick.value = 'low';
-        quick.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-      await act(async () => button('Switch').click());
-      expect(applyModelPreset).toHaveBeenCalledWith('ada', 'low');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => button('Save preset').click());
+    expect(createModelPreset).toHaveBeenCalledExactlyOnceWith('My setup', route, route, [
+      { provider: 'deepseek', model: 'pro', allowedEfforts: [''], defaultEffort: '' },
+      { provider: 'kimi', model: 'k2', allowedEfforts: [''], defaultEffort: '' },
+    ]);
+    expect(applyModelPreset).toHaveBeenCalledExactlyOnceWith('ada', 'mine');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(cards(host)).toContain('My setup');
+    expect(cards(host)).toContain('+1 allowed');
+  });
 
-      const details = container.querySelector<HTMLDetailsElement>('details')!;
-      await act(async () => {
-        details.open = true;
-        details.dispatchEvent(new Event('toggle'));
-      });
-      await act(async () => button('Edit selected preset').click());
-      expect(container.querySelector<HTMLInputElement>('.bh-model-preset-form input')?.value).toBe(
-        'Economy',
-      );
-      await act(async () => button('Save preset revision').click());
-      expect(updateModelPreset).toHaveBeenCalledWith('low', 1, 'Economy', low, assignment);
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
-      expect(container.textContent).toContain('existing Bot snapshots are unchanged');
-
-      await act(async () => button('Edit selected preset').click());
-      presets[1] = { ...presets[1]!, name: 'Updated elsewhere', revision: 3 };
-      await act(async () => button('Save preset revision').click());
-      expect(container.textContent).toContain('Model Preset changed;');
-      await act(async () => button('Edit selected preset').click());
-      expect(container.querySelector<HTMLInputElement>('.bh-model-preset-form input')?.value).toBe(
-        'Updated elsewhere',
-      );
-
-      const beforeCustom = plan;
-      let finishRefresh!: (value: typeof plan) => void;
-      const pendingRefresh = new Promise<typeof plan>((resolve) => {
-        finishRefresh = resolve;
-      });
-      modelPlan.mockImplementationOnce(async () => pendingRefresh);
-      await act(async () => details.dispatchEvent(new Event('toggle')));
-      expect(container.querySelector('.bh-model-preset-custom')).not.toBeNull();
-      await act(async () => button('Save custom snapshot').click());
-      await act(async () => finishRefresh(beforeCustom));
-      expect(customizeModelPlan).toHaveBeenCalledWith('ada', low);
-      expect(container.querySelector('summary')?.textContent).toContain('Custom snapshot');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 3');
-      expect(quick.value).toBe('');
-      expect(quick.selectedOptions[0]?.textContent).toBe('Choose a preset to switch to');
-      expect(button('Switch').disabled).toBe(true);
-
-      const flashChoice = container.querySelector<HTMLInputElement>(
-        '.bh-model-preset-assignment-row input[type="checkbox"]',
-      )!;
-      await act(async () => flashChoice.click());
-      const flashEfforts = container
-        .querySelector('.bh-model-preset-assignment-row')!
-        .querySelectorAll<HTMLInputElement>(
-          '.bh-model-preset-assignment-efforts input[type="checkbox"]',
-        );
-      await act(async () => flashEfforts[2]!.click());
-      await act(async () => button('Save Assignment model choices').click());
-      expect(setModelPlanAssignments).toHaveBeenCalledWith(
-        'ada',
-        3,
-        assignment,
-        expect.arrayContaining([
-          {
-            provider: 'deepseek',
-            model: 'flash',
-            allowedEfforts: ['low', 'high'],
-            defaultEffort: 'low',
-          },
-        ]),
-      );
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 4');
-    } finally {
-      await act(async () => root.unmount());
-      container.remove();
-    }
+  it('keeps a saved plan when an older editor load finishes later', async () => {
+    const route = { provider: 'deepseek', model: 'pro' };
+    let plan: ModelPlanView = {
+      revision: 1,
+      sourcePresetId: '',
+      sourcePresetName: '',
+      orchestrator: route,
+      assignmentDefault: route,
+      appliedAt: '',
+    };
+    const original = plan;
+    let finishStale!: (value: { plan: ModelPlanView }) => void;
+    const stale = new Promise<{ plan: ModelPlanView }>((resolve) => {
+      finishStale = resolve;
+    });
+    let reads = 0;
+    const host = await render({
+      modelPlanState: vi.fn(async () => (++reads === 3 ? stale : { plan })),
+      modelPresets: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({ models: catalog })),
+      setModelPlan: vi.fn(async () => {
+        plan = { ...plan, revision: 2, orchestrator: { provider: 'kimi', model: 'k2' } };
+        return plan;
+      }),
+    } as unknown as BridgeActions);
+    await openEditor(host);
+    await choose('Main model', 'k2', 'Kimi K2');
+    await act(async () => button('Save').click());
+    expect(cards(host)).toContain('k2 · Default');
+    await openEditor(host);
+    await act(async () => button('Cancel').click());
+    await act(async () => finishStale({ plan: original }));
+    expect(cards(host)).toContain('k2 · Default');
   });
 });

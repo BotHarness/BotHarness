@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
@@ -7,7 +8,12 @@ import type {
   MessagingDefaultsPlatform,
 } from '../messaging/defaults.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
+import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
   MarketplaceDetail,
@@ -191,6 +197,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
   }
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot> {
+    return unwrapAsync(this.methods.channelIngests({ channelId }));
+  }
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelIngest({ channelId, input }));
+  }
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.channelBridge({ channelId, input }));
   }
@@ -258,6 +270,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   messagingRevoke(slug: string, grantId: string): Promise<{ revoked: true }> {
     return unwrapAsync(this.methods.messagingRevoke({ slug, grantId }));
   }
+  messagingConversation(
+    slug: string,
+    input: MessagingConversationInput,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingConversation({ slug, input }));
+  }
   messagingSend(
     slug: string,
     grantId: string,
@@ -267,7 +285,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
-  modelCatalog(): Promise<{ models: ModelCatalogEntry[] }> {
+  modelCatalog(): Promise<{
+    models: ModelCatalogEntry[];
+    default?: ModelRoute;
+  }> {
     return unwrapAsync(this.methods.modelCatalog({}));
   }
 
@@ -332,6 +353,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  modelPlanSet(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRoute,
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
+  ): Promise<{ plan: PersonaBotModelPlan }> {
+    return unwrapAsync(
+      this.methods.modelPlanSet({
+        slug,
+        expectedRevision,
+        orchestrator,
+        assignmentDefault,
+        assignmentModels,
+      }),
+    );
+  }
+
   list(query?: string): { bots: PersonaBotSummary[] } {
     return unwrap(this.methods.list({ query }));
   }
@@ -373,7 +412,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     gitUrl: string,
     roles?: string[],
     description?: string,
-  ): Promise<{ bot: PersonaBotDetail }> {
+  ): Promise<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }> {
     return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
   }
 
@@ -983,6 +1022,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
+  'channelIngests',
+  'channelIngest',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
@@ -997,6 +1038,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingTargets',
   'messagingAuthorize',
   'messagingRevoke',
+  'messagingConversation',
   'messagingSend',
   'modelCatalog',
   'modelPresets',
@@ -1006,6 +1048,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'modelPlan',
   'modelPlanCustomize',
   'modelPlanAssignmentsSet',
+  'modelPlanSet',
   'list',
   'activitySnapshot',
   'get',

@@ -5,6 +5,7 @@ export interface MessagingAccount {
   fingerprint: string;
   connected: boolean;
   typingSupported?: boolean;
+  unsupported?: 'checked-send';
 }
 
 export interface MessagingTypingState {

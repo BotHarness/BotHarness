@@ -26,6 +26,10 @@ import type {
   ChannelBridgeSnapshot,
 } from '../../../core/src/messaging/channel-bridge.js';
 import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
+import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
@@ -38,6 +42,7 @@ import {
 } from './last-view.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -49,8 +54,11 @@ import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadChannelBridges,
   manageChannelBridge,
+  loadChannelIngests,
+  manageChannelIngest,
   loadMessagingSnapshot,
   manageMessagingIdentity,
+  manageMessagingConversation,
   loadMessagingTargets,
   authorizeMessaging,
   revokeMessaging,
@@ -79,6 +87,7 @@ import {
   loadGroupWakePolicies,
   deleteGroupChannel,
   createPersonaBot,
+  type CreatedBot,
   downloadBotZip,
   importBotZip,
   loadBotZipFiles,
@@ -147,8 +156,9 @@ import {
   applyModelPreset,
   customizeModelPlan,
   setModelPlanAssignments,
+  setModelPlan,
   setStandingLimits,
-  type ModelCatalogEntryView,
+  type ModelCatalogView,
   type ModelPresetView,
   type ModelPlanView,
   type ModelRouteView,
@@ -253,6 +263,8 @@ export interface HostDirectoryListing {
 export interface BridgeActions {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -267,6 +279,7 @@ export interface BridgeActions {
   approvalRetry(slug: string, id: string): Promise<void>;
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
+  messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -285,7 +298,7 @@ export interface BridgeActions {
     text: string,
   ): Promise<OutboxIntent>;
 
-  modelCatalog(): Promise<ModelCatalogEntryView[]>;
+  modelCatalog(): Promise<ModelCatalogView>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
   modelPlanState(slug: string): Promise<ModelPlanStateView>;
@@ -293,6 +306,7 @@ export interface BridgeActions {
     name: string,
     orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
+    assignmentModels?: AssignmentModelOptionView[],
   ): Promise<ModelPresetView>;
   updateModelPreset(
     id: string,
@@ -307,6 +321,13 @@ export interface BridgeActions {
   setModelPlanAssignments(
     slug: string,
     expectedRevision: number,
+    assignmentDefault: ModelRouteView,
+    assignmentModels: AssignmentModelOptionView[],
+  ): Promise<ModelPlanView>;
+  setModelPlan(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
     assignmentModels: AssignmentModelOptionView[],
   ): Promise<ModelPlanView>;
@@ -500,7 +521,8 @@ export interface BridgeActions {
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
     allBotMention?: AllBotMention,
   ): Promise<boolean>;
-  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
+  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<CreatedBot>;
+  openCreatedBot(bot: BotSummary, sectionId?: string): Promise<void>;
   importBotZip(file: File, sectionId?: string): Promise<BotSummary>;
   botZipFiles(slug: string): Promise<BotZipFileListing>;
   exportBotZip(slug: string, displayName: string, choice?: BotZipExportChoice): Promise<void>;
@@ -1052,8 +1074,8 @@ export function createActions(
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
     modelPlanState: (slug) => loadModelPlanState(call, slug),
-    createModelPreset: (name, orchestrator, assignmentDefault) =>
-      createModelPreset(call, name, orchestrator, assignmentDefault),
+    createModelPreset: (name, orchestrator, assignmentDefault, assignmentModels) =>
+      createModelPreset(call, name, orchestrator, assignmentDefault, assignmentModels),
     updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>
       updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
@@ -1061,6 +1083,8 @@ export function createActions(
     setStandingLimits: (slug, limits) => setStandingLimits(call, slug, limits),
     setModelPlanAssignments: (slug, expectedRevision, assignmentDefault, assignmentModels) =>
       setModelPlanAssignments(call, slug, expectedRevision, assignmentDefault, assignmentModels),
+    setModelPlan: (slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels) =>
+      setModelPlan(call, slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels),
     listHostFolders(path, signal) {
       if (folderAccess?.listDirectory === undefined)
         throw new Error('DSH folder browser is unavailable');
@@ -1788,12 +1812,15 @@ export function createActions(
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     channelBridges: (channelId) => loadChannelBridges(call, channelId),
     channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
+    channelIngests: (channelId) => loadChannelIngests(call, channelId),
+    channelIngest: (channelId, input) => manageChannelIngest(call, channelId, input),
     approvalRoute: (slug, pairingId, expectedRevision) =>
       setApprovalRoute(call, slug, pairingId, expectedRevision),
     approvalTest: (slug) => testApprovalRoute(call, slug),
     approvalRetry: (slug, id) => retryApprovalNotification(call, slug, id),
     pairingReview: (slug, input) => reviewPairing(call, slug, input),
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
+    messagingConversation: (slug, input) => manageMessagingConversation(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),
@@ -2025,7 +2052,12 @@ export function createActions(
       return true;
     },
     async createBot(input, sectionId) {
-      return openCreatedBot(await createPersonaBot(call, input), sectionId);
+      const created = await createPersonaBot(call, input);
+      if (created.httpsFallback === undefined) await openCreatedBot(created, sectionId);
+      return created;
+    },
+    async openCreatedBot(bot, sectionId) {
+      await openCreatedBot(bot, sectionId);
     },
     async importBotZip(file, sectionId) {
       return openCreatedBot(await importBotZip(file), sectionId);

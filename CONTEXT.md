@@ -435,8 +435,28 @@ The membership state of a Channel that belongs to no Channel section. Ungrouped 
 _Avoid_: default folder, inbox, fixed bottom bucket
 
 **Bridge**:
-A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. The UI calls it an External connector (外部连接器); the PersonaBot's own external identity is a separate thing.
+A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. For an IM conversation it is listed under External connectors (外部连接器); the PersonaBot's own external identity is a separate thing.
 _Avoid_: integration, adapter, connector (bare)
+
+**Conversation ingest**:
+A Channel-owned, one-way connection that places every message of one external conversation into that Channel as Source Events, with context-only member Admissions by default; its wake setting can switch to a batch or every message, and a member PersonaBot's own wake policy in that Channel wins. It is listed under External connectors as an external conversation (外部会话); it grants no reply or other authority to any PersonaBot. Until slice 9 converges them, a Bridge is the Bot-owned route and a Conversation ingest is the Channel-owned one.
+_Avoid_: sync, mirror, Bridge (for this record)
+
+**App**:
+The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Settings → IM apps lists every App and the Bot that uses it.
+_Avoid_: IM account (in UI copy), connector, integration
+
+**Default traffic**:
+The messages an enabled external identity Binding admits without any per-conversation consent: direct messages to the App and group messages the qualified Provider reports as mentioning it. Where the App can be reached is decided on the platform; ordinary group text, followed threads and Channel syncs stay explicit.
+_Avoid_: all messages, authorized traffic, open intake
+
+**Conversation entry**:
+The per-conversation anchor of one Binding's traffic, stored as a Messaging Grant. An _implicit_ entry is recorded on the first admitted default-traffic message or first proactive post; an _explicit_ entry comes from a saved send target. A _held_ entry waits for the Human (Ask me first, or a bound was reached) and keeps only metadata. A _blocked_ conversation has a durable block keyed by Bot, App fingerprint, kind and ID that refuses it until **Allow again**. Muting an entry keeps admission but never wakes the Bot.
+_Avoid_: authorization (for implicit entries), delivery target, subscription
+
+**New-conversation mode**:
+A Binding's choice for a conversation that has no entry yet: `auto` (Admit automatically, the default) records an implicit entry and admits the message; `ask` (Ask me first) holds it. Auto-creation is bounded at 20 new entries per hour and 500 active entries per Binding.
+_Avoid_: whitelist, approval mode, auto-reply
 
 **Bot Inbox**:
 The PersonaBot-level view of Source Events admitted for its attention, whether or not an event belongs to a Channel. It is not a second content store: reading is an explicit act, and ignoring is allowed.

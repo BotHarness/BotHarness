@@ -26,7 +26,7 @@ import {
 } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
-import type { MemoryCloneResult } from '../memory/clone.js';
+import type { HttpsFallback, MemoryCloneResult } from '../memory/clone.js';
 import { restoreBotHistory, writeBotFiles } from './bot-zip.js';
 import type { ZipEntry } from './zip-archive.js';
 import {
@@ -107,6 +107,15 @@ export interface PersonaBotRegistry {
     slug: string,
     assignmentDefault: ModelRoute,
     assignmentModels: AssignmentModelOption[],
+    expectedRevision: number,
+  ): UpdatePersonaBotResult;
+  setModelPlan(
+    slug: string,
+    routes: {
+      orchestrator: ModelRoute;
+      assignmentDefault: ModelRoute;
+      assignmentModels: AssignmentModelOption[];
+    },
     expectedRevision: number,
   ): UpdatePersonaBotResult;
 }
@@ -455,11 +464,15 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     },
     async createFromGit(input) {
       const { gitUrl, ...recordInput } = input;
-      return createFromStaging(recordInput, '.git-import-', async (staging) => {
+      let httpsFallback: HttpsFallback | undefined;
+      const result = await createFromStaging(recordInput, '.git-import-', async (staging) => {
         if (options.cloneMemory === undefined) return 'memory-unavailable';
         const cloned = await options.cloneMemory(staging, gitUrl);
-        return cloned.ok ? undefined : cloned.code;
+        if (!cloned.ok) return cloned.code;
+        httpsFallback = cloned.httpsFallback;
+        return undefined;
       });
+      return result.ok && httpsFallback !== undefined ? { ...result, httpsFallback } : result;
     },
     async createFromFiles(input) {
       const { files, history, ...recordInput } = input;
@@ -688,6 +701,27 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         })),
         appliedAt: now().toISOString(),
       };
+      write(record);
+      return { ok: true, record };
+    },
+    setModelPlan(slug, routes, expectedRevision) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const revision = record.modelPlan?.revision ?? 0;
+      if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
+      record.modelPlan = {
+        revision: revision + 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        orchestrator: { ...routes.orchestrator },
+        assignmentDefault: { ...routes.assignmentDefault },
+        assignmentModels: routes.assignmentModels.map((option) => ({
+          ...option,
+          allowedEfforts: [...option.allowedEfforts],
+        })),
+        appliedAt: now().toISOString(),
+      };
+      delete record.model;
       write(record);
       return { ok: true, record };
     },

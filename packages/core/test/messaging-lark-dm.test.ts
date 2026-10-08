@@ -78,10 +78,10 @@ it('Lark exact private chat uses canonical Inbox without mentions and replies th
       ],
     }),
     sendChecked: vi.fn(async (): Promise<{ sent: true }> => ({ sent: true })),
-    consumeInbound: async (_account, options) => {
+    consumeInbound: async (account, options) => {
       expect(options.ordinaryText).toBeUndefined();
       expect(options.sourceFiles).toBeUndefined();
-      consumer = options;
+      if (account === 'feishu-qa') consumer = options;
       return () => {};
     },
     qualifyReplyChecked: async (_account, route) => route,
@@ -106,11 +106,19 @@ it('Lark exact private chat uses canonical Inbox without mentions and replies th
     [provider.id, 'feishu-qa'],
     [discord.id, 'discord-qa'],
   ]) {
-    await core.externalMessaging.identity('ada', {
+    const bound = await core.externalMessaging.identity('ada', {
       kind: 'bind',
       providerId: providerId!,
       accountRef: accountRef!,
       fingerprint,
+    });
+    await core.externalMessaging.identity('ada', {
+      kind: 'update',
+      id: bound.id,
+      expectedRevision: bound.revision,
+      name: bound.name,
+      enabled: true,
+      newConversations: 'ask',
     });
   }
   expect((await core.externalMessaging.snapshot('ada')).identities).toHaveLength(2);

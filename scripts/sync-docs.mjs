@@ -214,8 +214,67 @@ export const PAGES = [
     },
   },
   {
-    slug: 'docs/channel-sidebar/groups',
+    slug: 'docs/channel-sidebar/model',
     order: 7,
+    en: {
+      source: 'docs/channel-sidebar/model.md',
+      title: 'Model',
+      description: 'Check and change the model a Bot uses for chat and new Assignments.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/model.zh.md',
+      title: '模型',
+      description: '查看并修改 Bot 日常对话与新任务使用的模型。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/wake-policy',
+    order: 8,
+    en: {
+      source: 'docs/channel-sidebar/wake-policy.md',
+      title: 'Wake policy',
+      description:
+        'Choose, per message source, whether a Bot wakes right away, after a digest or not at all.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/wake-policy.zh.md',
+      title: '唤醒策略',
+      description: '按消息来源设置 Bot 立即唤醒、汇总后唤醒或只记录。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/external-identities',
+    order: 9,
+    en: {
+      source: 'docs/channel-sidebar/external-identities.md',
+      title: 'External identities',
+      description:
+        'Bind who a Bot speaks as on external platforms, plus IM pairing and approval notifications.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/external-identities.zh.md',
+      title: '外部身份',
+      description: '绑定 Bot 在外部平台的发言身份，管理 IM 管理员配对与审批通知。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/external-connectors',
+    order: 10,
+    en: {
+      source: 'docs/channel-sidebar/external-connectors.md',
+      title: 'External connectors',
+      description:
+        'Authorize external conversations and choose which messages reach a Bot DM or Bot Inbox.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/external-connectors.zh.md',
+      title: '外部连接器',
+      description: '授权外部会话，选择哪些消息进入 Bot 私聊或 Bot 收件箱。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/groups',
+    order: 11,
     en: {
       source: 'docs/channel-sidebar/groups.md',
       title: 'Members and group management',
@@ -230,7 +289,7 @@ export const PAGES = [
   },
   {
     slug: 'docs/channel-sidebar/display',
-    order: 8,
+    order: 12,
     en: {
       source: 'docs/channel-sidebar/display.md',
       title: 'Display and layout',

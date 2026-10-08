@@ -131,6 +131,8 @@ function stubActions(): BridgeActions {
     }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
+    channelIngests: vi.fn(async (channelId) => ({ channelId, ingests: [], candidates: [] })),
+    channelIngest: vi.fn(async () => undefined),
     channelBridge: vi.fn(async () => undefined),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,
@@ -144,6 +146,7 @@ function stubActions(): BridgeActions {
     approvalRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
+    messagingConversation: vi.fn(),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
     resolveWorkspaceGrantRequest: vi.fn(async () => undefined),
@@ -161,7 +164,7 @@ function stubActions(): BridgeActions {
     messagingSend: vi.fn(async () => {
       throw new Error('unexpected IM send');
     }),
-    modelCatalog: vi.fn(async () => []),
+    modelCatalog: vi.fn(async () => ({ models: [] })),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
     modelPlanState: vi.fn(async () => ({})),
@@ -182,6 +185,9 @@ function stubActions(): BridgeActions {
     }),
     setModelPlanAssignments: vi.fn(async () => {
       throw new Error('unexpected Assignment model plan change');
+    }),
+    setModelPlan: vi.fn(async () => {
+      throw new Error('unexpected Model Plan change');
     }),
     listHostFolders: vi.fn(async () => ({
       path: '/',
@@ -370,6 +376,7 @@ function stubActions(): BridgeActions {
     })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
+    openCreatedBot: vi.fn(async () => undefined),
     importBotZip: vi.fn(async () => BOT),
     botZipFiles: vi.fn(async () => ({ files: [], always: [] })),
     exportBotZip: vi.fn(async () => undefined),

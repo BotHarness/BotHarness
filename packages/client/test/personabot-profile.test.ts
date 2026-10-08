@@ -137,7 +137,7 @@ describe('PersonaBot Profile surface', () => {
       tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     }));
     const actions = {
-      modelCatalog: vi.fn(async () => []),
+      modelCatalog: vi.fn(async () => ({ models: [] })),
       modelPresets: vi.fn(async () => []),
       modelPlanState: vi.fn(async () => ({
         plan: {
@@ -226,29 +226,15 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(10);
-      expect(sections[0]?.getAttribute('aria-label')).toBe('头像');
-      expect(sections[1]?.getAttribute('aria-label')).toBe('活动概览');
-      expect(sections[2]?.getAttribute('aria-label')).toBe('模型预设');
-      expect(sections[3]?.getAttribute('aria-label')).toBe('常驻记忆上限');
-      expect(sections[4]?.getAttribute('aria-label')).toBe('分享与导出');
-      expect(sections[5]?.getAttribute('aria-label')).toBe('连接 Lark / 飞书');
-      expect(sections[6]?.getAttribute('aria-label')).toBe('外部身份');
-      expect(sections[7]?.getAttribute('aria-label')).toBe('频道连接器与授权');
-      expect(sections[8]?.getAttribute('aria-label')).toBe('频道连接器');
-      expect(sections[9]?.getAttribute('aria-label')).toBe('提醒策略');
-      expect(sections[2]?.querySelector('summary')?.textContent).toContain('节省成本');
-      expect(sections[2]?.querySelector('summary')?.textContent).toContain('修订 3');
-      const policyDetails = sections[9]?.querySelector<HTMLDetailsElement>(
-        '.bh-profile-policy-details',
-      );
-      expect(policyDetails?.open).toBe(false);
-      await act(async () =>
-        policyDetails?.querySelector<HTMLElement>('.bh-profile-policy-summary')?.click(),
-      );
-      expect(policyDetails?.open).toBe(true);
-      expect(container.querySelector('.bh-profile-view')?.textContent).toContain('Human 私聊');
-      expect(container.querySelector('.bh-source-policy-table')).not.toBeNull();
+      expect([...sections].map((section) => section.getAttribute('aria-label'))).toEqual([
+        '头像',
+        '活动概览',
+        '分享与导出',
+      ]);
+      expect(container.querySelector('.bh-profile-view .bh-model-entry')).toBeNull();
+      expect(container.querySelector('.bh-profile-view .bh-wake-policy-entry')).toBeNull();
+      expect(container.querySelector('.bh-profile-view')?.textContent).not.toContain('模型预设');
+      expect(container.querySelector('.bh-profile-view')?.textContent).not.toContain('普通群消息');
       expect(container.querySelector('.bh-chat-body')).toBeNull();
       expect(container.querySelector('.bh-memory-chat-composer')).toBeNull();
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
@@ -258,7 +244,14 @@ describe('PersonaBot Profile surface', () => {
         '所选时间范围内暂无模型调用记录。',
       );
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(7);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(4);
+      const sidebarLabels = [
+        ...container.querySelectorAll('.bh-channel-sidebar .bh-channel-sidebar-entry-label'),
+      ].map((label) => label.textContent);
+      expect(sidebarLabels).toContain('模型');
+      expect(sidebarLabels).toContain('唤醒策略');
+      expect(sidebarLabels).toContain('外部身份');
+      expect(sidebarLabels).toContain('外部连接器');
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));

@@ -61,7 +61,7 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
-  it.each([59, 60])(
+  it.each([59, 60, 61, 62, 63, 64])(
     'upgrades generation %s identities with a durable typing preference and preserves their authority',
     (generation) => {
       const dshHome = createTempRoot('botharness-typing-migration-');
@@ -78,7 +78,7 @@ describe('operational database owner', () => {
          revision, enabled, display_name, enabled_inherited)
         VALUES ('own', 'ada', 'dsh-im/weixin', 'weixin', 'paired', ?, ?, 7, 0, 'Own WeChat', 0)`)
           .run('a'.repeat(64), FIXED_NOW().toISOString());
-        if (generation === 60)
+        if (generation >= 60)
           database
             .prepare(
               'INSERT INTO messaging_approval_routes (bot_slug, revision, body) VALUES (?, ?, ?)',
@@ -107,7 +107,7 @@ describe('operational database owner', () => {
         module.read((database) =>
           database.prepare('SELECT * FROM messaging_approval_routes').all(),
         ),
-      ).toEqual(generation === 60 ? [{ bot_slug: 'ada', revision: 1, body: null }] : []);
+      ).toEqual(generation >= 60 ? [{ bot_slug: 'ada', revision: 1, body: null }] : []);
       module.transaction((database) =>
         database
           .prepare('UPDATE messaging_bindings SET typing_enabled = 0 WHERE id = ?')

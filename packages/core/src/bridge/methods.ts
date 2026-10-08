@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
@@ -12,6 +13,10 @@ import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import {
+  conversationIngestInput,
+  type ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import {
   externalMemberWake,
   messagingDefaultsInput,
@@ -56,7 +61,7 @@ import {
 import { createMessageAttachmentFiles } from '../attachments/message-files.js';
 import { attachmentIntent } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
@@ -69,7 +74,7 @@ import {
   type ChannelRecord,
   type ChannelReference,
 } from '../channels/channel.js';
-import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
+import { botAvatarUrl } from '../bots/avatar-http.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -321,6 +326,8 @@ export interface BridgeMethods {
   >;
   pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelIngests(payload: unknown): Promise<BridgeResult<ConversationIngestSnapshot>>;
+  channelIngest(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -334,9 +341,12 @@ export interface BridgeMethods {
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
   messagingRevoke(payload: unknown): Promise<BridgeResult<{ revoked: true }>>;
+  messagingConversation(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSend(payload: unknown): Promise<BridgeResult<{ intent: OutboxIntent }>>;
 
-  modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
+  modelCatalog(
+    payload: unknown,
+  ): Promise<BridgeResult<{ models: ModelCatalogEntry[]; default?: ModelRoute }>>;
   modelPresets(payload: unknown): BridgeResult<{ presets: ModelPreset[] }>;
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetUpdate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
@@ -344,11 +354,14 @@ export interface BridgeMethods {
   modelPlan(payload: unknown): Promise<BridgeResult<ModelPlanState>>;
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
+  modelPlanSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   activitySnapshot(payload: unknown): BridgeResult<PersonaBotActivitySnapshot>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-  createFromGit(payload: unknown): Promise<BridgeResult<{ bot: PersonaBotDetail }>>;
+  createFromGit(
+    payload: unknown,
+  ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -754,19 +767,6 @@ function createFailure(
   }
 }
 
-const avatarUrlCache = new Map<string, string>();
-
-function botAvatarUrl(slug: string, avatar: string): string {
-  const key = `${slug}\u0000${avatar}`;
-  const cached = avatarUrlCache.get(key);
-  if (cached !== undefined) return cached;
-  const version = createHash('sha256').update(avatar).digest('hex').slice(0, 16);
-  const url = `${BOT_AVATAR_PATH}?slug=${encodeURIComponent(slug)}&v=${version}`;
-  if (avatarUrlCache.size > 256) avatarUrlCache.clear();
-  avatarUrlCache.set(key, url);
-  return url;
-}
-
 function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBotSummary {
   return {
     slug: record.slug,
@@ -953,6 +953,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
       return messagingCall((service) => service.channelBridges(input.data.channelId));
     },
+    channelIngests(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall(async (service) => service.inbound.ingests(input.data.channelId));
+    },
+    channelIngest(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: conversationIngestInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success)
+        return Promise.resolve(invalidInput('Invalid external conversation command'));
+      return messagingCall(async (service) => {
+        await service.inbound.ingest(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
+    },
     channelBridge(payload) {
       const input = z
         .object({ channelId: z.string().min(1).max(128), input: channelBridgeInput })
@@ -1113,6 +1133,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 inheritEnabled: z.boolean().optional(),
                 typingEnabled: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
+                newConversations: z.enum(['auto', 'ask']).optional(),
               })
               .strict(),
             z
@@ -1196,6 +1217,57 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return { revoked: true as const };
       });
     },
+    messagingConversation(payload) {
+      const conversation = z
+        .object({ kind: z.enum(['dm', 'group']), id: z.string().min(1).max(512) })
+        .strict();
+      const revision = z.number().int().min(0);
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          input: z.discriminatedUnion('kind', [
+            z
+              .object({
+                kind: z.literal('mute'),
+                grantId: z.string().uuid(),
+                expectedRevision: revision,
+                muted: z.boolean(),
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('block'),
+                grantId: z.string().uuid(),
+                expectedRevision: revision,
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('block-held'),
+                bindingId: z.string().uuid(),
+                conversation,
+                expectedRevision: revision,
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('allow'),
+                bindingId: z.string().uuid(),
+                conversation,
+                from: z.enum(['held', 'blocked']),
+                expectedRevision: revision,
+              })
+              .strict(),
+          ]),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid conversation change'));
+      return messagingCall(async (service) => {
+        await service.conversation(input.data.slug, input.data.input);
+        return { updated: true as const };
+      });
+    },
     messagingSend(payload) {
       const input = z
         .object({
@@ -1222,7 +1294,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {
-        return { ok: true, value: { models: await deps.modelCatalog.list() } };
+        const models = await deps.modelCatalog.list();
+        const defaultRoute = deps.modelCatalog.defaultRoute?.();
+        return {
+          ok: true,
+          value: {
+            models,
+            ...(defaultRoute === undefined ? {} : { default: defaultRoute }),
+          },
+        };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
@@ -1423,6 +1503,46 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
+    async modelPlanSet(payload) {
+      if (deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = source['slug'];
+      const orchestrator = source['orchestrator'];
+      const assignmentDefault = source['assignmentDefault'];
+      const assignmentModels = source['assignmentModels'];
+      const expectedRevision = source['expectedRevision'];
+      if (
+        typeof slug !== 'string' ||
+        !isModelRoute(orchestrator) ||
+        !isModelRoute(assignmentDefault) ||
+        !Array.isArray(assignmentModels) ||
+        !assignmentModels.every(isAssignmentModelOption) ||
+        typeof expectedRevision !== 'number' ||
+        !Number.isSafeInteger(expectedRevision)
+      )
+        return invalidInput(
+          'A Bot, expected revision, and valid Orchestrator and Assignment choices are required',
+        );
+      const bot = deps.registry.get(slug);
+      if (bot === undefined) return unknownBot(slug);
+      try {
+        await deps.modelCatalog.validate(orchestrator);
+        await validateAssignmentCatalog(assignmentDefault, assignmentModels);
+        const result = deps.registry.setModelPlan(
+          slug,
+          { orchestrator, assignmentDefault, assignmentModels },
+          expectedRevision,
+        );
+        if (!result.ok)
+          return result.reason === 'not-found'
+            ? unknownBot(slug)
+            : invalidInput('Bot Model Plan changed; reopen it before saving');
+        if (result.record.modelPlan === undefined) return unknownBot(slug);
+        return { ok: true, value: { plan: result.record.modelPlan } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
     list(payload) {
       const query = asQuery(payload)?.trim().toLowerCase();
       const bots = deps.registry
@@ -1592,7 +1712,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           deps.telemetry?.capture?.('marketplace_bot_installed');
         } catch {}
       }
-      return { ok: true, value: detailOf(result.record) };
+      return {
+        ok: true,
+        value: {
+          ...detailOf(result.record),
+          ...(result.httpsFallback === undefined ? {} : { httpsFallback: result.httpsFallback }),
+        },
+      };
     },
     marketplaceList(payload) {
       const source = asObject(payload);

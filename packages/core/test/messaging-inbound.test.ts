@@ -1013,6 +1013,9 @@ it('enriches display names without changing canonical identity and preserves har
         .list({ botSlug: 'ada' })
         .items.find((item) => item.sourceKind === 'bridge-message')!;
       expect(run.inbox).toContain(`Message om-1 [Source Event ${source.id}]`);
+      expect(run.inbox).toContain('"@ou-bot Please reply in this topic"');
+      expect(run.inbox).toContain('{"role":"mentioned","id":"ou-bot"}');
+      expect(run.inbox).not.toContain('@_user_1');
       const page = await run.externalMessaging!.context(source.id, { scope: 'thread' });
       expect(page.messages[0]).toMatchObject({
         sourceEventId: source.id,
@@ -1891,7 +1894,7 @@ it('Channel Bridge pause survives reconnect, retains accepted reply authority an
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(2);
   expect(fx.runs).toHaveLength(2);
 });
-it('deleting a Channel Bridge retains history and Bot identity, removes intake without Inbox fallback and fences old source replies', async () => {
+it('deleting a Channel Bridge retains history and Bot identity, removes Channel intake, leaves later mentions to the bound app default traffic and fences old source replies', async () => {
   const fx = await fixture();
   const channelId = await addManagedBridge(fx);
   await fx.receive(managedEvent(fx));
@@ -1933,8 +1936,13 @@ it('deleting a Channel Bridge retains history and Bot identity, removes intake w
         .prepare("SELECT count(*) AS n FROM source_events WHERE source_kind = 'bridge-message'")
         .get(),
     ),
-  ).toMatchObject({ n: 1 });
+  ).toMatchObject({ n: 2 });
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(
+    fx.query(
+      "SELECT a.reason FROM inbox_admissions a JOIN source_events e USING(source_event_id) WHERE json_extract(e.payload_json, '$.external.event.messageId') = 'after-route-removal'",
+    ),
+  ).toEqual([{ reason: 'group-mention' }]);
 });
 it.each(['pause', 'delete'] as const)(
   'refuses delayed messages sent during %s after reactivation and restart, while accepting fresh messages',

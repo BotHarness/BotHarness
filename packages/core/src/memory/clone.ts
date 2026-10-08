@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { promisify } from 'node:util';
 
 import { probeGit, type GitAvailability } from './git-probe.js';
@@ -13,7 +14,24 @@ export type MemoryCloneFailureCode =
   | 'git-clone-failed'
   | 'git-clone-timeout';
 
-export type MemoryCloneResult = { ok: true } | { ok: false; code: MemoryCloneFailureCode };
+export type SshFailureReason =
+  | 'auth'
+  | 'host-key'
+  | 'unreachable'
+  | 'ssh-missing'
+  | 'timeout'
+  | 'other';
+
+export interface HttpsFallback {
+  from: string;
+  to: string;
+  reason: SshFailureReason;
+  detail?: string;
+}
+
+export type MemoryCloneResult =
+  | { ok: true; httpsFallback?: HttpsFallback }
+  | { ok: false; code: MemoryCloneFailureCode };
 
 export function parseMemoryGitUrl(raw: string): string | undefined {
   if (/[\u0000-\u001f\u007f]/u.test(raw)) return undefined;
@@ -44,6 +62,70 @@ export function parseMemoryGitUrl(raw: string): string | undefined {
     : undefined;
 }
 
+const REPOSITORY_PATH = /^\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)+$/u;
+
+function httpsFor(host: string, rawPath: string): string | undefined {
+  const path = rawPath.replace(/\/+$/u, '').replace(/\.git$/u, '');
+  return REPOSITORY_PATH.test(path) ? `https://${host}${path}.git` : undefined;
+}
+
+export function httpsUrlForSsh(url: string): string | undefined {
+  const scp = /^git@([A-Za-z0-9.-]+):([^/].*)$/u.exec(url);
+  if (scp !== null) return httpsFor(scp[1] ?? '', `/${scp[2] ?? ''}`);
+  if (!url.startsWith('ssh://')) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.port !== '' || (parsed.username !== '' && parsed.username !== 'git'))
+      return undefined;
+    return httpsFor(parsed.hostname, parsed.pathname);
+  } catch {
+    return undefined;
+  }
+}
+
+function cloneFailure(error: unknown): MemoryCloneFailureCode {
+  const failure = error as NodeJS.ErrnoException & { killed?: boolean };
+  if (failure.code === 'ENOENT') return 'git-not-found';
+  return failure.killed || failure.code === 'ETIMEDOUT' ? 'git-clone-timeout' : 'git-clone-failed';
+}
+
+const SSH_FAILURES: [RegExp, SshFailureReason][] = [
+  [/ssh: (?:command )?not found|cannot run ssh|'ssh' is not recognized/iu, 'ssh-missing'],
+  [/permission denied|publickey|authentication failed/iu, 'auth'],
+  [/host key verification failed|remote host identification has changed/iu, 'host-key'],
+  [
+    /could not resolve hostname|connection refused|connection timed out|network is unreachable|no route to host|connection closed|connection reset|port 22/iu,
+    'unreachable',
+  ],
+];
+
+function sshFailure(error: unknown): Pick<HttpsFallback, 'reason' | 'detail'> {
+  const failure = error as { killed?: boolean; code?: unknown; stderr?: unknown };
+  if (failure.killed || failure.code === 'ETIMEDOUT') return { reason: 'timeout' };
+  const lines = (typeof failure.stderr === 'string' ? failure.stderr : '')
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/^(fatal|error):\s*/iu, '').trim())
+    .filter((line) => line.length > 0);
+  const match = lines.find((line) => SSH_FAILURES.some(([pattern]) => pattern.test(line)));
+  const detail = (match ?? lines[0])?.slice(0, 200);
+  const reason = match === undefined ? 'other' : SSH_FAILURES.find(([p]) => p.test(match))![1];
+  return detail === undefined ? { reason } : { reason, detail };
+}
+
+function gitClone(url: string, destination: string, timeoutMs: number) {
+  return execFileAsync('git', ['clone', '--quiet', '--', url, destination], {
+    timeout: timeoutMs,
+    maxBuffer: 512 * 1_024,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'Never',
+      GIT_SSH_COMMAND: process.env['GIT_SSH_COMMAND'] ?? 'ssh -oBatchMode=yes',
+    },
+  });
+}
+
 export async function cloneMemoryRepository(input: {
   url: string;
   destination: string;
@@ -55,29 +137,21 @@ export async function cloneMemoryRepository(input: {
 
   if (!(input.probe ?? probeGit)().available) return { ok: false, code: 'git-not-found' };
 
+  const timeoutMs = input.timeoutMs ?? MEMORY_CLONE_TIMEOUT_MS;
   try {
-    await execFileAsync('git', ['clone', '--quiet', '--', url, input.destination], {
-      timeout: input.timeoutMs ?? MEMORY_CLONE_TIMEOUT_MS,
-      maxBuffer: 512 * 1_024,
-      windowsHide: true,
-      env: {
-        ...process.env,
-        GIT_TERMINAL_PROMPT: '0',
-        GCM_INTERACTIVE: 'Never',
-        GIT_SSH_COMMAND: process.env['GIT_SSH_COMMAND'] ?? 'ssh -oBatchMode=yes',
-      },
-    });
+    await gitClone(url, input.destination, timeoutMs);
     return { ok: true };
   } catch (error) {
-    const failure = error as NodeJS.ErrnoException & { killed?: boolean };
-    return {
-      ok: false,
-      code:
-        failure.code === 'ENOENT'
-          ? 'git-not-found'
-          : failure.killed || failure.code === 'ETIMEDOUT'
-            ? 'git-clone-timeout'
-            : 'git-clone-failed',
-    };
+    const code = cloneFailure(error);
+    const https = code === 'git-not-found' ? undefined : httpsUrlForSsh(url);
+    if (https === undefined) return { ok: false, code };
+    rmSync(input.destination, { recursive: true, force: true });
+    try {
+      await gitClone(https, input.destination, timeoutMs);
+      return { ok: true, httpsFallback: { from: url, to: https, ...sshFailure(error) } };
+    } catch {
+      rmSync(input.destination, { recursive: true, force: true });
+      return { ok: false, code };
+    }
   }
 }
