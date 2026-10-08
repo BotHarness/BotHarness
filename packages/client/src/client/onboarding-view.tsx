@@ -6,6 +6,7 @@ import { errorMessage } from './bridge.js';
 import { ModelPicker } from './model-picker.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { Modal } from './modal.js';
+import { OnboardingMemory } from './onboarding-memory.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -242,9 +243,12 @@ export function OnboardingWelcome({
           }}
         />
       </SidebarCardList>
-      <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
-        {t('roster.menu.createBot')}
-      </Button>
+      <div className="bh-onboarding-actions">
+        <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
+          {t('roster.menu.createBot')}
+        </Button>
+        <OnboardingMemory key={channelId} actions={actions} channelId={channelId} t={t} />
+      </div>
     </div>
   );
 }

@@ -17,6 +17,8 @@
 
 ### Added
 
+- Bot 模式首次真实回复后，欢迎消息提供可选的记忆体验：查看现有记忆文件与实际变更，或将自由填写的偏好作为普通私聊请求发送；跳过不打扰，也不会把初始模板或回复当作保存成功的证据（[#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)）。
+
 - Bot 设置可导出、检查一个完整且已验证的 `.botharness-backup`，包含自定义及已删除身份保留的 Memory、当前附件、模型模板与独立计划，以及真实清除检查点；安装包提供的本地命令仅恢复至新的停止环境（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
 
 - 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。

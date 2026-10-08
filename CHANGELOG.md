@@ -17,6 +17,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- After the first real Bot-mode reply, an optional welcome action opens existing Memory files and changes or sends a freeform preference as a normal DM request; skipping stays quiet and only actual files and changes show what was saved ([#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)).
+
 - Bot settings can export and inspect one verified complete `.botharness-backup`, including retained custom/deleted Memory, current attachments, model templates and independent plans, and the canonical purge checkpoint; the installed local command restores only into a new stopped environment ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)).
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
