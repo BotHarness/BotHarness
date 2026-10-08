@@ -150,7 +150,7 @@ function MarketplaceMeta({
   );
 }
 
-function MarketplaceFigure({
+function MarketplaceAvatar({
   bot,
   size,
   t,
@@ -160,12 +160,11 @@ function MarketplaceFigure({
   t: BotHarnessTranslate;
 }): ReactElement {
   return (
-    <span className="bh-market-figure" aria-hidden="true">
+    <span className="bh-market-avatar" aria-hidden="true">
       <PersonaBotAvatar
         personaBotId=""
         name={marketplaceName(bot)}
         size={size}
-        surface="companion"
         indicator={false}
         still
         t={t}
@@ -193,16 +192,25 @@ function MarketplaceRow({
       data-market-banner={bot.banner === null ? 'none' : 'shown'}
     >
       <MarketplaceBanner bot={bot} className="bh-market-banner-thumb" />
-      <span className="bh-market-row-shade" aria-hidden="true" />
-      <MarketplaceFigure bot={bot} size={168} t={t} />
-      <button
-        type="button"
-        className="bh-market-copy bh-market-open"
-        aria-label={t('market.detail.open', { name: bot.fullName })}
-        onClick={onOpen}
-      >
-        <span className="bh-market-card-name">{marketplaceName(bot)}</span>
-        <span className="bh-market-owner">{bot.fullName}</span>
+      <div className="bh-market-row-head">
+        <MarketplaceAvatar bot={bot} size={64} t={t} />
+        <button
+          type="button"
+          className="bh-market-copy bh-market-open"
+          aria-label={t('market.detail.open', { name: bot.fullName })}
+          onClick={onOpen}
+        >
+          <span className="bh-market-card-name">{marketplaceName(bot)}</span>
+          <span className="bh-market-owner">{bot.fullName}</span>
+        </button>
+        <Button size="sm" variant="outline" onClick={onInstall}>
+          {t('market.install')}
+        </Button>
+      </div>
+      {bot.description === null ? null : (
+        <span className="bh-market-description">{bot.description}</span>
+      )}
+      <div className="bh-market-row-foot">
         {bot.roles.length === 0 ? null : (
           <span className="bh-market-card-tags">
             {bot.roles.map((role) => (
@@ -212,15 +220,7 @@ function MarketplaceRow({
             ))}
           </span>
         )}
-        {bot.description === null ? null : (
-          <span className="bh-market-description">{bot.description}</span>
-        )}
-      </button>
-      <div className="bh-market-row-foot">
         <MarketplaceMeta bot={bot} t={t} topics={false} />
-        <Button size="sm" variant="outline" onClick={onInstall}>
-          {t('market.install')}
-        </Button>
       </div>
     </div>
   );
@@ -317,20 +317,19 @@ function MarketplaceDetailView({
     <div className="bh-market-detail" data-market-detail={shown.fullName}>
       <div className="bh-market-hero" data-market-banner={shown.banner === null ? 'none' : 'shown'}>
         <MarketplaceBanner bot={shown} className="bh-market-banner" />
-        <span className="bh-market-row-shade" aria-hidden="true" />
-        <div className="bh-market-confirm-head">
-          <MarketplaceFigure bot={shown} size={132} t={t} />
+        <div className="bh-market-row-head">
+          <MarketplaceAvatar bot={shown} size={64} t={t} />
           <span className="bh-market-copy">
             <MarketplaceName bot={shown} />
-            {shown.description === null ? null : (
-              <span className="bh-market-description">{shown.description}</span>
-            )}
-            <MarketplaceMeta bot={shown} t={t} />
           </span>
           <a className="bh-market-github" href={shown.htmlUrl} target="_blank" rel="noreferrer">
             {t('market.detail.github')}
           </a>
         </div>
+        {shown.description === null ? null : (
+          <span className="bh-market-description">{shown.description}</span>
+        )}
+        <MarketplaceMeta bot={shown} t={t} />
       </div>
       {report}
       {state.status === 'loading' ? (

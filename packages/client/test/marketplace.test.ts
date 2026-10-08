@@ -202,7 +202,7 @@ describe('Bot Marketplace modal', () => {
         expect(host.textContent).toContain('★ 7');
         expect(host.textContent).toContain('更新于 2026-10-01');
         expect(host.textContent).not.toContain('writing');
-        expect(host.querySelector('.bh-market-row .bh-market-figure [data-avatar]')).not.toBeNull();
+        expect(host.querySelector('.bh-market-row .bh-market-avatar [data-avatar]')).not.toBeNull();
 
         await click(host, '加载更多');
 
