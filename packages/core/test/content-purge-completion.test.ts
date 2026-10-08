@@ -228,6 +228,32 @@ it('previews a live shared placement and invalidates consent when its references
   ).toThrow();
 });
 
+it('uses each shared placement message identity for reads and post-commit purge selectors', async () => {
+  const core = await fileScene();
+  const active = core.channels.createGroup({ name: 'Shared identity', members: [] });
+  core.port.transaction((db) =>
+    db
+      .prepare('INSERT INTO channel_placements VALUES (?, 1, ?, ?)')
+      .run(active.id, core.source.sourceEventId, 'shared-message'),
+  );
+  expect(core.channels.readMessages(active.id)[0]?.id).toBe('shared-message');
+  expect(core.channels.queryMessages(active.id).messages[0]?.id).toBe('shared-message');
+  expect(core.channels.observeOutput(active.id, 'shared-message')?.message.id).toBe(
+    'shared-message',
+  );
+  const preview = core.purge.preview(core.channel.id, [core.source.sourceEventId]);
+  core.purge.confirm(core.channel.id, preview.sourceEventIds, preview.token);
+  expect(core.channels.readMessages(active.id)[0]).toMatchObject({
+    id: 'shared-message',
+    body: '',
+  });
+  expect(core.purge.redactions()).toContainEqual({
+    sourceEventId: core.source.sourceEventId,
+    channelId: active.id,
+    messageId: 'shared-message',
+  });
+});
+
 it('reports a recorded Memory derivative through a deleted identity locator and retains its actual Git bytes', async () => {
   const home = createTempRoot('purge-memory-reference-');
   const core = createCore({ dshHome: home });
