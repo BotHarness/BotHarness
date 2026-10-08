@@ -51,6 +51,8 @@ import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
+import { isPartLibraryEntry, type PartLibraryEntry } from '../../../core/src/bots/part-library.js';
+import type { PixelCustomPart } from '../../../core/src/bots/avatar-appearance.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -1952,6 +1954,25 @@ export async function setBotAppearance(
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAppearanceSet response');
   return bot;
+}
+
+export async function loadPartLibrary(call: BridgeCall): Promise<PartLibraryEntry[]> {
+  const parts = asRecord(await unwrap(call, 'partLibraryList', {}))?.['parts'];
+  if (!Array.isArray(parts)) throw new Error('invalid partLibraryList response');
+  return parts.filter(isPartLibraryEntry);
+}
+
+export async function addLibraryPart(
+  call: BridgeCall,
+  part: PixelCustomPart,
+  name: string,
+  parent?: string,
+): Promise<PartLibraryEntry> {
+  const entry = asRecord(
+    await unwrap(call, 'partLibraryAdd', { part, name, ...(parent ? { parent } : {}) }),
+  )?.['entry'];
+  if (!isPartLibraryEntry(entry)) throw new Error('invalid partLibraryAdd response');
+  return entry;
 }
 
 export async function inviteGroupBot(

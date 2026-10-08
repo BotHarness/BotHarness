@@ -1916,6 +1916,20 @@ const PROFILE_RECOVERY_MIGRATION: SchemaMigration = {
   },
 };
 
+const AVATAR_PART_LIBRARY_MIGRATION: SchemaMigration = {
+  generation: 73,
+  module: 'avatar-part-library',
+  description: 'Persist the Profile Part Library of Human-drawn Avatar Custom Parts',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE avatar_part_library (
+        id TEXT PRIMARY KEY CHECK (length(id) = 64),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1988,4 +2002,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   COMPLETE_CONTENT_PURGE_MIGRATION,
   BOT_ONBOARDING_MIGRATION,
   PROFILE_RECOVERY_MIGRATION,
+  AVATAR_PART_LIBRARY_MIGRATION,
 ]);

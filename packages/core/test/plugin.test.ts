@@ -473,6 +473,8 @@ describe('plugin entry', () => {
       'standingLimitsSet',
       'botAvatarSet',
       'botAppearanceSet',
+      'partLibraryList',
+      'partLibraryAdd',
       'botBannerSet',
       'marketplaceList',
       'marketplaceSubmit',

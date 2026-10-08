@@ -90,6 +90,8 @@ import {
 import { botAvatarUrl } from '../bots/avatar-http.js';
 import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
 import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
+import { isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -510,6 +512,8 @@ export interface BridgeMethods {
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botBannerSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  partLibraryList(): BridgeResult<{ parts: PartLibraryEntry[] }>;
+  partLibraryAdd(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -543,6 +547,7 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   onboarding?: BotOnboarding;
+  partLibrary?: PartLibrary;
   onboardingNews?: (slug?: string) => Promise<boolean>;
   defaultModel?: {
     currentSelection(): ModelRoute;
@@ -2188,6 +2193,24 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? unknownBot(scope.botSlug)
           : invalidInput('invalid Avatar Appearance');
       return { ok: true, value: detailOf(result.record) };
+    },
+    partLibraryList() {
+      if (!deps.partLibrary) return unavailable();
+      return { ok: true, value: { parts: deps.partLibrary.list() } };
+    },
+    partLibraryAdd(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const part = input['part'];
+      const name = input['name'] ?? '';
+      const parent = input['parent'];
+      if (!isPixelCustomPart(part)) return invalidInput('part must be a valid Custom Part');
+      if (typeof name !== 'string' || name.length > MAX_PART_NAME)
+        return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
+      if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
+        return invalidInput('parent must be a Custom Part id');
+      const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+      return { ok: true, value: { entry } };
     },
     botBannerSet(payload) {
       const scope = dmMemory(payload);

@@ -18,7 +18,11 @@ import {
   isIllustratedAvatarRecipe,
   seededAvatarRecipe,
   seededAvatarRecipeV2,
+  canonicalCustomPart,
+  customPartId,
+  type PixelCustomPart,
 } from '../../core/src/bots/avatar-appearance.js';
+import type { PartLibraryEntry } from '../../core/src/bots/part-library.js';
 import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
 
@@ -413,6 +417,135 @@ describe('Profile Avatar Appearance editing', () => {
       await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-edit]')!.click());
       await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-save]')!.click());
       expect(save).toHaveBeenCalledWith('dm-gimli', seededAvatarRecipeV2('Gimli'));
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('draws a mirrored headpiece, saves it to the Part Library and wears it', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const add = vi.fn(
+      async (part: PixelCustomPart, name: string, parent?: string): Promise<PartLibraryEntry> => ({
+        id: customPartId(part),
+        part: canonicalCustomPart(part),
+        name,
+        origins: ['drawn'],
+        ...(parent ? { parent } : {}),
+        addedAt: '2026-10-08T00:00:00.000Z',
+      }),
+    );
+    const load = vi.fn(async (): Promise<PartLibraryEntry[]> => []);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const press = async (x: number, y: number) =>
+      act(() => {
+        $(`[data-part-cell="${x},${y}"]`)!.dispatchEvent(
+          new Event('pointerdown', { bubbles: true, cancelable: true }),
+        );
+        $('[data-part-canvas]')!.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      });
+    const ink = (x: number, y: number) =>
+      $(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink');
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            library: { load, add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      expect(load).toHaveBeenCalledTimes(1);
+      expect($('[data-avatar-option="headpiece:none"]')?.getAttribute('aria-pressed')).toBe('true');
+      await click('[data-part-draw]');
+      expect($('[data-avatar-save]')?.hasAttribute('disabled')).toBe(true);
+
+      await press(10, 2);
+      expect(ink(10, 2)).toBe('hairColor:0');
+      expect(ink(21, 2)).toBe('hairColor:0');
+      expect(ink(11, 2)).toBeNull();
+
+      for (let x = 0; x <= 15; x++) await press(x, 6);
+      expect(ink(31, 6)).toBe('hairColor:0');
+      await click('[data-part-mirror]');
+      await click('[data-part-tool="fill"]');
+      await click('[data-part-ink="#efb93f:1"]');
+      await press(6, 0);
+      expect(ink(6, 0)).toBe('#efb93f:1');
+      expect(ink(6, 7)).toBeNull();
+      expect(ink(25, 0)).toBe('#efb93f:1');
+      await click('[data-part-undo]');
+      expect(ink(6, 0)).toBeNull();
+      await click('[data-part-redo]');
+      expect(ink(6, 0)).toBe('#efb93f:1');
+      await click('[data-part-undo]');
+
+      await click('[data-part-tool="pencil"]');
+      await click('[data-part-layer="back"]');
+      await press(15, 8);
+      expect(ink(15, 8)).toBe('#efb93f:1');
+      await click('[data-part-layer="front"]');
+      expect($('[data-part-cell="15,8"]')?.getAttribute('data-part-other')).toBe('true');
+      expect($('[data-part-preview] svg')).not.toBeNull();
+
+      const name = $('[data-part-name]') as HTMLInputElement;
+      await act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          name,
+          'Gold band',
+        );
+        name.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await click('[data-part-save]');
+      expect(add).toHaveBeenCalledTimes(1);
+      const [part, saved, parent] = add.mock.calls[0]!;
+      expect(saved).toBe('Gold band');
+      expect(parent).toBeUndefined();
+      expect(part.back).toEqual([[15, 8, '#efb93f', 1]]);
+      expect(part.front.filter(([, y]) => y === 6)).toHaveLength(32);
+      expect(part.front).toContainEqual([10, 2, 'hairColor', 0]);
+      expect(part.front).toContainEqual([21, 2, 'hairColor', 0]);
+      expect(part.front.some(([x, y]) => x === 6 && y === 0)).toBe(false);
+      expect($('[data-part-editor]')).toBeNull();
+      const id = customPartId(part);
+      expect($(`[data-avatar-option="headpiece:${id}"]`)?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+
+      await click('[data-part-edit]');
+      await click('[data-part-tool="eraser"]');
+      await press(10, 2);
+      await click('[data-part-save]');
+      const [edited, , editedParent] = add.mock.calls[1]!;
+      expect(editedParent).toBe(id);
+      expect(edited.front).toHaveLength(32);
+      expect(edited.front.some(([, y]) => y === 2)).toBe(false);
+      expect(edited.back).toEqual(part.back);
+
+      await click(`[data-avatar-option="headpiece:${id}"]`);
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith(
+        'dm-ada',
+        expect.objectContaining({ assetVersion: 3, headpiece: canonicalCustomPart(part) }),
+      );
     } finally {
       await act(() => root.unmount());
       container.remove();
