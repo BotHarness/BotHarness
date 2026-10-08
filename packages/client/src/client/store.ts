@@ -146,6 +146,7 @@ export interface UserQuestionResolution {
 }
 
 export interface SessionFailureCard {
+  requestMessageId?: string;
   role: 'orchestrator' | 'assignment';
   sessionId: string;
   code?: string;
@@ -155,6 +156,7 @@ export interface SessionFailureCard {
 }
 
 export interface ChannelMessage {
+  onboardingWelcome?: { version: 1 };
   bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
   bridgeMedia?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeMedia'];
   id: string;

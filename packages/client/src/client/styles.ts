@@ -22,6 +22,9 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
+  /* @bh-onboarding-aliases:start — native separator for the tutorial strip. */
+  --bh-onboarding-border: var(--dsw-alias-border-l2);
+  /* @bh-onboarding-aliases:end */
   /* @bh-bridge-media-aliases:start — reuse the pinned native focus and muted labels. */
   --bh-bridge-media-focus: var(--dsw-alias-state-business-primary);
   --bh-bridge-media-muted: var(--dsw-alias-label-secondary);
@@ -89,6 +92,9 @@ export const CSS =
   font: inherit;
 }
 
+.bh-onboarding { padding: 8px 16px; border-bottom: 1px solid var(--bh-onboarding-border); }
+.bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bh-onboarding-actions > span { flex: 1; }
 .bh-region {
   display: flex;
   flex-direction: column;

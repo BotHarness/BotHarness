@@ -442,6 +442,7 @@ export interface BotRuntime {
     shell?: boolean,
   ): string | undefined;
   reconcileMemoryChangesOnStartup?(): void;
+  retryDmMessage?(channelId: string, messageId: string): Promise<void>;
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
 
   admitGroupMessage(channelId: string, messageId: string): void;
@@ -943,6 +944,28 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#recoverPendingDigests();
       this.#recoverPendingAssignmentReports();
     }
+  }
+
+  async retryDmMessage(channelId: string, messageId: string): Promise<void> {
+    const channel = this.#channels.get(channelId);
+    const message = this.#channels.message(channelId, messageId);
+    if (channel?.type !== 'dm' || !channel.botSlug || message?.author.kind !== 'human')
+      throw new Error('Retry requires the original Human DM message');
+    const safe = this.#database.read((database) =>
+      database
+        .prepare(`
+      SELECT 1 FROM source_events e JOIN inbox_admissions a ON a.source_event_id = e.source_event_id
+      WHERE e.channel_id = ? AND e.message_id = ? AND a.bot_slug = ?
+        AND e.attempt_state = 'retryable' AND a.attempt_state = 'retryable'
+        AND e.side_effect_started_at IS NULL AND a.side_effect_started_at IS NULL
+    `)
+        .get(channelId, messageId, channel.botSlug!),
+    );
+    if (!safe)
+      throw new Error('This message cannot be safely retried; inspect its original Session');
+    const admission = this.admitDmMessage({ channelId, messageId, body: message.body });
+    if (!admission.admitted) throw new Error(admission.reason);
+    void admission.settled.catch(() => undefined);
   }
 
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission {
@@ -2677,6 +2700,7 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#markSourceEventFailed(claim.sourceEventId);
       await this.#publishSessionFailure({
         channelId,
+        requestMessageId: messageId,
         botSlug: bot.slug,
         sessionId: orchestrator.sessionId,
         role: 'orchestrator',
@@ -3115,6 +3139,7 @@ class BotRuntimeImplementation implements BotRuntime {
 
   async #publishSessionFailure(input: {
     channelId: string;
+    requestMessageId?: string;
     botSlug: string;
     sessionId: string;
     role: 'orchestrator' | 'assignment';
@@ -3150,7 +3175,12 @@ class BotRuntimeImplementation implements BotRuntime {
       author: { kind: 'bot', slug: input.botSlug },
       body: `Session failed: ${details.code === undefined ? '' : details.code + ': '}${details.detail}`,
       format: 'text',
-      sessionFailure: failure,
+      sessionFailure: {
+        ...failure,
+        ...(input.requestMessageId === undefined
+          ? {}
+          : { requestMessageId: input.requestMessageId }),
+      },
     });
     if (result === undefined) {
       throw new Error('Could not publish Session failure: Channel is missing');

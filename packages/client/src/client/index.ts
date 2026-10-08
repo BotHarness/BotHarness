@@ -1,3 +1,4 @@
+import { DefaultModelSettings } from './onboarding-view.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
@@ -359,6 +360,18 @@ export function apply(ctx: ClientContext): void {
         };
       },
     });
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
+          id: 'default-model',
+          order: -5,
+          locale: LOCALE_NS,
+          inject: () => ({ actions }),
+        },
+        DefaultModelSettings,
+      ),
+    );
     settingsCtx.slots.inject('botharness.settings.item', () =>
       settingsCtx.slots.register(
         {

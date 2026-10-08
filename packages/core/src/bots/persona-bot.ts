@@ -20,6 +20,7 @@ export interface PersonaBotRecord {
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
+  modelPlanRevision?: number;
   preset?: string;
   memoryDir?: string;
   workspaces: string[];
@@ -143,6 +144,12 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     const optional = record[key];
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
+  if (
+    record['modelPlanRevision'] !== undefined &&
+    (!Number.isSafeInteger(record['modelPlanRevision']) ||
+      (record['modelPlanRevision'] as number) < 0)
+  )
+    return false;
   if (record['modelPlan'] !== undefined && !isPersonaBotModelPlan(record['modelPlan']))
     return false;
   if (record['standingLimits'] !== undefined && !isStandingLimits(record['standingLimits']))

@@ -1,3 +1,4 @@
+import { OnboardingSurface } from './onboarding-view.js';
 import { GroupChannelHeader } from './group-channel-header.js';
 import { CompanionPin } from './window-companions-view.js';
 import type { WindowCompanions } from './window-companions.js';
@@ -1686,6 +1687,7 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
+      <OnboardingSurface actions={actions} companion={companion} t={t} />
       {releaseNotes === undefined ? null : (
         <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
       )}

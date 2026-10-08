@@ -10,11 +10,15 @@
 ### Breaking Changes
 
 - 内容清除新增 Profile schema Generation 68 与必须保留的独立 Purge Ledger；恢复运行数据库快照时须保留该账本，升级后应向前修复。回退代码或运行数据库不能撤销已接受的清除事实（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
+- Bot 引导增加 Profile schema Generation 69。升级前请备份；升级后的 Profile 需使用兼容版本，或从升级前备份恢复（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
+
 - PersonaBot 删除引入 Profile schema Generation 66；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
 ### Added
 
 - 已结束的本地群聊可查看保留历史，并对所选纯文本单独预览、确认清除；重启后保留审计墓碑，提供真实单调恢复检查点。同名新群聊取得新身份，不覆盖已结束的历史。首条路径拒绝外部来源、文件与复杂衍生，完整 Channel 清除及 Profile 备份仍待后续（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
+- 首次进入 Bot 模式会准备一个 DeepSeek Bot、真实私聊和可重复使用的欢迎问题；模型设置保留未发出的请求，支持 Profile 默认模型与 Bot 继承，只有收到真实回复才算完成。教程进度可跨重启恢复，安全的手动重试沿用原 Human 消息（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)，[ADR-0146](docs/adr/0146-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）。
+
 - 支持的像素窗口伙伴会随着已提交消息逐字呈现而开合嘴，在标点处闭嘴，播放结束、取消或切到后台后恢复保存的表情；名册头像与图片降级保留原有形象（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。
 
 - 窗口伙伴独立于 Bot 模式跟随归档和删除，保留图片及未知版本快照回退，并支持键盘阅读与操作；键盘菜单在定位完成后接收焦点，关闭时将焦点交还原控件；动态效果偏好变化立即归位，离屏呈现和旧动画停止，不重播旧消息 ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).

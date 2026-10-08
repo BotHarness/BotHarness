@@ -628,6 +628,17 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
         VALUES (?, ?, ?, ?)
       `).run(id, revision, sourceEventId, durable.id);
+          if (origin !== undefined && durable.author.kind === 'bot')
+            db.prepare(`INSERT INTO channel_output_origins
+              (source_event_id, session_id, request_source_event_id)
+              SELECT ?, owner.session_id,
+                (SELECT source_event_id FROM source_events WHERE source_event_id = ?)
+              FROM session_ownership owner WHERE owner.session_id = ? AND owner.bot_slug = ?`).run(
+              sourceEventId,
+              origin.sourceEventId ?? null,
+              origin.sessionId,
+              durable.author.slug,
+            );
           const botAlreadyAdmitted = (targetSlug: string, rootId: string): boolean =>
             db
               .prepare(`

@@ -1,0 +1,437 @@
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { Button, Checkbox } from '@deepseek-ai/dsh-client-ui-primitives';
+import type { BridgeActions } from './actions.js';
+import type { ModelCatalogEntryView, ModelRouteView } from './bridge.js';
+import { errorMessage } from './bridge.js';
+import { Combobox } from './combobox.js';
+import { Modal } from './modal.js';
+import { openModelsSettings } from './bot-settings-open.js';
+import type { BotHarnessTranslate } from './locale.js';
+import { useMountedResource } from './mounted-resource.js';
+import { onboardingFor, requestBotCreation } from './onboarding.js';
+import { store } from './store.js';
+import type { WindowCompanions } from './window-companions.js';
+import { highlightInternalControl } from './internal-tour.js';
+
+export function OnboardingModelDialog({
+  actions,
+  slug,
+  title,
+  onClose,
+  onConfirm,
+  t,
+  globalOnly = false,
+  request,
+}: {
+  actions: BridgeActions;
+  slug?: string;
+  title: string;
+  onClose(): void;
+  onConfirm(route: ModelRouteView, globalDefault: boolean, revision: number): Promise<void>;
+  t: BotHarnessTranslate;
+  globalOnly?: boolean;
+  request?: string;
+}): ReactElement {
+  const [models, setModels] = useState<ModelCatalogEntryView[]>([]);
+  const [route, setRoute] = useState<ModelRouteView>();
+  const [revision, setRevision] = useState(0);
+  const [globalDefault, setGlobalDefault] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const [loaded, setLoaded] = useState(false);
+  const load = async (): Promise<void> => {
+    setError(undefined);
+    try {
+      const [catalog, state] = await Promise.all([
+        actions.modelCatalog(),
+        slug ? actions.modelPlanState(slug) : Promise.resolve(undefined),
+      ]);
+      setModels(catalog.models);
+      setRevision(state?.revision ?? state?.plan?.revision ?? 0);
+      const selected = state?.plan?.orchestrator ?? catalog.default;
+      setRoute(
+        (previous) =>
+          previous ??
+          selected ??
+          (catalog.models.find((model) => model.credential === undefined)
+            ? {
+                provider: catalog.models.find((model) => model.credential === undefined)!.provider,
+                model: catalog.models.find((model) => model.credential === undefined)!.model,
+              }
+            : undefined),
+      );
+      setLoaded(true);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    void load();
+  }, [actions, slug]);
+  const selected = models.find(
+    (model) => model.provider === route?.provider && model.model === route.model,
+  );
+  const confirm = async (): Promise<void> => {
+    if (!route || busy || !selected || selected.credential !== undefined) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await onConfirm(route, globalDefault, revision);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      title={title}
+      closeLabel={t('common.close')}
+      onClose={onClose}
+      footer={
+        <Button
+          variant="primary"
+          disabled={busy || !selected || selected.credential !== undefined}
+          onClick={() => void confirm()}
+        >
+          {t(globalOnly ? 'onboarding.saveDefault' : 'onboarding.confirmSend')}
+        </Button>
+      }
+    >
+      <div ref={mount} className="bh-question-card">
+        {request ? <blockquote>{request}</blockquote> : null}
+        <p className="bh-note">{t('onboarding.modelHint')}</p>
+        <Combobox
+          value={route ? JSON.stringify([route.provider, route.model]) : ''}
+          options={models.map((model) => ({
+            value: JSON.stringify([model.provider, model.model]),
+            label: model.modelName,
+            hint: model.providerName + (model.credential ? ' · ' + t('onboarding.needsKey') : ''),
+          }))}
+          onSelect={(key) => {
+            const [provider, model] = JSON.parse(key) as [string, string];
+            setRoute({ provider, model });
+          }}
+          label={t('onboarding.model')}
+          toggleLabel={t('modelPreset.showModels')}
+          placeholder={t('modelPreset.chooseModel')}
+          emptyLabel={t('modelPreset.noMatch')}
+          disabled={busy}
+        />
+        {selected && selected.efforts.length > 0 ? (
+          <Combobox
+            value={route?.reasoningEffort ?? ''}
+            options={[
+              { value: '', label: t('modelPreset.providerDefault') },
+              ...selected.efforts.map((effort) => ({ value: effort.id, label: effort.name })),
+            ]}
+            onSelect={(reasoningEffort) =>
+              setRoute((current) =>
+                current
+                  ? {
+                      provider: current.provider,
+                      model: current.model,
+                      ...(reasoningEffort ? { reasoningEffort } : {}),
+                    }
+                  : current,
+              )
+            }
+            label={t('modelPreset.effort')}
+            toggleLabel={t('modelPreset.effort')}
+            placeholder={t('modelPreset.providerDefault')}
+            emptyLabel={t('modelPreset.noMatch')}
+            disabled={busy}
+          />
+        ) : null}
+        {!loaded ? <p role="status">{t('modelPreset.loading')}</p> : null}
+        {selected?.credential || models.length === 0 ? <p>{t('onboarding.keyHint')}</p> : null}
+        <div className="bh-onboarding-actions">
+          <Button
+            variant="outline"
+            onClick={() => {
+              onClose();
+              openModelsSettings();
+            }}
+          >
+            {t('failure.openModels')}
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => void load()}>
+            {t('onboarding.refreshModels')}
+          </Button>
+        </div>
+        {!globalOnly ? (
+          <Checkbox
+            checked={globalDefault}
+            onChange={setGlobalDefault}
+            label={t('onboarding.globalCheckbox')}
+            disabled={busy}
+          />
+        ) : null}
+        <p className="bh-note">{t('onboarding.globalHint')}</p>
+        {error ? (
+          <p role="alert" className="bh-error">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </Modal>
+  );
+}
+
+export function OnboardingWelcome({
+  actions,
+  channelId,
+  t,
+}: {
+  actions: BridgeActions;
+  channelId: string;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const controller = onboardingFor(actions);
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const [modelLabel, setModelLabel] = useState('');
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    let active = true;
+    const slug = store.getSnapshot().conversation.channel?.botSlug;
+    void Promise.all([
+      actions.modelCatalog(),
+      slug ? actions.modelPlanState(slug) : Promise.resolve(undefined),
+    ])
+      .then(([catalog, plan]) => {
+        const route = plan?.plan?.orchestrator ?? catalog.default;
+        if (active)
+          setModelLabel(route ? `${route.provider} / ${route.model}` : t('modelPreset.noPlan'));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [actions, channelId, state.modelOpen]);
+  return (
+    <div ref={mount} className="bh-question-card" data-onboarding-welcome>
+      <div className="bh-note">{t('onboarding.productMessage')}</div>
+      <strong>{t('onboarding.welcome')}</strong>
+      <p className="bh-question-prompt">{t('onboarding.prompt')}</p>
+      <Button
+        variant="outline"
+        disabled={state.busy || store.getSnapshot().conversation.sending}
+        onClick={() => void controller.request(channelId, t('onboarding.firstRequest'))}
+      >
+        {t('onboarding.firstRequest')}
+      </Button>
+      <p className="bh-note">{t('onboarding.freeform')}</p>
+      <div className="bh-onboarding-actions">
+        <span className="bh-note">{modelLabel}</span>
+        <Button
+          variant="ghost"
+          disabled={state.busy}
+          onClick={() => {
+            const slug = store.getSnapshot().conversation.channel?.botSlug;
+            if (slug) controller.chooseModel(channelId, slug, t('onboarding.firstRequest'));
+          }}
+        >
+          {t('onboarding.chooseModel')}
+        </Button>
+      </div>
+      <Button variant="ghost" onClick={requestBotCreation}>
+        {t('roster.menu.createBot')}
+      </Button>
+    </div>
+  );
+}
+
+export function OnboardingSurface({
+  actions,
+  companion,
+  t,
+}: {
+  actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const controller = onboardingFor(actions);
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    let active = true;
+    let key = '';
+    void controller.enter(companion);
+    const unsubscribe = store.subscribe(() => {
+      const snapshot = store.getSnapshot();
+      const channel = snapshot.conversation.channel;
+      const next = `${channel?.id}:${snapshot.conversation.revision}:${snapshot.git?.available}`;
+      if (!active || key === next || snapshot.mode !== 'bot') return;
+      key = next;
+      if (controller.getSnapshot().receipt && channel?.botSlug)
+        void controller.refresh(channel.botSlug);
+      else if (snapshot.git?.available && controller.getSnapshot().error === 'git-not-found')
+        void controller.enter(companion);
+    });
+    const timer = setInterval(() => {
+      if (active && store.getSnapshot().mode === 'bot' && !controller.getSnapshot().busy)
+        void controller.refresh(store.getSnapshot().conversation.channel?.botSlug);
+    }, 5000);
+    return () => {
+      active = false;
+      controller.pauseGuide();
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, [actions, companion]);
+  const tourMount = useMountedResource<HTMLSpanElement>(() => {
+    if (
+      !state.guideOpen ||
+      state.receipt?.tutorial !== 'active' ||
+      state.receipt.completed ||
+      state.modelOpen
+    )
+      return;
+    const welcome = document.querySelector('[data-onboarding-welcome]');
+    if (!welcome) return;
+    return highlightInternalControl(
+      welcome,
+      t('onboarding.tourTitle'),
+      t('onboarding.tourHint'),
+      t('common.close'),
+      () => {
+        controller.pauseGuide();
+      },
+    );
+  }, [state.guideOpen, state.receipt?.tutorial, state.receipt?.completed, state.modelOpen]);
+  const receipt = state.receipt;
+  return (
+    <div
+      ref={mount}
+      className="bh-root bh-onboarding"
+      data-onboarding-state={receipt?.completed ? 'complete' : (receipt?.tutorial ?? 'preparing')}
+    >
+      <span ref={tourMount} hidden />
+      {state.error ? (
+        <div role="alert">
+          {state.error}
+          <Button variant="ghost" onClick={() => void controller.enter(companion)}>
+            {t('onboarding.retryPrepare')}
+          </Button>
+        </div>
+      ) : null}
+      {receipt ? (
+        <div className="bh-onboarding-actions">
+          {receipt.completed ? (
+            <span role="status">{t('onboarding.completed')}</span>
+          ) : (
+            <span>{t('onboarding.goal')}</span>
+          )}
+          {!receipt.completed && receipt.tutorial === 'not-started' ? (
+            <>
+              <Button variant="outline" onClick={() => void controller.refresh(undefined, 'start')}>
+                {t('onboarding.start')}
+              </Button>
+            </>
+          ) : null}
+          {!receipt.completed &&
+          (receipt.tutorial === 'paused' || (receipt.tutorial === 'active' && !state.guideOpen)) ? (
+            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'continue')}>
+              {t('onboarding.continue')}
+            </Button>
+          ) : null}
+          {!receipt.completed && receipt.tutorial !== 'skipped' ? (
+            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'skip')}>
+              {t('onboarding.skip')}
+            </Button>
+          ) : null}
+          {receipt.tutorial !== 'not-started' ? (
+            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'restart')}>
+              {t('onboarding.restart')}
+            </Button>
+          ) : null}
+          {state.pending ? (
+            <Button variant="outline" onClick={() => controller.reviewPending()}>
+              {t('onboarding.unsent')}
+            </Button>
+          ) : null}
+          {!receipt.channelId
+            ? store
+                .getSnapshot()
+                .bots.filter((bot) => !bot.paused && !bot.deleted)
+                .map((bot) => (
+                  <Button
+                    key={bot.slug}
+                    variant="outline"
+                    onClick={() => void controller.refresh(bot.slug, undefined, undefined, true)}
+                  >
+                    {bot.displayName}
+                  </Button>
+                ))
+            : null}
+          {!receipt.channelId ? (
+            <Button variant="outline" onClick={requestBotCreation}>
+              {t('roster.menu.createBot')}
+            </Button>
+          ) : null}
+        </div>
+      ) : !state.error ? (
+        <span role="status">{t('onboarding.preparing')}</span>
+      ) : null}
+      {state.modelOpen && state.pending ? (
+        <OnboardingModelDialog
+          actions={actions}
+          slug={state.pending.slug}
+          request={state.pending.body}
+          title={t('onboarding.modelTitle')}
+          t={t}
+          onClose={() => controller.closeModel()}
+          onConfirm={(route, globalDefault, revision) =>
+            controller.confirm(route, globalDefault, revision)
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function DefaultModelSettings({
+  actions,
+  t,
+}: {
+  actions: BridgeActions;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState('');
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    void actions
+      .modelCatalog()
+      .then((catalog) =>
+        setLabel(
+          catalog.default
+            ? `${catalog.default.provider} / ${catalog.default.model}`
+            : t('modelPreset.noPlan'),
+        ),
+      );
+  }, [actions]);
+  return (
+    <div ref={mount} className="bh-settings-row">
+      <div className="bh-settings-row-text">
+        <div className="bh-settings-row-title">{t('onboarding.defaultTitle')}</div>
+        <div className="bh-settings-row-desc">{t('onboarding.defaultDescription')}</div>
+      </div>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        {label || t('onboarding.model')}
+      </Button>
+      {open ? (
+        <OnboardingModelDialog
+          actions={actions}
+          title={t('onboarding.defaultTitle')}
+          t={t}
+          globalOnly
+          onClose={() => setOpen(false)}
+          onConfirm={async (route) => {
+            await actions.onboardingModel(undefined, 0, route, true);
+            setLabel(`${route.provider} / ${route.model}`);
+            setOpen(false);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}

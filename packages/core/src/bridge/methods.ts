@@ -1,3 +1,4 @@
+import type { BotOnboarding, OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import {
   ContentPurgeError,
@@ -326,6 +327,10 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  onboarding(payload: unknown): Promise<BridgeResult<OnboardingSnapshot>>;
+  modelPlanInherit(payload: unknown): BridgeResult<{ revision: number }>;
+  onboardingModel(payload: unknown): Promise<BridgeResult<{ revision: number }>>;
+  channelRetry(payload: unknown): Promise<BridgeResult<{ accepted: true }>>;
   approvalRoute(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   approvalTest(
     payload: unknown,
@@ -519,6 +524,11 @@ export interface BridgeMethodsDeps {
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
+  onboarding?: BotOnboarding;
+  defaultModel?: {
+    currentSelection(): ModelRoute;
+    saveSelection(route: ModelRoute): Promise<void>;
+  };
   states: BotStateTracker;
   runningSessionIds?: () => ReadonlySet<string>;
   channels: ChannelStore;
@@ -1326,6 +1336,105 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       });
     },
+    async onboarding(payload) {
+      if (deps.onboarding === undefined) return unavailable();
+      const source = asObject(payload);
+      const action = source['action'];
+      if (
+        action !== undefined &&
+        !['start', 'pause', 'skip', 'continue', 'restart'].includes(String(action))
+      )
+        return invalidInput('Invalid tutorial action');
+      try {
+        return {
+          ok: true,
+          value: await deps.onboarding.enter(asSlug(payload), action as TutorialAction | undefined),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof Error ? error.message : 'onboarding-unavailable',
+            message: error instanceof Error ? error.message : 'Onboarding unavailable',
+          },
+        };
+      }
+    },
+    modelPlanInherit(payload) {
+      const slug = asSlug(payload);
+      const revision = asObject(payload)['expectedRevision'];
+      if (slug === undefined || !Number.isSafeInteger(revision))
+        return invalidInput('Bot and expected revision required');
+      const result = deps.registry.inheritModel(slug, revision as number);
+      if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+      return { ok: true, value: { revision: result.record.modelPlanRevision ?? 0 } };
+    },
+    async onboardingModel(payload) {
+      if (deps.modelCatalog === undefined || deps.defaultModel === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const route = source['route'];
+      const revision = source['expectedRevision'];
+      if (
+        !isModelRoute(route) ||
+        typeof source['globalDefault'] !== 'boolean' ||
+        !Number.isSafeInteger(revision)
+      )
+        return invalidInput('Model, scope and expected revision required');
+      const bot = slug === undefined ? undefined : deps.registry.get(slug);
+      if (slug !== undefined && bot === undefined) return unknownBot(slug);
+      if ((bot?.modelPlan?.revision ?? bot?.modelPlanRevision ?? 0) !== revision)
+        return invalidInput('Bot model changed; reopen before saving');
+      try {
+        await deps.modelCatalog.validate(route);
+        if (source['globalDefault']) {
+          await deps.defaultModel.saveSelection(route);
+          const saved = deps.defaultModel.currentSelection();
+          if (
+            saved.provider !== route.provider ||
+            saved.model !== route.model ||
+            saved.reasoningEffort !== route.reasoningEffort
+          )
+            return invalidInput('Profile default model was not saved; open native model settings');
+          if (slug === undefined) return { ok: true, value: { revision: 0 } };
+          return this.modelPlanInherit({ slug, expectedRevision: revision });
+        }
+        if (slug === undefined) return invalidInput('Choose a Bot for an individual model');
+        const result = deps.registry.setModelPlan(
+          slug,
+          {
+            orchestrator: route,
+            assignmentDefault: route,
+            assignmentModels: [
+              {
+                provider: route.provider,
+                model: route.model,
+                allowedEfforts: [route.reasoningEffort ?? ''],
+                defaultEffort: route.reasoningEffort ?? '',
+              },
+            ],
+          },
+          revision as number,
+        );
+        if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+        return { ok: true, value: { revision: result.record.modelPlan!.revision } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Model unavailable');
+      }
+    },
+    async channelRetry(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (!channelId || !messageId || !deps.runtime?.retryDmMessage)
+        return invalidInput('Original message is required');
+      try {
+        await deps.runtime.retryDmMessage(channelId, messageId);
+        return { ok: true, value: { accepted: true } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Retry unavailable');
+      }
+    },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {
@@ -1467,12 +1576,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (bot === undefined) return unknownBot(slug);
       if (deps.modelReadiness !== undefined) {
         try {
-          return { ok: true, value: await deps.modelReadiness.inspect(slug) };
+          const state = await deps.modelReadiness.inspect(slug);
+          const current = deps.registry.get(slug);
+          return {
+            ok: true,
+            value: {
+              ...state,
+              revision: current?.modelPlan?.revision ?? current?.modelPlanRevision ?? 0,
+            },
+          };
         } catch (failure) {
           return invalidInput(failure instanceof Error ? failure.message : String(failure));
         }
       }
-      return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
+      return {
+        ok: true,
+        value: {
+          revision: bot.modelPlan?.revision ?? bot.modelPlanRevision ?? 0,
+          ...(bot.modelPlan === undefined ? {} : { plan: bot.modelPlan }),
+        },
+      };
     },
     async modelPlanCustomize(payload) {
       if (deps.modelCatalog === undefined) return unavailable();

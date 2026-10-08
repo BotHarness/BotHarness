@@ -250,7 +250,7 @@ describe('Model entry', () => {
       modelCatalog: vi.fn(async () => ({ models: catalog })),
       setModelPlan,
     } as unknown as BridgeActions);
-    expect(cards(host)).toContain('Not set. Click to choose a model');
+    expect(cards(host)).toContain('Inherit global');
     await openEditor(host);
     expect(document.querySelector('.bh-model-preset-source')).toBeNull();
 
