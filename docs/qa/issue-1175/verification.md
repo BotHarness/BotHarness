@@ -160,3 +160,7 @@ Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-
 7. With a QA-only invalid credential, send once, repair it and explicitly retry the original failure card. Verify one Human message. Replay after a completed or side-effecting request must be refused.
 
 Schema generation 71 is forward-only. Keep a pre-upgrade backup; a generation-70 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery, retaining the independent Purge Ledger and enforcing its monotonic facts. Optional Memory/IM guided breadth remains deferred pending further Human feedback.
+
+## First-slice acceptance follow-up
+
+See the [acceptance follow-up](../issue-1175-acceptance/verification.md) for the multi-window pause, completed replay and model-card refresh fixes, plus live existing-Bot and original-message recovery qualification. Historical results above remain unchanged.

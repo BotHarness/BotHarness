@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import { Button, Checkbox, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -15,7 +15,13 @@ import { Combobox, type ComboboxOption } from './combobox.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { ModelPicker } from './model-picker.js';
-import { rememberModelPlan } from './model-plan-store.js';
+import {
+  invalidateModelPlan,
+  modelPlanOf,
+  rememberModelPlan,
+  subscribeModelPlans,
+} from './model-plan-store.js';
+import { useMountedResource } from './mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
 export function routeLabel(route: ModelRouteView, defaultLabel: string): string {
@@ -120,16 +126,16 @@ export function ModelPresetProfile({
     setPlan((previous) => ((previous?.revision ?? 0) > currentRevision ? previous : current));
   };
 
-  const loadPlanOnMount = useCallback(
-    (element: HTMLElement | null): void => {
+  const loadPlanOnMount = useMountedResource<HTMLDivElement>(() => {
+    const read = (): void => {
       const request = ++planRequest.current;
-      if (element === null) return;
       void actions.modelPlanState(slug).then(
         (state) => {
           if (planRequest.current !== request) return;
           rememberModelPlan(slug, state.plan);
           setRevision(state.revision ?? state.plan?.revision ?? 0);
           setRepair(state.repair);
+          setPlanLoadError(false);
           setPlan((previous) =>
             (previous?.revision ?? 0) > (state.revision ?? state.plan?.revision ?? 0)
               ? previous
@@ -140,9 +146,16 @@ export function ModelPresetProfile({
           if (planRequest.current === request) setPlanLoadError(true);
         },
       );
-    },
-    [actions, slug],
-  );
+    };
+    read();
+    const unsubscribe = subscribeModelPlans(() => {
+      if (modelPlanOf(slug) === undefined) read();
+    });
+    return () => {
+      ++planRequest.current;
+      unsubscribe();
+    };
+  }, [actions, slug]);
 
   const load = async (): Promise<void> => {
     const request = planRequest.current;
@@ -438,7 +451,7 @@ export function ModelPresetProfile({
                 .then(
                   (result) => {
                     planRequest.current += 1;
-                    rememberModelPlan(slug, undefined);
+                    invalidateModelPlan(slug);
                     setPlan(undefined);
                     setRevision(result.revision);
                     setRepair(undefined);
