@@ -16,7 +16,11 @@ import {
   type IllustratedAvatarRecipe,
   AVATAR_SWATCHES,
   withAvatarSpecies,
-  withAvatarHeadpiece,
+  withAvatarCustomPart,
+  wornAvatarPart,
+  hairPieceStart,
+  isHairPartSlot,
+  type PartSlot,
   customPartId,
   type PixelCustomPart,
   avatarSvg,
@@ -121,6 +125,19 @@ const SPLIT = new Set<string>([
   ...AVATAR_PIECE_COLORS,
   ...EXTRAS,
 ]);
+const PART_CATEGORY: Partial<Record<string, PartSlot>> = {
+  headpiece: 'headpiece',
+  bangs: 'bangs',
+  sideHair: 'leftSideHair',
+  rightSideHair: 'rightSideHair',
+  backHair: 'backHair',
+};
+const PIECE_CATEGORY: Record<string, string> = {
+  bangs: 'bangs',
+  leftSideHair: 'sideHair',
+  rightSideHair: 'rightSideHair',
+  backHair: 'backHair',
+};
 const V2_ONLY = (part: string, value: string | number) =>
   (part === 'outfit' || part === 'accessory') &&
   !(AVATAR_PARTS[part] as readonly (string | number)[]).includes(value);
@@ -276,9 +293,13 @@ export function AvatarAppearanceEditor({
 }): ReactElement {
   const [parts, setParts] = useState<PartLibraryEntry[]>();
   const [drawing, setDrawing] = useState<{
+    slot: PartSlot;
     base: IllustratedAvatarRecipe;
+    restore: IllustratedAvatarRecipe;
+    backdrop?: IllustratedAvatarRecipe;
     initial?: PixelCustomPart;
     parent?: string;
+    note?: string;
   }>();
   const [drafts, setDrafts] = useState<Partial<Record<AvatarFamily, AvatarRecipe>>>();
   const [family, setFamily] = useState<AvatarFamily>('illustrated');
@@ -328,6 +349,139 @@ export function AvatarAppearanceEditor({
   };
   const current = bot.avatar !== undefined && bot.appearance === undefined ? 'image' : 'design';
   const inUse = <Tag tone="success">{t('profile.avatar.current')}</Tag>;
+  const pieceSlot = draft?.family === 'illustrated' ? PART_CATEGORY[category] : undefined;
+  const pieceWorn =
+    pieceSlot !== undefined &&
+    draft?.family === 'illustrated' &&
+    wornAvatarPart(draft, pieceSlot) !== undefined;
+  const builtIn = (key: string, value: string): AvatarRecipe => {
+    const next = withPart(draft!, key, value);
+    const slot = PART_CATEGORY[key];
+    return slot && next.family === 'illustrated'
+      ? withAvatarCustomPart(next, slot, undefined)
+      : next;
+  };
+  const originLabel = (entry: PartLibraryEntry) =>
+    `${entry.name || t('profile.avatar.part.untitled')} · ${entry.origins
+      .map((origin) =>
+        t(
+          `profile.avatar.part.origin.${origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn'}`,
+        ),
+      )
+      .join(', ')}`;
+  const partEditor = () =>
+    drawing ? (
+      <CustomPartEditor
+        key={`${drawing.slot}:${drawing.parent ?? 'new'}`}
+        slot={drawing.slot}
+        note={drawing.note}
+        backdrop={drawing.backdrop}
+        recipe={drawing.base}
+        initial={drawing.initial}
+        onChange={(part) => update(withAvatarCustomPart(drawing.base, drawing.slot, part))}
+        onSave={async (part, name) => {
+          const entry = await library?.add(part, name, drawing.parent);
+          if (!entry) return false;
+          setParts((current) => [entry, ...(current ?? []).filter((item) => item.id !== entry.id)]);
+          update(withAvatarCustomPart(drawing.base, drawing.slot, entry.part));
+          setDrawing(undefined);
+          return true;
+        }}
+        onCancel={() => {
+          update(drawing.restore);
+          setDrawing(undefined);
+        }}
+        t={t}
+      />
+    ) : null;
+  const partActions = (slot: PartSlot, recipe: IllustratedAvatarRecipe) => {
+    const worn = wornAvatarPart(recipe, slot);
+    const hair = isHairPartSlot(slot);
+    const own = (parts ?? []).filter((entry) => entry.part.slot === slot);
+    const draw = () =>
+      setDrawing(
+        hair
+          ? {
+              slot,
+              base: withAvatarCustomPart(recipe, slot, undefined),
+              restore: recipe,
+              backdrop: withPart(
+                withAvatarCustomPart(recipe, slot, undefined),
+                PIECE_CATEGORY[slot]!,
+                'none',
+              ) as IllustratedAvatarRecipe,
+              initial: hairPieceStart(recipe, slot),
+              ...(worn
+                ? { parent: customPartId(worn) }
+                : { note: t('profile.avatar.part.flattenNote') }),
+            }
+          : { slot, base: recipe, restore: recipe },
+      );
+    return (
+      <>
+        <div className="bh-part-library-actions">
+          <button
+            type="button"
+            className="bh-avatar-color-reset"
+            data-part-draw={slot}
+            onClick={draw}
+          >
+            {t(hair ? 'profile.avatar.part.drawPiece' : 'profile.avatar.part.draw')}
+          </button>
+          {worn && !hair ? (
+            <button
+              type="button"
+              className="bh-avatar-color-reset"
+              data-part-edit={slot}
+              onClick={() =>
+                setDrawing({
+                  slot,
+                  base: recipe,
+                  restore: recipe,
+                  initial: worn,
+                  parent: customPartId(worn),
+                })
+              }
+            >
+              {t('profile.avatar.part.edit')}
+            </button>
+          ) : null}
+          {worn && hair ? (
+            <button
+              type="button"
+              className="bh-avatar-color-reset"
+              data-part-remove={slot}
+              onClick={() => update(withAvatarCustomPart(recipe, slot, undefined))}
+            >
+              {t('profile.avatar.part.removePiece')}
+            </button>
+          ) : null}
+        </div>
+        {hair ? null : (
+          <OptionTile
+            id={`${slot}:none`}
+            recipe={withAvatarCustomPart(recipe, slot, undefined)}
+            selected={!worn}
+            label={t('profile.avatar.part.none')}
+            onSelect={() => update(withAvatarCustomPart(recipe, slot, undefined))}
+          />
+        )}
+        {own.map((entry) => (
+          <OptionTile
+            key={entry.id}
+            id={`${slot}:${entry.id}`}
+            recipe={withAvatarCustomPart(recipe, slot, entry.part)}
+            selected={worn !== undefined && customPartId(worn) === entry.id}
+            label={originLabel(entry)}
+            onSelect={() => update(withAvatarCustomPart(recipe, slot, entry.part))}
+          />
+        ))}
+        {!hair && parts !== undefined && own.length === 0 ? (
+          <p className="bh-avatar-hidden-note">{t('profile.avatar.part.libraryEmpty')}</p>
+        ) : null}
+      </>
+    );
+  };
   return (
     <section
       className="bh-profile-section bh-avatar-section"
@@ -459,7 +613,7 @@ export function AvatarAppearanceEditor({
                       tabIndex={category === key ? 0 : -1}
                       onClick={() => {
                         setCategory(key);
-                        if (key === 'headpiece' && parts === undefined && library)
+                        if (PART_CATEGORY[key] && parts === undefined && library)
                           void library.load().then((loaded) => {
                             if (loaded) setParts(loaded);
                           });
@@ -543,88 +697,7 @@ export function AvatarAppearanceEditor({
                   id="bh-avatar-panel"
                   aria-labelledby="bh-avatar-tab-headpiece"
                 >
-                  {drawing ? (
-                    <CustomPartEditor
-                      recipe={drawing.base}
-                      initial={drawing.initial}
-                      onChange={(part) => update(withAvatarHeadpiece(drawing.base, part))}
-                      onSave={async (part, name) => {
-                        const entry = await library?.add(part, name, drawing.parent);
-                        if (!entry) return false;
-                        setParts((current) => [
-                          entry,
-                          ...(current ?? []).filter((item) => item.id !== entry.id),
-                        ]);
-                        update(withAvatarHeadpiece(drawing.base, entry.part));
-                        setDrawing(undefined);
-                        return true;
-                      }}
-                      onCancel={() => {
-                        update(drawing.base);
-                        setDrawing(undefined);
-                      }}
-                      t={t}
-                    />
-                  ) : (
-                    <>
-                      <div className="bh-part-library-actions">
-                        <button
-                          type="button"
-                          className="bh-avatar-color-reset"
-                          data-part-draw
-                          onClick={() => setDrawing({ base: draft })}
-                        >
-                          {t('profile.avatar.part.draw')}
-                        </button>
-                        {draft.assetVersion === 3 ? (
-                          <button
-                            type="button"
-                            className="bh-avatar-color-reset"
-                            data-part-edit
-                            onClick={() =>
-                              setDrawing({
-                                base: draft,
-                                initial: draft.headpiece,
-                                parent: customPartId(draft.headpiece),
-                              })
-                            }
-                          >
-                            {t('profile.avatar.part.edit')}
-                          </button>
-                        ) : null}
-                      </div>
-                      <OptionTile
-                        id="headpiece:none"
-                        recipe={withAvatarHeadpiece(draft, undefined)}
-                        selected={draft.assetVersion !== 3}
-                        label={t('profile.avatar.part.none')}
-                        onSelect={() => update(withAvatarHeadpiece(draft, undefined))}
-                      />
-                      {(parts ?? []).map((entry) => (
-                        <OptionTile
-                          key={entry.id}
-                          id={`headpiece:${entry.id}`}
-                          recipe={withAvatarHeadpiece(draft, entry.part)}
-                          selected={
-                            draft.assetVersion === 3 && customPartId(draft.headpiece) === entry.id
-                          }
-                          label={`${entry.name || t('profile.avatar.part.untitled')} · ${entry.origins
-                            .map((origin) =>
-                              t(
-                                `profile.avatar.part.origin.${origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn'}`,
-                              ),
-                            )
-                            .join(', ')}`}
-                          onSelect={() => update(withAvatarHeadpiece(draft, entry.part))}
-                        />
-                      ))}
-                      {parts !== undefined && parts.length === 0 ? (
-                        <p className="bh-avatar-hidden-note">
-                          {t('profile.avatar.part.libraryEmpty')}
-                        </p>
-                      ) : null}
-                    </>
-                  )}
+                  {drawing?.slot === 'headpiece' ? partEditor() : partActions('headpiece', draft)}
                 </div>
               ) : category === 'presets' ? (
                 <div
@@ -679,14 +752,21 @@ export function AvatarAppearanceEditor({
                       {t('profile.avatar.hiddenNote')}
                     </p>
                   ) : null}
-                  {(spec.parts[category] ?? []).map((value) => (
+                  {pieceSlot && drawing?.slot === pieceSlot ? partEditor() : null}
+                  {pieceSlot && drawing?.slot !== pieceSlot && draft.family === 'illustrated'
+                    ? partActions(pieceSlot, draft)
+                    : null}
+                  {(drawing && pieceSlot && drawing.slot === pieceSlot
+                    ? []
+                    : (spec.parts[category] ?? [])
+                  ).map((value) => (
                     <OptionTile
                       key={value}
                       id={`${category}:${value}`}
-                      recipe={withPart(draft, category, value)}
-                      selected={(fields[category] ?? 'none') === value}
+                      recipe={builtIn(category, value)}
+                      selected={(fields[category] ?? 'none') === value && !pieceWorn}
                       label={t(spec.option(category, value))}
-                      onSelect={() => set(category, value)}
+                      onSelect={() => update(builtIn(category, value))}
                     />
                   ))}
                 </div>

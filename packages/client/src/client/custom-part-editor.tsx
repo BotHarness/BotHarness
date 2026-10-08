@@ -10,7 +10,9 @@ import {
   paintPartLayer,
   partLayer,
   partToneColor,
-  withAvatarHeadpiece,
+  withAvatarCustomPart,
+  isHairPartSlot,
+  type PartSlot,
   type IllustratedAvatarRecipe,
   type PartColor,
   type PartInk,
@@ -24,8 +26,6 @@ type Key = Parameters<BotHarnessTranslate>[0];
 type Tool = 'pencil' | 'eraser' | 'fill';
 type Layers = Record<PartLayerName, PartLayer>;
 
-const SLOT = 'headpiece';
-const { width: W, height: H } = PART_SLOTS[SLOT];
 const FIXED_COLORS: readonly PartColor[] = [
   '#efb93f',
   '#f4f1ec',
@@ -46,6 +46,9 @@ function inkColor(recipe: IllustratedAvatarRecipe, ink: PartInk): string {
 }
 
 export function CustomPartEditor({
+  slot = 'headpiece',
+  note,
+  backdrop: shownBehind,
   recipe,
   initial,
   onChange,
@@ -53,6 +56,9 @@ export function CustomPartEditor({
   onCancel,
   t,
 }: {
+  slot?: PartSlot | undefined;
+  note?: string | undefined;
+  backdrop?: IllustratedAvatarRecipe | undefined;
   recipe: IllustratedAvatarRecipe;
   initial?: PixelCustomPart | undefined;
   onChange(part: PixelCustomPart): void;
@@ -60,9 +66,11 @@ export function CustomPartEditor({
   onCancel(): void;
   t: BotHarnessTranslate;
 }): ReactElement {
+  const { width: W, height: H } = PART_SLOTS[slot];
+  const hair = isHairPartSlot(slot);
   const [layers, setLayers] = useState<Layers>(() => ({
-    front: initial ? partLayer(SLOT, initial.front) : emptyPartLayer(SLOT),
-    back: initial ? partLayer(SLOT, initial.back) : emptyPartLayer(SLOT),
+    front: initial ? partLayer(slot, initial.front) : emptyPartLayer(slot),
+    back: initial ? partLayer(slot, initial.back) : emptyPartLayer(slot),
   }));
   const [past, setPast] = useState<Layers[]>([]);
   const [future, setFuture] = useState<Layers[]>([]);
@@ -75,23 +83,23 @@ export function CustomPartEditor({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const drawing = useRef<Layers | undefined>(undefined);
-  const bare = useMemo(() => withAvatarHeadpiece(recipe, undefined), [recipe]);
-  const part = useMemo(() => createCustomPart(SLOT, layers), [layers]);
-  const wearing = useMemo(() => withAvatarHeadpiece(recipe, part), [recipe, part]);
-  const backdrop = useMemo(() => avatarSvg(bare), [bare]);
+  const bare = useMemo(() => withAvatarCustomPart(recipe, slot, undefined), [recipe]);
+  const part = useMemo(() => createCustomPart(slot, layers), [layers]);
+  const wearing = useMemo(() => withAvatarCustomPart(recipe, slot, part), [recipe, part]);
+  const backdrop = useMemo(() => avatarSvg(shownBehind ?? bare), [shownBehind, bare]);
   const preview = useMemo(() => avatarSvg(wearing), [wearing]);
   const empty = part.front.length === 0 && part.back.length === 0;
 
   const commit = (next: Layers) => {
     setLayers(next);
-    onChange(createCustomPart(SLOT, next));
+    onChange(createCustomPart(slot, next));
   };
   const applyAt = (base: Layers, x: number, y: number): Layers => {
     const value = tool === 'eraser' ? null : ink;
     const target =
       tool === 'fill'
-        ? fillPartLayer(SLOT, base[layer], x, y, value, mirror)
-        : paintPartLayer(SLOT, base[layer], [[x, y]], value, mirror);
+        ? fillPartLayer(slot, base[layer], x, y, value, mirror)
+        : paintPartLayer(slot, base[layer], [[x, y]], value, mirror);
     return { ...base, [layer]: target };
   };
   const start = (x: number, y: number) => {
@@ -189,7 +197,7 @@ export function CustomPartEditor({
           {t('profile.avatar.part.mirror')}
         </button>
         <span className="bh-part-divider" aria-hidden="true" />
-        {(['front', 'back'] as const).map((value) => (
+        {(hair ? [] : (['front', 'back'] as const)).map((value) => (
           <button
             key={value}
             type="button"
@@ -286,6 +294,11 @@ export function CustomPartEditor({
           </div>
         </div>
       </div>
+      {note ? (
+        <p className="bh-avatar-hidden-note" data-part-note>
+          {note}
+        </p>
+      ) : null}
       <label className="bh-part-name">
         <span>{t('profile.avatar.part.name')}</span>
         <input
