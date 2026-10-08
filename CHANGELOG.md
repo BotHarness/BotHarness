@@ -9,7 +9,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Window Companions recover a bounded set of unplayed eligible replies after a brief same-Host disconnect, preserve reading progress and pause presentation while the page is hidden. Reopening a source starts with future replies; first selection and Client/Host restart never replay history ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
+- Window Companions recover a bounded set of unplayed eligible replies after a brief same-Host disconnect, retry temporarily closed streams, preserve reading progress and pause presentation while the page is hidden. Reopening a source starts with future replies; first selection and Client/Host restart never replay history ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
 
 - Window Companions can independently play Group replies and choose own-DM, shared-Channel or all-Bot-Channel scope, including Bot–Bot DMs with both participants named. Cards identify the original Channel and respect its existing read access; changing sources or scope removes only newly ineligible cards, preserves eligible reading and queued messages, and starts newly enabled sources with future committed Bot text, without marking messages read ([#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)).
 
