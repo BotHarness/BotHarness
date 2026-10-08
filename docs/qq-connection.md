@@ -108,3 +108,5 @@ The development Provider candidate for [#1154](https://github.com/BotHarness/Bot
 The request carries no passive source message or event ID. The final native QQ API enforces the app's current permission, group membership and quota; an online receiver alone does not establish eligibility. Quota and permission refusals remain failed attempts. A lost or invalid receipt remains **unknown**, including after restart; the same request is never automatically resent. Native acceptance does not establish Human delivery or reading.
 
 This candidate does not yet qualify general QQ proactive eligibility, the shared reachable-conversation picker or complete delayed-task delivery. Those remain tracked by #1154 and shared #1115. Expired source replies still do not switch to proactive posting automatically.
+
+On 2026-10-09 (JST), the authorized QA app reached the native group POST through this checked Profile/Outbox path and received HTTP 400 with QQ code `40034105` (no proactive-message permission). The failed result is retained without a native receipt or automatic retry. This verifies the refusal path for that app/group; successful proactive delivery remains unqualified.
