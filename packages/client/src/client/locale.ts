@@ -51,9 +51,11 @@ export const zh = {
   'onboarding.modelTitle': '选择模型并发送',
   'onboarding.chooseModel': '选择模型后发送',
   'onboarding.model': '模型',
-  'onboarding.modelHint': '沿用已有模型，或选择其他服务商。Key 通过现有模型设置管理。',
+  'onboarding.requestLabel': '你的问题',
+  'onboarding.providerSettingsHint': '管理服务商、Key 和可用模型。',
+  'onboarding.modelHint': '搜索模型或服务商，选择本次对话使用的模型。',
   'onboarding.needsKey': '需要配置 Key',
-  'onboarding.keyHint': '先打开模型设置配置服务商，再回来刷新模型列表。不会发送隐藏的测试请求。',
+  'onboarding.keyHint': '配置服务商和 Key 后，返回这里刷新模型列表。',
   'onboarding.refreshModels': '刷新模型列表',
   'onboarding.globalCheckbox': '同时设为本 Profile 的默认模型',
   'onboarding.globalHint':
@@ -2292,11 +2294,11 @@ export const en = {
   'onboarding.modelTitle': 'Choose a model and send',
   'onboarding.chooseModel': 'Choose model and send',
   'onboarding.model': 'Model',
-  'onboarding.modelHint':
-    'Reuse your model or choose another provider. Manage keys in the existing model settings.',
+  'onboarding.requestLabel': 'Your question',
+  'onboarding.providerSettingsHint': 'Manage providers, keys and available models.',
+  'onboarding.modelHint': 'Search by model or provider to choose a model for this conversation.',
   'onboarding.needsKey': 'Key required',
-  'onboarding.keyHint':
-    'Configure a provider in model settings, then return and refresh this list. No hidden test request is sent.',
+  'onboarding.keyHint': 'Configure a provider and key, then return and refresh the model list.',
   'onboarding.refreshModels': 'Refresh model list',
   'onboarding.globalCheckbox': 'Also use as this Profile’s default model',
   'onboarding.globalHint':

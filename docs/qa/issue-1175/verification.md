@@ -17,7 +17,7 @@ The integrated generation-69 Host was also started with a new isolated Profile. 
 
 ## Automated checks
 
-- After integration with main, final Client suite: **946 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
+- After integration with main, final Client suite: **947 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
 - Before integration with main, related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output. After integration, the combined run including Content Purge was **37 passed, 5 failed**: four onboarding timeouts and one Content Purge filesystem `fsync` EPERM. The isolated final core rerun then passed **23/23** with one worker and a 60-second per-test limit; this does not make the default-limit combined run green.
 - The final recovery regression commits a Human message before losing the transport response, refreshes canonical history and tries to continue the old draft: only the original message remains. Draft ownership transfers to the normal message chain when its message ID is allocated. A send stopped before allocation preserves the draft; a failed readiness lookup preserves text and displays an error.
 - Typecheck, lint (existing warnings), format check, build, bilingual release-ledger checks, ADR uniqueness and `git diff --check` passed.
@@ -26,7 +26,7 @@ The integrated generation-69 Host was also started with a new isolated Profile. 
 
 ## Visual evidence
 
-All committed images are unmodified captures from the real DSH Client, Chinese locale, **1559 × 865** viewport. The before images use the separate baseline checkout. The absence state is the predecessor for the new welcome and confirmation views. The dark welcome capture includes a retained unsent question; this is labelled rather than presented as identical draft state to the baseline.
+The original feature images below are unmodified captures from the real DSH Client, Chinese locale, **1559 × 865** viewport. The before images use the separate baseline checkout. The absence state is the predecessor for the new welcome and confirmation views. The dark welcome capture includes a retained unsent question; this is labelled rather than presented as identical draft state to the baseline.
 
 | State                                                   | Evidence                                                  |
 | ------------------------------------------------------- | --------------------------------------------------------- |
@@ -40,6 +40,27 @@ All committed images are unmodified captures from the real DSH Client, Chinese l
 | Real reply after manual original-message retry, dark    | [Reply and completion](onboarding-retry-success-dark.jpg) |
 
 Browser automation later intermittently lost its debugger connection and timed out in DOM and screenshot operations, including fresh-tab recovery. The final inheritance Profile and global-default Settings views, final cross-client/skip UI walkthrough and a separate existing-Bot Client walkthrough were not captured. Their Host/controller behavior is covered above, but they remain explicit Human review items before merge.
+
+## Welcome/model UI feedback verification
+
+After the spacing/card feedback, the same generation-69 Profile and canonical conversation were reviewed in the real Chrome Client. The welcome used a 12px grid gap plus paragraph margins of 13px + 13px and 12px + 12px, adding 50px of unintended spacing. The new scoped paragraphs have zero margins and 20px line height; the measured welcome body is 299.33px high, previously 328.94px, including the new full-row model card.
+
+The welcome and provider entry use the existing Channel sidebar card components. Bot model editing, onboarding confirmation and global-default editing share the same searchable ModelPicker and native reasoning segmented control. Provider/Key editing opens native Models settings; its internal editor is not copied or imported through an unsupported interface.
+
+The live walkthrough verified provider-name search, keyboard model selection, High reasoning selection, Escape closing with focus restored to the model card, default-on global checkbox and the retained unsent request. Opening native Models showed the configured DeepSeek provider and its existing edit/add controls. Opening global-default settings showed the same shared model controls with Save global default, without a send action. No additional Human message was submitted during these UI checks. Theme was restored to Follow system after capture.
+
+The added integration regression exercises provider search, model-dependent reasoning controls, checkbox changes and explicit final confirmation. Final Client regression: **947 passed**; typecheck, lint, format and build passed.
+
+New images are unmodified Chinese Client captures at **1559 × 920**. Each pair uses the same Profile and conversation; the unsent-question header can differ because opening the model dialog creates a local draft. Original feature screenshots above retain their earlier viewport and provenance.
+
+| View                      | Before                           | After                          |
+| ------------------------- | -------------------------------- | ------------------------------ |
+| Welcome, light            | [Before](card-before-light.jpg)  | [After](card-after-light.jpg)  |
+| Welcome, dark             | [Before](card-before-dark.jpg)   | [After](card-after-dark.jpg)   |
+| Model confirmation, light | [Before](model-before-light.jpg) | [After](model-after-light.jpg) |
+| Model confirmation, dark  | [Before](model-before-dark.jpg)  | [After](model-after-dark.jpg)  |
+
+Additional current captures: [native provider settings](provider-settings-after.jpg), [global default model](global-model-after.jpg). These resolve the Settings capture limitation above for model/provider presentation; fixed/inherited Bot controls, cross-client/skip walkthrough and actual OS reduced-motion switching remain Human review items.
 
 ## Runnable review
 

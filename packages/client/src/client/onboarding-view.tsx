@@ -3,7 +3,8 @@ import { Button, Checkbox } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import type { ModelCatalogEntryView, ModelRouteView } from './bridge.js';
 import { errorMessage } from './bridge.js';
-import { Combobox } from './combobox.js';
+import { ModelPicker } from './model-picker.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { Modal } from './modal.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -99,76 +100,64 @@ export function OnboardingModelDialog({
         </Button>
       }
     >
-      <div ref={mount} className="bh-question-card">
-        {request ? <blockquote>{request}</blockquote> : null}
-        <p className="bh-note">{t('onboarding.modelHint')}</p>
-        <Combobox
-          value={route ? JSON.stringify([route.provider, route.model]) : ''}
+      <div ref={mount} className="bh-root bh-onboarding-model-form">
+        {request ? (
+          <div className="bh-onboarding-request">
+            <span className="bh-note">{t('onboarding.requestLabel')}</span>
+            <p>{request}</p>
+          </div>
+        ) : null}
+        <ModelPicker
+          title={t('onboarding.model')}
+          hint={t(globalOnly ? 'onboarding.defaultDescription' : 'onboarding.modelHint')}
+          choice={{
+            key: route ? JSON.stringify([route.provider, route.model]) : '',
+            effort: route?.reasoningEffort ?? '',
+          }}
+          catalog={models}
           options={models.map((model) => ({
             value: JSON.stringify([model.provider, model.model]),
             label: model.modelName,
             hint: model.providerName + (model.credential ? ' · ' + t('onboarding.needsKey') : ''),
           }))}
-          onSelect={(key) => {
+          onChange={({ key, effort }) => {
             const [provider, model] = JSON.parse(key) as [string, string];
-            setRoute({ provider, model });
+            setRoute({ provider, model, ...(effort ? { reasoningEffort: effort } : {}) });
           }}
-          label={t('onboarding.model')}
-          toggleLabel={t('modelPreset.showModels')}
-          placeholder={t('modelPreset.chooseModel')}
-          emptyLabel={t('modelPreset.noMatch')}
           disabled={busy}
+          t={t}
         />
-        {selected && selected.efforts.length > 0 ? (
-          <Combobox
-            value={route?.reasoningEffort ?? ''}
-            options={[
-              { value: '', label: t('modelPreset.providerDefault') },
-              ...selected.efforts.map((effort) => ({ value: effort.id, label: effort.name })),
-            ]}
-            onSelect={(reasoningEffort) =>
-              setRoute((current) =>
-                current
-                  ? {
-                      provider: current.provider,
-                      model: current.model,
-                      ...(reasoningEffort ? { reasoningEffort } : {}),
-                    }
-                  : current,
-              )
-            }
-            label={t('modelPreset.effort')}
-            toggleLabel={t('modelPreset.effort')}
-            placeholder={t('modelPreset.providerDefault')}
-            emptyLabel={t('modelPreset.noMatch')}
-            disabled={busy}
-          />
-        ) : null}
         {!loaded ? <p role="status">{t('modelPreset.loading')}</p> : null}
-        {selected?.credential || models.length === 0 ? <p>{t('onboarding.keyHint')}</p> : null}
-        <div className="bh-onboarding-actions">
-          <Button
-            variant="outline"
+        <SidebarCardList label={t('failure.openModels')}>
+          <SidebarCardRow
+            icon="settings"
+            title={t('failure.openModels')}
+            meta={
+              selected?.credential || (loaded && models.length === 0)
+                ? t('onboarding.keyHint')
+                : t('onboarding.providerSettingsHint')
+            }
+            disabled={busy}
             onClick={() => {
               onClose();
               openModelsSettings();
             }}
-          >
-            {t('failure.openModels')}
-          </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void load()}>
-            {t('onboarding.refreshModels')}
-          </Button>
-        </div>
-        {!globalOnly ? (
-          <Checkbox
-            checked={globalDefault}
-            onChange={setGlobalDefault}
-            label={t('onboarding.globalCheckbox')}
-            disabled={busy}
           />
-        ) : null}
-        <p className="bh-note">{t('onboarding.globalHint')}</p>
+        </SidebarCardList>
+        <Button variant="ghost" disabled={busy} onClick={() => void load()}>
+          {t('onboarding.refreshModels')}
+        </Button>
+        <div className="bh-onboarding-model-scope">
+          {!globalOnly ? (
+            <Checkbox
+              checked={globalDefault}
+              onChange={setGlobalDefault}
+              label={t('onboarding.globalCheckbox')}
+              disabled={busy}
+            />
+          ) : null}
+          <p className="bh-note">{t('onboarding.globalHint')}</p>
+        </div>
         {error ? (
           <p role="alert" className="bh-error">
             {error}
@@ -200,8 +189,15 @@ export function OnboardingWelcome({
     ])
       .then(([catalog, plan]) => {
         const route = plan?.plan?.orchestrator ?? catalog.default;
+        const model = catalog.models.find(
+          (entry) => entry.provider === route?.provider && entry.model === route.model,
+        );
         if (active)
-          setModelLabel(route ? `${route.provider} / ${route.model}` : t('modelPreset.noPlan'));
+          setModelLabel(
+            route
+              ? `${model?.modelName ?? route.model} · ${model?.providerName ?? route.provider}`
+              : t('modelPreset.noPlan'),
+          );
       })
       .catch(() => {});
     return () => {
@@ -209,10 +205,12 @@ export function OnboardingWelcome({
     };
   }, [actions, channelId, state.modelOpen]);
   return (
-    <div ref={mount} className="bh-question-card" data-onboarding-welcome>
+    <div ref={mount} className="bh-onboarding-welcome" data-onboarding-welcome>
       <div className="bh-note">{t('onboarding.productMessage')}</div>
-      <strong>{t('onboarding.welcome')}</strong>
-      <p className="bh-question-prompt">{t('onboarding.prompt')}</p>
+      <div className="bh-onboarding-welcome-heading">
+        <strong>{t('onboarding.welcome')}</strong>
+        <p>{t('onboarding.prompt')}</p>
+      </div>
       <Button
         variant="outline"
         disabled={state.busy || store.getSnapshot().conversation.sending}
@@ -221,19 +219,19 @@ export function OnboardingWelcome({
         {t('onboarding.firstRequest')}
       </Button>
       <p className="bh-note">{t('onboarding.freeform')}</p>
-      <div className="bh-onboarding-actions">
-        <span className="bh-note">{modelLabel}</span>
-        <Button
-          variant="ghost"
+      <SidebarCardList label={t('onboarding.model')}>
+        <SidebarCardRow
+          icon="bot"
+          title={t('onboarding.chooseModel')}
+          meta={modelLabel || t('modelPreset.loading')}
           disabled={state.busy}
+          dialog
           onClick={() => {
             const slug = store.getSnapshot().conversation.channel?.botSlug;
             if (slug) controller.chooseModel(channelId, slug, t('onboarding.firstRequest'));
           }}
-        >
-          {t('onboarding.chooseModel')}
-        </Button>
-      </div>
+        />
+      </SidebarCardList>
       <Button variant="ghost" onClick={requestBotCreation}>
         {t('roster.menu.createBot')}
       </Button>

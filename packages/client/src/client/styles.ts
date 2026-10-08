@@ -95,6 +95,18 @@ export const CSS =
 .bh-onboarding { padding: 8px 16px; border-bottom: 1px solid var(--bh-onboarding-border); }
 .bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .bh-onboarding-actions > span { flex: 1; }
+.bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; }
+.bh-onboarding-welcome-heading { display: grid; gap: 4px; }
+.bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
+.bh-onboarding-welcome > button { justify-self: start; }
+.bh-onboarding-welcome .bh-card-title { white-space: normal; }
+.bh-onboarding-model-form > button { justify-self: start; }
+.bh-onboarding-model-form .bh-card-title { white-space: normal; }
+.bh-onboarding-model-form { display: grid; gap: 16px; min-width: 0; line-height: 20px; }
+.bh-onboarding-request { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--bh-onboarding-border); border-radius: 10px; }
+.bh-onboarding-request p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bh-onboarding-model-scope { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--bh-onboarding-border); }
+
 .bh-region {
   display: flex;
   flex-direction: column;
