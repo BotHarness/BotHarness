@@ -9,6 +9,8 @@
 
 ### Added
 
+- 已保存的 QQ 群发送目标可复用现有授权发送流程，发送前复核权限并保存原生回执；配额或权限拒绝保留为失败，结果不确定时保留记录且不自动重发（[#1154](https://github.com/BotHarness/BotHarness/issues/1154)）。
+
 - 新增 QQ 引用语音接收，保留原生平台转写来源，支持原音下载及 Channel 按需有界 SILK 播放；一个维护版运行应用已通过真实语音 → 模型 → 原群文字答复、Human 确认及实际 Client 键盘播放验收（[#1159](https://github.com/BotHarness/DeepSeekBot/issues/1159)，[指南](docs/qq-connection.md)）。
 
 - 新增 QQ 群文件候选路径，提供直接或显式原生引用文件关联、受授权的 Channel 下载、独立工作副本处理及受检原群结果文件回复；一个已授权应用已通过真实引用 CSV 处理及 Human 结果下载验收（[#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158)、[指南](docs/qq-connection.md)）。
