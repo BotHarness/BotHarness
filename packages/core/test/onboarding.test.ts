@@ -284,7 +284,7 @@ it('upgrades main generation 70 without changing qualified defaults or purge fen
   const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   try {
     expect(upgraded.mode).toBe('ready');
-    expect(upgraded.generation).toBe(71);
+    expect(upgraded.generation).toBe(BOT_HARNESS_SCHEMA_PLAN.targetGeneration);
     const port = attachOperationalModule(upgraded, 'onboarding-upgrade-check');
     expect(
       port.read((db) =>

@@ -334,6 +334,32 @@ it('rejects damaged/hash-missing/unsafe/newer packages and cancelled or racing r
     code: 'package-invalid',
   });
   const metadata = parsed.entries.find((entry) => entry.path === 'manifest.json')!;
+  const incompatible = {
+    ...parsed.manifest,
+    dependencies: [
+      ...parsed.manifest.dependencies,
+      {
+        kind: 'runtime',
+        scope: 'required-extension',
+        reference: 'unavailable@1',
+        required: true,
+        contract: 'unknown/1',
+      },
+    ],
+  };
+  await expect(
+    restoreProfileBackup(
+      writeZip(
+        parsed.entries.map((entry) =>
+          entry === metadata
+            ? { ...entry, data: Buffer.from(JSON.stringify(incompatible)) }
+            : entry,
+        ),
+      ),
+      destination,
+    ),
+  ).rejects.toMatchObject({ code: 'dependency-incompatible' });
+  expect(existsSync(destination)).toBe(false);
   const future = { ...parsed.manifest, schemaGeneration: 9999 };
   await expect(
     restoreProfileBackup(

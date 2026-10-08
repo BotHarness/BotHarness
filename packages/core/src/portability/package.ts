@@ -145,6 +145,22 @@ export function inspectProfileBackup(archive: Buffer): {
     const manifest = manifestSchema.parse(JSON.parse(metadata.data.toString('utf8')));
     if (manifest.schemaGeneration > BOT_HARNESS_SCHEMA_PLAN.targetGeneration)
       throw new ProfileBackupError('upgrade-required', 'Backup requires a newer BotHarness schema');
+    const contracts = {
+      runtime: 'botharness-core/1',
+      model: 'model-route/1',
+      provider: 'messaging-binding/1',
+      workspace: 'workspace-grant/1',
+    };
+    for (const dependency of manifest.dependencies)
+      if (
+        dependency.required &&
+        (dependency.contract !== contracts[dependency.kind] ||
+          (dependency.kind === 'runtime' && dependency.reference !== 'dsh@0.2.0-rc.1'))
+      )
+        throw new ProfileBackupError(
+          'dependency-incompatible',
+          'Backup requires an unsupported runtime dependency contract',
+        );
     const names = new Set<string>();
     let bytes = 0;
     for (const file of manifest.files) {
