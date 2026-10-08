@@ -190,7 +190,8 @@ export function ExternalIdentityList({
         />
       </SidebarCardList>
       <Modal
-        className="bh-sidebar-modal"
+        className="bh-sidebar-modal bh-external-identity-modal"
+        contentClassName="bh-external-identity-content"
         open={mode !== undefined}
         onClose={close}
         title={t(
