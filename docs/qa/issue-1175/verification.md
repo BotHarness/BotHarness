@@ -13,10 +13,12 @@ Issue: [#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175). Parent: [
 - Starting the tutorial focuses its close button; Escape removes the highlight, persists paused progress and restores focus to the welcome control. Reduced-motion behavior is covered by the existing internal-tour regression with reduced motion enabled. Actual OS preference switching was not exercised.
 - Final Client presentation requires a local explicit Start/Continue/Restart action even if another Client reports an active tutorial. Skip remains available after starting. Automated coverage verifies this shared-progress/local-presentation boundary.
 
+The integrated generation-69 Host was also started with a new isolated Profile. Public bridge verification confirmed exactly one Bot and one welcome before sending, effective native global selection and Bot inheritance. The real DeepSeek reply was `引导验证通过。`; the DM retained exactly one Human request, one welcome and one model reply, and Profile completion became true. This final integration proof uses the real Host/model APIs; the earlier screenshots and Client walkthrough were captured before the schema-number integration.
+
 ## Automated checks
 
-- Final Client suite: **934 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
-- Final related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output.
+- After integration with main, final Client suite: **943 passed, 0 failed** (`pnpm exec vitest run packages/client/test --maxWorkers=2`).
+- Before integration with main, related core run: **23 passed, 0 failed**, covering onboarding, credential readiness, plugin registration, credential health and PersonaBot output. After integration, the combined run including Content Purge was **37 passed, 5 failed**: four onboarding timeouts and one Content Purge filesystem `fsync` EPERM. An isolated core rerun is recorded in the PR; these failures are not presented as a green final core suite.
 - Typecheck, lint (existing warnings), format check, build, bilingual release-ledger checks, ADR uniqueness and `git diff --check` passed.
 - The earlier complete Windows run was **2653 passed, 549 failed, 29 pending**. It included read-only filesystem/SQLite cleanup EPERM failures and resource/time-limit failures as well as regressions subsequently repaired and rerun above. It is not a passing full-suite result, and was not repeated after the last corrections.
 - A baseline spot-check at `895153357ba11c1729a8f9df2c3e5093401ab968` produced **16 passed, 13 failed** in `bridge-rpc`, `channel-model-read`, `dev-model` and browser `container-driver`. This establishes representative pre-existing Windows failures, not that every failure in the full run is pre-existing. Linux CI must still verify the full repository.
@@ -49,4 +51,4 @@ Launch an isolated Profile with `node scripts/dev-instance.mjs --home <isolated-
 5. Start, close/Escape, continue and skip the guide; re-enter from another Client and verify no automatic highlight. Check keyboard focus and the OS reduced-motion preference.
 6. With a QA-only invalid credential, send once, repair it and explicitly retry the original failure card. Verify one Human message. Replay after a completed or side-effecting request must be refused.
 
-Schema generation 69 is forward-only. Keep a pre-upgrade backup; a generation-68 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery. Do not expand news/schedules/optional Memory/IM guidance until Human feedback on this slice.
+Schema generation 69 is forward-only. Keep a pre-upgrade backup; a generation-68 binary cannot safely reopen the upgraded Profile. Restore that backup or use a compatible binary for recovery, retaining the independent Purge Ledger and enforcing its monotonic facts. Do not expand news/schedules/optional Memory/IM guidance until Human feedback on this slice.

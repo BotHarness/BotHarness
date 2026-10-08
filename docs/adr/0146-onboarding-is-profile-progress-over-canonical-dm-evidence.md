@@ -24,4 +24,4 @@ DSH seams remain Service Definition/Provider/Consumer and Typert/API Gateway for
 
 ## Consequences
 
-Generation 69 is forward-only; a binary supporting only generation 68 cannot reopen this Profile safely. Rollback requires a compatible binary or the pre-upgrade backup. The receipt can be recomputed from canonical evidence after a missed notification, while unsent text and companion preferences remain isolated to the Client. This first tracer has one simple welcome request; news, schedules and optional guided Memory/IM breadth require Human feedback before expansion.
+Generation 69 is forward-only; a binary supporting only generation 68 cannot reopen this Profile safely. Rollback requires a compatible binary or the pre-upgrade backup, while retaining the independent Purge Ledger and enforcing its monotonic facts as required by generation 68. The receipt can be recomputed from canonical evidence after a missed notification, while unsent text and companion preferences remain isolated to the Client. This first tracer has one simple welcome request; news, schedules and optional guided Memory/IM breadth require Human feedback before expansion.
