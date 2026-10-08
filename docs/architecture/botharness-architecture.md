@@ -50,8 +50,14 @@ continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交�
 后续[隔离 RC2 实验](../research/1220-native-timed-question-experiment.md) 验证原生 timed
 question 可先真实返回 pending，问题保持可回答；同一 Session 可回复无关消息，再通过
 带原 call 身份的 qualified Inbox 输入处理稍后答案。这是 Tool 已结束、问题仍持续的机制，
-不是挂起未结束调用。当前应用问题卡片会在原生 deadline 时标为取消，尚未适配 native
-Projection／late-answer；生产依赖仍为 RC1。权限审批、容量释放／重获和同群隐私验收
+不是挂起未结束调用。[DM 卡片适配](../research/1220-timed-question-card-e2e.md) 以原 Session／call
+关联卡片：只有 `ASK_TIMED_OUT` 结束前台等待，卡片仍查询原生 Projection；稍后答案通过
+原生 `userQuestions.answer` 提交，显示已提交，直到原生接收后才写入 Channel 回答记录。
+稍后提交进入既有 per-Bot Runtime 队列，为同一 live Session 建立新的 application run，保留
+原 Source Event 上下文并重验当前归属、DM 与源内容 fence；run 持续到原生 idle，让模型能使用
+既有 Channel 工具，不追加普通输入或 Inbox Admission。
+进程内映射仅关联已存在的 live Agent／卡片，不是第二个问题权威，也不实现冷恢复。
+生产依赖仍为 RC1，timed 模式仅在显式配置的隔离 RC2 Profile 验证。权限审批、容量释放／重获和同群隐私验收
 继续阻塞，不从这次 DM 能力实验推断完成。
 
 ## 1 · 系统上下文

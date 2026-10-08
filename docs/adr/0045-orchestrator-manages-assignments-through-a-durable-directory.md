@@ -133,8 +133,17 @@ The subsequent [isolated RC2 experiment](../research/1220-native-timed-question-
 qualifies the native experimental timed-question contract: the original Tool finishes
 with pending while its question remains answerable; a real unrelated model reply and a
 qualified original-call late answer occur in the same Session. This deliberately differs
-from preserving an open Tool Promise. The current application question card cancels at
-the native deadline and has not been adapted to the native Projection/late-answer seam.
+from preserving an open Tool Promise. The original baseline's application card cancellation
+is retained as negative evidence. The subsequent [DM card tracer](../research/1220-timed-question-card-e2e.md)
+correlates the original live Agent/Session/call, distinguishes the native foreground deadline
+from cancellation, and routes late answers through the native Service. The native Projection
+remains authority; a queued submission is not a settled answer. A Channel answer record is
+published only after native settlement. Late delivery enters the existing per-Bot runtime
+queue as a fresh application run for the same live Session, retaining the original Source
+Event context and rechecking current ownership, DM and source-content fences; that run remains
+available until native idle so the model can use its Channel tools. It adds no ordinary input
+or Inbox Admission. The process-local correlation does not recover a
+cold Agent or add a second executor, Inbox or decision store.
 Permission approval and bounded running-capacity qualification remain unresolved. The
 production runtime stays on RC1 and all downstream gates remain blocked.
 

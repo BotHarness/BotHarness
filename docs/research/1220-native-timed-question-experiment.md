@@ -1,5 +1,9 @@
 # #1220: isolated native timed-question qualification
 
+This report retains the original native-only baseline, including its cancelled application
+card. The subsequent [real browser card E2E](1220-timed-question-card-e2e.md) qualifies the
+application adapter on a later fixed application revision; it does not rewrite this baseline.
+
 Verified on 2026-10-09 (Asia/Tokyo), after merging [#1223](https://github.com/BotHarness/DeepSeekBot/pull/1223).
 Application baseline: `e1c1b43c4397879888eacd7210fcfe2cb44d3fbd`.
 Native runtime: DSH `0.2.0-rc.2`, upstream

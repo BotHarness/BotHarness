@@ -1,5 +1,8 @@
 # #1220: native continuation frontier after #1223
 
+Follow-up: the [DM card tracer and real browser E2E](1220-timed-question-card-e2e.md) adapt the
+verified native question seam. Permission, capacity, cold recovery and Group privacy remain open.
+
 Investigated on 2026-10-09, Asia/Tokyo. This is primary-source research; the
 subsequent [isolated runtime qualification](1220-native-timed-question-experiment.md)
 records the tested subset and remaining integration gaps. It is not a production design

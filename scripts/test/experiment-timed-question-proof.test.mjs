@@ -14,6 +14,37 @@ test('revalidates the retained real native timed-question evidence', () => {
   const proof = load();
   assert.deepEqual(checkTimedQuestion(proof), proof.verdict);
 });
+
+const loadCard = () =>
+  JSON.parse(
+    readFileSync(
+      new URL('../../docs/evidence/issue-1220/timed-question-card.json', import.meta.url),
+      'utf8',
+    ),
+  );
+test('revalidates the real browser card answer after the ordinary turn ended', () => {
+  const proof = loadCard();
+  assert.deepEqual(checkTimedQuestion(proof), proof.verdict);
+});
+test('rejects card success before ordinary idle or before native admission', () => {
+  const busy = loadCard();
+  busy.unanswered.events.push({ type: 'turn/start', seq: 999, time: 999, data: { turn: 999 } });
+  assert.throws(() => checkTimedQuestion(busy), /ordinary turn fully ended/u);
+  const early = loadCard();
+  early.messages.find((row) => row.userQuestionResolution?.state === 'answered').at =
+    early.verdict.baseline.replyAt;
+  assert.throws(() => checkTimedQuestion(early), /settles after native admission/u);
+});
+test('rejects a cancelled card and a missing application submission', () => {
+  const cancelled = loadCard();
+  cancelled.messages.find(
+    (row) => row.userQuestionResolution?.state === 'answered',
+  ).userQuestionResolution.state = 'cancelled';
+  assert.throws(() => checkTimedQuestion(cancelled), /deadline does not cancel/u);
+  const bypassed = loadCard();
+  bypassed.card.submit.via = 'native-api';
+  assert.throws(() => checkTimedQuestion(bypassed));
+});
 test('rejects replacement Session and question reissue', () => {
   const proof = load();
   proof.after.sessionId = 'replacement';

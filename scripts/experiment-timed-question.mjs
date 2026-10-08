@@ -4,7 +4,8 @@ import { isAbsolute, relative, resolve, join } from 'node:path';
 import { exportTimedQuestionEvidence } from './experiment-timed-question-proof.mjs';
 import { assignmentProbe, installed } from './e2e-assignment-probe.mjs';
 
-const [launchPath, output] = process.argv.slice(2);
+const [launchPath, output, mode = 'native'] = process.argv.slice(2);
+assert.ok(['native', 'card'].includes(mode));
 assert.ok(
   launchPath && output,
   'Usage: node scripts/experiment-timed-question.mjs <private-launch.json> <private-evidence.json>',
@@ -21,6 +22,7 @@ const origin = new URL(launch.url).origin;
 const { rpc, nativeSnapshot, cookie } = assignmentProbe({ origin, home: launch.home });
 const qualification = JSON.parse(readFileSync(join(launch.worktree, 'qualification.json'), 'utf8'));
 const proof = {
+  integration: mode,
   applicationBaseline: qualification.applicationBaseline,
   startedAt: new Date().toISOString(),
   observations: [],
@@ -69,6 +71,18 @@ try {
   mark('scene', { bot, channelId });
   const messages = async () => (await rpc('channelMessages', { channelId })).messages;
   const send = async (body) => {
+    if (mode === 'card') {
+      await page.locator('.bh-composer-shell .bh-composer-input').click();
+      await page.keyboard.sendCharacter(body);
+      await page.waitForSelector('.bh-send-btn:not(:disabled)');
+      const submitted = page.waitForResponse((result) =>
+        result.url().endsWith('/api/botharness/channelSend'),
+      );
+      await page.click('.bh-send-btn');
+      assert.equal((await (await submitted).json()).result.ok, true);
+      mark('human-submit', { via: 'browser-composer' });
+      return;
+    }
     const result = await rpc('channelSend', {
       channelId,
       messageId: 'human-' + crypto.randomUUID(),
@@ -134,6 +148,24 @@ try {
   await page.click(`[data-channel-id="${channelId}"]`);
   await page.waitForSelector('.bh-composer-shell');
   mark('client', { consoleErrors, text: await page.$eval('body', (b) => b.innerText) });
+  mark(
+    'composer-ready',
+    await page.$$eval(
+      '.bh-composer-shell textarea,.bh-composer-shell [contenteditable],.bh-send-btn',
+      (nodes) =>
+        nodes.map((node) => ({
+          tag: node.tagName,
+          disabled: node.disabled,
+          editable: node.getAttribute('contenteditable'),
+          value: node.value,
+          rect: {
+            width: node.getBoundingClientRect().width,
+            height: node.getBoundingClientRect().height,
+          },
+        })),
+    ),
+  );
+  await page.screenshot({ path: output.replace(/\.json$/u, '-entry.png') });
   await send('Reply through channel_send with exactly BASELINE_1220. Use no other tools.');
   mark('baseline-reply', await until(() => reply('BASELINE_1220'), 'real model baseline'));
   await send(
@@ -179,7 +211,30 @@ try {
       'real unrelated model reply while question continued',
     ),
   );
+  if (mode === 'card') {
+    await until(async () => {
+      const snapshot = await nativeSnapshot(sessionId);
+      return (
+        snapshot.records
+          .filter(({ event }) => ['turn/start', 'turn/end'].includes(event?.type))
+          .at(-1)?.event.type === 'turn/end'
+      );
+    }, 'ordinary turn ended before late card answer');
+  }
   mark('native-unanswered', await nativeSnapshot(sessionId));
+  const capture = async (state) => {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(
+        (dark) => document.body.toggleAttribute('data-ds-dark-theme', dark),
+        theme === 'dark',
+      );
+      await sleep(200);
+      await page.screenshot({
+        path: join(resolve('.humanlayer/tasks/1220'), `${mode}-${state}-${theme}.png`),
+      });
+    }
+  };
+  await capture('pending');
   const answer = { answers: [{ id: 'wait-route', selected: ['Canary'] }] };
   const wrong = await rpc(
     'answer',
@@ -188,7 +243,34 @@ try {
   );
   mark('wrong-call-answer', wrong);
   assert.equal(wrong, false);
-  const accepted = await rpc('answer', { agentId: sessionId, callId, answer }, 'userQuestions');
+  let accepted;
+  if (mode === 'card') {
+    assert.equal(request.userQuestionRequest.callId, callId);
+    mark(
+      'card-status-before',
+      await rpc('userQuestionStatus', { channelId, messageId: request.id }),
+    );
+    await page.waitForSelector('.bh-question-card');
+    await page.evaluate(() =>
+      [...document.querySelectorAll('.bh-question-card button')]
+        .find((button) => button.querySelector('.bh-card-title')?.textContent?.trim() === 'Canary')
+        ?.click(),
+    );
+    const response = page.waitForResponse((result) =>
+      result.url().endsWith('/api/botharness/userQuestionAnswer'),
+    );
+    await page.evaluate(() =>
+      [...document.querySelectorAll('.bh-question-card button')]
+        .find((button) =>
+          ['Answer and continue', '回答并继续'].includes(button.textContent?.trim()),
+        )
+        ?.click(),
+    );
+    const wire = await (await response).json();
+    assert.equal(wire.result.ok, true);
+    accepted = true;
+    mark('card-submit', { via: 'visible-question-card', accepted });
+  } else accepted = await rpc('answer', { agentId: sessionId, callId, answer }, 'userQuestions');
   mark('native-late-answer', accepted);
   assert.equal(accepted, true);
   mark(
@@ -200,6 +282,18 @@ try {
   assert.equal(duplicate, false);
   mark('native-after', await nativeSnapshot(sessionId));
   mark('messages-after', await messages());
+  if (mode === 'card') {
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.bh-question-card')].some((card) =>
+        /Answered|已回答/u.test(card.textContent ?? ''),
+      ),
+    );
+    await capture('answered');
+    mark(
+      'card-status-after',
+      await rpc('userQuestionStatus', { channelId, messageId: request.id }),
+    );
+  }
   mark('client-final', { consoleErrors, text: await page.$eval('body', (b) => b.innerText) });
   mark('result', {
     sessionId,
@@ -211,6 +305,9 @@ try {
   mark('verified', exportTimedQuestionEvidence(proof).verdict);
   console.log('RC2 native timed-question qualification completed; private evidence retained.');
 } catch (error) {
+  await page
+    .screenshot({ path: output.replace(/\.json$/u, '-failure.png') })
+    .catch(() => undefined);
   mark('failure', {
     message: error.message,
     consoleErrors,

@@ -60,6 +60,7 @@ export function compactTimedQuestion(snapshot) {
           },
         ];
       if (type === 'turn/end') return [{ ...base, data: { turn: data.turn, reason: data.reason } }];
+      if (type === 'turn/start') return [{ ...base, data: { turn: data.turn } }];
       if (type === 'request/header')
         return [
           {
@@ -264,14 +265,35 @@ export function checkTimedQuestion(proof) {
     false,
     'only the declared synthetic tools executed',
   );
-  assert.ok(
-    messages.some(
+  const cancelled = messages.some(
+    (row) =>
+      row.userQuestionResolution?.requestMessageId === request.id &&
+      row.userQuestionResolution.state === 'cancelled',
+  );
+  if (proof.integration === 'card') {
+    assert.equal(
+      unanswered.events.filter((event) => ['turn/start', 'turn/end'].includes(event.type)).at(-1)
+        ?.type,
+      'turn/end',
+      'ordinary turn fully ended before card answer',
+    );
+    assert.equal(cancelled, false, 'deadline does not cancel the application card');
+    assert.equal(request.userQuestionRequest.callId, callId);
+    assert.equal(proof.card.before.status, 'pending');
+    assert.equal(proof.card.after.status, 'answered');
+    assert.deepEqual(proof.card.submit, { via: 'visible-question-card', accepted: true });
+    assert.ok(
+      proof.client.every((row) => row.consoleErrorCount === 0),
+      'actual browser has no console errors',
+    );
+    const resolution = messages.find(
       (row) =>
         row.userQuestionResolution?.requestMessageId === request.id &&
-        row.userQuestionResolution.state === 'cancelled',
-    ),
-    'retained negative application-card boundary',
-  );
+        row.userQuestionResolution.state === 'answered',
+    );
+    assert.deepEqual(resolution?.userQuestionResolution.answers, answer.answers);
+    assert.ok(Date.parse(resolution.at) >= reply.time, 'card settles after native admission');
+  } else assert.ok(cancelled, 'retained negative application-card boundary');
   return {
     sessionId: after.sessionId,
     callId,
@@ -282,7 +304,8 @@ export function checkTimedQuestion(proof) {
     pendingReply,
     unrelated,
     processed,
-    applicationCardAfterTimeout: 'cancelled',
+    applicationCardAfterTimeout: proof.integration === 'card' ? 'pending' : 'cancelled',
+    ...(proof.integration === 'card' ? { applicationCardQualified: true } : {}),
     productionQualified: false,
   };
 }
@@ -296,6 +319,16 @@ export function exportTimedQuestionEvidence(proof) {
   const observation = (kind) => proof.observations.find((row) => row.kind === kind);
   const read = (kind) => observation(kind)?.value;
   const result = {
+    integration: proof.integration ?? 'native',
+    ...(proof.integration === 'card'
+      ? {
+          card: {
+            before: read('card-status-before'),
+            after: read('card-status-after'),
+            submit: read('card-submit'),
+          },
+        }
+      : {}),
     issue: 1220,
     dsh: '0.2.0-rc.2',
     upstream: '639ed015397290b3745d163aafe02ffee4aa3f84',
