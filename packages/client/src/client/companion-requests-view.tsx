@@ -19,6 +19,12 @@ function PendingRequest({
   t: BotHarnessTranslate;
   onReleaseFocus(): void;
 }): ReactElement {
+  const companionTarget = {
+    channelId: request.channelId,
+    botSlug: request.botSlug,
+    sessionId: request.sessionId,
+    live,
+  };
   const release = useRef(onReleaseFocus);
   release.current = onReleaseFocus;
   const mounted = useMountedResource<HTMLLIElement>(
@@ -44,11 +50,8 @@ function PendingRequest({
           actions={actions}
           t={t}
           companionTarget={{
-            channelId: request.channelId,
-            botSlug: request.botSlug,
-            sessionId: request.sessionId,
+            ...companionTarget,
             callId: request.callId,
-            live,
           }}
         />
       ) : actions && request.kind === 'user-question' ? (
@@ -62,12 +65,7 @@ function PendingRequest({
           }}
           actions={actions}
           t={t}
-          companionTarget={{
-            channelId: request.channelId,
-            botSlug: request.botSlug,
-            sessionId: request.sessionId,
-            live,
-          }}
+          companionTarget={companionTarget}
         />
       ) : null}
     </li>

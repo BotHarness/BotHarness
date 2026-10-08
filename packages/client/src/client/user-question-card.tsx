@@ -5,6 +5,7 @@ import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
+import type { CompanionRequestTarget } from './companion-requests.js';
 
 export function UserQuestionCard({
   message,
@@ -17,14 +18,7 @@ export function UserQuestionCard({
   actions: BridgeActions;
   resolution?: 'answered' | 'cancelled' | undefined;
   t: BotHarnessTranslate;
-  companionTarget?:
-    | {
-        channelId: string;
-        botSlug: string;
-        sessionId: string;
-        live: boolean;
-      }
-    | undefined;
+  companionTarget?: CompanionRequestTarget | undefined;
 }): ReactElement {
   const request = message.userQuestionRequest!;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
