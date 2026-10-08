@@ -2326,7 +2326,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   aspect-ratio: 3 / 1;
   max-height: 200px;
   width: 100%;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--bh-hover);
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 .bh-profile-header-body {

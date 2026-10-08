@@ -122,7 +122,7 @@ function EditProfileModal({
       >
         <div className="bh-personabot-field">
           <label className="bh-personabot-label" htmlFor={nameId}>
-            {t('bot.name.label')}
+            {t('profile.name')}
           </label>
           <NameInput
             id={nameId}
