@@ -216,7 +216,17 @@ export function installClientObserver(win: Window & typeof globalThis): void {
   };
   const onHide = (): void => {
     record('page-hidden', 'lifecycle');
-    void flush();
+    try {
+      void win
+        .fetch('/api/botharness/client-diagnostics', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(snapshot()),
+          keepalive: true,
+        })
+        .catch(() => {});
+    } catch {}
     dispose();
   };
   win.addEventListener('pagehide', onHide);

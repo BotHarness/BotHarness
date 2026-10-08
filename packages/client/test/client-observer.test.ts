@@ -47,6 +47,30 @@ describe('early real Client diagnostic observer', () => {
       attempts: [{ state: 'shell-ready' }],
     });
   });
+  it('delivers the final closed snapshot while an earlier POST is still in flight', async () => {
+    vi.useFakeTimers();
+    const diagnostics = createClientDiagnostics();
+    const send = vi.fn((url, options) =>
+      diagnostics.fetch(new Request('http://localhost' + url, options)),
+    );
+    send.mockImplementationOnce(() => new Promise(() => {}));
+    vi.stubGlobal('fetch', send);
+    installClientObserver(window);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(send).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event('pagehide'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1]![1]).toMatchObject({ keepalive: true, credentials: 'same-origin' });
+    expect(
+      await (
+        await diagnostics.fetch(new Request('http://localhost/api/botharness/client-diagnostics'))
+      ).json(),
+    ).toMatchObject({ attempts: [{ state: 'closed' }] });
+    await vi.advanceTimersByTimeAsync(100000);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it('defers hidden-document deadlines and records real script resource failures', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));

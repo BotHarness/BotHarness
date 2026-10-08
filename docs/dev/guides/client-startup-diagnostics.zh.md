@@ -25,7 +25,7 @@ node scripts/dev-client-diagnostics.mjs --launch <private-launch.json>
 
 Host 的 application-defined collector 用原生 `webServer.tapIndex` 在第一个脚本前安装观察器，覆盖 BotHarness Client 尚未导入的阶段；监听 `error`（含资源失败）、`unhandledrejection`、`console.error` 和已知原生 warning。原 console 仍收到调用，不 `preventDefault`，不自动重载。只发送固定 code、source、attempt UUID、序号和 elapsed time；未知异常归为 `unclassified-exception`，不发送原始消息、stack、URL、Session ID、页面内容或凭据。
 
-`GET/POST /api/botharness/client-diagnostics` 使用现有 Connection Fetch 精确认证路线，不另占 `/api` interceptor；报告只是过程证据。浏览器保留开头 16 条和最近 48 条，首个失败与 shell 挂载记录独立固定并记录遗漏数；Host 保留 20 次文档 attempt，记录淘汰数。读取器默认按文档启动时间选择最新 attempt，旧后台页面迟到的报告不会覆盖新文档。合并短请求，10 秒心跳、不新增 SSE，连续四次发送失败后停止。35 秒以上的旧报告不能证明健康。普通 Profile 仅在 `BOTHARNESS_CLIENT_DIAGNOSTICS=1` 时启用；AX helper 默认启用，可用 `--no-client-diagnostics` 关闭。
+`GET/POST /api/botharness/client-diagnostics` 使用现有 Connection Fetch 精确认证路线，不另占 `/api` interceptor；报告只是过程证据。浏览器保留开头 16 条和最近 48 条，首个失败与 shell 挂载记录独立固定并记录遗漏数；Host 保留 20 次文档 attempt，记录淘汰数。读取器默认按文档启动时间选择最新 attempt，旧后台页面迟到的报告不会覆盖新文档。合并短请求，10 秒心跳、不新增 SSE，普通发送连续四次失败后停止。文档离开时额外发一次 best-effort keepalive POST，不受先前请求正在发送影响，随后销毁且不重试。35 秒以上的旧报告不能证明健康。普通 Profile 仅在 `BOTHARNESS_CLIENT_DIAGNOSTICS=1` 时启用；AX helper 默认启用（环境变量显式设为 0 时关闭），可用 `--no-client-diagnostics` 关闭。
 
 事件按顺序复用 ADR-0063/0064 的 `logs.db`、`client-diagnostics` plugin 与 `client-observation` kind，trace 指向 attempt，沿用保留上限且不进入备份。持久化失败明确报告但不阻断启动；Host 重启后实时端点为空，旧证据通过既有数据库只读查询。Fiber 清理路线、HTML transform 和日志连接，文档清理监听／计时器／console wrapper。完整查询与限制见 [English guide](client-startup-diagnostics.md) 和[日志读取](reading-operational-logs.md)。
 

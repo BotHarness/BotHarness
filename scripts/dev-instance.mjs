@@ -65,7 +65,7 @@ function parseArgs(argv) {
     imProvider: false,
     productArtifacts: null,
     json: false,
-    clientDiagnostics: true,
+    clientDiagnostics: process.env['BOTHARNESS_CLIENT_DIAGNOSTICS'] !== '0',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];

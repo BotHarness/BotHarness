@@ -4,7 +4,7 @@ Use this loop after every isolated DSH launch, Client rebuild/reload, and intera
 
 ## Launch and read
 
-The AX launcher enables application-defined Client diagnostics in its own child Host. Ordinary installed Profiles remain opt-in through `BOTHARNESS_CLIENT_DIAGNOSTICS=1`; `--no-client-diagnostics` disables them for a launcher run.
+The AX launcher enables application-defined Client diagnostics in its own child Host. Ordinary installed Profiles remain opt-in through `BOTHARNESS_CLIENT_DIAGNOSTICS=1`; `--no-client-diagnostics` disables them for a launcher run, as does explicitly setting BOTHARNESS_CLIENT_DIAGNOSTICS to 0.
 
 ```bash
 node scripts/dev-instance.mjs --home <isolated-home> --port <port> --json > <private-launch.json>
@@ -37,7 +37,7 @@ The Host owns the application-defined `client-diagnostics` collector. Its Cordis
 
 Only fixed codes, source, attempt UUID, monotonic sequence and elapsed time leave the browser. Unknown exceptions become `unclassified-exception`: raw messages, stacks, URLs, Session IDs, page content, cookies and credentials are omitted rather than scrubbed after transmission. Host validation reconstructs only allowed fields, even for an authenticated report.
 
-`GET/POST /api/botharness/client-diagnostics` uses Connection Fetch's exact authenticated route, without another `/api` interceptor. POST is diagnostic evidence, never authority for product actions. The observer retains the first 16 events and latest 48, with independent first-failure and shell-mount fields and an omitted count; the Host retains 20 document attempts and reports evictions. Reports coalesce, heartbeat every 10 seconds without SSE, and delivery stops after four consecutive failures. A new document gets a new attempt. A report older than 35 seconds cannot certify a healthy shell.
+`GET/POST /api/botharness/client-diagnostics` uses Connection Fetch's exact authenticated route, without another `/api` interceptor. POST is diagnostic evidence, never authority for product actions. The observer retains the first 16 events and latest 48, with independent first-failure and shell-mount fields and an omitted count; the Host retains 20 document attempts and reports evictions. Reports coalesce, heartbeat every 10 seconds without SSE, and regular delivery stops after four consecutive failures. Document exit makes one final best-effort keepalive POST even if an earlier report is in flight, then disposes without retries. A new document gets a new attempt. A report older than 35 seconds cannot certify a healthy shell.
 
 New ordered events also enter the existing `logs.db` (`plugin='client-diagnostics'`, `kind='client-observation'`, `trace_id=attempt`) under ADR-0063/0064 retention, excluded from backup. Persistence failure is explicit and does not break Client startup. The live endpoint starts empty after Host restart; query the existing database read-only for earlier Host evidence:
 
