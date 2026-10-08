@@ -324,3 +324,29 @@ it('refuses unknown conversations and a second connection of the same group', as
     }),
   ).rejects.toThrow('ingest-exists');
 });
+
+it('shows the real group name on the connection, the placed source and the bound entry', async () => {
+  const { fx, group, ingest } = await connected();
+  const named = (id: string, mentioned = false): MessagingInboundEvent => {
+    const event = chatter(id, mentioned);
+    return { ...event, conversation: { ...event.conversation, name: 'Team chat' } };
+  };
+  await fx.receive(named('a'));
+  expect(ingest().conversation).toEqual({ kind: 'group', id: 'oc_team', name: 'Team chat' });
+  await fx.receive(chatter('b'));
+  expect(ingest().conversation.name).toBe('Team chat');
+  await fx.receive(named('ask', true));
+  expect(
+    fx.query(
+      `SELECT json_extract(e.payload_json, '$.external.conversationName') AS name,
+              json_extract(e.payload_json, '$.external.event.conversation.id') AS id
+         FROM channel_placements p JOIN source_events e USING(source_event_id)
+        WHERE p.channel_id = '${group.id}' ORDER BY p.revision`,
+    ),
+  ).toEqual(['Team chat', 'Team chat', 'Team chat'].map((name) => ({ name, id: 'oc_team' })));
+  expect(
+    fx.query(
+      "SELECT json_extract(body, '$.targetName') AS name FROM messaging_grants WHERE json_extract(body, '$.receiveScope.kind') = 'group'",
+    ),
+  ).toEqual([{ name: 'Team chat' }]);
+});

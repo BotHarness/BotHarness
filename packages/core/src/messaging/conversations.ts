@@ -55,7 +55,7 @@ export type MessagingConversationInput =
 export function conversationName(event: MessagingInboundEvent): string {
   return event.conversation.kind === 'dm'
     ? event.actor.name || event.actor.id
-    : event.conversation.id;
+    : event.conversation.name || event.conversation.id;
 }
 
 export function readBlock(
