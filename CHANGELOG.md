@@ -17,7 +17,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Bind app can create a Lark/Feishu app through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
+- Bind app can create a Lark/Feishu app through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 - Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
 
 - The welcome now offers a daily evening check-in at 21:00 with the browser time zone and current DM shown before selection; missing time zones are confirmed first, and existing model setup retains the complete request for explicit sending ([#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)).

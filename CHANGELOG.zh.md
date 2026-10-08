@@ -17,7 +17,7 @@
 
 ### Added
 
-- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
+- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
 - 像素头像可以选择哥布林：尖耳朵穿出头发、带小獠牙、配建议的绿色肤色；左右侧发可以分别选择样式和颜色。哥布林在 Window Companion 中同样支持转头和说话嘴型，随机也会覆盖两个物种，已有头像渲染不变（[#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)）。
 
 - 欢迎消息提供每天 21:00 的晚间问候示例，选择前显示浏览器时区与当前私聊；无法识别时区时先询问，既有模型配置流程保留完整请求并等待明确发送（[#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)）。
