@@ -184,3 +184,28 @@ Session/call/arguments, native decision/result and the unrelated `channel_send`
 receipt. Recheck scope changes/revocation. Cancellation/cold resume are not
 preserved-call suspension. See the [bounded #1036 experiment](../../../../docs/research/1036-native-wait-experiment.md)
 and [local capability blocker #1220](https://github.com/BotHarness/DeepSeekBot/issues/1220).
+
+## RC2 timed questions outlive their foreground wait
+
+In isolated DSH `0.2.0-rc.2`, configure the native `tool-ask-user` Plugin inside
+the selected Agent Preset's `config.plugins` for timed mode. The Tool can truthfully
+return pending while the original question's native Projection remains continued.
+The foreground signal abort is not necessarily parent Agent cancellation: an
+application answerer that treats every abort as final cancellation can expire its
+card even though the native question remains answerable. Do not keep the expired
+Promise as a second authority; qualify the native Projection and late-reply seam.
+
+Service parameter names do not necessarily equal named HTTP gateway arguments.
+The running RC2 `userQuestions/answer` descriptor expects `agentId` carrying the
+Session ID, not `agent`; invalid fields are rejected before execution. Verify the
+actual descriptor/Client and Host. Acceptance means queued input: retain original
+call correlation, qualified reply enqueue and admission, settled Projection,
+actual model processing and canonical Channel send receipt. A native control
+probe does not establish downstream Channel actor or disclosure authority.
+
+The [bounded RC2 experiment](../../../../docs/research/1220-native-timed-question-experiment.md)
+verified the same-Session question path and retained the incompatible application
+card as negative evidence. It did not upgrade production RC1, qualify permission
+approval, or prove cold recovery/capacity release. Preserve native pending-result
+explanatory fields; do not mistake an extra field or harmless answer punctuation
+for a runtime failure. Keep earlier probe and Client startup failures separately.

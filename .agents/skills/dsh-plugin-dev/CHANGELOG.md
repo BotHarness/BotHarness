@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded the isolated RC2 timed-question foreground/continued distinction, native late-answer wire verification and application-card incompatibility in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); production RC1, DSH/Cordis Context and Decision Tree remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](../../../docs/research/1220-native-timed-question-experiment.md)).
+
 - Recorded RC1 native Human waits holding the current Agent step, the difference between Inbox acceptance and model processing, and exact-call decision/result verification in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); DSH/Cordis Context and Decision Tree remain unchanged ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
 
 - Recorded RC1 streaming GET request rejection and the real authenticated Host verification path in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); DSH/Cordis Context and Decision Tree remain unchanged ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886)).

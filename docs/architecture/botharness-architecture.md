@@ -47,6 +47,13 @@ Orchestrator 自己的原生审批或正式提问仍占有当前 Step；Admissio
 [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 追踪缺失的受支持原生
 continuation 机制；#1036 保持阻塞，#1037／#1038 生产实现尚未交付。
 
+后续[隔离 RC2 实验](../research/1220-native-timed-question-experiment.md) 验证原生 timed
+question 可先真实返回 pending，问题保持可回答；同一 Session 可回复无关消息，再通过
+带原 call 身份的 qualified Inbox 输入处理稍后答案。这是 Tool 已结束、问题仍持续的机制，
+不是挂起未结束调用。当前应用问题卡片会在原生 deadline 时标为取消，尚未适配 native
+Projection／late-answer；生产依赖仍为 RC1。权限审批、容量释放／重获和同群隐私验收
+继续阻塞，不从这次 DM 能力实验推断完成。
+
 ## 1 · 系统上下文
 
 新附件已遵循 [ADR-0100](../adr/0100-file-open-actions-target-real-host-files.md)：独立上传彼此独立，显式复用身份才共享编辑结果。原生打开指向真实目标；后续消息读取、预览和下载使用当前内容，上传源独立。保存不保留附件历史，不生成 Source Revision、Inbox Admission、通知或 Bot wake。目标缺失则报告不可用，不自动重建。旧 CAS 迁移（#577）按 Source Event 附件出现位置预留可重启恢复的身份，仅在保留依赖未转换时继续保护旧对象；其他 CAS 数据与 Memory Git 行为保持各自语义。

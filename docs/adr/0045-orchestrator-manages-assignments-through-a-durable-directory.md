@@ -129,6 +129,15 @@ an in-flight operation. No accepted lifecycle or ownership rule is replaced.
 [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) tracks the missing
 supported mechanism; #1036–#1038 production continuation gates stay blocked.
 
+The subsequent [isolated RC2 experiment](../research/1220-native-timed-question-experiment.md)
+qualifies the native experimental timed-question contract: the original Tool finishes
+with pending while its question remains answerable; a real unrelated model reply and a
+qualified original-call late answer occur in the same Session. This deliberately differs
+from preserving an open Tool Promise. The current application question card cancels at
+the native deadline and has not been adapted to the native Projection/late-answer seam.
+Permission approval and bounded running-capacity qualification remain unresolved. The
+production runtime stays on RC1 and all downstream gates remain blocked.
+
 ## Native live-turn cancellation
 
 When a Human cancels a live Assignment through native DSH Session control, the adapter observes the committed `turn/end` with reason `aborted` and passes the trusted Turn number and end sequence to Assignment Runtime. Runtime atomically projects execution as error, releases its Continuity Key and records one Host/system Lifecycle Notice plus its Inbox Admission, deduplicated by owned Session, Turn and native-aborted cause. The safe summary states cancellation without copying tool input or provider text. It does not fabricate or replace a semantic Report, and it does not claim the continuing Assignment was stopped by its Orchestrator. Existing failed-session admission refuses resuming that errored Session; explicit new work remains possible.
