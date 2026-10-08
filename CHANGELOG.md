@@ -109,6 +109,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Documentation
 
+- Documented the accepted pixel Avatar extension: Avatar Species on one rig (fantasy, animal and flower bases), separately colored hair pieces, a through-hair headpiece slot, and Human-drawn Custom Parts in a Profile Part Library that travel with exported Bots and move as PNGs; runtime behavior is unchanged ([#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md), [handoff](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)).
+
 - Documented the accepted in-window transparent pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
 
 - Documented native Windows candidate installation and approval verification, including physical AppData paths, isolated Profile package-manager pins, actual Shell exit evidence and process timestamp guards, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md). The bilingual [Lark guide](docs/lark-connection.md) records real Human Allow once/Reject qualification on exact candidate sources; this documentation update does not change runtime behavior ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).

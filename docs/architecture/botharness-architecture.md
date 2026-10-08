@@ -472,6 +472,14 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
 
+### 5.4 · 形象物种与自绘部件（已接受设计，待实现）
+
+[ADR-0148](../adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md) 在不新增 rig 的前提下扩展像素 Avatar Family。Avatar Species（人类、精灵、哥布林、矮人、兽人、猫、狗、狐狸、兔子、熊、花）是像素胸像骨架上的基底：轮廓、耳朵、鼻子或吻部、建议身体色与可接受部件；动作、锚点、说话嘴型与伙伴透明轮廓保持共享。头发拆为可分别上色的分片，新增穿过头发的头饰槽（前后两层）。当前物种无法显示的选择保存并隐藏，不被替换。
+
+Custom Part 是有界像素网格，每格引用外形颜色或固定色并带明度档位，因此随外形换色。BotPixel 负责其类型、校验、渲染与纯函数绘制算法；PersonaBot 所属模块把副本嵌入 Avatar Appearance，DSH Profile 中由 Host 管理的 Part Library 以内容哈希身份和来源保存可复用部件。导出的 PersonaBot 携带其部件；单个部件以内嵌数据的 PNG 流转。眼睛、眉毛和嘴不可自绘，眨眼与说话帧仍由 rig 负责。
+
+新 Bot 记录全域名字种子版本；没有该记录的 Bot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
+
 ## 6 · 持久化、导出与恢复边界
 
 ```mermaid
