@@ -832,7 +832,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
   }
 
-  userQuestionStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): { status: 'pending' | 'submitted' | 'answered' | 'expired' } {
     return unwrap(this.methods.userQuestionStatus({ channelId, messageId }));
   }
 

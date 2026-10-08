@@ -1,3 +1,4 @@
+import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
@@ -1032,6 +1033,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     (agent) => ctx.agents.get(agent.id) === agent,
     (message) => ctx.logger.warn(message),
     (slug, count) => core.states.setQuestionCount(slug, count),
+    nativeTimedQuestions(ctx),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
   ctx.on(
@@ -1589,6 +1591,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.on(
     'session/event',
     (session, event) => {
+      queueMicrotask(() => {
+        void userQuestions
+          .reconcileSession(session.id)
+          .catch(() => ctx.logger.warn('user-question-reconciliation-failed'));
+      });
       activity.handleSessionEvent(session.id, event);
       try {
         core.externalMessaging.approvals.result(session.id, event);
@@ -1633,6 +1640,22 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
   activity.rebuild(dshSessions.list());
+  ctx.on(
+    'agent/inbox/discarded',
+    ({ agent, message }) => {
+      const source: unknown = message.source;
+      if (
+        typeof source === 'object' &&
+        source !== null &&
+        'kind' in source &&
+        source.kind === 'user-question-reply' &&
+        'callId' in source &&
+        typeof source.callId === 'string'
+      )
+        userQuestions.discardReply(agent.session.id, source.callId);
+    },
+    { global: true },
+  );
   for (const session of dshSessions.list())
     core.usage?.primeSession(session.id, session.snapshotEvents());
   if (core.usage !== undefined) {

@@ -589,6 +589,8 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     if (
       typeof request['sessionId'] !== 'string' ||
       request['sessionId'].length === 0 ||
+      (request['callId'] !== undefined &&
+        (typeof request['callId'] !== 'string' || request['callId'].length === 0)) ||
       !Array.isArray(request['questions']) ||
       request['questions'].length === 0 ||
       request['questions'].length > 3 ||

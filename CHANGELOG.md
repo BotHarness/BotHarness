@@ -98,6 +98,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- On an explicitly configured native RC2 timed-question Profile, a DM question card stays answerable after its foreground deadline while the same Bot handles other messages; a late answer shows submitted until the original native Session admits it. Production pins and blocking RC1 questions remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
+
 - Bot onboarding no longer pauses another window's tutorial when an observing window leaves or sets a model; completed onboarding can be explicitly replayed, and saving a Bot-specific model or restoring inheritance immediately refreshes the open model card ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).
 
 - **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
