@@ -83,6 +83,7 @@ export class WindowCompanion {
   private preservedGeneration: string | undefined;
   private pendingCards: CompanionCard[] = [];
   private seen: string[] = [];
+  private identityRevision = 0;
   private disposed = false;
   constructor(private readonly deps: CompanionDependencies) {
     if (deps.initialSelection) this.state = { ...this.state, selection: deps.initialSelection };
@@ -251,6 +252,7 @@ export class WindowCompanion {
     } catch {}
   }
   private disconnect(): void {
+    this.identityRevision++;
     this.stream?.close();
     this.stream = undefined;
     this.generation = undefined;
@@ -303,6 +305,7 @@ export class WindowCompanion {
         activity === undefined
       )
         return;
+      this.identityRevision++;
       const appearance =
         isAvatarAppearance(bot['appearance']) || isRetainedAvatarAppearance(bot['appearance'])
           ? bot['appearance']
@@ -381,12 +384,19 @@ export class WindowCompanion {
     });
     stream.addEventListener('error', () => {
       if (this.disposed || this.stream !== stream) return;
+      const identityRevision = ++this.identityRevision;
       this.update({ sync: 'stale' });
       if (stream.readyState === 2)
         void this.deps
           .exists?.(selection.botId)
           .then((exists) => {
-            if (!exists && !this.disposed && this.stream === stream) this.remove();
+            if (
+              !exists &&
+              !this.disposed &&
+              this.stream === stream &&
+              this.identityRevision === identityRevision
+            )
+              this.remove();
           })
           .catch(() => undefined);
     });

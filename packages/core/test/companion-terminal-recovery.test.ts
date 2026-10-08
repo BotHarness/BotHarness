@@ -13,6 +13,7 @@ it('resumes canonical unplayed replies after terminal transport failures without
   }[] = [];
   let unavailable = false;
   let updates = 0;
+  let completeOldIdentityQuery: ((exists: boolean) => void) | undefined;
   const owner = new WindowCompanions({
     context: async () =>
       core.companions.open(new Request('http://localhost/api/botharness/companion')).json(),
@@ -46,6 +47,10 @@ it('resumes canonical unplayed replies after terminal transport failures without
       if (!response.ok) throw new Error('Selection failed');
       updates++;
     },
+    exists: () =>
+      new Promise<boolean>((resolve) => {
+        completeOldIdentityQuery = resolve;
+      }),
   });
   const receive = async () => {
     const connection = connections.at(-1)!;
@@ -100,6 +105,9 @@ it('resumes canonical unplayed replies after terminal transport failures without
     await receive();
     await receive();
     await receive();
+    completeOldIdentityQuery!(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(owner.get('ada')).toBe(child);
     expect(child.getSnapshot()).toMatchObject({
       reading: true,
       cards: [{ messageId: 'reading-before-disconnect', shown }],
