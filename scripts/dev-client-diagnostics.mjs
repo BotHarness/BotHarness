@@ -5,7 +5,7 @@ export function diagnosticVerdict(report, attempt) {
   const candidates = Array.isArray(report?.attempts) ? report.attempts : [];
   const selected = attempt
     ? candidates.find((value) => value.attempt === attempt)
-    : candidates.at(-1);
+    : candidates.toSorted((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0)).at(-1);
   const state = selected?.state ?? 'unobserved';
   return {
     state,

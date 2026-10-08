@@ -131,6 +131,30 @@ describe('Client diagnostic authenticated route consumer', () => {
     expect(result.evictedAttempts).toBe(5);
   });
 
+  it('pins trimmed shell evidence, persists it once and refuses invalid mount claims', async () => {
+    const write = vi.fn();
+    const diagnostics = createClientDiagnostics({ write });
+    const events = [event(1, 'observer-installed'), event(100, 'connection-lost', 'console-warn')];
+    for (const shellMounted of [
+      event(101, 'shell-mounted'),
+      event(20, 'shell-mounted', 'console-warn'),
+      event(20, 'observer-installed'),
+      { ...event(20, 'shell-mounted'), elapsedMs: 101 },
+    ])
+      expect((await diagnostics.fetch(post(report(events, { shellMounted })))).status).toBe(400);
+    const body = report(events, {
+      dropped: 98,
+      shellMounted: { ...event(20, 'shell-mounted'), stack: 'private' },
+    });
+    expect((await diagnostics.fetch(post(body))).status).toBe(200);
+    await diagnostics.fetch(post(body));
+    expect(await (await diagnostics.fetch(get())).json()).toMatchObject({
+      attempts: [{ state: 'shell-ready', shellMounted: event(20, 'shell-mounted') }],
+    });
+    expect(write.mock.calls.map(([entry]) => JSON.parse(entry.detail!).seq)).toEqual([1, 20, 100]);
+    expect(JSON.stringify(write.mock.calls)).not.toContain('private');
+  });
+
   it('keeps log failures explicit without breaking observation', async () => {
     const diagnostics = createClientDiagnostics({
       write: () => {

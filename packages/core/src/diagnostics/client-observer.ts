@@ -13,6 +13,7 @@ export interface ClientDiagnosticSnapshot {
   events: ClientDiagnosticEvent[];
   dropped: number;
   firstFailure?: ClientDiagnosticEvent;
+  shellMounted?: ClientDiagnosticEvent;
   delivery: 'pending' | 'delivered' | 'failed';
 }
 export function installClientObserver(win: Window & typeof globalThis): void {
@@ -91,6 +92,7 @@ export function installClientObserver(win: Window & typeof globalThis): void {
       data.state = 'failed';
       data.firstFailure ??= event;
     }
+    if (code === 'shell-mounted' && source === 'lifecycle') data.shellMounted ??= event;
     data.events.push(event);
     if (data.events.length > 64) {
       data.events.splice(16, 1);

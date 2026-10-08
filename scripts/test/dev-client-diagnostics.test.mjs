@@ -28,6 +28,16 @@ describe('AX diagnostic reader', () => {
       ).exitCode,
     ).toBe(1);
   });
+  it('selects the newest document even when an older background document reports later', () => {
+    expect(
+      diagnosticVerdict({
+        attempts: [
+          { attempt: 'new', startedAt: 200, state: 'failed' },
+          { attempt: 'old', startedAt: 100, state: 'shell-ready' },
+        ],
+      }),
+    ).toMatchObject({ attempt: 'new', exitCode: 1 });
+  });
   it('authenticates locally and never returns the login token or cookie', async () => {
     const fetcher = vi
       .fn()

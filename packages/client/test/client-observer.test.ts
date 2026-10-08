@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createClientDiagnostics } from '../../core/src/diagnostics/client-diagnostics.js';
 import {
   installClientObserver,
   clientObserverScript,
@@ -13,6 +14,39 @@ describe('early real Client diagnostic observer', () => {
       }
     ).__BOTHARNESS_CLIENT_DIAGNOSTICS__;
 
+  it('retains a late shell observation when its first report follows a warning flood', async () => {
+    vi.useFakeTimers();
+    const diagnostics = createClientDiagnostics();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url, options) => diagnostics.fetch(new Request('http://localhost' + url, options))),
+    );
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    installClientObserver(window);
+    for (let n = 0; n < 20; n++) console.warn('[connection] connection lost');
+    document.body.innerHTML = '<button><span class="bh-panel-glyph"></span></button>';
+    vi.spyOn(document.querySelector('button')!, 'getBoundingClientRect').mockReturnValue({
+      width: 30,
+      height: 30,
+    } as DOMRect);
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(20);
+    for (let n = 0; n < 100; n++) console.warn('[connection] connection lost');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(observer().snapshot().events).toHaveLength(64);
+    expect(
+      observer()
+        .snapshot()
+        .events.some((event: any) => event.code === 'shell-mounted'),
+    ).toBe(false);
+    expect(
+      await (
+        await diagnostics.fetch(new Request('http://localhost/api/botharness/client-diagnostics'))
+      ).json(),
+    ).toMatchObject({
+      attempts: [{ state: 'shell-ready' }],
+    });
+  });
   it('defers hidden-document deadlines and records real script resource failures', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));

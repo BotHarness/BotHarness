@@ -77,6 +77,7 @@ interface Attempt {
   events: ClientDiagnosticEvent[];
   dropped: number;
   firstFailure?: ClientDiagnosticEvent;
+  shellMounted?: ClientDiagnosticEvent;
   lastSeq: number;
 }
 
@@ -135,7 +136,7 @@ export function createClientDiagnostics(
                 ? 'stale'
                 : a.events.at(-1)?.code === 'page-hidden'
                   ? 'closed'
-                  : a.events.some((e) => e.code === 'shell-mounted')
+                  : a.shellMounted
                     ? 'shell-ready'
                     : 'starting',
           })),
@@ -185,6 +186,16 @@ export function createClientDiagnostics(
           suppliedFailure.elapsedMs > events.at(-1)!.elapsedMs)
       )
         return json({ error: 'invalid-report' }, 400);
+      const suppliedMount = v.shellMounted === undefined ? undefined : eventOf(v.shellMounted);
+      if (
+        v.shellMounted !== undefined &&
+        (!suppliedMount ||
+          suppliedMount.code !== 'shell-mounted' ||
+          suppliedMount.source !== 'lifecycle' ||
+          suppliedMount.seq > events.at(-1)!.seq ||
+          suppliedMount.elapsedMs > events.at(-1)!.elapsedMs)
+      )
+        return json({ error: 'invalid-report' }, 400);
       let attempt = attempts.get(v.attempt);
       if (attempt && attempt.startedAt !== v.startedAt)
         return json({ error: 'attempt-conflict' }, 409);
@@ -211,7 +222,17 @@ export function createClientDiagnostics(
         .filter((e): e is ClientDiagnosticEvent => e !== undefined)
         .sort((a, b) => a.seq - b.seq)[0];
       if (first) attempt.firstFailure = first;
+      const mount = [
+        attempt.shellMounted,
+        suppliedMount,
+        ...events.filter((event) => event.code === 'shell-mounted' && event.source === 'lifecycle'),
+      ]
+        .filter((event): event is ClientDiagnosticEvent => event !== undefined)
+        .sort((a, b) => a.seq - b.seq)[0];
+      if (mount) attempt.shellMounted = mount;
       const pending = events.filter((event) => event.seq > attempt!.lastSeq);
+      if (mount && mount.seq > attempt.lastSeq && !pending.some((event) => event.seq === mount.seq))
+        pending.push(mount);
       if (first && first.seq > attempt.lastSeq && !pending.some((event) => event.seq === first.seq))
         pending.push(first);
       pending.sort((a, b) => a.seq - b.seq);

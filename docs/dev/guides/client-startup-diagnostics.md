@@ -11,7 +11,7 @@ node scripts/dev-instance.mjs --home <isolated-home> --port <port> --json > <pri
 node scripts/dev-client-diagnostics.mjs --launch <private-launch.json>
 ```
 
-Keep the launch file private: it includes the local login token. The reader authenticates in memory, accepts only a loopback HTTP login URL, and never prints that URL or cookie. Its output includes all retained attempts and identifies earlier failures. Pin `--attempt <uuid>` when comparing a particular failed attempt; a later successful reload does not erase it.
+Keep the launch file private: it includes the local login token. The reader authenticates in memory, accepts only a loopback HTTP login URL, and never prints that URL or cookie. Its output includes all retained attempts and identifies earlier failures. By default it selects the newest document by its start time, so a delayed report from an older background page cannot replace it. Pin `--attempt <uuid>` when comparing a particular failed attempt; a later successful reload does not erase it.
 
 | State              | Meaning                                                                 | Reader exit |
 | ------------------ | ----------------------------------------------------------------------- | ----------- |
@@ -37,7 +37,7 @@ The Host owns the application-defined `client-diagnostics` collector. Its Cordis
 
 Only fixed codes, source, attempt UUID, monotonic sequence and elapsed time leave the browser. Unknown exceptions become `unclassified-exception`: raw messages, stacks, URLs, Session IDs, page content, cookies and credentials are omitted rather than scrubbed after transmission. Host validation reconstructs only allowed fields, even for an authenticated report.
 
-`GET/POST /api/botharness/client-diagnostics` uses Connection Fetch's exact authenticated route, without another `/api` interceptor. POST is diagnostic evidence, never authority for product actions. The observer retains the first 16 events and latest 48, with an independent first-failure field and omitted count; the Host retains 20 document attempts and reports evictions. Reports coalesce, heartbeat every 10 seconds without SSE, and delivery stops after four consecutive failures. A new document gets a new attempt. A report older than 35 seconds cannot certify a healthy shell.
+`GET/POST /api/botharness/client-diagnostics` uses Connection Fetch's exact authenticated route, without another `/api` interceptor. POST is diagnostic evidence, never authority for product actions. The observer retains the first 16 events and latest 48, with independent first-failure and shell-mount fields and an omitted count; the Host retains 20 document attempts and reports evictions. Reports coalesce, heartbeat every 10 seconds without SSE, and delivery stops after four consecutive failures. A new document gets a new attempt. A report older than 35 seconds cannot certify a healthy shell.
 
 New ordered events also enter the existing `logs.db` (`plugin='client-diagnostics'`, `kind='client-observation'`, `trace_id=attempt`) under ADR-0063/0064 retention, excluded from backup. Persistence failure is explicit and does not break Client startup. The live endpoint starts empty after Host restart; query the existing database read-only for earlier Host evidence:
 
