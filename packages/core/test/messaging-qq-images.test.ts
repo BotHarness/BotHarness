@@ -350,6 +350,12 @@ it('QQ image preview reuses canonical intake, adds no Bot wake, and preserves it
     expect(runs).toHaveBeenCalledTimes(wakeCount);
     expect(core.attention.list({ botSlug: 'ada' }).items).toHaveLength(admissionCount);
     expect(download).toHaveBeenCalledTimes(1);
+    await expect(
+      core.externalMessaging.acquireFile('bea', sourceId, attachment.id),
+    ).rejects.toThrow();
+    const acquired = await core.externalMessaging.acquireFile('ada', sourceId, attachment.id);
+    expect(acquired.fileId).toBe(preview.ref.fileId);
+    expect(download).toHaveBeenCalledTimes(1);
     const result = await core.attachments.upload({
       name: 'result.png',
       data: (async function* () {
@@ -368,6 +374,13 @@ it('QQ image preview reuses canonical intake, adds no Bot wake, and preserves it
     });
     expect(nativeReply).toHaveBeenCalledTimes(1);
     expect(nativeReply.mock.calls[0]?.[2]).toMatchObject({ mediaType: 'image/png' });
+    await expect(core.externalMessaging.replyFile('ada', sourceId, result)).resolves.toEqual(sent);
+    await expect(
+      core.externalMessaging.reply('ada', sourceId, 'Another payload'),
+    ).rejects.toMatchObject({
+      code: 'request-conflict',
+    });
+    expect(nativeReply).toHaveBeenCalledTimes(1);
     core.externalMessaging.close();
     await core.runtime.close();
     core.operationalDatabase.close();

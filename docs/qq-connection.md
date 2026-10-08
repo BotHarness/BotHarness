@@ -48,6 +48,8 @@ Actual visual understanding requires an image-capable model on the calling Sessi
 
 Images use the existing 25 MiB limit. Private QQ download URLs and upload tickets stay in the Provider; public sources retain safe metadata and attachment association. Caption-first display preserves attachment array order without claiming native text/image interleaving. Quoted and unsupported compound payloads remain excluded. Restart retains canonical source metadata and acquired previews, but cannot reconstruct an unacquired private download ticket or expired reply proof.
 
+Choose the result type before replying: text and image share one durable reply intent per Bot/source. For an image result, send the image through `bridge_reply_file` first and put any separate explanation in the local DM. Repeating the identical request returns its stored result; changing a settled reply payload is refused.
+
 Image results use the receiving app and original group. Upload is separate from the single final message send, with authorization checked again after upload. A native message receipt records provider acceptance; unknown results are not automatically resent. Real QQ/model/Client image qualification is tracked on #1157 and is not implied by this candidate contract.
 
 ## Understand the text path
