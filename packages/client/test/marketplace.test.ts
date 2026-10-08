@@ -73,6 +73,7 @@ function entry(name: string, overrides: Partial<MarketplaceEntry> = {}): Marketp
     name,
     fullName: `alice/${name}`,
     displayName: null,
+    banner: null,
     roles: [],
     description: `${name} description`,
     topics: ['writing'],
@@ -211,6 +212,31 @@ describe('Bot Marketplace modal', () => {
           ),
         ).toEqual(['alice/first', 'alice/second']);
         expect(host.textContent).not.toContain('加载更多');
+      },
+    );
+  });
+
+  it('shows each banner beside its row and a neutral header without one', async () => {
+    await withMarketplace(
+      async () => ({
+        bots: [
+          entry('photo', {
+            banner: {
+              image: 'https://raw.githubusercontent.com/alice/photo/abc/.botharness/banner.png',
+            },
+          }),
+          entry('plain'),
+        ],
+      }),
+      async ({ host }) => {
+        const banners = [...host.querySelectorAll('.bh-market-banner-thumb')];
+        expect(banners.map((banner) => banner.getAttribute('data-market-banner'))).toEqual([
+          'shown',
+          'none',
+        ]);
+        expect(banners[0]?.querySelector('img')?.getAttribute('src')).toBe(
+          'https://raw.githubusercontent.com/alice/photo/abc/.botharness/banner.png',
+        );
       },
     );
   });
