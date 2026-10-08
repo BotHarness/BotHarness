@@ -1,6 +1,6 @@
 # 个人微信 Goal：#911 Windows 接手记录
 
-2026-10-08 · 状态：Windows 接手已认领并整合最新 main；真实微信输入状态验收未完成。
+2026-10-08 · 状态：已整合 main，Human 已确认原生输入显示、关闭行为及修复后真实等待命令成功；其余场景仍待，保持 Draft。Human 已明确改为截图验收，暂不提供录像。
 
 ## Windows 接手进展（2026-10-08，覆盖下文旧候选编号）
 
@@ -8,10 +8,15 @@
 - main 基线：`006c0fa3`。保留新身份/会话弹窗、默认接入、多个同平台应用、外部会话接入及现有 Lark/Slack/Discord 能力。
 - main 已占用 ADR-0142/0143 和 generation 61–65；本票候选顺延为 [ADR-0144](../adr/0144-wechat-typing-follows-owned-processing-leases.md) / generation **66**，不改 main 的迁移历史。迁移覆盖从 59–65 升级并保留原有 Lark 审批配置。旧 `.911.1`–`.911.3` QA Profile 均不是当前候选的升级来源。
 - Provider 整合 `55b4528480ccce3e8acc067e10b880556bf5034c` 至现有 typing 分支，候选提交 `7c2489da79017e9c6a86e36898698a9b82c65a52`；产品固定 `.14`，404 runtime 文件，摘要 `2736154321b9966fdcbc513e3f5ae763f8f78fd8d2dce374d232e36d084930b0`。无 npm 发布。
-- Windows Node 24.21.0 / pnpm 12.4.2；独立 main 对照和候选 Profile 均通过认证 API 启动。候选由实际产品压缩包 `0.0.0-test.911.4` 启动；模型凭据由本机私有配置注入，未复制 WSL 配对或数据。
-- 当前检查：TypeScript、构建和产品打包通过；Provider 微信输入/收件、Lark 卡片、Slack/Discord 相关 **65/65** 通过，包校验通过。BotHarness 初次相关检查 76 通过、一项 main 会话重启测试超时；该测试与身份弹窗回归单独复跑 **8/8** 通过。
-- Windows Provider 首次全套：3,660 通过、39 失败、7 跳过；失败涉及换行字面量、POSIX mode 断言及 updater 状态写入，尚未完成基线对照/原因确认，不能宣称全套通过。此前 WSL 3,618 通过的事实仅属于旧候选。
-- 仍待：候选真实 Channel 模型回复、Human 重新扫码、原生输入/正常完成/停止录像、前后两主题截图、拒绝与恢复/重启检查、最终指南、两轴审查和 PR Lens。保持 Draft，#911 不关闭，#912 不混入；合并和部署仍各需授权。
+- Windows Node 24.21.0 / pnpm 12.4.2；独立 main 对照和候选 Profile 均通过认证 API 启动。当前候选为实际产品压缩包 `0.0.0-test.911.7`，同一隔离 Profile 由 `.911.6` 空闲重启升级；本机私有模型凭据注入，`.911.5`、`.911.6`、`.911.7` 均有实际模型调用和已保存的 Channel 回复。
+- Human 已重新扫码、绑定。真实微信私聊的原生“对方正在输入”由 Human 确认并提供[截图](../assets/pr/911-wechat-typing/native-input-visible.png)。最初等待命令在原生沙箱启动前失败；Human 确认错误回复收到且输入提示消失，这只算失败清理证据。
+- Windows 原生沙箱诊断确认 QA Memory 与 Assignment 目录的当前用户权限缺少 `WRITE_OWNER`。经 Human 限定授权，用 DSH 自带的备份修复脚本逐目录添加当前用户 FullControl，保留 owner、deny 和 sandbox 限制。Memory 修复后，同一原生 Session 的 `pwsh` 实际等待约 32.8 秒，stdout 为 `911-COMPLETE-A`，工具结果无错误，`bridge_reply` 接受，Human 确认收到成功回复。Assignment 目录已完成权限写入，但原生 Assignment 执行仍待复验；备份及恢复脚本仅在本机。
+- 重启 `.911.7` 后配对、绑定和已保存的关闭偏好仍在，瞬态输入阶段为 idle。偏好关闭时，真实微信 `911-OFF-A` 工作的 canonical Inbox 从 running 到 handled，输入阶段全程 idle；Human 确认未显示输入提示，并提供[成功回复截图](../assets/pr/911-wechat-typing/native-off-completed.png)。不能将该重启检查当作处理中 disposal/重启清理已通过。
+- 当前检查：lint、format、TypeScript、构建和产品打包通过；BotHarness 聚焦回归 **6 文件 / 83 测试**通过，后续可见开关标题的 Client 回归 **4/4**通过。Provider 微信输入/收件、Lark 卡片、Slack/Discord 相关 **65/65**通过，包校验通过。
+- Windows Provider 首次全套：3,660 通过、39 失败、7 跳过；失败涉及换行字面量、POSIX mode 断言及 updater 状态写入，不能宣称全套通过。updater 最小用例在固定 Provider 基线 `55b452` 同样失败，相关源码和测试无差异，原因未确认。BotHarness 全套亦未通过：最小 runtime 测试断言通过但 Windows 临时目录清理报 EPERM，固定 main `006c0fa3` 同例同样报错。此前 WSL 全套结果仅属于旧候选。
+- Standards / Spec 两轴审查已完成，发现的清理失败诊断缺失、ADR rollback generation 过期均已修正并复核；无剩余确认代码缺陷。PR Lens 两主题已生成并目视检查，尚未发布至 PR。
+- Human 明确要求“暂时不提供影像，有截图就好了”；本次按截图及现场观察验收，没有动态录像，不再将录像列为接手阻塞。运行日志只用于核对真实命令及 canonical 来源，不能替代 Human 的原生显示观察。
+- 仍待：关联 Assignment 原生执行、共享处理/steer、停止、授权拒绝/恢复、处理中 disposal/重启、前后两主题截图、最终指南、最终提交/CI 与 PR 证据。保持 Draft，#911 不关闭，#912 不混入；合并和部署仍各需授权。
 
 下文保留 2026-10-07 的原始交接事实与步骤；其中 `.13`、`.911.3`、generation 61 和旧 Provider pin 属于历史候选，当前接手使用以上版本。
 

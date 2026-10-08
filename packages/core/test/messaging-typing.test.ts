@@ -7,6 +7,7 @@ type TypingInput = Parameters<NonNullable<MessagingProvider['beginTyping']>>[0];
 afterEach(() => vi.useRealTimers());
 
 function fixture() {
+  const warn = vi.fn<(message: string) => void>();
   const inputs: TypingInput[] = [];
   const stops: ReturnType<typeof vi.fn<() => Promise<void>>>[] = [];
   const provider: MessagingProvider = {
@@ -43,9 +44,11 @@ function fixture() {
   const typing = createMessagingTyping({
     candidate: (_bot, id) => (id === 'external-source' ? candidate : undefined),
     timeoutMs: 100,
+    warn,
   });
   return {
     typing,
+    warn,
     candidate,
     provider,
     inputs,
@@ -172,6 +175,8 @@ it('reports unconfirmed cleanup and rejects further starts after disposal', asyn
     phase: 'cleanup-unconfirmed',
     reason: 'cancelled',
   });
+  expect(f.warn).toHaveBeenCalledWith(expect.stringContaining('"phase":"cleanup-unconfirmed"'));
+  expect(f.warn.mock.calls.flat().join()).not.toContain('private native failure');
   await f.typing.begin('ada', ['external-source']).stop();
   expect(f.inputs).toHaveLength(1);
 });

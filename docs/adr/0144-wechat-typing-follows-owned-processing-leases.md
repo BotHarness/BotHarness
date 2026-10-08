@@ -22,8 +22,8 @@ Persist only the identity's enabled preference, defaulting to on in schema gener
 
 ## Qualification boundary
 
-Build on the main-qualified Provider input `4f4f0a6282580bb59968eb90571778eb7e37ee73`, preserving Lark image support and the existing checked WeChat media, quote and proactive text capabilities. Promote the fork revision and managed artifact only with corresponding build/package/regression evidence. Genuine native typing visibility, completion/stop cleanup and packaged-product behavior require fresh Human-controlled WeChat E2E; tests and HTTP acceptance cannot substitute for those observations. Merge and deployment remain separate Human decisions.
+Build on the main-qualified Provider input `55b4528480ccce3e8acc067e10b880556bf5034c`, preserving Lark image/cards and the existing checked WeChat media, quote and proactive text capabilities, plus Slack/Discord receive behavior. Promote the fork revision and managed artifact only with corresponding build/package/regression evidence. Genuine native typing visibility, completion/stop cleanup and packaged-product behavior require fresh Human-controlled WeChat E2E; tests and HTTP acceptance cannot substitute for those observations. Merge and deployment remain separate Human decisions.
 
 ## Consequences
 
-Schema upgrades are forward-only. An older binary cannot safely open a generation-65 profile; reverting code requires a supported newer binary or recovery from the pre-upgrade profile backup. The runtime itself adds no durable activity authority or independent Session lifecycle. Typing failure cannot prevent the underlying authorized message from being processed.
+Schema upgrades are forward-only. A binary supporting only generation 65 cannot safely open a generation-66 profile; reverting code requires a supported newer binary or recovery from the pre-upgrade profile backup. The runtime itself adds no durable activity authority or independent Session lifecycle. Typing failure cannot prevent the underlying authorized message from being processed.

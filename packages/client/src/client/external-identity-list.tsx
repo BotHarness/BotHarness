@@ -457,6 +457,7 @@ export function ExternalIdentityList({
               ) : null}
               {mode === 'edit' && selected.platform === 'weixin' ? (
                 <div className="bh-im-field">
+                  <span>{t('identity.typing.label')}</span>
                   <Switch
                     label={t('identity.typing.label')}
                     checked={typingEnabled}

@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录 Windows 原生 Sandbox 初始化权限及已安装 ACL 诊断 Skill 的限定修复／复验路径，通过 DSH 0.2.0 RC1 实际原生 pwsh 等待命令核验；平台词汇与 Skill 行为不变（[#911](https://github.com/BotHarness/BotHarness/issues/911)）。
+
 - 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 Windows AppData 物理路径、隔离 Profile 的包管理器资格核验、原生 Shell 结果检查及进程时间戳保护，通过 DSH 0.2.0 RC1 核验；平台词汇与 Skill 行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Go 的 Session 请求头要求及经核验的 DSH 0.2.0 RC1 适配器补丁，通过真实模型调用和已保存 DM 回复验证；DSH／Cordis 词汇与 Skill 行为不变（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [AX 指南](../../../docs/agents/ax-model.md)）。

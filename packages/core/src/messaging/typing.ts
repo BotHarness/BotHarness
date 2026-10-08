@@ -33,6 +33,7 @@ interface TypingEntry {
   cleanup?: Promise<void>;
   stateToken: object;
   owners: number;
+  notify(state: MessagingTypingState | { phase: 'unavailable'; reason: string }): void;
 }
 
 export function createMessagingTyping(options: {
@@ -72,11 +73,7 @@ export function createMessagingTyping(options: {
         await bounded(entry.work, options.timeoutMs ?? 12_000);
         await stopLease(entry);
       } catch {
-        if (states.get(entry.candidate.bindingId)?.token === entry.stateToken)
-          states.set(entry.candidate.bindingId, {
-            token: entry.stateToken,
-            state: { phase: 'cleanup-unconfirmed', reason: 'cancelled' },
-          });
+        entry.notify({ phase: 'cleanup-unconfirmed', reason: 'cancelled' });
       } finally {
         live.delete(entry);
       }
@@ -125,16 +122,6 @@ export function createMessagingTyping(options: {
           const controller = new AbortController();
           const signal = AbortSignal.any([current.signal, controller.signal]);
           const stateToken = {};
-          const entry: TypingEntry = {
-            candidate: current,
-            controller,
-            signal,
-            stateToken,
-            work: Promise.resolve(),
-            owners: 1,
-          };
-          entries.set(current.bindingId, entry);
-          live.add(entry);
           const startedAt = Date.now();
           const notify = (
             state: MessagingTypingState | { phase: 'unavailable'; reason: string },
@@ -161,6 +148,17 @@ export function createMessagingTyping(options: {
               );
             } catch {}
           };
+          const entry: TypingEntry = {
+            candidate: current,
+            controller,
+            signal,
+            stateToken,
+            work: Promise.resolve(),
+            owners: 1,
+            notify,
+          };
+          entries.set(current.bindingId, entry);
+          live.add(entry);
           states.set(current.bindingId, { token: stateToken, state: { phase: 'requesting' } });
           entry.work = Promise.resolve().then(async () => {
             try {

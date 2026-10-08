@@ -90,6 +90,9 @@ it('edits WeChat typing in the current identity modal and keeps native request a
     const toggle = container.querySelector<HTMLButtonElement>(
       `[aria-label="${zhTranslate('identity.typing.label')}"]`,
     )!;
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      zhTranslate('identity.typing.label'),
+    );
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     await act(async () => toggle.click());
     const save = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
@@ -101,7 +104,7 @@ it('edits WeChat typing in the current identity modal and keeps native request a
         id: 'wechat',
         expectedRevision: 7,
         typingEnabled: false,
-        newConversations: 'auto',
+        newConversations: 'inherit',
       }),
     );
   } finally {
