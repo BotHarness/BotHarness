@@ -15,7 +15,7 @@ The scheduled prompt retains the exact current DM destination. Creation confirma
 - Final implementation: 70 focused Client/controller, adapter Tool and Bot Schedule tests passed. They cover deliberate dispatch, duplicate-click protection, missing-model setup without auto-send, unknown time zone, explicit relative Tool arguments, midnight, minute rounding, spring DST and refusal of ambiguous autumn deadlines.
 - Production build, type checking, lint, formatting and bilingual Release Ledger checks pass. A full local Windows test run was stopped after repeated Group/runtime timeouts under parallel load; it is not a full-suite pass. The PR's CI is the complete-suite check.
 - In the isolated real Host using `deepseek-official/deepseek-flash`, the final request was admitted at **2026-10-08 15:57:22 UTC**. The model created one PersonaBot-owned, enabled `once` task at **15:57:29 UTC**, due **16:08:00 UTC / 2026-10-09 01:08 Asia/Tokyo**, with the exact DM destination retained in its prompt. Its concise confirmation arrived at **15:57:30 UTC** and completed onboarding through the canonical Bot reply.
-- Planned firing of this final revision is being observed; the PR remains draft until its outcome is recorded. Earlier real iterations delivered their planned reminders and disabled the one-time task, and exposed the minute-rounding issue fixed here.
+- The final planned-firing outcome is recorded in [PR #1221](https://github.com/BotHarness/DeepSeekBot/pull/1221) and the issue handoff. Earlier real iterations delivered their planned reminders and disabled the one-time task, and exposed the minute-rounding issue fixed here.
 
 ## UI capture exception
 

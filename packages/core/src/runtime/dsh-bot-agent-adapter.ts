@@ -2484,7 +2484,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         once_at: {
           type: 'string',
           description:
-            'Run once at this local date and time, YYYY-MM-DD HH:MM; the schedule turns itself off after it fires. For a relative reminder, read currentTime with bot_schedule_list and round the requested deadline up to the next whole minute, never down.',
+            'Run once at this local date and time, YYYY-MM-DD HH:MM; the schedule turns itself off after it fires. Use once_in_minutes for relative reminders so the Host computes their deadline.',
         },
         cron: {
           type: 'string',
@@ -2494,7 +2494,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         time_zone: {
           type: 'string',
           description:
-            "IANA time zone for daily_time, once_at or cron, for example Asia/Shanghai. Defaults to the Host's time zone.",
+            "IANA time zone, for example Asia/Shanghai. Required explicitly with once_in_minutes; daily_time, once_at and cron otherwise default to the Host's time zone.",
         },
       } as const;
       const scheduleTriggerOf = (
@@ -2551,7 +2551,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         if (args.time_zone !== undefined)
           throw new BotScheduleError(
             'invalid-input',
-            'time_zone needs daily_time, once_at or cron',
+            'time_zone needs daily_time, once_at, once_in_minutes or cron',
           );
         if (required)
           throw new BotScheduleError(
