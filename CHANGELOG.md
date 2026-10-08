@@ -114,6 +114,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Documentation
 
+- Documented the accepted pixel Avatar extension: Avatar Species on one rig (fantasy, animal and flower bases), separately colored hair pieces, a through-hair headpiece slot, and Human-drawn Custom Parts in a Profile Part Library that travel with exported PersonaBots and move as PNGs; runtime behavior is unchanged ([#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md), [handoff](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)).
+
 - Documented the pinned native Human-wait qualification and the follow-up requirement to keep group conversation available during pending questions/permissions: independent Assignment approvals leave the Orchestrator available, while its own approval/question still blocks unrelated model processing; production continuation remains gated ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)).
 
 - Documented the accepted in-window transparent pixel Window Companion design: local companion selection, three Bot-output visibility scopes, independent playback controls and future-only bounded message consumption; runtime behavior is unchanged ([#1132](https://github.com/BotHarness/BotHarness/issues/1132), [spec #1135](https://github.com/BotHarness/BotHarness/issues/1135), [ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)).
