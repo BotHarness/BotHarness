@@ -560,7 +560,7 @@ it('uses the shared model picker for onboarding and waits for an explicit model 
   );
 });
 
-it('offers news, daily-summary and timed-test requests through the normal welcome send path', async () => {
+it('offers general, daily check-in and timed-test requests through the normal welcome send path', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   container = document.createElement('div');
   document.body.append(container);
@@ -574,32 +574,32 @@ it('offers news, daily-summary and timed-test requests through the normal welcom
   await act(async () =>
     root!.render(createElement(OnboardingWelcome, { actions, channelId: 'dm-ada', t: translate })),
   );
-  const prompts = [
-    en['onboarding.firstRequest'],
-    en['onboarding.newsRequest'],
-    en['onboarding.dailyRequest'],
-  ];
+  const prompts = [en['onboarding.firstRequest'], en['onboarding.exampleRequest']];
   for (const prompt of prompts) {
     await act(async () => button(prompt).click());
     expect(send).toHaveBeenLastCalledWith(prompt);
   }
-  const reminder = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-    (candidate) =>
-      candidate.querySelector('.bh-card-title')?.textContent === en['onboarding.testRequest'],
-  );
-  if (reminder === undefined) throw new Error('Missing reminder card');
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  expect(reminder.textContent).toContain(
-    timeZone
-      ? translate('onboarding.reminderHint', { timeZone })
-      : en['onboarding.reminderUnknownHint'],
-  );
-  await act(async () => reminder.click());
-  expect(send).toHaveBeenLastCalledWith(
-    timeZone
-      ? translate('onboarding.reminderBody', { timeZone })
-      : en['onboarding.reminderUnknownBody'],
-  );
+  for (const [title, prefix] of [
+    [en['onboarding.dailyRequest'], 'daily'],
+    [en['onboarding.testRequest'], 'reminder'],
+  ] as const) {
+    const option = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (candidate) => candidate.querySelector('.bh-card-title')?.textContent === title,
+    );
+    if (option === undefined) throw new Error('Missing scheduling card');
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(option.textContent).toContain(
+      timeZone
+        ? translate(`onboarding.${prefix}Hint`, { timeZone })
+        : en['onboarding.reminderUnknownHint'],
+    );
+    await act(async () => option.click());
+    expect(send).toHaveBeenLastCalledWith(
+      timeZone
+        ? translate(`onboarding.${prefix}Body`, { timeZone })
+        : translate(`onboarding.${prefix}UnknownBody`),
+    );
+  }
   expect(send).toHaveBeenCalledTimes(4);
 });
 

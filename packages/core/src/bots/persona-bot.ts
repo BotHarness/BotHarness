@@ -20,6 +20,7 @@ export interface PersonaBotRecord {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   banner?: BotBanner;
+  avatarSeed?: 2;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
   modelPlanRevision?: number;
@@ -137,6 +138,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   )
     return false;
   if (record['banner'] !== undefined && !isBotBanner(record['banner'])) return false;
+  if (record['avatarSeed'] !== undefined && record['avatarSeed'] !== 2) return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
   if (record['roles'] !== undefined) {

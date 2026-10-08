@@ -224,34 +224,42 @@ export function OnboardingWelcome({
         {(
           [
             'onboarding.firstRequest',
-            'onboarding.newsRequest',
+            state.receipt?.newsAvailable === true
+              ? 'onboarding.newsRequest'
+              : 'onboarding.exampleRequest',
             'onboarding.dailyRequest',
             'onboarding.testRequest',
           ] as const
-        ).map((key) => (
-          <SidebarCardRow
-            key={key}
-            title={t(key)}
-            meta={
-              key === 'onboarding.testRequest'
-                ? timeZone
-                  ? t('onboarding.reminderHint', { timeZone })
-                  : t('onboarding.reminderUnknownHint')
-                : undefined
-            }
-            disabled={state.busy || store.getSnapshot().conversation.sending}
-            onClick={() =>
-              void controller.request(
-                channelId,
-                key === 'onboarding.testRequest'
+        ).map((key) => {
+          const scheduled = key === 'onboarding.testRequest' || key === 'onboarding.dailyRequest';
+          const prefix = key === 'onboarding.dailyRequest' ? 'daily' : 'reminder';
+          return (
+            <SidebarCardRow
+              key={key}
+              title={t(key)}
+              meta={
+                scheduled
                   ? timeZone
-                    ? t('onboarding.reminderBody', { timeZone })
-                    : t('onboarding.reminderUnknownBody')
-                  : t(key),
-              )
-            }
-          />
-        ))}
+                    ? t(`onboarding.${prefix}Hint`, { timeZone })
+                    : t('onboarding.reminderUnknownHint')
+                  : undefined
+              }
+              disabled={state.busy || store.getSnapshot().conversation.sending}
+              onClick={() =>
+                void controller.request(
+                  channelId,
+                  scheduled
+                    ? timeZone
+                      ? t(`onboarding.${prefix}Body`, { timeZone })
+                      : t(`onboarding.${prefix}UnknownBody`)
+                    : key === 'onboarding.newsRequest'
+                      ? t('onboarding.newsBody')
+                      : t(key),
+                )
+              }
+            />
+          );
+        })}
       </SidebarCardList>
       <p className="bh-note">{t('onboarding.freeform')}</p>
       <SidebarCardList className="bh-message-card-list" label={t('onboarding.model')}>

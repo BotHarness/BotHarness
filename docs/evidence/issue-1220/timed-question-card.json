@@ -1,0 +1,1238 @@
+{
+  "integration": "card",
+  "card": {
+    "before": {
+      "status": "pending"
+    },
+    "after": {
+      "status": "answered"
+    },
+    "submit": {
+      "via": "visible-question-card",
+      "accepted": true
+    }
+  },
+  "issue": 1220,
+  "dsh": "0.2.0-rc.2",
+  "upstream": "639ed015397290b3745d163aafe02ffee4aa3f84",
+  "applicationBaseline": "df380a9599277f858e29adb02856dc21d12b044a",
+  "startedAt": "2026-10-08T18:17:54.801Z",
+  "request": {
+    "id": "87a51e62-2c95-45d7-88f6-1870aa43302f",
+    "at": "2026-10-08T18:18:16.653Z",
+    "author": {
+      "kind": "bot",
+      "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+    },
+    "userQuestionRequest": {
+      "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+      "questions": [
+        {
+          "id": "wait-route",
+          "question": "Which synthetic test route?",
+          "options": [
+            {
+              "label": "Canary",
+              "description": "Test route"
+            },
+            {
+              "label": "Stable",
+              "description": "Other route"
+            }
+          ]
+        }
+      ],
+      "callId": "call_00_yCifu93BRHeDpfPiwvob5199"
+    },
+    "body": "Which synthetic test route?",
+    "channelRevision": 5
+  },
+  "pending": {
+    "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+    "questions": {
+      "active": [
+        {
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "questions": [
+            {
+              "id": "wait-route",
+              "question": "Which synthetic test route?",
+              "options": [
+                {
+                  "label": "Canary",
+                  "description": "Test route"
+                },
+                {
+                  "label": "Stable",
+                  "description": "Other route"
+                }
+              ]
+            }
+          ],
+          "state": "continued"
+        }
+      ],
+      "settled": []
+    },
+    "events": [
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 3,
+        "time": 1791483490067,
+        "data": {
+          "target": "next-turn",
+          "inserted": []
+        }
+      },
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791483490069,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 5,
+        "time": 1791483490077,
+        "data": {
+          "target": "next-turn",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791483491198,
+        "data": {
+          "id": "01beb5e2-9d81-4557-bbea-cbf3b0ad9ed7",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Reply through channel_send with exactly BASELINE_1220. Use no other tools."
+        }
+      },
+      {
+        "type": "request/header",
+        "seq": 11,
+        "time": 1791483491208,
+        "data": {
+          "timedSchema": {
+            "type": "integer",
+            "description": "Wait seconds for the entire batch (default 2); omit unless the user specifies a duration. Use -1 only when an answer is required before proceeding."
+          }
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791483493027,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791483493037,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791483493074,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"e189c5c2-c1cc-4d94-8168-32752e9e6ec3\"}"
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 23,
+        "time": 1791483495058,
+        "data": {
+          "target": "next-step",
+          "inserted": []
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791483495077,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 27,
+        "time": 1791483495087,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791483495267,
+        "data": {
+          "id": "69476d61-0185-4df6-b54f-b2c761c4ac3e",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Call native ask_user_question exactly once with timeout 2: one question id wait-route, question \"Which synthetic test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. If the actual native result is pending, channel_send PENDING_1220 and end your turn. Do not invent an answer. Wait for later qualified native answer_to_pending_question input before reporting ANSWER_1220 plus the actual answer."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791483496624,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791483496632,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which synthetic test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}], \"timeout\": 2}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 33,
+        "time": 1791483498658,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "isError": false,
+          "text": "{\"pending\":true,\"callId\":\"call_00_yCifu93BRHeDpfPiwvob5199\",\"message\":\"No answer batch arrived before the timeout. This is pending, not a skipped answer. Continue useful independent work. The user can still answer; their reply will be a user message identified as answer_to_pending_question with this callId and the original questions. Do not treat this as permission.\"}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 37,
+        "time": 1791483499865,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 38,
+        "time": 1791483499874,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"PENDING_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 39,
+        "time": 1791483499903,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"cb7bd957-6800-4d10-b6f3-8a171b1ed589\"}"
+        }
+      }
+    ]
+  },
+  "unanswered": {
+    "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+    "questions": {
+      "active": [
+        {
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "questions": [
+            {
+              "id": "wait-route",
+              "question": "Which synthetic test route?",
+              "options": [
+                {
+                  "label": "Canary",
+                  "description": "Test route"
+                },
+                {
+                  "label": "Stable",
+                  "description": "Other route"
+                }
+              ]
+            }
+          ],
+          "state": "continued"
+        }
+      ],
+      "settled": []
+    },
+    "events": [
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 3,
+        "time": 1791483490067,
+        "data": {
+          "target": "next-turn",
+          "inserted": []
+        }
+      },
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791483490069,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 5,
+        "time": 1791483490077,
+        "data": {
+          "target": "next-turn",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791483491198,
+        "data": {
+          "id": "01beb5e2-9d81-4557-bbea-cbf3b0ad9ed7",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Reply through channel_send with exactly BASELINE_1220. Use no other tools."
+        }
+      },
+      {
+        "type": "request/header",
+        "seq": 11,
+        "time": 1791483491208,
+        "data": {
+          "timedSchema": {
+            "type": "integer",
+            "description": "Wait seconds for the entire batch (default 2); omit unless the user specifies a duration. Use -1 only when an answer is required before proceeding."
+          }
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791483493027,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791483493037,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791483493074,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"e189c5c2-c1cc-4d94-8168-32752e9e6ec3\"}"
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 23,
+        "time": 1791483495058,
+        "data": {
+          "target": "next-step",
+          "inserted": []
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791483495077,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 27,
+        "time": 1791483495087,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791483495267,
+        "data": {
+          "id": "69476d61-0185-4df6-b54f-b2c761c4ac3e",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Call native ask_user_question exactly once with timeout 2: one question id wait-route, question \"Which synthetic test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. If the actual native result is pending, channel_send PENDING_1220 and end your turn. Do not invent an answer. Wait for later qualified native answer_to_pending_question input before reporting ANSWER_1220 plus the actual answer."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791483496624,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791483496632,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which synthetic test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}], \"timeout\": 2}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 33,
+        "time": 1791483498658,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "isError": false,
+          "text": "{\"pending\":true,\"callId\":\"call_00_yCifu93BRHeDpfPiwvob5199\",\"message\":\"No answer batch arrived before the timeout. This is pending, not a skipped answer. Continue useful independent work. The user can still answer; their reply will be a user message identified as answer_to_pending_question with this callId and the original questions. Do not treat this as permission.\"}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 37,
+        "time": 1791483499865,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 38,
+        "time": 1791483499874,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"PENDING_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 39,
+        "time": 1791483499903,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"cb7bd957-6800-4d10-b6f3-8a171b1ed589\"}"
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 43,
+        "time": 1791483503309,
+        "data": {
+          "target": "next-step",
+          "inserted": []
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 44,
+        "time": 1791483503329,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 46,
+        "time": 1791483503340,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 48,
+        "time": 1791483503494,
+        "data": {
+          "id": "1901bc8b-649f-4208-a20d-b8a66ecafacd",
+          "source": {
+            "kind": "user"
+          },
+          "text": "This is unrelated ordinary Inbox work. Reply through channel_send with exactly UNRELATED_REPLY_1220. Do not answer, approve or replace the pending question."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 50,
+        "time": 1791483504713,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 51,
+        "time": 1791483504719,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_RVKemE6gjOzrb8BVj78I5034",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 52,
+        "time": 1791483504753,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_RVKemE6gjOzrb8BVj78I5034",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"03e5e69e-3340-4795-bbd2-da57ef6ec1e9\"}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 56,
+        "time": 1791483506278,
+        "data": {
+          "turn": 1,
+          "step": 7,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "turn/end",
+        "seq": 58,
+        "time": 1791483507286,
+        "data": {
+          "turn": 1,
+          "reason": {
+            "kind": "completed"
+          }
+        }
+      }
+    ]
+  },
+  "after": {
+    "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+    "questions": {
+      "active": [],
+      "settled": [
+        {
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "answers": [
+            {
+              "id": "wait-route",
+              "selected": ["Canary"]
+            }
+          ]
+        }
+      ]
+    },
+    "events": [
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 3,
+        "time": 1791483490067,
+        "data": {
+          "target": "next-turn",
+          "inserted": []
+        }
+      },
+      {
+        "type": "turn/start",
+        "seq": 4,
+        "time": 1791483490069,
+        "data": {
+          "turn": 1
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 5,
+        "time": 1791483490077,
+        "data": {
+          "target": "next-turn",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 8,
+        "time": 1791483491198,
+        "data": {
+          "id": "01beb5e2-9d81-4557-bbea-cbf3b0ad9ed7",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Reply through channel_send with exactly BASELINE_1220. Use no other tools."
+        }
+      },
+      {
+        "type": "request/header",
+        "seq": 11,
+        "time": 1791483491208,
+        "data": {
+          "timedSchema": {
+            "type": "integer",
+            "description": "Wait seconds for the entire batch (default 2); omit unless the user specifies a duration. Use -1 only when an answer is required before proceeding."
+          }
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 18,
+        "time": 1791483493027,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 19,
+        "time": 1791483493037,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"BASELINE_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 20,
+        "time": 1791483493074,
+        "data": {
+          "turn": 1,
+          "step": 1,
+          "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"e189c5c2-c1cc-4d94-8168-32752e9e6ec3\"}"
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 23,
+        "time": 1791483495058,
+        "data": {
+          "target": "next-step",
+          "inserted": []
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 25,
+        "time": 1791483495077,
+        "data": {
+          "turn": 1,
+          "step": 2,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 27,
+        "time": 1791483495087,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 29,
+        "time": 1791483495267,
+        "data": {
+          "id": "69476d61-0185-4df6-b54f-b2c761c4ac3e",
+          "source": {
+            "kind": "user"
+          },
+          "text": "Call native ask_user_question exactly once with timeout 2: one question id wait-route, question \"Which synthetic test route?\", options [{label:\"Canary\",description:\"Test route\"},{label:\"Stable\",description:\"Other route\"}]. If the actual native result is pending, channel_send PENDING_1220 and end your turn. Do not invent an answer. Wait for later qualified native answer_to_pending_question input before reporting ANSWER_1220 plus the actual answer."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 31,
+        "time": 1791483496624,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 32,
+        "time": 1791483496632,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "name": "ask_user_question",
+          "arguments": "{\"questions\": [{\"id\": \"wait-route\", \"question\": \"Which synthetic test route?\", \"options\": [{\"label\": \"Canary\", \"description\": \"Test route\"}, {\"label\": \"Stable\", \"description\": \"Other route\"}]}], \"timeout\": 2}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 33,
+        "time": 1791483498658,
+        "data": {
+          "turn": 1,
+          "step": 3,
+          "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+          "isError": false,
+          "text": "{\"pending\":true,\"callId\":\"call_00_yCifu93BRHeDpfPiwvob5199\",\"message\":\"No answer batch arrived before the timeout. This is pending, not a skipped answer. Continue useful independent work. The user can still answer; their reply will be a user message identified as answer_to_pending_question with this callId and the original questions. Do not treat this as permission.\"}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 37,
+        "time": 1791483499865,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 38,
+        "time": 1791483499874,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"PENDING_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 39,
+        "time": 1791483499903,
+        "data": {
+          "turn": 1,
+          "step": 4,
+          "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"cb7bd957-6800-4d10-b6f3-8a171b1ed589\"}"
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 43,
+        "time": 1791483503309,
+        "data": {
+          "target": "next-step",
+          "inserted": []
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 44,
+        "time": 1791483503329,
+        "data": {
+          "turn": 1,
+          "step": 5,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 46,
+        "time": 1791483503340,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 48,
+        "time": 1791483503494,
+        "data": {
+          "id": "1901bc8b-649f-4208-a20d-b8a66ecafacd",
+          "source": {
+            "kind": "user"
+          },
+          "text": "This is unrelated ordinary Inbox work. Reply through channel_send with exactly UNRELATED_REPLY_1220. Do not answer, approve or replace the pending question."
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 50,
+        "time": 1791483504713,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 51,
+        "time": 1791483504719,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_RVKemE6gjOzrb8BVj78I5034",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"UNRELATED_REPLY_1220\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 52,
+        "time": 1791483504753,
+        "data": {
+          "turn": 1,
+          "step": 6,
+          "callId": "call_00_ET_RVKemE6gjOzrb8BVj78I5034",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"03e5e69e-3340-4795-bbd2-da57ef6ec1e9\"}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 56,
+        "time": 1791483506278,
+        "data": {
+          "turn": 1,
+          "step": 7,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "turn/end",
+        "seq": 58,
+        "time": 1791483507286,
+        "data": {
+          "turn": 1,
+          "reason": {
+            "kind": "completed"
+          }
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 59,
+        "time": 1791483511688,
+        "data": {
+          "target": "next-step",
+          "inserted": [
+            {
+              "id": "c244dd50-75c5-49ff-b85c-61b7248df11f",
+              "source": {
+                "kind": "user-question-reply",
+                "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+                "outcome": "answered"
+              },
+              "text": "{\"kind\":\"answer_to_pending_question\",\"tool\":\"ask_user_question\",\"callId\":\"call_00_yCifu93BRHeDpfPiwvob5199\",\"questions\":[{\"id\":\"wait-route\",\"question\":\"Which synthetic test route?\",\"options\":[{\"label\":\"Canary\",\"description\":\"Test route\"},{\"label\":\"Stable\",\"description\":\"Other route\"}]}],\"answers\":[{\"id\":\"wait-route\",\"selected\":[\"Canary\"]}]}"
+            }
+          ]
+        }
+      },
+      {
+        "type": "turn/start",
+        "seq": 60,
+        "time": 1791483511689,
+        "data": {
+          "turn": 2
+        }
+      },
+      {
+        "type": "agent/inbox/spliced",
+        "seq": 61,
+        "time": 1791483511690,
+        "data": {
+          "target": "next-step",
+          "removedCount": 1,
+          "inserted": []
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 63,
+        "time": 1791483511744,
+        "data": {
+          "id": "c244dd50-75c5-49ff-b85c-61b7248df11f",
+          "source": {
+            "kind": "user-question-reply",
+            "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+            "outcome": "answered"
+          },
+          "text": "{\"kind\":\"answer_to_pending_question\",\"tool\":\"ask_user_question\",\"callId\":\"call_00_yCifu93BRHeDpfPiwvob5199\",\"questions\":[{\"id\":\"wait-route\",\"question\":\"Which synthetic test route?\",\"options\":[{\"label\":\"Canary\",\"description\":\"Test route\"},{\"label\":\"Stable\",\"description\":\"Other route\"}]}],\"answers\":[{\"id\":\"wait-route\",\"selected\":[\"Canary\"]}]}"
+        }
+      },
+      {
+        "type": "assistant/message",
+        "seq": 65,
+        "time": 1791483513333,
+        "data": {
+          "turn": 2,
+          "step": 1,
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          }
+        }
+      },
+      {
+        "type": "tool/call",
+        "seq": 66,
+        "time": 1791483513353,
+        "data": {
+          "turn": 2,
+          "step": 1,
+          "callId": "call_00_sPpcFHwNrByJ0L2lqr598928",
+          "name": "channel_send",
+          "arguments": "{\"body\": \"ANSWER_1220 Canary\"}"
+        }
+      },
+      {
+        "type": "tool/result",
+        "seq": 67,
+        "time": 1791483513450,
+        "data": {
+          "turn": 2,
+          "step": 1,
+          "callId": "call_00_sPpcFHwNrByJ0L2lqr598928",
+          "isError": false,
+          "text": "{\"channelId\":\"dm-bot-ecb6283a0a2d475bb6a5b2277c708aed\",\"messageId\":\"a1700d0d-e6bc-476e-a5c6-6d3f28f4b1e4\"}"
+        }
+      }
+    ]
+  },
+  "decisions": {
+    "wrong": false,
+    "accepted": {
+      "at": "2026-10-08T18:18:31.760Z",
+      "value": true
+    },
+    "duplicate": false
+  },
+  "messages": [
+    {
+      "id": "a1700d0d-e6bc-476e-a5c6-6d3f28f4b1e4",
+      "at": "2026-10-08T18:18:33.394Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+      },
+      "body": "ANSWER_1220 Canary",
+      "channelRevision": 10
+    },
+    {
+      "id": "ef00b533-70cb-4c29-b97e-da086c3409a2",
+      "at": "2026-10-08T18:18:31.749Z",
+      "author": {
+        "kind": "human"
+      },
+      "replyTo": "87a51e62-2c95-45d7-88f6-1870aa43302f",
+      "userQuestionResolution": {
+        "requestMessageId": "87a51e62-2c95-45d7-88f6-1870aa43302f",
+        "state": "answered",
+        "answers": [
+          {
+            "id": "wait-route",
+            "selected": ["Canary"]
+          }
+        ]
+      },
+      "body": "Canary",
+      "channelRevision": 9,
+      "deliveries": [
+        {
+          "botSlug": "bot-ecb6283a0a2d475bb6a5b2277c708aed",
+          "state": "pending"
+        }
+      ],
+      "replyToPreview": {
+        "author": {
+          "kind": "bot",
+          "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+        },
+        "body": "Which synthetic test route?"
+      }
+    },
+    {
+      "id": "03e5e69e-3340-4795-bbd2-da57ef6ec1e9",
+      "at": "2026-10-08T18:18:24.741Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+      },
+      "body": "UNRELATED_REPLY_1220",
+      "channelRevision": 8
+    },
+    {
+      "id": "cb7bd957-6800-4d10-b6f3-8a171b1ed589",
+      "at": "2026-10-08T18:18:19.891Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+      },
+      "body": "PENDING_1220",
+      "channelRevision": 6
+    },
+    {
+      "id": "87a51e62-2c95-45d7-88f6-1870aa43302f",
+      "at": "2026-10-08T18:18:16.653Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+      },
+      "userQuestionRequest": {
+        "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+        "questions": [
+          {
+            "id": "wait-route",
+            "question": "Which synthetic test route?",
+            "options": [
+              {
+                "label": "Canary",
+                "description": "Test route"
+              },
+              {
+                "label": "Stable",
+                "description": "Other route"
+              }
+            ]
+          }
+        ],
+        "callId": "call_00_yCifu93BRHeDpfPiwvob5199"
+      },
+      "body": "Which synthetic test route?",
+      "channelRevision": 5
+    },
+    {
+      "id": "e189c5c2-c1cc-4d94-8168-32752e9e6ec3",
+      "at": "2026-10-08T18:18:13.063Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-ecb6283a0a2d475bb6a5b2277c708aed"
+      },
+      "body": "BASELINE_1220",
+      "channelRevision": 3
+    }
+  ],
+  "client": [
+    {
+      "at": "2026-10-08T18:18:04.891Z",
+      "consoleErrorCount": 0
+    },
+    {
+      "at": "2026-10-08T18:18:34.685Z",
+      "consoleErrorCount": 0
+    }
+  ],
+  "verdict": {
+    "sessionId": "botharness-cd47826c-6f0b-401a-9ad6-bd2812f660ab",
+    "callId": "call_00_yCifu93BRHeDpfPiwvob5199",
+    "toolResult": "pending",
+    "nativeQuestionAfterTimeout": "continued",
+    "nativeQuestionAfterAnswer": "settled",
+    "baseline": {
+      "callId": "call_00_Q6bHJzK4KgwFS1npr93V5757",
+      "callAt": 1791483493037,
+      "replyId": "e189c5c2-c1cc-4d94-8168-32752e9e6ec3",
+      "replyAt": "2026-10-08T18:18:13.063Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "pendingReply": {
+      "callId": "call_00_ET_a6BPXUw1Pl2N68ufCvoh7359",
+      "callAt": 1791483499874,
+      "replyId": "cb7bd957-6800-4d10-b6f3-8a171b1ed589",
+      "replyAt": "2026-10-08T18:18:19.891Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "unrelated": {
+      "callId": "call_00_ET_RVKemE6gjOzrb8BVj78I5034",
+      "callAt": 1791483504719,
+      "replyId": "03e5e69e-3340-4795-bbd2-da57ef6ec1e9",
+      "replyAt": "2026-10-08T18:18:24.741Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "processed": {
+      "callId": "call_00_sPpcFHwNrByJ0L2lqr598928",
+      "callAt": 1791483513353,
+      "replyId": "a1700d0d-e6bc-476e-a5c6-6d3f28f4b1e4",
+      "replyAt": "2026-10-08T18:18:33.394Z",
+      "model": {
+        "kind": "model",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash"
+      }
+    },
+    "applicationCardAfterTimeout": "pending",
+    "applicationCardQualified": true,
+    "productionQualified": false
+  }
+}

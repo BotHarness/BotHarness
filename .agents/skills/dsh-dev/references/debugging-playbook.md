@@ -186,3 +186,47 @@ Session/call/arguments, native decision/result and the unrelated `channel_send`
 receipt. Recheck scope changes/revocation. Cancellation/cold resume are not
 preserved-call suspension. See the [bounded #1036 experiment](../../../../docs/research/1036-native-wait-experiment.md)
 and [local capability blocker #1220](https://github.com/BotHarness/DeepSeekBot/issues/1220).
+
+## RC2 timed questions outlive their foreground wait
+
+In isolated DSH `0.2.0-rc.2`, configure the native `tool-ask-user` Plugin inside
+the selected Agent Preset's `config.plugins` for timed mode. The Tool can truthfully
+return pending while the original question's native Projection remains continued.
+The foreground signal abort is not necessarily parent Agent cancellation: an
+application answerer that treats every abort as final cancellation can expire its
+card even though the native question remains answerable. Do not keep the expired
+Promise as a second authority; qualify the native Projection and late-reply seam.
+
+Service parameter names do not necessarily equal named HTTP gateway arguments.
+The running RC2 `userQuestions/answer` descriptor expects `agentId` carrying the
+Session ID, not `agent`; invalid fields are rejected before execution. Verify the
+actual descriptor/Client and Host. Acceptance means queued input: retain original
+call correlation, qualified reply enqueue and admission, settled Projection,
+actual model processing and canonical Channel send receipt. A native control
+probe does not establish downstream Channel actor or disclosure authority.
+
+The [bounded RC2 experiment](../../../../docs/research/1220-native-timed-question-experiment.md)
+verified the same-Session question path and retained the original incompatible application
+card as negative evidence. The subsequent [DM card tracer](../../../../docs/research/1220-timed-question-card-e2e.md)
+uses the native Projection and Service through the owning Orchestrator runtime. It did not upgrade production RC1, qualify permission
+approval, or prove cold recovery/capacity release. Preserve native pending-result
+explanatory fields; do not mistake an extra field or harmless answer punctuation
+for a runtime failure. Keep earlier probe and Client startup failures separately.
+
+## Timed-question cards need the application run lifecycle
+
+For an application adapter whose tools require a live application run, qualify a late answer
+after the ordinary native Turn has completely ended. Native `userQuestions.answer` can admit
+the answer and start model work outside that application run; native settlement alone then
+does not prove a Channel reply. In the RC2 card tracer this produced `channel_send: Orchestrator
+run is unavailable`. Bind original source/Session/DM context while the question is asked,
+serialize delivery through the owning runtime, recheck current authority, and keep that run
+through native idle. The native Service still owns answer admission; the adapter supplies no
+extra ordinary input, executor or decision. Capture native Tool results and actual Channel
+receipts, including the failed run, before reporting success.
+
+In real Web automation, a Channel composer can transition from textarea to rich contenteditable
+after Channel metadata loads. Select the existing `.bh-composer-input`, click it, and type through
+the browser; verify the actual send response. A cached textarea selector can disappear during
+that transition. Retain the first failure and current DOM/console, then use the established
+composer interaction path rather than bypassing it through RPC.

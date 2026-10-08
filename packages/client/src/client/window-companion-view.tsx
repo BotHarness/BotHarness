@@ -651,6 +651,7 @@ export function WindowCompanionView({
             size={96}
             src={bot.avatar}
             appearance={bot.appearance}
+            avatarSeed={bot.avatarSeed}
             state={state}
             activity={activity?.activity}
             surface="companion"

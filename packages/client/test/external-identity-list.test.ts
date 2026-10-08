@@ -45,6 +45,75 @@ import { ExternalIdentityList } from '../src/client/external-identity-list.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { chooseOption, openCombobox } from './primitive-mocks.js';
 
+it('shows only the selected Lark identity feedback and keeps unknown distinct from platform acceptance', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const identity: NonNullable<MessagingSnapshot['identities']>[number] = {
+    id: 'lark',
+    botSlug: 'ada',
+    providerId: 'dsh-im/feishu',
+    platform: 'feishu',
+    accountRef: 'app',
+    fingerprint: 'a'.repeat(64),
+    name: 'QA Lark',
+    enabled: true,
+    revision: 1,
+    createdAt: '2026-10-08T00:00:00Z',
+    availability: 'available',
+    newConversations: 'auto',
+    grantCount: 0,
+    scopes: [],
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const snapshot: MessagingSnapshot = {
+    accounts: [],
+    identities: [identity],
+    grants: [],
+    intents: [],
+    feedback: [
+      {
+        bindingId: 'other',
+        sourceEventId: 'wrong-source',
+        attempts: { answered: { state: 'accepted', at: '' } },
+      },
+      {
+        bindingId: 'lark',
+        sourceEventId: 'selected-source-12345678',
+        attempts: {
+          received: { state: 'accepted', at: '' },
+          answered: { state: 'unknown', at: '' },
+        },
+      },
+    ],
+  };
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ExternalIdentityList, {
+          snapshot,
+          t: zhTranslate,
+          refresh: vi.fn(),
+          mutate: vi.fn(),
+          conversation: vi.fn(),
+          rules: vi.fn(),
+        }),
+      ),
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[title="编辑身份：QA Lark"]')!.click(),
+    );
+    const content = container.querySelector('[role="dialog"]')!.textContent;
+    expect(content).toContain('消息反馈不可用；正常接收和回复不受影响');
+    expect(content).toContain('12345678 · 接收: 平台已接受 · 回答: 结果未知');
+    expect(content).not.toContain('wrong-source');
+    expect(container.querySelectorAll('[title="selected-source-12345678"]')).toHaveLength(1);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it('edits WeChat typing in the current identity modal and keeps native request acceptance distinct from display', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const identity = {

@@ -215,6 +215,7 @@ export function ChannelDeliveryReceipt({
                               name={name}
                               src={bot?.avatar}
                               appearance={bot?.appearance}
+                              avatarSeed={bot?.avatarSeed}
                               size={22}
                               indicator={false}
                               t={t}
