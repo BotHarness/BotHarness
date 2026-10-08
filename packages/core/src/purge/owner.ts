@@ -54,7 +54,8 @@ export function mountContentPurge(options: {
     );
   const fail = (): void => {
     options.warn?.('content-purge initiator=host phase=failed action=repair-ledger-and-restart');
-    failOperationalDatabase(options.database, 'Required Content Purge authority failed');
+    if (options.database.mode === 'ready')
+      failOperationalDatabase(options.database, 'Required Content Purge authority failed');
   };
   const exclusive = <T>(operation: () => T): T => {
     if (barrier || ledger === undefined || options.database.mode !== 'ready') throw unavailable();

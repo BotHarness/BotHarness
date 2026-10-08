@@ -106,7 +106,8 @@ const prepareScene = async () => {
   await page.waitForSelector('.bh-composer-input');
   const body = 'PURGE_QA_ERASE synthetic disposable text';
   for (const value of [body, 'PURGE_QA_KEEP unselected history']) {
-    await page.locator('.bh-composer-input').fill(value);
+    await page.focus('.bh-composer-input');
+    await page.keyboard.sendCharacter(value);
     await page.waitForFunction(
       (value) => {
         const input = document.querySelector('.bh-composer-input');
