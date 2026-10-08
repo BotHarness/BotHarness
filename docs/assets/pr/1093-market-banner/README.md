@@ -4,27 +4,27 @@ Captured on a real isolated DSH instance (1440 × 900). The Marketplace list and
 
 ## List
 
-|       | zh                      | en                      |
-| ----- | ----------------------- | ----------------------- |
-| Light | ![](list-zh-light.webp) | ![](list-en-light.webp) |
-| Dark  | ![](list-zh-dark.webp)  | ![](list-en-dark.webp)  |
+|       | zh                                                             | en                                                             |
+| ----- | -------------------------------------------------------------- | -------------------------------------------------------------- |
+| Light | ![Plugin Marketplace list, Chinese, light](list-zh-light.webp) | ![Plugin Marketplace list, English, light](list-en-light.webp) |
+| Dark  | ![Plugin Marketplace list, Chinese, dark](list-zh-dark.webp)   | ![Plugin Marketplace list, English, dark](list-en-dark.webp)   |
 
 ## Detail
 
-|       | zh                        | en                        |
-| ----- | ------------------------- | ------------------------- |
-| Light | ![](detail-zh-light.webp) | ![](detail-en-light.webp) |
-| Dark  | ![](detail-zh-dark.webp)  | ![](detail-en-dark.webp)  |
+|       | zh                                                                 | en                                                                 |
+| ----- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Light | ![Plugin Marketplace detail, Chinese, light](detail-zh-light.webp) | ![Plugin Marketplace detail, English, light](detail-en-light.webp) |
+| Dark  | ![Plugin Marketplace detail, Chinese, dark](detail-zh-dark.webp)   | ![Plugin Marketplace detail, English, dark](detail-en-dark.webp)   |
 
 ## deepseekbot-site /market
 
 Captured from `pnpm dev` with the Marketplace API answered by the same three sample entries.
 
-|               | zh                             | en                             |
-| ------------- | ------------------------------ | ------------------------------ |
-| List, light   | ![](site-list-zh-light.webp)   | ![](site-list-en-light.webp)   |
-| List, dark    | ![](site-list-zh-dark.webp)    | ![](site-list-en-dark.webp)    |
-| Detail, light | ![](site-detail-zh-light.webp) | ![](site-detail-en-light.webp) |
-| Detail, dark  | ![](site-detail-zh-dark.webp)  | ![](site-detail-en-dark.webp)  |
+|               | zh                                                                    | en                                                                    |
+| ------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| List, light   | ![Site Marketplace list, Chinese, light](site-list-zh-light.webp)     | ![Site Marketplace list, English, light](site-list-en-light.webp)     |
+| List, dark    | ![Site Marketplace list, Chinese, dark](site-list-zh-dark.webp)       | ![Site Marketplace list, English, dark](site-list-en-dark.webp)       |
+| Detail, light | ![Site Marketplace detail, Chinese, light](site-detail-zh-light.webp) | ![Site Marketplace detail, English, light](site-detail-en-light.webp) |
+| Detail, dark  | ![Site Marketplace detail, Chinese, dark](site-detail-zh-dark.webp)   | ![Site Marketplace detail, English, dark](site-detail-en-dark.webp)   |
 
-Phone width (390): ![](site-list-zh-mobile.webp)
+Phone width (390): ![Site Marketplace list, Chinese, phone width](site-list-zh-mobile.webp)

@@ -1737,7 +1737,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   aspect-ratio: 3 / 1;
   overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--bh-hover);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-market-banner {
   width: 100%;
