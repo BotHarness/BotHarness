@@ -23,4 +23,8 @@
 
 ![编辑普通群消息的默认唤醒规则与汇总阈值](/guides/channel-sidebar/17-wake-policy-dialog-zh.webp)
 
-本地群聊可以为某个 Bot 单独覆盖普通消息规则，见 [成员与群管理](/zh/docs/channel-sidebar/groups)。唤醒策略不改变模型、API Provider 或工作区权限。
+## 在本地群聊中
+
+打开群，在频道侧栏展开 **唤醒策略**。每个成员 Bot 一张卡片：第二行是它在这个群里的规则，外部平台的规则与之不同时各加一行。标有 **频道自定义** 的是为这个群单独设置的规则，没有标记时沿用 Bot 自己的默认值。点卡片选择规则和阈值，或点 **恢复继承** 重新使用 Bot 默认值，见 [成员与群管理](/zh/docs/channel-sidebar/groups)。
+
+唤醒策略不改变模型、API Provider 或工作区权限。
