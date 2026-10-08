@@ -29,3 +29,13 @@ WebMs are container-remuxed with no re-encoding, dubbing or screenshot interpola
 ## Remaining scope
 
 Successful native Shell execution remains separately unqualified after the earlier Windows ACL refusal. Automatic SSE reconnection and simultaneous pending Sessions/overflow still rely on automated coverage rather than this real capture. Broad rules were cancelled rather than saved. Ordinary Chat ownership guards remain covered automatically.
+
+## Actual Host restart and automatic transport recovery
+
+Runtime `3afc8f0a7e69f0b22cdf770f2a948f4d9cc827a9` integrates main `5efae378ac47752b49aa20b4397d1c6d38d07892` and formal pixel-avatar0.7.0. Chinese, 1559 × 865, same QA PersonaBot/Profile and unrelated selected Channel. A new actual native bash echo request is pending; it is never approved or executed. Only the verified task Host is stopped and restarted through the standard isolated launcher.
+
+The browser stays on the same document: performance.timeOrigin and its read-only state observer survive. Real transport loss produces live → stale → live, keeps the request visible while disabling all decision controls, and then removes it when the new Host returns a fresh baseline. The owning status marks the old process-local request expired. A direct stale rejection attempt is refused with invalid-input, without adding any canonical decision. The Activity generation changes; no ordinary old speech card returns. A newly requested canonical Bot DM appears without reload and is captured after its complete text is shown.
+
+The five screenshots show pending, disconnected, automatically recovered in light/dark, and the new message in dark. `host-restart.webm` is a continuous silent official MCP recording, remuxed only; no synthetic SSE/state/card/approval was injected. `restart-qualification.json` records scoped checks. Downtime produces55expected connection refused/reset console errors plus native retry warnings; no non-connection error was found in the complete105message console capture. This is not a clean-console claim. All owned browser pages and the isolated browser were closed.
+
+This qualifies real Host restart/new-generation automatic recovery, not a temporary same-Host network break with a still-live owner. Real simultaneous Sessions/overflow and actually saved broad rules remain separate. Earlier media keep their original revisions; unrelated newly integrated Avatar/onboarding UI is not a matched before/after comparison of this feature. No Shell execution, performance or full-issue acceptance is claimed.
