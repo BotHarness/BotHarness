@@ -124,9 +124,9 @@ export function ProfileHeatmap({
     pages: [],
   });
   const [loading, setLoading] = useState(false);
-  const [hovered, setHovered] = useState<{ day: string; count: number; left: number } | undefined>(
-    undefined,
-  );
+  const [hovered, setHovered] = useState<
+    { day: string; count: number; left: number; ratio: number } | undefined
+  >(undefined);
   const scroller = useRef<HTMLDivElement | null>(null);
   const keepRight = useRef<number | undefined>(undefined);
   const creationWeek = firstDay === undefined ? undefined : weekStart(firstDay);
@@ -212,7 +212,9 @@ export function ProfileHeatmap({
   const show = (target: HTMLElement, day: string, count: number): void => {
     const box = target.closest('.bh-profile-heat')?.getBoundingClientRect();
     const rect = target.getBoundingClientRect();
-    setHovered({ day, count, left: box === undefined ? 0 : rect.left + rect.width / 2 - box.left });
+    const left = box === undefined ? 0 : rect.left + rect.width / 2 - box.left;
+    const ratio = box === undefined || box.width === 0 ? 0.5 : left / box.width;
+    setHovered({ day, count, left, ratio: Math.min(1, Math.max(0, ratio)) });
   };
   const tipLines = hovered === undefined ? [] : (allDetails.get(hovered.day) ?? []);
   return (
@@ -261,7 +263,14 @@ export function ProfileHeatmap({
         </div>
       </div>
       {hovered === undefined ? null : (
-        <div className="bh-profile-heat-tip" role="tooltip" style={{ left: `${hovered.left}px` }}>
+        <div
+          className="bh-profile-heat-tip"
+          role="tooltip"
+          style={{
+            left: `${hovered.left}px`,
+            transform: `translateX(-${Math.round(hovered.ratio * 100)}%)`,
+          }}
+        >
           <span className="bh-profile-tip-head">
             <span className="bh-profile-tip-day">{hovered.day}</span>
             <span className="bh-profile-tip-value">
