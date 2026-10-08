@@ -148,3 +148,68 @@ it('allows a fresh setup after a closed dialog expires instead of trapping it on
   await client.start('ada', descriptor);
   expect(client.current('ada')?.attemptId).toBe('setup-2');
 });
+
+it('resumes a WeChat QR verification and hands only authenticated identity to binding', async () => {
+  let verified = false;
+  const methods: string[] = [];
+  const client = new ProviderAppSetup({
+    async call(_carrier, endpoint, payload) {
+      expect(endpoint).toBe('dsh-im/app-setup');
+      const request = payload as { method: string; payload: { verifyCode?: string } };
+      methods.push(request.method);
+      if (request.method === 'setup.verify') {
+        expect(request.payload.verifyCode).toBe('123456');
+        verified = true;
+      }
+      return {
+        ok: true,
+        value: {
+          version: 1,
+          channel: 'weixin',
+          attemptId: 'opaque-qr-attempt',
+          expiresAt: Date.now() + 60000,
+          state: verified
+            ? 'ready'
+            : request.method === 'setup.start'
+              ? 'pending'
+              : 'needs_verification',
+          qrDataUrl: 'data:image/png;base64,aGVsbG8=',
+          qrToken: 'private-qr-sentinel',
+          botToken: 'private-token-sentinel',
+          ...(verified
+            ? {
+                accountRef: 'wx_paired',
+                description: {
+                  version: 1,
+                  channel: 'weixin',
+                  botId: 'wx_paired',
+                  account: { fingerprint: 'b'.repeat(64) },
+                  connected: true,
+                },
+              }
+            : {}),
+        },
+      };
+    },
+  });
+  await client.start('ada', {
+    providerId: 'dsh-im/weixin',
+    version: 1,
+    platform: 'weixin',
+    kind: 'qr',
+    endpoint: 'dsh-im/app-setup',
+  });
+  expect(client.current('ada')?.qrDataUrl).toContain('data:image/png;base64,');
+  await client.poll('ada');
+  expect(client.current('ada')?.state).toBe('needs_verification');
+  await client.verify('ada', '123456');
+  expect(client.binding('ada')).toEqual({
+    kind: 'bind',
+    providerId: 'dsh-im/weixin',
+    accountRef: 'wx_paired',
+    fingerprint: 'b'.repeat(64),
+  });
+  expect(JSON.stringify(client.current('ada'))).not.toContain('private-');
+  expect(client.current('ada')?.qrDataUrl).toBeUndefined();
+  expect(methods).toEqual(['setup.start', 'setup.poll', 'setup.verify']);
+});

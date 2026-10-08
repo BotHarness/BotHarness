@@ -602,3 +602,126 @@ it('creates and binds a Lark app in the current dialog without sending credentia
     container.remove();
   }
 });
+
+it('resumes WeChat QR pairing in the bind dialog and binds only after authenticated completion', async () => {
+  const { ProviderAppSetup } = await import('../src/client/provider-app-setup.js');
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.useFakeTimers();
+  let verified = false;
+  const methods: string[] = [];
+  const client = new ProviderAppSetup({
+    async call(_channel, endpoint, input) {
+      expect(endpoint).toBe('dsh-im/app-setup');
+      const request = input as { method: string; payload: { verifyCode?: string } };
+      methods.push(request.method);
+      if (request.method === 'setup.verify') {
+        expect(request.payload.verifyCode).toBe('123456');
+        verified = true;
+      }
+      const ready = verified && request.method === 'setup.poll';
+      return {
+        ok: true,
+        value: {
+          version: 1,
+          channel: 'weixin',
+          attemptId: 'qr-ui',
+          expiresAt: Date.now() + 60000,
+          state: ready
+            ? 'ready'
+            : verified
+              ? 'connecting'
+              : request.method === 'setup.start'
+                ? 'pending'
+                : 'needs_verification',
+          qrDataUrl: 'data:image/png;base64,aGVsbG8=',
+          qrToken: 'private-qr-token',
+          ...(ready
+            ? {
+                accountRef: 'wx_inline',
+                description: {
+                  version: 1,
+                  channel: 'weixin',
+                  botId: 'wx_inline',
+                  connected: true,
+                  account: { fingerprint: 'c'.repeat(64) },
+                },
+              }
+            : {}),
+        },
+      };
+    },
+  });
+  const mutate = vi.fn(async () => undefined);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const view = () =>
+    createElement(ExternalIdentityList, {
+      snapshot: {
+        accounts: [],
+        grants: [],
+        intents: [],
+        appSetups: [
+          {
+            version: 1,
+            providerId: 'dsh-im/weixin',
+            platform: 'weixin',
+            kind: 'qr',
+            endpoint: 'dsh-im/app-setup',
+          },
+        ],
+      },
+      t: zhTranslate,
+      refresh: vi.fn(async () => undefined),
+      mutate,
+      conversation: vi.fn(),
+      rules: vi.fn(),
+      appSetup: { client, botSlug: 'ada' },
+      bindDialog: { onClose: vi.fn(), dismissLabel: '稍后', description: '' },
+    });
+  const click = async (text: string) =>
+    act(async () => {
+      const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (entry) => entry.textContent === text,
+      );
+      expect(button).toBeDefined();
+      button!.click();
+    });
+  try {
+    await act(async () => root.render(view()));
+    await click('创建应用');
+    await click('生成微信绑定二维码');
+    expect(container.querySelector('img[alt="微信绑定二维码"]')).not.toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+    await act(async () => root.render(null));
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(methods).toEqual(['setup.start']);
+    await act(async () => root.render(view()));
+    await click('创建应用');
+    expect(methods.filter((method) => method === 'setup.start')).toHaveLength(1);
+    expect(container.textContent).toContain('请输入微信显示的配对码');
+    await act(async () => {
+      const input = container.querySelector<HTMLInputElement>('input[aria-label="配对码"]')!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        input,
+        '123456',
+      );
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await click('提交配对码');
+    expect(mutate).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(mutate).toHaveBeenCalledExactlyOnceWith({
+      kind: 'bind',
+      providerId: 'dsh-im/weixin',
+      accountRef: 'wx_inline',
+      fingerprint: 'c'.repeat(64),
+    });
+    expect(JSON.stringify(mutate.mock.calls)).not.toContain('private-qr-token');
+    expect(client.current('ada')).toBeUndefined();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  }
+});

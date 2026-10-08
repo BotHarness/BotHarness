@@ -93,6 +93,11 @@ export class ProviderAppSetup {
   ): Promise<AppSetupAttempt> {
     return this.#operate(scope, 'setup.credentials', input);
   }
+  verify(scope: string, verifyCode: string): Promise<AppSetupAttempt> {
+    if (!/^\d{4,8}$/.test(verifyCode) || this.#sessions.get(scope)?.descriptor.kind !== 'qr')
+      return Promise.reject(failure());
+    return this.#operate(scope, 'setup.verify', { verifyCode });
+  }
   async cancel(scope: string): Promise<AppSetupAttempt> {
     if (!this.#sessions.has(scope)) await this.#pending.get(scope);
     const session = this.#sessions.get(scope);
@@ -193,6 +198,8 @@ export class ProviderAppSetup {
       attempt.connected = description['connected'];
     }
     if (
+      descriptor.kind === 'qr' &&
+      ['pending', 'scanned', 'needs_verification', 'connecting'].includes(attempt.state) &&
       typeof raw['qrDataUrl'] === 'string' &&
       /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(raw['qrDataUrl']) &&
       raw['qrDataUrl'].length <= 200000

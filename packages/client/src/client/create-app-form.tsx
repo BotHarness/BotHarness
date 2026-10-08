@@ -34,6 +34,38 @@ export function CreateAppForm({
   const active = useRef(false);
   const requestEpoch = useRef(0);
   const form = useRef<HTMLFormElement | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const keepPolling = (value: AppSetupAttempt) => {
+    clearTimeout(pollTimer.current);
+    if (
+      value.platform !== 'weixin' ||
+      !['pending', 'scanned', 'needs_verification', 'connecting'].includes(value.state)
+    )
+      return;
+    const epoch = requestEpoch.current;
+    pollTimer.current = setTimeout(() => {
+      if (!active.current || epoch !== requestEpoch.current) return;
+      void client
+        .poll(botSlug)
+        .then(async (next) => {
+          if (!active.current || epoch !== requestEpoch.current) return;
+          setAttempt(next);
+          if (next.state === 'ready') {
+            setBusy(true);
+            await onCreated();
+          } else keepPolling(next);
+        })
+        .catch(() => {
+          if (active.current && epoch === requestEpoch.current) {
+            setError(true);
+            if (!client.current(botSlug)) setAttempt(undefined);
+          }
+        })
+        .finally(() => {
+          if (active.current && epoch === requestEpoch.current) setBusy(false);
+        });
+    }, 1000);
+  };
   const mount = useMountedResource<HTMLFormElement>((node) => {
     active.current = true;
     form.current = node;
@@ -42,7 +74,10 @@ export function CreateAppForm({
       void client
         .poll(botSlug)
         .then((value) => {
-          if (active.current) setAttempt(value);
+          if (active.current) {
+            setAttempt(value);
+            keepPolling(value);
+          }
         })
         .catch(() => {
           if (active.current) {
@@ -56,18 +91,22 @@ export function CreateAppForm({
     }
     return () => {
       active.current = false;
+      clearTimeout(pollTimer.current);
     };
   }, []);
   const create = async () => {
     if (busy) return;
     const data = new FormData(form.current!);
     const epoch = ++requestEpoch.current;
+    clearTimeout(pollTimer.current);
     setBusy(true);
     setError(false);
     try {
       const descriptor = descriptors.find((entry) => entry.platform === platform);
       if (!descriptor) throw new Error('setup-unavailable');
-      let value = client.current(botSlug) ?? (await client.start(botSlug, descriptor));
+      let value = client.current(botSlug)
+        ? await client.poll(botSlug)
+        : await client.start(botSlug, descriptor);
       if (value.state === 'credentials') {
         value = await client.credentials(botSlug, {
           appId: String(data.get('appId') ?? '').trim(),
@@ -76,7 +115,12 @@ export function CreateAppForm({
         });
         form.current?.reset();
       }
+      if (value.state === 'needs_verification' && data.get('verifyCode')) {
+        value = await client.verify(botSlug, String(data.get('verifyCode')).trim());
+        form.current?.reset();
+      }
       if (active.current && epoch === requestEpoch.current) {
+        keepPolling(value);
         setAttempt(value);
         if (value.state === 'ready') await onCreated();
       }
@@ -144,6 +188,39 @@ export function CreateAppForm({
           </a>
         </>
       ) : null}
+      {platform === 'weixin' && attempt && attempt.state !== 'ready' ? (
+        <>
+          <p role="status">
+            {t(
+              `appSetup.qr.${attempt.state === 'creating' || attempt.state === 'credentials' ? 'pending' : attempt.state}`,
+            )}
+          </p>
+          {attempt.qrDataUrl ? (
+            <img
+              className="bh-app-setup-qr"
+              src={attempt.qrDataUrl}
+              alt={t('appSetup.qrAlt')}
+              width={320}
+              height={320}
+            />
+          ) : null}
+          {attempt.state === 'needs_verification' ? (
+            <label className="bh-im-field">
+              <span>{t('appSetup.verifyCode')}</span>
+              <Input
+                name="verifyCode"
+                aria-label={t('appSetup.verifyCode')}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{4,8}"
+                maxLength={8}
+                required
+                disabled={busy}
+              />
+            </label>
+          ) : null}
+        </>
+      ) : null}
       {attempt?.state === 'ready' ? (
         <p role="status">
           {t('appSetup.created', { name: attempt.name ?? attempt.accountRef ?? '' })}
@@ -160,6 +237,7 @@ export function CreateAppForm({
           variant="outline"
           onClick={() => {
             requestEpoch.current++;
+            clearTimeout(pollTimer.current);
             void client
               .cancel(botSlug)
               .then((value) => {
@@ -184,7 +262,15 @@ export function CreateAppForm({
         </Button>
       ) : null}
       <Button type="submit" variant="primary" disabled={busy}>
-        {t(busy ? 'identity.pending' : 'appSetup.createBind')}
+        {t(
+          busy
+            ? 'identity.pending'
+            : platform === 'weixin' && !attempt
+              ? 'appSetup.startQr'
+              : attempt?.state === 'needs_verification'
+                ? 'appSetup.verify'
+                : 'appSetup.createBind',
+        )}
       </Button>
     </form>
   );
