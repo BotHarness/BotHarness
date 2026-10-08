@@ -59,8 +59,12 @@ _避免使用_：profile picture、skin
 _避免使用_：Soul、Bot type、mode、skin
 
 **Avatar Appearance**：
-保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
+保存外形：PersonaBot 保存的视觉选择：Avatar Family、Avatar Species、兼容部件（含 Custom Part）、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
 _避免使用_：Soul、pose、mood、skin
+
+**Avatar Species**：
+形象物种：同一 Avatar Family rig 上的基底，例如人类、精灵、哥布林或拟人动物，决定头部轮廓、耳朵、鼻子或吻部和建议配色，并决定可接受哪些部件。它共享该家族的动作和锚点；骨架或视觉语言不同即为另一个 Avatar Family。
+_避免使用_：race、种族、Family、Bot type、skin
 
 **Custom Part**：
 自绘部件：Human 为 Avatar Appearance 某个槽位绘制的有界像素部件，像素引用该外形的颜色选择或固定颜色。应用时把副本嵌入 Avatar Appearance，随分享的 PersonaBot 一同携带；它是数据，不是 markup 或可执行 renderer。
