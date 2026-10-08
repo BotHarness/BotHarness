@@ -74,6 +74,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- Window Companions keep falling after a fast throw clips the character outside the visible content; visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+
 - npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
 
 - Unpinning a Window Companion clears its stale Activity indicator; a successfully loaded Bot roster also clears a deleted Bot's restored selection, while network failures preserve the Human's pin preferences ([#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)).

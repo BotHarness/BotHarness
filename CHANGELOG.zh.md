@@ -74,6 +74,8 @@
 
 ### Fixed
 
+- 窗口伙伴快速甩到可见内容区外后仍会继续下落；可见性检测改为跟随固定显示区域，页面隐藏或整个区域离屏时仍暂停动画（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。
+
 - npm 发布准备因工作区不干净而拒绝时，会列出具体变更路径并限制诊断输出数量，保留尚未审核的文件改动 ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
 
 - 取消窗口伙伴钉选会清除其 Activity 连接异常提示；成功加载 Bot 名单后，会清理已删除 Bot 的恢复钉选，网络失败仍保留用户钉选偏好（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。

@@ -348,14 +348,18 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     return frameId;
   });
   vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
-  let intersect: ((entries: { isIntersecting: boolean }[]) => void) | undefined;
+  let intersect: ((entries: { target: Element; isIntersecting: boolean }[]) => void) | undefined;
   const disconnected = vi.fn();
   vi.stubGlobal(
     'IntersectionObserver',
     class {
-      constructor(private readonly callback: (entries: { isIntersecting: boolean }[]) => void) {}
-      observe(target: Element) {
-        if (target.classList.contains('bh-companion')) intersect = this.callback;
+      constructor(
+        private readonly callback: (
+          entries: { target: Element; isIntersecting: boolean }[],
+        ) => void,
+      ) {}
+      observe() {
+        intersect = this.callback;
       }
       disconnect = disconnected;
     },
@@ -392,11 +396,14 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
   document.body.append(node);
   const root = createRoot(node);
   const openDm = vi.fn();
+  const sound = new CompanionSound();
+  const stop = vi.spyOn(sound, 'stop');
   try {
     await act(() =>
       root.render(
         createElement(WindowCompanionView, {
           companion: owner,
+          sound,
           openDm,
           openAttention() {},
           openChannel() {},
@@ -406,7 +413,12 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     );
     const character = node.querySelector('.bh-companion-character');
     const surface = node.querySelector('.bh-companion');
-    if (!(character instanceof HTMLButtonElement) || !(surface instanceof HTMLElement))
+    const stage = node.querySelector('.bh-companion-stage');
+    if (
+      !(character instanceof HTMLButtonElement) ||
+      !(surface instanceof HTMLElement) ||
+      !(stage instanceof HTMLElement)
+    )
       throw new Error('Missing companion controls');
     await act(() => character.focus());
     expect(owner.getSnapshot().reading).toBe(true);
@@ -421,9 +433,9 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     );
     expect(node.querySelector('[aria-expanded="true"]')).toBeNull();
     expect(document.activeElement).toBe(character);
-    await act(() => intersect!([{ isIntersecting: false }]));
+    await act(() => intersect!([{ target: stage, isIntersecting: false }]));
     expect(frames.size).toBe(0);
-    await act(() => intersect!([{ isIntersecting: true }]));
+    await act(() => intersect!([{ target: stage, isIntersecting: true }]));
     expect(frames.size).toBe(1);
     const visibility = vi.spyOn(document, 'hidden', 'get');
     visibility.mockReturnValue(true);
@@ -525,6 +537,40 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     expect(positions.slice(firstContact + 1).some((bottom) => bottom > 0)).toBe(true);
     expect(surface.style.bottom).toBe('0px');
     expect(openDm).not.toHaveBeenCalled();
+    await act(() => owner.reading(false));
+    await act(() =>
+      events.dispatchEvent(
+        new MessageEvent('companion/message', {
+          data: JSON.stringify({
+            generation: 'host',
+            botId: 'ada',
+            channelId: 'dm',
+            channelName: 'Ada',
+            messageId: 'offscreen-playback',
+            body: 'Keep this text paused while the thrown character is outside the visible area.',
+            source: 'own-dm',
+          }),
+        }),
+      ),
+    );
+    await act(() => owner.reading(true));
+    for (const release of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      await act(() => {
+        pointer('pointerdown', 400, 750);
+        pointer('pointermove', 450, -50);
+        pointer(release, 450, -50);
+      });
+      await advanceFrames(1);
+      await act(() => intersect!([{ target: surface, isIntersecting: false }]));
+      expect(stop).toHaveBeenLastCalledWith('ada');
+      const shown = owner.getSnapshot().cards[0]!.shown;
+      expect(Number.isFinite(Number.parseFloat(surface.style.bottom))).toBe(true);
+      await advanceFrames(240);
+      expect(surface.dataset['motion']).toBe('rest');
+      expect(surface.style.bottom).toBe('0px');
+      expect(owner.getSnapshot().cards[0]!.shown).toBe(shown);
+    }
+    await act(() => intersect!([{ target: surface, isIntersecting: true }]));
     await act(() =>
       character.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
     );

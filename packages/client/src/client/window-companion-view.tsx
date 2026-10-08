@@ -147,6 +147,7 @@ export function WindowCompanionView({
       let elapsed = 0;
       let measured = false;
       let visible = true;
+      let stageVisible = true;
       const syncAudio = () => {
         const state = companion.getSnapshot();
         if (!state.selection || state.bot?.paused || state.sync !== 'live' || !state.cards.length)
@@ -174,8 +175,8 @@ export function WindowCompanionView({
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
-        if (!document.hidden && visible) {
-          elapsed += milliseconds;
+        if (!document.hidden && stageVisible) {
+          if (visible) elapsed += milliseconds;
           if (elapsed >= 50) {
             const before = companion.getSnapshot().cards;
             companion.advance(elapsed, reduced);
@@ -188,6 +189,7 @@ export function WindowCompanionView({
           }
           const walking = Boolean(
             state.selection?.walking &&
+            visible &&
             state.bot?.paused !== true &&
             state.sync === 'live' &&
             !state.reading &&
@@ -227,23 +229,28 @@ export function WindowCompanionView({
           if (next !== previousPoint) setPoint(next);
           if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
-        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
+        if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
       const visibility = () => {
-        if (document.hidden || !visible) sound?.stop(latest.current.selection?.botId);
+        if (document.hidden || !stageVisible || !visible)
+          sound?.stop(latest.current.selection?.botId);
         cancelAnimationFrame(frame);
         frame = 0;
         previous = performance.now();
         elapsed = 0;
-        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
+        if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
       const observer =
         typeof IntersectionObserver === 'undefined'
           ? undefined
           : new IntersectionObserver((entries) => {
-              visible = entries.some((entry) => entry.isIntersecting);
+              for (const entry of entries) {
+                if (entry.target === node) stageVisible = entry.isIntersecting;
+                else visible = entry.isIntersecting;
+              }
               visibility();
             });
+      observer?.observe(node);
       const target = node.querySelector('.bh-companion');
       if (target) observer?.observe(target);
       const policy = new MutationObserver(() => {
