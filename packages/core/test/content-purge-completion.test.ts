@@ -10,6 +10,10 @@ import {
   type OperationalDatabaseOwner,
 } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
+import { commitMessagingDefaults, messagingDefaults } from '../src/messaging/defaults.js';
+import { openPurgeLedger } from '../src/purge/ledger.js';
+import type { PurgeFact } from '../src/purge/contracts.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { mountContentPurge } from '../src/purge/owner.js';
@@ -59,6 +63,76 @@ async function fileScene(extra: Partial<Parameters<typeof mountContentPurge>[0]>
   const path = core.attachments.fileTarget(file.fileId!).path;
   return { ...core, file, channel, source, path };
 }
+
+it('upgrades main generation 69 while preserving WeChat choices and replaying an accepted text checkpoint', async () => {
+  const home = createTempRoot('purge-main-69-upgrade-');
+  const prior = mountOperationalDatabase({
+    dshHome: home,
+    schemaPlan: defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation <= 69),
+    ),
+  });
+  owners.push(prior);
+  const port = attachOperationalModule(prior, 'messaging');
+  const channels = createSqliteChannelStore({
+    database: port,
+    rootDir: join(home, 'botharness', 'channels'),
+  });
+  const channel = channels.createGroup({ name: 'Prior main', members: [] });
+  const at = '2026-10-08T00:00:00.000Z';
+  await channels.appendMessage(channel.id, {
+    id: 'prior-text',
+    at,
+    author: { kind: 'human' },
+    body: 'synthetic prior body',
+  });
+  channels.deleteGroup(channel.id);
+  const saved = port.transaction((db) => {
+    const { revision, changedAt: _at, ...preferences } = messagingDefaults(db, 'weixin');
+    return commitMessagingDefaults(db, {
+      ...preferences,
+      expectedRevision: revision,
+      identityEnabled: false,
+      typingEnabled: false,
+    });
+  });
+  const fact: PurgeFact = {
+    sourceEventId: port.read((db) =>
+      String(
+        db
+          .prepare('SELECT source_event_id FROM source_events WHERE channel_id = ?')
+          .get(channel.id)!.source_event_id,
+      ),
+    ),
+    channelId: channel.id,
+    messageId: 'prior-text',
+    eventAt: at,
+    author: { kind: 'human' },
+    acceptedAt: at,
+    actor: 'local-human',
+    reason: 'human-request',
+  };
+  mountContentPurge({ dshHome: home, database: prior });
+  prior.close();
+  const ledger = openPurgeLedger(join(home, 'botharness', 'purge', 'ledger.db'), true);
+  try {
+    ledger.union({ format: 'botharness-purge', version: 1, facts: [fact] });
+  } finally {
+    ledger.close();
+  }
+  const current = mount(home);
+  expect(current.database.mode).toBe('ready');
+  expect(current.port.read((db) => messagingDefaults(db, 'weixin'))).toEqual(saved);
+  expect(current.purge.sources(channel.id).sources[0]?.body).toBe('');
+  expect(current.purge.checkpoint()).toEqual({
+    format: 'botharness-purge',
+    version: 1,
+    facts: [fact],
+  });
+  expect(
+    current.port.read((db) => db.prepare('SELECT * FROM messaging_managed_files').all()),
+  ).toEqual([]);
+});
 
 it('removes exclusive actual files after acceptance and reapplies destination union to older SQLite and files', async () => {
   const core = await fileScene();

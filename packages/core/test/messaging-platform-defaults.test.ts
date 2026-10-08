@@ -5,6 +5,49 @@ import { registerBridge } from '../src/bridge/rpc.js';
 import { Context } from '@deepseek-ai/cordis';
 import { createTempRoot } from './helpers.js';
 
+it('exposes only qualified WeChat defaults through the public RPC', async () => {
+  const core = createCore({ dshHome: createTempRoot('bh-wechat-defaults-rpc-') });
+  const methods = createBridgeMethods({ ...core });
+  const service = registerBridge(new Context(), methods);
+  try {
+    const original = await service.messagingDefaults();
+    const { revision, changedAt: _at, ...preferences } = await service.messagingDefaults('weixin');
+    expect(preferences).toMatchObject({
+      collection: 'all',
+      wake: 'immediate',
+      identityEnabled: true,
+      typingEnabled: true,
+      newConversations: 'auto',
+    });
+    await service.messagingDefaultsSet({
+      ...preferences,
+      expectedRevision: revision,
+      typingEnabled: false,
+    });
+    expect(await service.messagingDefaults('weixin')).toMatchObject({
+      revision: 1,
+      typingEnabled: false,
+    });
+    expect(await service.messagingDefaults()).toEqual(original);
+    for (const unsupported of [
+      { collection: 'mentions' },
+      { wake: 'mentions' },
+      { wake: 'digest' },
+      { newConversations: 'ask' },
+    ])
+      expect(
+        await methods.messagingDefaultsSet({ ...preferences, expectedRevision: 1, ...unsupported }),
+      ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    await expect(
+      service.messagingDefaultsSet({ ...preferences, expectedRevision: 0 }),
+    ).rejects.toMatchObject({ code: 'defaults-stale' });
+  } finally {
+    core.externalMessaging.close();
+    await core.runtime.close();
+    core.operationalDatabase.close();
+  }
+});
+
 it.each(['slack', 'discord'] as const)(
   '%s reads and saves qualified defaults through the public RPC without crossing platform revisions',
   async (platform) => {
@@ -28,7 +71,7 @@ it.each(['slack', 'discord'] as const)(
       await expect(
         service.messagingDefaultsSet({ ...preferences, expectedRevision: revision, count: 9 }),
       ).rejects.toMatchObject({ code: 'defaults-stale' });
-      expect(await methods.messagingDefaults({ platform: 'weixin' })).toMatchObject({
+      expect(await methods.messagingDefaults({ platform: 'unknown' })).toMatchObject({
         ok: false,
         error: { code: 'invalid-input' },
       });
@@ -38,7 +81,7 @@ it.each(['slack', 'discord'] as const)(
       expect(
         await methods.messagingDefaultsSet({
           ...preferences,
-          platform: 'weixin',
+          platform: 'unknown',
           expectedRevision: 0,
         }),
       ).toMatchObject({ ok: false });

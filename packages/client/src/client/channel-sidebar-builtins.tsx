@@ -20,6 +20,11 @@ import type { ModelPlanStateView } from './bridge.js';
 import { useMountedResource } from './mounted-resource.js';
 import { WakePolicyBadge, WakePolicyEntry } from './wake-policy-entry.js';
 import { ExternalConnectorsEntry, ExternalIdentitiesEntry } from './external-entries.js';
+import {
+  GroupConnectorsEntry,
+  GroupWakePolicyEntry,
+  isGroupConversation,
+} from './group-entries.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
@@ -937,6 +942,24 @@ export function createChannelSidebarBuiltins(
       component: MembersEntry,
       headerAction: MembersHeaderAction,
       badge: MembersBadge,
+    },
+    {
+      id: 'group-wake-policy',
+      icon: 'bell-ring',
+      label: t('entry.wakePolicy'),
+      order: 12,
+      scope: 'channel',
+      component: GroupWakePolicyEntry,
+      visible: isGroupConversation,
+    },
+    {
+      id: 'group-external-connectors',
+      icon: 'plug',
+      label: t('entry.externalConnectors'),
+      order: 14,
+      scope: 'channel',
+      component: GroupConnectorsEntry,
+      visible: isGroupConversation,
     },
     {
       id: 'group-management',

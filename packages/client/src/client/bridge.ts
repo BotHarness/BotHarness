@@ -3431,6 +3431,7 @@ export async function loadMessagingDefaults(
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
     typeof value['identityEnabled'] !== 'boolean' ||
+    (platform === 'weixin' && typeof value['typingEnabled'] !== 'boolean') ||
     !['mentions', 'all'].includes(String(value['collection'])) ||
     !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
     !Number.isInteger(value['count']) ||

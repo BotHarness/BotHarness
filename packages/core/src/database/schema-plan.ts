@@ -1795,8 +1795,33 @@ const CONTENT_PURGE_MIGRATION: SchemaMigration = {
   },
 };
 
-const COMPLETE_CONTENT_PURGE_MIGRATION: SchemaMigration = {
+const WECHAT_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
   generation: 69,
+  module: 'messaging',
+  description: 'Qualify WeChat defaults and preserve existing identity-local typing overrides',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions_qualified (
+        platform TEXT NOT NULL CHECK (platform IN ('feishu', 'slack', 'discord', 'weixin')),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      INSERT INTO messaging_default_revisions_qualified SELECT * FROM messaging_default_revisions;
+      DROP TABLE messaging_default_revisions;
+      ALTER TABLE messaging_default_revisions_qualified RENAME TO messaging_default_revisions;
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      ALTER TABLE messaging_bindings ADD COLUMN typing_inherited INTEGER NOT NULL DEFAULT 0
+        CHECK (typing_inherited IN (0, 1));
+      ALTER TABLE messaging_bindings ADD COLUMN receive_after TEXT;
+    `);
+  },
+};
+
+const COMPLETE_CONTENT_PURGE_MIGRATION: SchemaMigration = {
+  generation: 70,
   module: 'messaging-purge',
   description:
     'Track acquired media and fence shared content, stale effects and attachment bindings',
@@ -1914,5 +1939,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   PERSONA_BOT_DELETION_MIGRATION,
   MESSAGING_TYPING_MIGRATION,
   CONTENT_PURGE_MIGRATION,
+  WECHAT_PLATFORM_DEFAULTS_MIGRATION,
   COMPLETE_CONTENT_PURGE_MIGRATION,
 ]);

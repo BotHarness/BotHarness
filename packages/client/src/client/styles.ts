@@ -6541,6 +6541,7 @@ button.bh-card-main:disabled {cursor:default;}
 .bh-card-chips {display:flex;flex-wrap:wrap;align-items:center;gap:4px;}
 .bh-card-glyph {display:inline-grid;place-items:center;color:var(--dsw-alias-label-secondary);}
 .bh-card-meta {display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:16px;overflow-wrap:anywhere;}
+.bh-card-meta-line {flex-basis:100%;}
 .bh-card-trailing {display:flex;flex:none;align-items:center;gap:4px;padding-right:10px;color:var(--dsw-alias-label-secondary);}
 .bh-card-detail {padding:0 10px 10px 34px;}
 .bh-card-row[data-muted="true"] .bh-card-icon,

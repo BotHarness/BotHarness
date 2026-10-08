@@ -1,6 +1,6 @@
 # ADR-0145: WeChat typing follows owned processing leases
 
-- Status: Accepted design; native client qualification and Human QA pending on #911
+- Status: Accepted; Windows native qualification and Human QA completed on #911
 - Date: 2026-10-07
 - Issue: [#911](https://github.com/BotHarness/BotHarness/issues/911)
 
@@ -21,6 +21,12 @@ Renewal is at most once every five seconds, with a ten-minute hard lifetime. Nat
 Persist only the identity's enabled preference, defaulting to on in schema generation 67. Do not persist native tickets, runtime handles or accepted activity; a restart begins idle. The existing identity sidebar/modal exposes the preference, capability availability and bounded sanitized diagnostics. “Request accepted” means native API acceptance only; unavailable capability, refusal and unconfirmed cleanup remain distinct. Global defaults and Profile inheritance are the separate #912 slice.
 
 ## Qualification boundary
+
+#912 extends the preference through the existing platform-default owner and an explicit
+`typing_inherited` marker; see [ADR-0119](0119-external-platform-defaults-retain-explicit-inheritance.md).
+Existing choices remain custom. An inherited global change invalidates its live leases
+without creating durable activity, changing account authorization or borrowing a sibling
+Bot's identity.
 
 Build on the main-qualified Provider input `a0ba2839dadbdcdda9a9bf7511da3094a79eb1fb`, preserving Lark image/cards and the existing checked WeChat media, quote and proactive text capabilities, plus Slack/Discord receive behavior. Promote the fork revision and managed artifact only with corresponding build/package/regression evidence. Genuine native typing visibility, completion/stop cleanup and packaged-product behavior require fresh Human-controlled WeChat E2E; tests and HTTP acceptance cannot substitute for those observations. Merge and deployment remain separate Human decisions.
 
