@@ -204,7 +204,6 @@ The earlier `.5` packaged QR proof remains tied to product `1fd67ed7` / Provider
 into Client visual or native WeChat pairing qualification. Windows full-run failure
 logs above remain retained and are not replaced by the Linux results.
 
-
 ## Generation 73 main integration and refreshed packaged proof
 
 The later main `78aba544` was integrated after the qualified Provider pin. Its
