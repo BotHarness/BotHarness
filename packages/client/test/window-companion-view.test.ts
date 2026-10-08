@@ -597,7 +597,6 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     });
     expect(surface.textContent).toContain('同步中断');
     expect(frames.size).toBeGreaterThan(0);
-    // jsdom has no pointer/keyboard focus modality; model the browser's pointer focus here.
     const focusVisible = vi.spyOn(character, 'matches').mockReturnValue(false);
     await act(() =>
       character.dispatchEvent(
