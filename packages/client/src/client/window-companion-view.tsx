@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useId, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 import {
   Menu,
   IconEllipsisOutlineRegular,
@@ -79,6 +79,20 @@ export function WindowCompanionView({
   const exit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clickReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [menu, setMenu] = useState(false);
+  const menuClass = `bh-companion-menu-${useId()}`;
+  const menuTrigger = useRef<HTMLElement | null>(null);
+  const focusMenu = useMountedResource<HTMLSpanElement>(() => {
+    menuTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const timer = window.setTimeout(() => {
+      document
+        .getElementsByClassName(menuClass)
+        .item(0)
+        ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+        ?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [menuClass]);
   const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(() => new Set());
   const menuOpen = useRef(false);
   menuOpen.current = menu;
@@ -106,6 +120,21 @@ export function WindowCompanionView({
     hovering.current = true;
     if (exit.current !== undefined) clearTimeout(exit.current);
     companion.reading(true);
+  };
+  const closeMenu = (): void => {
+    const returnFocus = document
+      .getElementsByClassName(menuClass)
+      .item(0)
+      ?.contains(document.activeElement)
+      ? menuTrigger.current
+      : null;
+    setMenu(false);
+    leave();
+    if (returnFocus) {
+      queueMicrotask(() => {
+        if (returnFocus.isConnected) returnFocus.focus();
+      });
+    }
   };
   const mount = useMountedResource<HTMLDivElement>(
     (node) => {
@@ -431,16 +460,16 @@ export function WindowCompanionView({
           >
             {selection.walking ? 'Ⅱ' : '▷'}
           </button>
+          {menu ? <span ref={focusMenu} aria-hidden="true" /> : null}
           <Menu
             open={menu}
-            onClose={() => {
-              setMenu(false);
-              leave();
-            }}
+            onClose={closeMenu}
             items={items}
             dense
             side="top"
             portal
+            autoFocus
+            listClassName={menuClass}
             anchor={
               <button
                 type="button"
@@ -470,8 +499,7 @@ export function WindowCompanionView({
               if (id === 'settings') openSettings?.();
               if (id === 'own-dm' || id === 'shared' || id === 'all-bot')
                 companion.configure({ visibility: id });
-              setMenu(false);
-              leave();
+              closeMenu();
             }}
           />
           {view.pending ? <span role="status">+{view.pending}</span> : null}
