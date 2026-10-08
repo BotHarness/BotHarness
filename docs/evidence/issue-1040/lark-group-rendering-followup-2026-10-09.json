@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "issue": "https://github.com/BotHarness/DeepSeekBot/issues/1040",
+  "agentTask": "codex/local/01a11bd6-6350-7013-b7ae-79b7405f2fa6",
+  "claim": "https://github.com/BotHarness/DeepSeekBot/issues/1040#issuecomment-6068146764",
+  "recordedAt": "2026-10-08T20:10:32.062Z",
+  "provenance": "Human-supplied Lark screenshot received after the R3/R4 windows; not a new live receiver test.",
+  "marker": "BH1040-R3-GROUP",
+  "sourceEventId": "im-c9d55f461a548b4c2882d334e4a4c5b6873b70b313cfad41313cce503fe7d75a",
+  "originalMessageId": "om_x100b634a2a24e8a0ed0c5ce326c11e0",
+  "visibleOriginalTime": "03:51",
+  "visibleMention": "@DeepSeekBot",
+  "visibleReplyText": "BH1040-R3-GROUP OK",
+  "reactionRendering": {
+    "originalMessageHasTwoVisibleReactionChips": true,
+    "bothAttributedTo": "DeepSeekBot",
+    "correlatedWithAcceptedAttempts": ["GLANCE", "DONE"],
+    "qualification": "Original-message group reaction rendering evidenced by Human-supplied capture and exact unique marker correlation."
+  },
+  "originalImage": {
+    "sha256": "07c83e3874c11b8e93c4c324fd2418e7530462e4f8ee34cda987bb1983dfb1de",
+    "width": 1259,
+    "height": 505,
+    "publiclyIncluded": false
+  },
+  "crops": [
+    {
+      "file": "lark-r3-group-original-reactions.png",
+      "region": {
+        "left": 539,
+        "top": 98,
+        "width": 652,
+        "height": 165
+      },
+      "sha256": "7310f6d2f7de0f1ffba56d35cc8c60f3f8dbe603316c7455663acb430a54ac35"
+    },
+    {
+      "file": "lark-r3-group-matching-reply.png",
+      "region": {
+        "left": 87,
+        "top": 391,
+        "width": 933,
+        "height": 46
+      },
+      "sha256": "e7a4ab78c2c7d1162e4e5b12bdcedc88a15257c985b8987ac41ee6359f10859f"
+    }
+  ],
+  "pixelPreservationVerified": true,
+  "excluded": "Unrelated group invitation notices, personal names, avatar and quoted sender line.",
+  "limitations": [
+    "The screenshot does not expose the platform message ID; correlation uses the unique QA marker, matching reply and displayed minute with the retained canonical source.",
+    "This later visual evidence does not rewrite the no-capture observation made inside R3 or prove other pending acceptance cases."
+  ]
+}

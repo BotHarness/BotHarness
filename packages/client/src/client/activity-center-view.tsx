@@ -199,6 +199,7 @@ export function ActivityCenterView({
                     name={bot.displayName}
                     src={bot.avatar}
                     appearance={bot.appearance}
+                    avatarSeed={bot.avatarSeed}
                     size={28}
                     state={bot.state}
                     activity={bot.activity}

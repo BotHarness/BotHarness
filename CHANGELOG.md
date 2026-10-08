@@ -5,7 +5,23 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be prepared for playback, native quotes and retained local context can be read, native video can be played and returned through a checked media path, Discord defaults can be saved independently and inherited by Profile settings, and a Bot can be exported as a zip and imported as a new Bot elsewhere.
+Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval outfits and headwear, you can draw your own headpiece and hair pieces into a Part Library, and new PersonaBots start from a face seeded across every species.
+
+### Breaking Changes
+
+- The Part Library adds Profile schema Generation 73. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
+
+### Added
+
+- Every other part can be drawn as well: outfit, accessory, beard, glasses, nose, cheeks, petals and flower base each offer **Draw or edit this piece**, starting from the style you wear. Pixels in an appearance color stay recolorable. A drawn face part never covers the speaking mouth. Drawn parts hide where the species or headwear hides the built-in part, and **Back to the built-in style** restores your choice. Picking a built-in style no longer upgrades an older Avatar's recipe unless a drawn part is being taken off ([#1240](https://github.com/BotHarness/DeepSeekBot/issues/1240)).
+- Hair pieces can be drawn too: open bangs, left or right side hair or back hair and start from the style you wear, flattened to pixels. Reshape it with the same tools, save it to the Part Library and wear it in that slot. The drawn hair is shaded and recolored like built-in hair, turns with the head and hides under helmets, hoods and on flowers. **Back to the built-in style** restores your original choice ([#1238](https://github.com/BotHarness/DeepSeekBot/issues/1238)).
+- You can draw your own headpiece for a pixel Avatar: pencil, eraser, fill, mirroring across the face, a front layer over the hair and a back layer behind it, undo and redo, and a 1× preview on the real Avatar. Colors can follow the Avatar's hair, skin, eye or outfit color in five tones, or be fixed. Saved parts go into a Part Library in your Profile and can be worn by any PersonaBot. The worn copy turns and speaks with the Window Companion and travels with an exported Bot, and editing a library part saves a new part without changing Avatars that already wear the old one ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
+- Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
+- A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
+
+## [1.2.0] - 2026-10-08
+
+Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.
 
 ### Breaking Changes
 
@@ -16,6 +32,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - PersonaBot deletion adds Profile schema Generation 66; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 ### Added
+
+- The welcome offers today's AI news with source links only when native search credentials and the Bot's search Tool are configured; otherwise it offers a general planning request, and the news request asks for truthful search-error reporting ([#1174](https://github.com/BotHarness/DeepSeekBot/issues/1174)).
 
 - Pixel Avatars can be a goblin, with pointed ears through the hair, small tusks and suggested green skin, and left and right side hair can each have their own style and color; the goblin keeps head turns and speaking mouths in Window Companions, random covers both species, and existing Avatars render unchanged ([#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210), [ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)).
 
@@ -90,7 +108,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Bot mode can now install Git for you: when the Host's Git is unusable, **Install Git** downloads a pinned portable Git into the DeepSeek Harness data folder (from `media.botharness.ai`, falling back to GitHub), verifies its SHA-256 and starts using it without a restart or admin rights; the Orchestrator's Shell uses the same Git. A usable system Git still wins on each start ([#1097](https://github.com/BotHarness/BotHarness/issues/1097), [Git section](docs/installation.md#git)).
 - Importing a Bot from an SSH address now falls back to HTTPS: when cloning `git@host:owner/repo` or `ssh://git@host/owner/repo` fails, the Host retries once with the matching HTTPS address, says it switched, and the Bot syncs over HTTPS from then on; if HTTPS fails too, you see the original SSH error. DeepSeekBot settings gain a **Git** row showing the Git version in use and whether it is system or managed ([#1098](https://github.com/BotHarness/BotHarness/issues/1098), [Git section](docs/installation.md#git)).
 
-- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. An authorized scope update and guarded browser retest verified DM reactions and receipt-only silence; group and recovery qualification remain pending ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
+- Lark feedback candidates can show native `GLANCE` after durable Inbox receipt and `DONE` after the corresponding externally accepted reply, through an optional checked Provider; feedback waits for first-connection readiness and permission denials are definite failures. Guarded QA verified DM and group reaction rendering, group reply states, receipt-only mute, Provider reconnect, a new reply after live Host restart and Web theme captures; exact blocked-source arrival and Web lifecycle reliability remain unqualified ([#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)).
 
 ### Changed
 
@@ -106,7 +124,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - The Bot Profile view now shows only who the Bot is and its activity. A new header has a banner area, the avatar, name, **Tags** and **Bio**, with **Share**, **Edit profile** and a **⋯** menu at the top right. **Edit profile** changes the name, Tags (up to 8, 32 characters each) and Bio (up to 160 characters) together; clicking the avatar opens the avatar editor. **Share** exports the Bot zip and is also on the Bot's right-click menu in the sidebar; **Delete Bot** moved to the **⋯** menu. Role badges are now called Tags and the description Bio. `.botharness/bot.json` writes `tags` and `bio`, and Bio changes sync like a rename; files and zips that still use `roles` are read as Tags, and zip import keeps Tags and Bio. The Bot Marketplace API returns `tags` and `bio`, falling back to `roles` and the GitHub description ([#1087](https://github.com/BotHarness/BotHarness/issues/1087), [Share a Bot guide](docs/share-bot.md), [Export and import guide](docs/bot-zip.md)).
 - The Profile's **Token usage** card is shorter: it switches between **Daily total** and **By model** and offers 7 / 30 / 90 days / All, with a custom range in the **⋯** menu. The role filter, model/provider filter, cache-ratio section and execution details are gone; hover a bar for the cached, uncached input and output split. The separate **Totals** card is removed, and a saved pin for it is dropped quietly ([#1088](https://github.com/BotHarness/BotHarness/issues/1088), [Settings guide](docs/settings.md)).
 - The event activity and Memory commit heatmaps in the Bot Profile now fill the card's width, newest week on the right, and load older weeks as you scroll left, back to the day the Bot was created; the popover versions fill the popover without scrolling. The per-reason event list moved into each day's tooltip ([#1089](https://github.com/BotHarness/BotHarness/issues/1089)).
-- Interface text now calls you "you" and Bots "Bot" everywhere: "Human", "PersonaBot", "Source Event" and "Attention" no longer appear in Chinese or English labels, the purge tombstone reads "Content purged · you · {time}", and the connector section is always "External connectors". A test fails if those internal terms return ([#1090](https://github.com/BotHarness/BotHarness/issues/1090)).
+- Interface text now calls you "you" and Bots "Bot" everywhere: "Human", "PersonaBot", "Source Event" and "Attention" no longer appear in Chinese or English labels, the purge tombstone reads `Content purged · you · {time}`, and the connector section is always "External connectors". A test fails if those internal terms return ([#1090](https://github.com/BotHarness/BotHarness/issues/1090)).
 
 ### Fixed
 

@@ -34,6 +34,7 @@ export interface CompanionBot {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   requests?: readonly CompanionRequest[];
+  avatarSeed?: 2;
 }
 export interface CompanionSnapshot {
   profileId: string;

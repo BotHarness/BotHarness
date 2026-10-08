@@ -459,6 +459,7 @@ function BotRow({
           name={bot.displayName}
           src={bot.avatar}
           appearance={bot.appearance}
+          avatarSeed={bot.avatarSeed}
           state={activity}
           activity={bot?.activity}
           attention={bot?.attention}
@@ -663,6 +664,7 @@ function RailChannel({
               name={bot.displayName}
               src={bot.avatar}
               appearance={bot.appearance}
+              avatarSeed={bot.avatarSeed}
               state={activity}
               activity={bot?.activity}
               attention={bot?.attention}
@@ -697,6 +699,7 @@ function RailChannel({
                 name={bot.displayName}
                 src={bot.avatar}
                 appearance={bot.appearance}
+                avatarSeed={bot.avatarSeed}
                 state={activity}
                 activity={bot?.activity}
                 attention={bot?.attention}
@@ -1916,6 +1919,7 @@ export function BotSidebar({
                           name={bot.displayName}
                           src={bot.avatar}
                           appearance={bot.appearance}
+                          avatarSeed={bot.avatarSeed}
                           state={personaBotActivity(state, bot)}
                           activity={bot.activity}
                           attention={bot.attention}
