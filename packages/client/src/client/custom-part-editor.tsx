@@ -67,7 +67,7 @@ export function CustomPartEditor({
   t: BotHarnessTranslate;
 }): ReactElement {
   const { width: W, height: H } = PART_SLOTS[slot];
-  const hair = isHairPartSlot(slot);
+  const hair = slot !== 'headpiece';
   const [layers, setLayers] = useState<Layers>(() => ({
     front: initial ? partLayer(slot, initial.front) : emptyPartLayer(slot),
     back: initial ? partLayer(slot, initial.back) : emptyPartLayer(slot),

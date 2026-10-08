@@ -1759,6 +1759,7 @@ export const zh = {
   'profile.avatar.part.drawPiece': '绘制／修改这一片',
   'profile.avatar.part.removePiece': '换回内置样式',
   'profile.avatar.part.flattenNote': '从当前样式开始：画好后形状固定，不再跟随脸型和发长变化。',
+  'profile.avatar.part.flattenPartNote': '从当前样式开始：画好后形状固定，不再跟随脸型或物种变化。',
   'profile.avatar.leftSideHairColor': '左侧发色',
   'profile.avatar.rightSideHairColor': '右侧发色',
   'profile.avatar.followHairColor': '跟随发色',
@@ -4325,6 +4326,8 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'profile.avatar.part.removePiece': 'Back to the built-in style',
   'profile.avatar.part.flattenNote':
     'Starting from the current style. The drawn piece keeps this shape and no longer follows face shape or hair length.',
+  'profile.avatar.part.flattenPartNote':
+    'Starting from the current style. The drawn part keeps this shape and no longer adapts to face shape or species.',
   'profile.avatar.leftSideHairColor': 'Left side hair color',
   'profile.avatar.rightSideHairColor': 'Right side hair color',
   'profile.avatar.followHairColor': 'Follow hair color',
