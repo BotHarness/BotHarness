@@ -287,7 +287,7 @@ export function createRealAttachments(root: string, maxBytes: number) {
             };
             const record = join(dir, 'record.json');
             await writeFile(record, JSON.stringify({ ref, checksum }), { flag: 'wx', mode: 0o600 });
-            const handle = await open(record, 'r');
+            const handle = await open(record, 'r+');
             try {
               await handle.sync();
             } finally {
