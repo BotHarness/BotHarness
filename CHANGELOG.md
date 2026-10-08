@@ -14,7 +14,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
-- Window Companions offer optional, quiet text-paced babble, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS. Idle companions hide the empty status bubble and fade action controls in on hover or keyboard focus; pointer focus after dragging no longer keeps reading open ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+- Window Companions offer optional, quiet text-paced babble, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS. Idle companions hide the empty status bubble and fade action controls in on hover or keyboard focus; pointer focus after dragging no longer keeps reading open. Long message bubbles follow the latest revealed text without scrollbars; scrolling upward preserves the reading position until returning to the bottom ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 

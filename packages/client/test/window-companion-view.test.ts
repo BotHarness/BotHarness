@@ -40,6 +40,97 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconNewChatOutlineRegular: () => null,
 }));
 
+it('follows revealed message tails independently and preserves upward reading until returning to the bottom', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  const events = new EventTarget();
+  const companion = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  const send = (type: string, value: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(value) }));
+  await companion.start();
+  companion.select('ada');
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host', revision: 0, bots: [] },
+  });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  let firstHeight = 180;
+  let secondHeight = 90;
+  const height = vi
+    .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+    .mockImplementation(function (this: HTMLElement) {
+      if (!this.matches('.bh-companion-card p') || !this.textContent) return 0;
+      return this.textContent.startsWith('A') ? firstHeight : secondHeight;
+    });
+  const viewport = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(54);
+  try {
+    await act(() =>
+      root.render(
+        createElement(WindowCompanionView, {
+          companion,
+          openDm() {},
+          openAttention() {},
+          openChannel() {},
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(() => {
+      for (const letter of ['A', 'B'])
+        send('companion/message', {
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId: letter,
+          body: letter.repeat(200),
+          source: 'own-dm',
+        });
+      companion.advance(350);
+    });
+    const [first, second] = [
+      ...node.querySelectorAll<HTMLParagraphElement>('.bh-companion-card p'),
+    ];
+    expect(first!.scrollTop).toBe(126);
+    expect(second!.scrollTop).toBe(36);
+    await act(() => {
+      first!.scrollTop = 18;
+      first!.dispatchEvent(new Event('scroll'));
+    });
+    firstHeight = 216;
+    secondHeight = 126;
+    await act(() => companion.advance(350));
+    expect(first!.scrollTop).toBe(18);
+    expect(second!.scrollTop).toBe(72);
+    expect(first!.textContent).toBe('A'.repeat(20));
+    await act(() => {
+      first!.scrollTop = 162;
+      first!.dispatchEvent(new Event('scroll'));
+    });
+    firstHeight = 252;
+    await act(() => companion.advance(350));
+    expect(first!.scrollTop).toBe(198);
+    await act(() => companion.advance(30_000, true));
+    expect(first!.textContent).toBe('A'.repeat(200));
+    expect(second!.textContent).toBe('B'.repeat(200));
+    expect(node.querySelectorAll('.bh-companion-card p')[0]).toBe(first);
+  } finally {
+    await act(() => root.unmount());
+    companion.dispose();
+    node.remove();
+    height.mockRestore();
+    viewport.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
 it('sounds only fresh playback and silences a Bot on background, stale sync, archive and unmount', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();

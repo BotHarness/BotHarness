@@ -33,6 +33,29 @@ const statusVisible = (state: CompanionViewState): boolean =>
     state.sync !== 'live',
   );
 
+function CompanionMessageText({ text, context }: { text: string; context: boolean }): ReactElement {
+  const following = useRef(true);
+  const viewport = useMountedResource<HTMLParagraphElement>(
+    (node) => {
+      if (following.current) node.scrollTop = Math.max(0, node.scrollHeight - node.clientHeight);
+    },
+    [text, context],
+  );
+  return (
+    <p
+      ref={viewport}
+      data-context={context}
+      tabIndex={0}
+      onScroll={(event) => {
+        const node = event.currentTarget;
+        following.current = node.scrollHeight - node.clientHeight - node.scrollTop <= 1;
+      }}
+    >
+      {text}
+    </p>
+  );
+}
+
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
   openDm(botId: string): void;
@@ -471,7 +494,10 @@ export function WindowCompanionView({
                       <IconCloseFillRegular size={14} />
                     </button>
                   </header>
-                  <p data-context={Boolean(context)}>{card.body.slice(0, card.shown)}</p>
+                  <CompanionMessageText
+                    text={card.body.slice(0, card.shown)}
+                    context={Boolean(context)}
+                  />
                 </li>
               );
             })}

@@ -31,7 +31,8 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-activity { position: absolute; bottom: 134px; width: 320px; max-width: calc(100vw - 16px); padding: 6px 9px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); color: var(--bh-companion-muted); font: 12px/18px var(--bh-companion-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-companion[data-sync='stale'] .bh-companion-activity { border-style: dashed; }
 .bh-companion-cards { position: absolute; bottom: 174px; width: 320px; max-width: calc(100vw - 16px); margin: 0; padding: 0; list-style: none; overflow: visible; transition: height 220ms ease; }
-.bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-gutter: stable; }
+.bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-width: none; }
+.bh-companion-cards::-webkit-scrollbar, .bh-companion-card p::-webkit-scrollbar { display: none; }
 .bh-companion-card { position: absolute; width: 100%; height: 104px; padding: 8px 10px; background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); transform-origin: center top; color: var(--bh-companion-text); transition: top 220ms ease, transform 220ms ease; box-shadow: 3px 3px 0 var(--bh-companion-border); }
 .bh-companion-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .bh-companion-source { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
@@ -39,7 +40,8 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-source button { text-align: left; line-height: 14px; }
 .bh-companion-source button:disabled { cursor: default; }
 .bh-companion-card header button { font-size: 11px; color: var(--bh-companion-muted); background: transparent; border: 0; padding: 0; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow: auto; }
+.bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; overflow-anchor: none; scroll-behavior: auto; }
+.bh-companion-card p:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
 .bh-companion-card p[data-context='true'] { max-height: 36px; }
 .bh-companion-toolbar { position: absolute; bottom: 96px; left: -10px; display: flex; align-items: center; gap: 4px; padding: 5px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); }
 .bh-companion-toolbar button { display: grid; place-items: center; min-width: 28px; height: 26px; border: 0; background: transparent; color: var(--bh-companion-text); cursor: pointer; }
