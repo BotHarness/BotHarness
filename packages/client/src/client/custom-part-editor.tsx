@@ -301,7 +301,7 @@ export function CustomPartEditor({
         <button type="button" data-part-save disabled={empty || busy} onClick={() => void save()}>
           {t('profile.avatar.part.save')}
         </button>
-        <button type="button" data-part-cancel onClick={onCancel}>
+        <button type="button" data-part-cancel disabled={busy} onClick={onCancel}>
           {t('profile.avatar.part.cancel')}
         </button>
       </div>

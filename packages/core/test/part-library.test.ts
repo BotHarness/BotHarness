@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mountOperationalDatabase } from '../src/database/owner.js';
+import { OperationalDatabaseError, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { defineSchemaPlan } from '../src/database/schema.js';
 import { createCore } from '../src/plugin.js';
@@ -71,6 +71,28 @@ describe('Part Library through the public Host bridge', () => {
       const bridge = createBridgeMethods({ ...core });
       const parts = bridge.partLibraryList();
       expect(parts.ok && parts.value.parts.map((entry) => entry.id)).toEqual([customPartId(crown)]);
+    });
+  });
+
+  it('reports unavailable storage as a structured result', async () => {
+    await withCore(createTempRoot('bh-part-library-storage-'), (core) => {
+      const failing = {
+        list: () => {
+          throw new OperationalDatabaseError('closed', 'closed');
+        },
+        add: () => {
+          throw new OperationalDatabaseError('closed', 'closed');
+        },
+      };
+      const bridge = createBridgeMethods({ ...core, partLibrary: failing });
+      expect(bridge.partLibraryList()).toMatchObject({
+        ok: false,
+        error: { code: 'storage-unavailable' },
+      });
+      expect(bridge.partLibraryAdd({ part: crown, name: '' })).toMatchObject({
+        ok: false,
+        error: { code: 'storage-unavailable' },
+      });
     });
   });
 

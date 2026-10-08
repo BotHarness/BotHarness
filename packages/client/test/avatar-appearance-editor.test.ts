@@ -552,6 +552,50 @@ describe('Profile Avatar Appearance editing', () => {
     }
   });
 
+  it('retries loading the Part Library after a failed load', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const load = vi
+      .fn<() => Promise<PartLibraryEntry[] | undefined>>()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([]);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const click = async (selector: string) =>
+      act(() => container.querySelector<HTMLElement>(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            library: { load, add: vi.fn(async () => undefined) },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      expect(container.textContent).not.toContain(zhTranslate('profile.avatar.part.libraryEmpty'));
+      await click('[data-avatar-category="hair"]');
+      await click('[data-avatar-category="headpiece"]');
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(container.textContent).toContain(zhTranslate('profile.avatar.part.libraryEmpty'));
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it('switches families without substituting parts and saves a bounded line recipe', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const save = vi.fn(async () => true);

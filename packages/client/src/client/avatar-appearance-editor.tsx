@@ -460,7 +460,9 @@ export function AvatarAppearanceEditor({
                       onClick={() => {
                         setCategory(key);
                         if (key === 'headpiece' && parts === undefined && library)
-                          void library.load().then((loaded) => setParts(loaded ?? []));
+                          void library.load().then((loaded) => {
+                            if (loaded) setParts(loaded);
+                          });
                       }}
                       onKeyDown={(event) => {
                         const step =

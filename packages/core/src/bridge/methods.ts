@@ -2196,7 +2196,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     partLibraryList() {
       if (!deps.partLibrary) return unavailable();
-      return { ok: true, value: { parts: deps.partLibrary.list() } };
+      try {
+        return { ok: true, value: { parts: deps.partLibrary.list() } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
     },
     partLibraryAdd(payload) {
       if (!deps.partLibrary) return unavailable();
@@ -2209,8 +2214,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
       if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
         return invalidInput('parent must be a Custom Part id');
-      const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
-      return { ok: true, value: { entry } };
+      try {
+        const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+        return { ok: true, value: { entry } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
     },
     botBannerSet(payload) {
       const scope = dmMemory(payload);
