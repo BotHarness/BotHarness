@@ -16,4 +16,8 @@ The speech is simulated. A test script drives the companion's own closed, half-o
 
 ![companion close-up](companion-speaking-en-light.webp)
 
-Full flow, from editing to saving to the companion speaking: [goblin-species-flow.mp4](goblin-species-flow.mp4)
+Full flow, from editing to saving to the companion speaking:
+
+![full flow](goblin-species-flow.gif)
+
+The same recording as video: [goblin-species-flow.mp4](goblin-species-flow.mp4)

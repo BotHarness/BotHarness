@@ -182,6 +182,13 @@ export function OnboardingWelcome({
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [modelLabel, setModelLabel] = useState('');
+  const [timeZone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     const slug = store.getSnapshot().conversation.channel?.botSlug;
@@ -225,8 +232,24 @@ export function OnboardingWelcome({
           <SidebarCardRow
             key={key}
             title={t(key)}
+            meta={
+              key === 'onboarding.testRequest'
+                ? timeZone
+                  ? t('onboarding.reminderHint', { timeZone })
+                  : t('onboarding.reminderUnknownHint')
+                : undefined
+            }
             disabled={state.busy || store.getSnapshot().conversation.sending}
-            onClick={() => void controller.request(channelId, t(key))}
+            onClick={() =>
+              void controller.request(
+                channelId,
+                key === 'onboarding.testRequest'
+                  ? timeZone
+                    ? t('onboarding.reminderBody', { timeZone })
+                    : t('onboarding.reminderUnknownBody')
+                  : t(key),
+              )
+            }
           />
         ))}
       </SidebarCardList>
