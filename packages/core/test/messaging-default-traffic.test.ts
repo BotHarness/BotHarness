@@ -605,7 +605,7 @@ it('blocking an entry stops admission and survives restart and rebind; allowing 
   });
   await fx.settle();
   expect((await fx.core.externalMessaging.snapshot('ada')).blockedConversations).toEqual([]);
-  await fx.receive(mention('allowed'));
+  await fx.receive({ ...mention('allowed'), at: new Date(Date.now() + 1000).toISOString() });
   expect(
     fx
       .admissions()
@@ -697,7 +697,7 @@ it('ask mode holds a new conversation without a Source Event until it is allowed
   await fx.settle();
   expect((await fx.core.externalMessaging.snapshot('ada')).heldConversations).toEqual([]);
   expect(fx.admissions()).toEqual([]);
-  await fx.receive(mention('third'));
+  await fx.receive({ ...mention('third'), at: new Date(Date.now() + 1000).toISOString() });
   expect(fx.admissions()).toEqual([{ reason: 'group-mention', messageId: 'om-third' }]);
 });
 
@@ -763,4 +763,172 @@ it('syncs an implicit group entry into a Channel, which then receives its later 
   expect(synced.bridges.map((row) => [row.name, row.delivery])).toEqual([['Team', 'channel']]);
   const dm = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
   expect((await fx.core.externalMessaging.channelBridges(dm.id)).bridges).toEqual([]);
+});
+
+it('QQ Channel sync rejects a Human DM and preserves Inbox-only history when a Group route stops', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('qq-first'));
+  const entry = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  const dmChannel = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
+  const input = {
+    kind: 'add' as const,
+    grantId: entry.id,
+    expectedGrantRevision: entry.revision,
+    delivery: 'channel' as const,
+    name: 'QQ group',
+    enabled: true,
+    collection: 'mentions' as const,
+    collectionInheritance: 'inherit' as const,
+  };
+  await expect(
+    fx.core.externalMessaging.inbound.channelBridge(dmChannel.id, input),
+  ).rejects.toMatchObject({ code: 'channel-unavailable' });
+  const room = fx.core.channels.createGroup({ name: 'QQ room', members: ['ada'] });
+  await fx.core.externalMessaging.inbound.channelBridge(room.id, input);
+  const later = (id: string) => ({
+    ...qqMention(id),
+    at: new Date(Date.now() + 1000).toISOString(),
+  });
+  await fx.receive(later('qq-synced'));
+  const synced = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  const route = synced.bridgeRoutes!.find((route) => route.channelId === room.id)!;
+  await fx.core.externalMessaging.inbound.channelBridge(room.id, {
+    ...input,
+    kind: 'update',
+    grantId: synced.id,
+    expectedGrantRevision: synced.revision,
+    routeId: route.id,
+    expectedRevision: route.revision,
+    enabled: false,
+  });
+  await fx.receive(later('qq-inbox-only'));
+  expect(fx.core.channels.readMessages(room.id).map((message) => message.body)).toEqual([
+    'hello qq-synced',
+  ]);
+  expect(fx.admissions()).toHaveLength(3);
+  await fx.restart();
+  const retained = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  expect(retained.bridgeRoutes!.find((route) => route.channelId === room.id)?.enabled).toBe(false);
+  expect(fx.admissions()).toHaveLength(3);
+  expect(fx.core.channels.readMessages(room.id).map((message) => message.body)).toEqual([
+    'hello qq-synced',
+  ]);
+  expect(fx.core.channels.readMessages(dmChannel.id)).toEqual([]);
+});
+
+it('QQ keeps a conversation mute preference after the same app is unbound, restarted and bound again', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('before-rebind'));
+  const original = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'mute',
+    grantId: original.id,
+    expectedRevision: original.preferenceRevision ?? 0,
+    muted: true,
+  });
+  const identity = (await fx.core.externalMessaging.snapshot('ada')).identities![0]!;
+  await fx.core.externalMessaging.identity('ada', {
+    kind: 'unbind',
+    id: identity.id,
+    expectedRevision: identity.revision,
+  });
+  await fx.restart();
+  await fx.core.externalMessaging.identity('ada', {
+    kind: 'bind',
+    providerId: 'dsh-im/qq',
+    accountRef: 'lark-app',
+    fingerprint,
+  });
+  await fx.settle();
+  await fx.receive({ ...qqMention('after-rebind'), at: new Date(Date.now() + 1000).toISOString() });
+  const restored = (await fx.core.externalMessaging.snapshot('ada')).grants.find(
+    (grant) => !grant.revokedAt,
+  )!;
+  expect(restored.id).not.toBe(original.id);
+  expect(restored).toMatchObject({ muted: true, preferenceRevision: 1 });
+  expect(fx.runs).toHaveLength(1);
+  expect(fx.core.channels.readMessages(fx.core.channels.getOrCreateDm('ada', 'Ada')!.id)).toEqual(
+    [],
+  );
+});
+
+it('QQ exposes observed connection gaps after recovery without claiming a missed-message count', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('connection-history'));
+  await fx.core.externalMessaging.snapshot('ada');
+  const describe = fx.service.describeBot!;
+  fx.service.describeBot = async (botId) => ({ ...(await describe(botId)), connected: false });
+  expect(await fx.core.externalMessaging.snapshot('ada')).toMatchObject({
+    receptionHistory: [
+      expect.objectContaining({ reason: 'provider-unavailable', boundary: 'observed' }),
+    ],
+  });
+  fx.service.describeBot = describe;
+  await fx.restart();
+  expect(await fx.core.externalMessaging.snapshot('ada')).toMatchObject({
+    receptionHistory: expect.arrayContaining([
+      expect.objectContaining({ reason: 'provider-unavailable', endedAt: expect.any(String) }),
+    ]),
+  });
+});
+
+it('QQ retains local pause and block boundaries after allowing future traffic', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('local-boundaries'));
+  await fx.update({ enabled: false });
+  await fx.update({ enabled: true });
+  const grant = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block',
+    grantId: grant.id,
+    expectedRevision: grant.revision,
+  });
+  const blocked = (await fx.core.externalMessaging.snapshot('ada')).blockedConversations![0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'allow',
+    bindingId: blocked.bindingId!,
+    conversation: blocked.conversation,
+    from: 'blocked',
+    expectedRevision: blocked.revision,
+  });
+  expect(await fx.core.externalMessaging.snapshot('ada')).toMatchObject({
+    receptionHistory: expect.arrayContaining([
+      expect.objectContaining({
+        reason: 'identity-paused',
+        boundary: 'local-command',
+        endedAt: expect.any(String),
+      }),
+      expect.objectContaining({
+        reason: 'blocked',
+        boundary: 'local-command',
+        endedAt: expect.any(String),
+      }),
+    ]),
+  });
+});
+
+it('QQ allowing a blocked conversation refuses redelivery from the blocked interval', async () => {
+  const fx = await fixture('qq');
+  await fx.receive(qqMention('before-block'));
+  const grant = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block',
+    grantId: grant.id,
+    expectedRevision: grant.revision,
+  });
+  const blockedMessage = { ...qqMention('during-block'), at: new Date().toISOString() };
+  await fx.receive(blockedMessage);
+  const blocked = (await fx.core.externalMessaging.snapshot('ada')).blockedConversations![0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'allow',
+    bindingId: blocked.bindingId!,
+    conversation: blocked.conversation,
+    from: 'blocked',
+    expectedRevision: blocked.revision,
+  });
+  await fx.settle();
+  await fx.receive(blockedMessage);
+  await fx.receive({ ...qqMention('after-allow'), at: new Date(Date.now() + 1000).toISOString() });
+  expect(fx.core.attention.list({ botSlug: 'ada' }).items).toHaveLength(2);
+  expect(fx.runs).toHaveLength(2);
 });

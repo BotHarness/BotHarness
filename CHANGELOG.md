@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- QQ conversations can sync future mentions to a chosen Group Channel or remain Inbox-only, retain accepted history when sync stops, and show bounded local reception intervals across block/allow and reconnect without claiming remote backfill ([#1153](https://github.com/BotHarness/BotHarness/issues/1153), [QQ connection guide](docs/qq-connection.md)).
+
 - An official QQ Bot app can bind to a PersonaBot, admit group text @mentions into its Inbox and answer in the original group with a native acceptance receipt; the development Provider keeps passive-reply expiry and unknown send outcomes explicit ([#1152](https://github.com/BotHarness/BotHarness/issues/1152), [QQ connection guide](docs/qq-connection.md)).
 
 - Slack DMs to a bound app now reach the Bot's Inbox and get answered in the DM without opening a thread, and Discord apps appear in **Bind app** again. The development IM provider moves to a dsh-im build with Slack DM intake, Discord checked delivery and checked Slack/Discord reply mentions ([#1125](https://github.com/BotHarness/BotHarness/issues/1125), [External identities guide](docs/channel-sidebar/external-identities.md)).

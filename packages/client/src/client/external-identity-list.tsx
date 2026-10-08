@@ -7,7 +7,7 @@ import type {
   MessagingIdentityView,
 } from '../../../core/src/messaging/identity.js';
 import { Combobox } from './combobox.js';
-import { ExternalConversations } from './external-conversations.js';
+import { ExternalConversations, type ConversationSync } from './external-conversations.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -30,6 +30,8 @@ export function ExternalIdentityList({
   conversation,
   rules,
   channels,
+  sync,
+  syncChannels,
   botName = (slug) => slug,
 }: {
   snapshot: MessagingSnapshot | undefined;
@@ -38,6 +40,8 @@ export function ExternalIdentityList({
   conversation(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   channels?: { id: string; name: string }[];
+  sync?: ConversationSync;
+  syncChannels?: { id: string; name: string }[];
   botName?(slug: string): string;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
@@ -427,6 +431,13 @@ export function ExternalIdentityList({
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
                     {...(channels ? { channels } : {})}
+                    {...(selected.platform === 'qq' && sync
+                      ? {
+                          sync: (grant, channelId, enabled) =>
+                            operate(() => sync(grant, channelId, enabled)),
+                          syncChannels: syncChannels ?? [],
+                        }
+                      : {})}
                   />
                 </div>
               ) : null}

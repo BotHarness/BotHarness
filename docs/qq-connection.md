@@ -14,7 +14,20 @@ This is the development slice tracked by [#1152](https://github.com/BotHarness/B
 
 An application belongs to one Bot. The Bot replies through the application that received the message. The platform controls who can reach that application through its availability and group membership settings.
 
-## Understand the first slice
+## Manage a received group conversation
+
+After the first mention, open the application's **Edit identity** conversation list. The trusted group locator belongs to the authenticated application; its name or numeric QQ group number cannot replace that locator.
+
+- Choose **Sync**, select a Group Channel containing this Bot, and apply. Future eligible mentions appear there and enter the existing Bot Inbox; replies still go to the original QQ group through the receiving app.
+- **Stop syncing** stops future Channel placement. With the default Inbox route enabled, reception becomes Inbox-only. Accepted Channel history stays readable and is never copied into another Channel or the Human–Bot DM.
+- **Mute** keeps reception without waking the Bot. **Block** stops intake and cancels unsent authority. **Allow again** admits future messages without backfilling blocked events, including later redelivery.
+- Pausing a route changes that route; pausing the app stops its reception and pending authority; archiving keeps the Bot inactive. Restart preserves durable choices. Rebinding the same authenticated app preserves blocks and mute preferences; revoked Channel authorizations require a new selection.
+
+Expand **Reception intervals** to inspect pause, block, waiting and connection records. **Local control boundaries** come from local actions; **Local observation times** come from connection checks. After an unclean restart, an **unverified continuity** range spans the last observation to the next check. These ranges cannot establish missed-message counts. Each app retains the latest 128 closed intervals and current intervals, without another message transcript.
+
+See [#1153](https://github.com/BotHarness/BotHarness/issues/1153) and [ADR-0145](adr/0145-qq-reception-intervals-record-local-observations.md).
+
+## Understand the text path
 
 | Behavior        | Current contract                                                |
 | --------------- | --------------------------------------------------------------- |

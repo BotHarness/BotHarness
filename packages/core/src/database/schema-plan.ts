@@ -1678,6 +1678,21 @@ const SEVERAL_APPS_MIGRATION: SchemaMigration = {
   },
 };
 
+const RECEPTION_HISTORY_MIGRATION: SchemaMigration = {
+  generation: 64,
+  module: 'messaging',
+  description: 'Retain bounded reception coverage observations without copying external messages',
+  migrate(database) {
+    database.exec(`CREATE TABLE messaging_reception_history (
+      bot_slug TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      body TEXT NOT NULL CHECK (json_valid(body)),
+      PRIMARY KEY (bot_slug, provider_id, fingerprint)
+    );`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1741,4 +1756,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOUND_APP_ADMISSION_MIGRATION,
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
+  RECEPTION_HISTORY_MIGRATION,
 ]);

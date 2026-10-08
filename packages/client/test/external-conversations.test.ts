@@ -164,3 +164,150 @@ it('shows where an entry is synced and offers no Sync action on the row', async 
   await act(async () => root.unmount());
   container.remove();
 });
+
+it('lets an owning QQ group choose Channel sync and stop it while retaining Inbox-only intake', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const sync = vi.fn(async () => undefined);
+  const group = { ...entry('qq-group', 'QA group', false), platform: 'qq' };
+  await act(async () =>
+    root.render(
+      createElement(ExternalConversations, {
+        identity: { ...identity, platform: 'qq', providerId: 'dsh-im/qq' },
+        snapshot: { ...snapshot, grants: [group], heldConversations: [], blockedConversations: [] },
+        busy: false,
+        t: zhTranslate,
+        change: vi.fn(),
+        rules: vi.fn(),
+        sync,
+        syncChannels: [{ id: 'c1', name: 'QQ QA room' }],
+      }),
+    ),
+  );
+  const syncButton = [...container.querySelectorAll('button')].find(
+    (button) => button.textContent === '同步',
+  );
+  expect(syncButton).toBeDefined();
+  await act(async () => syncButton!.click());
+  expect(container.textContent).toContain('仅 Bot Inbox');
+  const toggle = container.querySelector<HTMLButtonElement>('button[aria-label="同步到 Channel"]')!;
+  await act(async () => toggle.click());
+  const option =
+    document.querySelector<HTMLButtonElement>('button[role="option"][data-value="c1"]') ??
+    [...document.querySelectorAll<HTMLButtonElement>('button[role="option"]')].find(
+      (button) => button.textContent === 'QQ QA room',
+    )!;
+  await act(async () => option.click());
+  const apply = container.querySelector<HTMLButtonElement>('button[aria-label="同步 QQ QA room"]')!;
+  await act(async () => apply.click());
+  expect(sync).toHaveBeenLastCalledWith(group, 'c1', true);
+  const routed = {
+    ...group,
+    bridgeRoutes: [
+      {
+        id: 'inbox',
+        channelId: null,
+        name: 'QQ group',
+        enabled: true,
+        collection: 'mentions' as const,
+        collectionInheritance: 'inherit' as const,
+        revision: 1,
+      },
+      {
+        id: 'channel',
+        channelId: 'c1',
+        name: 'QQ group',
+        enabled: true,
+        collection: 'mentions' as const,
+        collectionInheritance: 'inherit' as const,
+        revision: 1,
+      },
+    ],
+  };
+  const render = (grant: typeof routed) =>
+    root.render(
+      createElement(ExternalConversations, {
+        identity: { ...identity, platform: 'qq', providerId: 'dsh-im/qq' },
+        snapshot: { ...snapshot, grants: [grant], heldConversations: [], blockedConversations: [] },
+        busy: false,
+        t: zhTranslate,
+        change: vi.fn(),
+        rules: vi.fn(),
+        sync,
+        channels: [{ id: 'c1', name: 'QQ QA room' }],
+        syncChannels: [{ id: 'c1', name: 'QQ QA room' }],
+      }),
+    );
+  await act(async () => render(routed));
+  expect(container.textContent).toContain('已同步到 QQ QA room');
+  const stop = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="停止同步 QQ QA room"]',
+  )!;
+  await act(async () => stop.click());
+  expect(sync).toHaveBeenLastCalledWith(routed, 'c1', false);
+  await act(async () =>
+    render({
+      ...routed,
+      bridgeRoutes: routed.bridgeRoutes.map((route) =>
+        route.channelId === 'c1' ? { ...route, enabled: false } : route,
+      ),
+    }),
+  );
+  expect(container.textContent).toContain('仅 Bot Inbox');
+  expect(container.textContent).not.toContain('已同步到 QQ QA room');
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+it('shows scoped reception boundaries and explains that a gap has no known missed-message count', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      createElement(ExternalConversations, {
+        identity: { ...identity, platform: 'qq', providerId: 'dsh-im/qq' },
+        snapshot: {
+          ...snapshot,
+          receptionHistory: [
+            {
+              id: 'gap',
+              providerId: 'dsh-im/qq',
+              fingerprint: identity.fingerprint,
+              scope: 'connection',
+              name: 'QA Bot',
+              reason: 'provider-unavailable',
+              boundary: 'observed',
+              startedAt: '2026-10-08T01:00:00Z',
+              endedAt: '2026-10-08T01:02:00Z',
+            },
+            {
+              id: 'another-app',
+              providerId: 'dsh-im/qq',
+              fingerprint: 'b'.repeat(64),
+              scope: 'connection',
+              name: 'Other app',
+              reason: 'provider-unavailable',
+              boundary: 'observed',
+              startedAt: '2026-10-08T01:00:00Z',
+            },
+          ],
+        },
+        busy: false,
+        t: zhTranslate,
+        change: vi.fn(),
+        rules: vi.fn(),
+      }),
+    ),
+  );
+  expect(container.querySelector('summary')?.textContent).toContain('接收区间');
+  expect(container.textContent).toContain('接收不可用');
+  expect(container.textContent).toContain('不能据此确认漏收数量');
+  expect(container.textContent).not.toContain('Other app');
+  expect(container.querySelectorAll('time')).toHaveLength(2);
+  await act(async () => root.unmount());
+  container.remove();
+});

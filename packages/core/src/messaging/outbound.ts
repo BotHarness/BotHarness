@@ -13,6 +13,14 @@ import {
 } from './identity.js';
 import type { ThreadReceptionView } from './thread-policy.js';
 import {
+  observeReception,
+  receptionObservationDue,
+  receptionHistory,
+  recordLocalReception,
+  stopReceptionHistory,
+  type ReceptionInterval,
+} from './reception-history.js';
+import {
   messagingDefaults,
   messagingDefaultsPlatform,
   commitMessagingDefaults,
@@ -179,6 +187,7 @@ export type MessagingApp = MessagingAccount & {
 };
 
 export interface MessagingSnapshot {
+  receptionHistory?: ReceptionInterval[];
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
     providerReady: boolean;
@@ -310,7 +319,16 @@ export function createOutboundMessaging(options: {
   };
   const transaction = <T>(command: (db: DatabaseSync) => T, topics: string[] = []): T => {
     try {
-      return database.transaction(command, topics);
+      return database.transaction((db) => {
+        const result = command(db);
+        if (topics.includes('grants') || topics.includes('bindings'))
+          recordLocalReception(
+            db,
+            (options.now?.() ?? new Date()).toISOString(),
+            options.isBotActive,
+          );
+        return result;
+      }, topics);
     } catch (error) {
       if (error instanceof OperationalDatabaseError && error.cause instanceof MessagingError)
         throw error.cause;
@@ -318,6 +336,9 @@ export function createOutboundMessaging(options: {
     }
   };
   const now = () => (options.now?.() ?? new Date()).toISOString();
+  const receptionHostId = randomUUID();
+  if (options.recover !== false)
+    database.transaction((db) => recordLocalReception(db, now(), options.isBotActive, 'observed'));
   const providers = new Map<string, { provider: MessagingProvider; token: object }>();
   const inFlight = new Map<
     string,
@@ -1398,7 +1419,25 @@ export function createOutboundMessaging(options: {
           if (!(error instanceof MessagingError)) throw error;
         }
       }
+      const qqIdentities = identities.filter((identity) => identity.platform === 'qq');
+      const observedAt = now();
+      const observations = closed
+        ? []
+        : database.read((db) =>
+            qqIdentities.filter((identity) =>
+              receptionObservationDue(db, identity, receptionHostId, observedAt),
+            ),
+          );
+      if (observations.length)
+        transaction((db) => {
+          for (const identity of observations)
+            if (readMessagingIdentity(db, identity.id).revision === identity.revision)
+              observeReception(db, identity, receptionHostId, observedAt);
+        });
       return {
+        ...(qqIdentities.length
+          ? { receptionHistory: database.read((db) => receptionHistory(db, botSlug)) }
+          : {}),
         accounts,
         identities,
         pairings: pairing.list(botSlug),
@@ -2031,6 +2070,8 @@ export function createOutboundMessaging(options: {
       }
     },
     close() {
+      if (closed) return;
+      transaction((db) => stopReceptionHistory(db, now()));
       closed = true;
       approvals.close();
       inbound.close();
