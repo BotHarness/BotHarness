@@ -34,6 +34,8 @@ The E2E records actual light/dark screens at 1440 × 900, a 390 × 620 compact s
 
 ## Shared source and live cache
 
+Use distinct message IDs for the two placements to exercise the mapping: Channel reads, pagination, quoted previews, output observation and purge notifications must use each placement's message identity rather than the source payload's original message ID.
+
 Before purge, open the other active Channel containing the same Source Event, switch away to populate its conversation cache, and verify its sidebar still shows the source body. Review the ended Channel source with a recorded Memory derivative. Cancel preserves source and Memory bytes; confirm purges both placements while the independently owned Memory file/commit remains. The active conversation, cached conversation after switching back, quoted previews and sidebar must show no selected text or attachment. Reconnect or reload and check the tombstone again. Owning-module tests additionally deliver a delayed pre-purge response and verify that it cannot refill the cache; a late subscriber on the shared roster connection receives already-observed purge selectors. No provider or native DSH Session copy is claimed to be recalled.
 
 ## Owning-module checks

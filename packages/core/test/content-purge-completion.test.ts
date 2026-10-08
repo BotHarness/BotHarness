@@ -241,12 +241,26 @@ it('uses each shared placement message identity for reads and post-commit purge 
   expect(core.channels.observeOutput(active.id, 'shared-message')?.message.id).toBe(
     'shared-message',
   );
+  await core.channels.appendMessage(active.id, {
+    id: 'retained-reply',
+    at: '2026-10-08T00:01:00.000Z',
+    author: { kind: 'human' },
+    body: 'retained reply',
+    replyTo: 'shared-message',
+  });
+  const reply = () =>
+    core.channels
+      .queryMessages(active.id)
+      .messages.find((message) => message.id === 'retained-reply');
+  expect(reply()?.replyToPreview?.body).toBe('synthetic body');
   const preview = core.purge.preview(core.channel.id, [core.source.sourceEventId]);
   core.purge.confirm(core.channel.id, preview.sourceEventIds, preview.token);
   expect(core.channels.readMessages(active.id)[0]).toMatchObject({
     id: 'shared-message',
     body: '',
   });
+  expect(reply()?.body).toBe('retained reply');
+  expect(reply()?.replyToPreview?.body).toBe('');
   expect(core.purge.redactions()).toContainEqual({
     sourceEventId: core.source.sourceEventId,
     channelId: active.id,
