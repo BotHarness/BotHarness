@@ -4158,7 +4158,7 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'profile.avatar.sideHair': 'Left side hair',
   'profile.avatar.rightSideHair': 'Right side hair',
   'profile.avatar.species': 'Species',
-  'profile.avatar.option.species.human': 'Human',
+  'profile.avatar.option.species.human': 'Person',
   'profile.avatar.option.species.goblin': 'Goblin',
   'profile.avatar.leftSideHairColor': 'Left side hair color',
   'profile.avatar.rightSideHairColor': 'Right side hair color',
