@@ -2925,6 +2925,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
   today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
@@ -3220,11 +3222,19 @@ export async function loadProfileUsage(
   return value as unknown as UsageQueryResult;
 }
 
+export interface ProfileActivityWindow {
+  before: string;
+  weeks: number;
+}
+
 export async function loadProfileActivity(
   call: BridgeCall,
   channelId: string,
+  window?: ProfileActivityWindow,
 ): Promise<ProfileActivity> {
-  const response = asRecord(await unwrap(call, 'profileActivity', { channelId }));
+  const response = asRecord(
+    await unwrap(call, 'profileActivity', { channelId, ...(window ?? {}) }),
+  );
   if (
     response === undefined ||
     typeof response['slug'] !== 'string' ||
@@ -3270,7 +3280,8 @@ export async function loadProfileActivity(
           );
         }))) ||
     (response['modelUsageStatus'] !== undefined &&
-      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus']))) ||
+    (response['createdDay'] !== undefined && typeof response['createdDay'] !== 'string')
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;

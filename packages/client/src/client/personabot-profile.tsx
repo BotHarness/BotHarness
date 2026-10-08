@@ -146,6 +146,7 @@ export function ProfileView({
                     t,
                     compact: false,
                     loadUsage: (filter) => actions.profileUsage(channel.id, filter),
+                    loadActivity: (window) => actions.profileActivity(channel.id, window),
                   })}
                 </section>
               );

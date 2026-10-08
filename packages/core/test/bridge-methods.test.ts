@@ -2226,6 +2226,24 @@ describe('bridge methods', () => {
       cacheWriteTokens: 5,
     });
 
+    expect(result.value.createdDay).toBe(localDayOf(registry.get('ada')!.createdAt));
+
+    const older = methods.profileActivity({ channelId: dm.id, before: today, weeks: 4 });
+    expect(older.ok).toBe(true);
+    if (!older.ok) return;
+    expect(older.value).toMatchObject({ before: today, weeks: 4 });
+    expect(older.value.events).toEqual([{ day: yesterday, reason: 'human-dm', count: 1 }]);
+    expect(older.value.memoryCommits).toEqual([{ day: yesterday, count: 2 }]);
+    expect(older.value.tokens).toEqual([]);
+    for (const window of [
+      { before: '2026/10/01' },
+      { before: 20261001 },
+      { weeks: 0 },
+      { weeks: 105 },
+      { weeks: 1.5 },
+    ])
+      expect(methods.profileActivity({ channelId: dm.id, ...window }).ok).toBe(false);
+
     expect(methods.profileActivity({ channelId: group.id })).toEqual({
       ok: false,
       error: {
