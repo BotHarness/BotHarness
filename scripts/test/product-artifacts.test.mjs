@@ -180,7 +180,7 @@ describe('release composition', () => {
     expect(() => verifyProductComposition(entries)).toThrow('conflicts');
   });
   it('keeps product provenance independent when the development Provider selection changes', () => {
-    expect(productImProvider.upstream.source).toBe('e3c7f6dab0f2a4deee37227e834871b3f1561496');
+    expect(productImProvider.upstream.source).toBe('b4603eadcbc752b77396ecccdf05ee459dc63ba2');
     expect(productImProvider.upstream.dsh).toBe('0.2.0-rc.1');
   });
 

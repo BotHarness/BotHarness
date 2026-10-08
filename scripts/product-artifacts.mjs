@@ -15,10 +15,10 @@ export const productImProvider = Object.freeze({
   upstream: Object.freeze({
     package: '@xmanrui/dsh-im',
     packageVersion: '4.32.0',
-    source: 'e3c7f6dab0f2a4deee37227e834871b3f1561496',
+    source: 'b4603eadcbc752b77396ecccdf05ee459dc63ba2',
     dsh: '0.2.0-rc.1',
     runtimeFiles: 412,
-    runtimeSha256: '944d29a15d9e8eba531045e6b6e04394509e7fd19bc5ce87c6342d29b3a8c5c2',
+    runtimeSha256: 'c2047738952dc155f95eb1b23cd56ba96bb7585a7e343e3916ee7da63b282548',
   }),
 });
 

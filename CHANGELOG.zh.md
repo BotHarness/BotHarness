@@ -5,11 +5,11 @@
 
 ## [Unreleased]
 
-兼容 Provider 可在同一窗口内创建并绑定 Lark 应用。
+兼容 Provider 可在绑定窗口内创建 Lark 应用或展示微信配对二维码。
 
 ### Added
 
-- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
+- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用或开始微信扫码配对，并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。内联配置会保留已有微信账号，避免替换原有配对。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
 
 ## [1.2.0] - 2026-10-08
 

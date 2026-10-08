@@ -1,12 +1,12 @@
 # Inline app setup candidate — #1111
 
-This record tracks a local Lark-first candidate. It does not qualify WeChat QR,
+This record separates earlier Lark native qualification from the later WeChat QR candidate. It does not qualify a new WeChat native pairing,
 registry publication, a product release, or deployment.
 
-## Artifact identity
+## Earlier Lark-qualified artifact identity
 
 - DSH: `0.2.0-rc.1`.
-- Current installed product candidate: `0.0.0-test.1111.2`, source `9889ada5907fa281ca8dc9e1f53c7adf44d3ccac`.
+- Earlier installed product candidate: `0.0.0-test.1111.2`, source `9889ada5907fa281ca8dc9e1f53c7adf44d3ccac`.
 - Independently versioned Provider candidate: `4.32.0-botharness.16`.
 - Maintained fork input: [`35706ef94473088fa2f2fbdd98027ded19992add`](https://github.com/DoodleBears/dsh-im/commit/35706ef94473088fa2f2fbdd98027ded19992add).
 - Runtime source: 412 files; SHA-256 `3e77a959cd79c84b7ca04652f574b3ea808f079b62e3ca12e569582cc12e4f39`.
@@ -118,6 +118,50 @@ connection. The Human found the app and sent `31 × 41`, but received no reply. 
 
 ## Outstanding qualification
 
-The native Lark DM and group mention passed on the same application in distinct conversations. The group request `41 × 47` returned `1927`: one Source Event, one Inbox Admission, one send attempt, `provider-accepted` and a version-1 receipt matching the original group; the Human confirmed it. Post-group exact App Secret comparison again found zero matches across 64 files outside the credential store. Remaining comparable visual states and recording, and the WeChat QR slice remain open. The current integration full suite is green. No existing paired QA Profile
+The native Lark DM and group mention passed on the same application in distinct conversations. The group request `41 × 47` returned `1927`: one Source Event, one Inbox Admission, one send attempt, `provider-accepted` and a version-1 receipt matching the original group; the Human confirmed it. Post-group exact App Secret comparison again found zero matches across 64 files outside the credential store. Remaining comparable visual states and recording, and native WeChat pairing remain open. The earlier integration full suite is green; later candidate checks are recorded separately below. No existing paired QA Profile
 is modified by this candidate. This record does not qualify registry publication,
 a product release, deployment, or Lark reaction capability.
+
+## Later WeChat QR candidate (not native-pairing qualified)
+
+The binding dialog now starts and resumes Provider-owned WeChat QR setup, accepts
+an optional pairing code, and binds only the authenticated account description.
+Closing the dialog retains the live attempt; explicit cancellation fences late
+poll results. The Provider stores external-consumer mode before the first runtime,
+refuses an already configured account without replacing its token or runtime, and
+retires an old setup Registration even when its native poll resolves late.
+
+The candidate uses Provider `4.32.0-botharness.17`, maintained source
+`b4603eadcbc752b77396ecccdf05ee459dc63ba2`, 412 runtime files, SHA-256
+`c2047738952dc155f95eb1b23cd56ba96bb7585a7e343e3916ee7da63b282548`.
+Manifest and lock digests remain as recorded above. No registry release is claimed.
+The previous `.4` package (product `476221a0`, Provider `e3c7f6d`) started but its
+actual setup RPC returned `setup-failed`: production workspace decoration makes
+registration status asynchronous. The public RPC regression now uses the real
+workspace wrapper and async catalogs: old code failed, awaiting status passed.
+
+- Provider setup/controller regressions: 69/69 passed after the final fix; package
+  build and artifact verification passed. Both incremental review axes reported
+  no new actionable finding, separately from native-platform acceptance.
+- Product focused transport/dialog/capability/artifact/style regressions: 56/56
+  passed on `476221a0`. Later pin/documentation checks are recorded in the PR.
+- The Windows product full run started on `5f655a95` and overlapped subsequent
+  review fixes. It finished with 2799 passed, 648 failed, 29 skipped tests; 316
+  passed, 108 failed, 6 skipped files. Numerous original-timeout and filesystem
+  cleanup failures occurred. This is neither a clean final-head qualification
+  nor proof that every failure is pre-existing; the log is retained locally.
+- The authorized Windows Provider full run finished with 3718 passed, 41 failed,
+  7 skipped tests before the final fixes. Update-service state failures dominate;
+  its independent diagnostic still fails. Those files were not changed here, but
+  a complete baseline comparison has not been performed. No full pass is claimed.
+- Earlier main integration `fab781c8` passed GitHub verify and package preparation
+  (runs 37830302149 / 37830302156). Those results do not qualify the new QR head.
+
+Chrome control of both the old candidate tab and a fresh tab failed (debugger
+unattached / timeout), preventing new QR screenshots and continuous recording.
+The earlier embedded screenshots show the actual Lark `.2` runtime only.
+Runnable QR review: Bind app → Create app → WeChat → generate QR; close and reopen
+to resume, then cancel. A dedicated account is required before scan → owner DM →
+original WeChat reply acceptance. The Human has only the currently paired account
+and explicitly asked to preserve that pairing; no scan, reset or account switch
+was performed. Native WeChat qualification remains pending.
