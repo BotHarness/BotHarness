@@ -115,6 +115,9 @@ export const zh = {
   'onboarding.continue': '继续教程',
   'onboarding.restart': '重新开始教程',
   'onboarding.completed': '已完成第一次对话',
+  'onboarding.binding.notNow': '暂时不绑定',
+  'onboarding.binding.description':
+    '绑定后可以从外部应用联系这个 Bot。暂时不绑定也不影响已完成的对话。',
   'onboarding.memory.explore': '探索记忆',
   'onboarding.memory.title': '探索记忆（可选）',
   'onboarding.memory.back': '返回选项',
@@ -2476,6 +2479,9 @@ export const en = {
   'onboarding.continue': 'Continue tutorial',
   'onboarding.restart': 'Restart tutorial',
   'onboarding.completed': 'First conversation completed',
+  'onboarding.binding.notNow': 'Not now',
+  'onboarding.binding.description':
+    'Connect with this Bot from an external app. Binding is optional and does not affect your completed conversation.',
   'onboarding.memory.explore': 'Explore memory',
   'onboarding.memory.title': 'Explore memory (optional)',
   'onboarding.memory.back': 'Back to options',
