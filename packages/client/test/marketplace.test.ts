@@ -237,6 +237,9 @@ describe('Bot Marketplace modal', () => {
         expect(banners[0]?.querySelector('img')?.getAttribute('src')).toBe(
           'https://raw.githubusercontent.com/alice/photo/abc/.botharness/banner.png',
         );
+        await act(async () => banners[0]?.querySelector('img')?.dispatchEvent(new Event('error')));
+        expect(banners[0]?.querySelector('img')).toBeNull();
+        expect(banners[0]?.querySelector('[data-banner-failed]')).not.toBeNull();
       },
     );
   });
