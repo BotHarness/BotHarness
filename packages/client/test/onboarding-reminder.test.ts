@@ -20,8 +20,10 @@ import { zhTranslate, en, type BotHarnessKey } from '../src/client/locale.js';
 import { onboardingFor } from '../src/client/onboarding.js';
 import { OnboardingWelcome } from '../src/client/onboarding-view.js';
 import { store } from '../src/client/store.js';
-const enTranslate = (key: BotHarnessKey | string): string =>
-  (en as Record<string, string>)[key] ?? key;
+const enTranslate = (key: BotHarnessKey | string, args: Record<string, unknown> = {}): string =>
+  ((en as Record<string, string>)[key] ?? key).replace(/\{(\w+)\}/g, (match, name) =>
+    String(args[name] ?? match),
+  );
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
@@ -48,7 +50,11 @@ afterEach(async () => {
   container.remove();
   vi.restoreAllMocks();
 });
-async function render(configured = true, t = zhTranslate) {
+async function render(
+  configured = true,
+  t = zhTranslate,
+  option: BotHarnessKey = 'onboarding.testRequest',
+) {
   const submitted = vi.fn(async (_body: string) => true);
   const actions = {
     onboarding: vi.fn(async () => ({
@@ -82,7 +88,7 @@ async function render(configured = true, t = zhTranslate) {
     root.render(createElement(OnboardingWelcome, { actions: bridge, channelId: 'dm-ada', t }));
   });
   const button = [...container.querySelectorAll('button')].find((b) =>
-    b.textContent?.includes(t('onboarding.testRequest')),
+    b.textContent?.includes(t(option)),
   );
   if (!button) throw Error('Missing reminder option');
   return { button, submitted, actions, controller };
@@ -141,3 +147,62 @@ it('admits only one request for rapid repeated selection', async () => {
   });
   expect(submitted).toHaveBeenCalledTimes(1);
 });
+
+it.each([zhTranslate, enTranslate])(
+  'shows the daily evening time and submits its explicit zone and DM only after selection',
+  async (t) => {
+    vi.spyOn(Intl, 'DateTimeFormat').mockReturnValue({
+      resolvedOptions: () => ({ timeZone: 'America/New_York' }),
+    } as Intl.DateTimeFormat);
+    const { button, submitted } = await render(true, t, 'onboarding.dailyRequest');
+    expect(button.textContent).toContain('21:00');
+    expect(button.textContent).toContain('America/New_York');
+    expect(submitted).not.toHaveBeenCalled();
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(submitted).toHaveBeenCalledExactlyOnceWith(
+      t('onboarding.dailyBody', { timeZone: 'America/New_York' }),
+    );
+    const body = submitted.mock.calls[0]![0];
+    expect(body).toContain('21:00');
+    expect(body).toContain('America/New_York');
+    expect(body).not.toContain('{timeZone}');
+  },
+);
+it('retains the entire daily request through model setup without automatically sending', async () => {
+  const { button, submitted, actions, controller } = await render(
+    false,
+    zhTranslate,
+    'onboarding.dailyRequest',
+  );
+  await act(async () => button.click());
+  const body = controller.getSnapshot().pending?.body;
+  expect(body).toContain('每天 21:00');
+  expect(body).toContain('当前私聊');
+  expect(controller.getSnapshot().modelOpen).toBe(true);
+  expect(submitted).not.toHaveBeenCalled();
+  await act(async () => controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0));
+  expect(submitted).not.toHaveBeenCalled();
+  expect(controller.getSnapshot().sendOpen).toBe(true);
+  actions.modelCatalog.mockResolvedValue({
+    default: { provider: 'deepseek', model: 'chat' },
+    models: [{ provider: 'deepseek', model: 'chat' }],
+  });
+  await act(async () => controller.sendPending());
+  expect(submitted).toHaveBeenCalledExactlyOnceWith(body);
+});
+it.each(['empty', 'throws'])(
+  'asks for the daily time zone before creation when detection %s',
+  async (mode) => {
+    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      if (mode === 'throws') throw Error('Time zone unavailable');
+      return { resolvedOptions: () => ({ timeZone: '' }) } as Intl.DateTimeFormat;
+    });
+    const { button, submitted } = await render(true, enTranslate, 'onboarding.dailyRequest');
+    expect(button.textContent).toContain('Time zone unavailable; confirm it before scheduling');
+    await act(async () => button.click());
+    expect(submitted).toHaveBeenCalledExactlyOnceWith(enTranslate('onboarding.dailyUnknownBody'));
+  },
+);
