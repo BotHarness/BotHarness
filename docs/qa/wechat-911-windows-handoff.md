@@ -5,8 +5,8 @@
 ## Windows 接手进展（2026-10-08，覆盖下文旧候选编号）
 
 - 接手任务：`codex/local/01a119ff-d4c2-74b0-9ea8-17aa1a3811d0`，认领见 [#911 comment](https://github.com/BotHarness/DeepSeekBot/issues/911#issuecomment-6053099542)。继续同一个 Draft PR #1102。
-- main 基线：`5104bae7`。保留新身份/会话弹窗、默认接入、多个同平台应用、外部会话接入及现有 Lark/Slack/Discord 能力。
-- main 已占用 ADR-0142/0143 和 generation 61–64；本票候选顺延为 [ADR-0144](../adr/0144-wechat-typing-follows-owned-processing-leases.md) / generation **65**，不改 main 的迁移历史。迁移覆盖从 59–64 升级并保留原有 Lark 审批配置。旧 `.911.1`–`.911.3` QA Profile 均不是当前候选的升级来源。
+- main 基线：`006c0fa3`。保留新身份/会话弹窗、默认接入、多个同平台应用、外部会话接入及现有 Lark/Slack/Discord 能力。
+- main 已占用 ADR-0142/0143 和 generation 61–65；本票候选顺延为 [ADR-0144](../adr/0144-wechat-typing-follows-owned-processing-leases.md) / generation **66**，不改 main 的迁移历史。迁移覆盖从 59–65 升级并保留原有 Lark 审批配置。旧 `.911.1`–`.911.3` QA Profile 均不是当前候选的升级来源。
 - Provider 整合 `55b4528480ccce3e8acc067e10b880556bf5034c` 至现有 typing 分支，候选提交 `7c2489da79017e9c6a86e36898698a9b82c65a52`；产品固定 `.14`，404 runtime 文件，摘要 `2736154321b9966fdcbc513e3f5ae763f8f78fd8d2dce374d232e36d084930b0`。无 npm 发布。
 - Windows Node 24.21.0 / pnpm 12.4.2；独立 main 对照和候选 Profile 均通过认证 API 启动。候选由实际产品压缩包 `0.0.0-test.911.4` 启动；模型凭据由本机私有配置注入，未复制 WSL 配对或数据。
 - 当前检查：TypeScript、构建和产品打包通过；Provider 微信输入/收件、Lark 卡片、Slack/Discord 相关 **65/65** 通过，包校验通过。BotHarness 初次相关检查 76 通过、一项 main 会话重启测试超时；该测试与身份弹窗回归单独复跑 **8/8** 通过。

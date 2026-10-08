@@ -61,7 +61,7 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
-  it.each([59, 60, 61, 62, 63, 64])(
+  it.each([59, 60, 61, 62, 63, 64, 65])(
     'upgrades generation %s identities with a durable typing preference and preserves their authority',
     (generation) => {
       const dshHome = createTempRoot('botharness-typing-migration-');

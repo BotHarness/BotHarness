@@ -226,7 +226,7 @@ The recording shows real Profile input, send, Outbox settlement and receipt insp
 
 The #911 source-preview candidate connects native typing to the canonical Bot processing lifecycle. Human observation of genuine client visibility and packaged-product verification are still pending; the earlier text/media screenshots do not prove typing support.
 
-Open **PersonaBot Profile → External identities → Edit** for the bound WeChat identity. **Native WeChat typing status** defaults to on; turn it off to suppress requests for that identity. The preference survives restart. A Provider lacking the checked capability is shown as unavailable, even when the preference is on. Global defaults and Profile inheritance belong to #912.
+Open **PersonaBot DM → Channel sidebar → External identities → Edit** for the bound WeChat identity. **Native WeChat typing status** defaults to on; turn it off to suppress requests for that identity. The preference survives restart. A Provider lacking the checked capability is shown as unavailable, even when the preference is on. Global defaults and Profile inheritance belong to #912.
 
 Only actual processing of a currently authorized paired-owner DM requests typing. Related Orchestrator and Assignment work share the lifecycle; unrelated local Channel work does not borrow the WeChat identity. Queued follow-ups wait for acceptance. Requests renew no more frequently than every five seconds and end after ten minutes at most, even if work continues.
 

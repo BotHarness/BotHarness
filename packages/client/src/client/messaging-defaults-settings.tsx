@@ -115,6 +115,7 @@ function PlatformDefaultsSettings({
         count: draft.count,
         intervalSeconds: draft.intervalSeconds,
         identityEnabled: draft.identityEnabled,
+        newConversations: draft.newConversations ?? 'auto',
       };
       const value = await saveMessagingDefaults(call, input);
       if (mounted.current) {
@@ -233,6 +234,7 @@ function PlatformDefaultsSettings({
               <tr>
                 <th>{t('identity.platform')}</th>
                 <th>{t('defaults.identity')}</th>
+                <th>{t('identity.newConversations')}</th>
               </tr>
             </thead>
             <tbody>
@@ -245,6 +247,19 @@ function PlatformDefaultsSettings({
                     label={t('defaults.enableIdentity')}
                     onChange={(identityEnabled) => change({ identityEnabled })}
                   />
+                </td>
+                <td>
+                  <select
+                    aria-label={t('identity.newConversations')}
+                    value={draft.newConversations ?? 'auto'}
+                    disabled={busy}
+                    onChange={(e) =>
+                      change({ newConversations: e.target.value === 'ask' ? 'ask' : 'auto' })
+                    }
+                  >
+                    <option value="auto">{t('identity.newConversations.auto')}</option>
+                    <option value="ask">{t('identity.newConversations.ask')}</option>
+                  </select>
                 </td>
               </tr>
             </tbody>

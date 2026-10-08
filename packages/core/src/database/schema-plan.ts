@@ -1594,6 +1594,19 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
+  generation: 65,
+  module: 'messaging',
+  description: 'Let a bound app inherit the platform default new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations_inherited INTEGER NOT NULL DEFAULT 1
+        CHECK (new_conversations_inherited IN (0, 1));
+      UPDATE messaging_bindings SET new_conversations_inherited = 0 WHERE new_conversations = 'ask';
+    `);
+  },
+};
+
 const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
   generation: 61,
   module: 'messaging',
@@ -1704,7 +1717,7 @@ const CONVERSATION_INGEST_MIGRATION: SchemaMigration = {
 };
 
 const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
-  generation: 65,
+  generation: 66,
   module: 'messaging',
   description: 'Persist identity-local native typing preference without persisting tickets',
   migrate(database) {
@@ -1779,5 +1792,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
   CONVERSATION_INGEST_MIGRATION,
+  NEW_CONVERSATION_DEFAULT_MIGRATION,
   MESSAGING_TYPING_MIGRATION,
 ]);

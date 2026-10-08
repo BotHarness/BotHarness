@@ -46,7 +46,7 @@ export function ExternalIdentityList({
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
   const [typingEnabled, setTypingEnabled] = useState(true);
-  const [newConversations, setNewConversations] = useState<'auto' | 'ask'>('auto');
+  const [newConversations, setNewConversations] = useState<'auto' | 'ask' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const identities = snapshot?.identities ?? [];
@@ -67,7 +67,9 @@ export function ExternalIdentityList({
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
     setTypingEnabled(row?.typingEnabled !== false);
-    setNewConversations(row?.newConversations ?? 'auto');
+    setNewConversations(
+      row?.newConversationsInheritance === 'custom' ? row.newConversations : 'inherit',
+    );
     setAccountKey('');
   };
   const close = () => {
@@ -426,8 +428,25 @@ export function ExternalIdentityList({
                         toggleLabel={t('identity.newConversations')}
                         value={newConversations}
                         disabled={busy}
-                        onSelect={(value) => setNewConversations(value === 'ask' ? 'ask' : 'auto')}
+                        onSelect={(value) =>
+                          setNewConversations(
+                            value === 'ask' || value === 'auto' ? value : 'inherit',
+                          )
+                        }
                         options={[
+                          {
+                            value: 'inherit',
+                            label:
+                              selected.newConversationsInheritance === 'custom'
+                                ? t('identity.newConversations.inheritPlain')
+                                : t('identity.newConversations.inherit', {
+                                    value: t(
+                                      selected.newConversations === 'ask'
+                                        ? 'identity.newConversations.ask'
+                                        : 'identity.newConversations.auto',
+                                    ),
+                                  }),
+                          },
                           { value: 'auto', label: t('identity.newConversations.auto') },
                           { value: 'ask', label: t('identity.newConversations.ask') },
                         ]}

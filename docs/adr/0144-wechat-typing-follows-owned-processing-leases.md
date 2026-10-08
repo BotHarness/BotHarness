@@ -18,7 +18,7 @@ Actual Orchestrator processing, accepted steering and related Assignment work ac
 
 Renewal is at most once every five seconds, with a ten-minute hard lifetime. Native configuration/start calls have a five-second operation deadline; cancellation has its own three-second deadline and uses the original ticket even after authority is revoked. No failed renewal is blindly retried. Host startup and cleanup waits are also bounded; late startup results are cleaned once and cannot republish accepted activity. A process killed without disposal cannot prove successful native cleanup, and no undocumented native expiry is promised.
 
-Persist only the identity's enabled preference, defaulting to on in schema generation 65. Do not persist native tickets, runtime handles or accepted activity; a restart begins idle. The existing identity sidebar/modal exposes the preference, capability availability and bounded sanitized diagnostics. “Request accepted” means native API acceptance only; unavailable capability, refusal and unconfirmed cleanup remain distinct. Global defaults and Profile inheritance are the separate #912 slice.
+Persist only the identity's enabled preference, defaulting to on in schema generation 66. Do not persist native tickets, runtime handles or accepted activity; a restart begins idle. The existing identity sidebar/modal exposes the preference, capability availability and bounded sanitized diagnostics. “Request accepted” means native API acceptance only; unavailable capability, refusal and unconfirmed cleanup remain distinct. Global defaults and Profile inheritance are the separate #912 slice.
 
 ## Qualification boundary
 

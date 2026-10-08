@@ -822,7 +822,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, new_conversations = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -839,9 +839,22 @@ export function createOutboundMessaging(options: {
               : latest.typingEnabled) === false
               ? 0
               : 1,
-            input.kind === 'update'
-              ? (input.newConversations ?? latest.newConversations)
-              : latest.newConversations,
+            input.kind === 'update' &&
+              input.newConversations !== undefined &&
+              input.newConversations !== 'inherit'
+              ? input.newConversations
+              : (
+                  db
+                    .prepare('SELECT new_conversations FROM messaging_bindings WHERE id = ?')
+                    .get(value.id) as { new_conversations: string }
+                ).new_conversations,
+            input.kind === 'update' && input.newConversations !== undefined
+              ? input.newConversations === 'inherit'
+                ? 1
+                : 0
+              : latest.newConversationsInheritance === 'custom'
+                ? 0
+                : 1,
             value.id,
           );
           if (input.kind === 'unbind') {
