@@ -483,49 +483,6 @@ function profileUsageTotal(activity: ProfileActivity | undefined, fallback: numb
   );
 }
 
-function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
-  const events = sumCounts(activity?.events ?? []);
-  const commits = sumCounts(activity?.memoryCommits ?? []);
-  const tokens = (activity?.tokens ?? []).reduce(
-    (sum, entry) =>
-      sum + entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens,
-    0,
-  );
-  const reportedTotal = profileUsageTotal(activity, tokens);
-  return (
-    <div className="bh-profile-card-body">
-      <p className="bh-note">
-        {t('profile.usage.window', { weeks: activity?.weeks ?? PROFILE_ACTIVITY_WEEKS })}
-      </p>
-      <dl className="bh-profile-stats">
-        <div>
-          <dt>{t('profile.stat.events')}</dt>
-          <dd>{events}</dd>
-        </div>
-        <div>
-          <dt>{t('profile.stat.memoryCommits')}</dt>
-          <dd>{commits}</dd>
-        </div>
-        <div>
-          <dt>{t('profile.stat.tokens')}</dt>
-          <dd>
-            {reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal)}
-          </dd>
-          {activity?.modelUsageRows?.some(
-            (row) =>
-              row.inputTokens === null ||
-              row.outputTokens === null ||
-              row.cacheReadTokens === null ||
-              row.cacheWriteTokens === null,
-          ) ? (
-            <dd className="bh-note">{t('profile.usage.partial')}</dd>
-          ) : null}
-        </div>
-      </dl>
-    </div>
-  );
-}
-
 function totalText(count: number, weeks: number, t: BotHarnessTranslate): string {
   return t('profile.window.total', { weeks, count });
 }
@@ -551,12 +508,6 @@ export function createProfileCardBuiltins(
       label: t('profile.card.memory'),
       order: 20,
       render: (props) => <MemoryActivityCard {...props} />,
-    },
-    {
-      id: 'totals',
-      label: t('profile.card.totals'),
-      order: 30,
-      render: (props) => <TotalsCard {...props} />,
     },
   ];
 }
