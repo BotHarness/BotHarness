@@ -75,7 +75,7 @@ export interface DshImOutboundService {
     route: MessagingReplyRoute,
     file: { id: string; name: string; bytes: Uint8Array; mediaType?: string },
     options: { expectedFingerprint: string; signal: AbortSignal; beforeSend?: () => boolean },
-  ): Promise<{ sent: true }>;
+  ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
 
   listBots(): Promise<{ botId: string; channel: string }[]>;
   listTargets(botId: string): Promise<DshImTarget[]>;
@@ -281,7 +281,7 @@ const inboundSchema = z
   .refine(
     (event) =>
       !event.voice ||
-      (event.channel === 'weixin' &&
+      ((event.channel === 'weixin' || event.channel === 'qq') &&
         (!event.attachments?.length ||
           (event.attachments.length === 1 &&
             event.attachments[0]?.mediaType?.startsWith('audio/')))),
@@ -697,32 +697,35 @@ export function createDshImProvider(
               !info.capabilities.includes('reply-text-checked')
             )
               throw new MessagingError('provider-incompatible');
+            const sourceImages =
+              (platform === 'weixin' || platform === 'feishu' || platform === 'qq') &&
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-image-checked') &&
+              (platform === 'feishu' || info.capabilities.includes('reply-image-fence-checked'));
+            const sourceFiles =
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-file-checked') &&
+              info.capabilities.includes('reply-file-checked') &&
+              (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked')) &&
+              (platform !== 'qq' ||
+                (info.capabilities.includes('source-generic-file-checked') &&
+                  info.capabilities.includes('reply-file-fence-checked')));
             return host.consumeInbound!(input.accountRef, {
               expectedFingerprint: input.fingerprint,
               signal: input.signal,
               ...(info.capabilities.includes('ordinary-text-consumer')
                 ? { ordinaryText: true }
                 : {}),
-              ...(host.fileVersion === 1 &&
-              info.capabilities.includes('source-file-checked') &&
-              info.capabilities.includes('reply-file-checked') &&
-              (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked'))
-                ? { sourceFiles: true }
-                : {}),
-              ...((platform === 'weixin' || platform === 'feishu') &&
-              host.fileVersion === 1 &&
-              info.capabilities.includes('source-image-checked') &&
-              (platform === 'feishu' || info.capabilities.includes('reply-image-fence-checked'))
-                ? { sourceImages: true }
-                : {}),
+              ...(sourceFiles ? { sourceFiles: true } : {}),
+              ...(sourceImages ? { sourceImages: true } : {}),
               ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
                 ? { sourceQuotes: true }
                 : {}),
-              ...(platform === 'weixin' &&
+              ...((platform === 'weixin' || platform === 'qq') &&
               info.capabilities.includes('source-voice-transcript-checked')
                 ? { sourceVoiceTranscripts: true }
                 : {}),
-              ...(platform === 'weixin' &&
+              ...((platform === 'weixin' || platform === 'qq') &&
               host.fileVersion === 1 &&
               info.capabilities.includes('source-voice-audio-checked')
                 ? { sourceVoiceAudio: true }
@@ -792,6 +795,14 @@ export function createDshImProvider(
                 : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
+                const qqAttachments = parsed.attachments?.every((item) =>
+                  item.mediaType?.startsWith('image/')
+                    ? sourceImages
+                    : parsed.voice && item.mediaType === 'audio/unknown'
+                      ? host.fileVersion === 1 &&
+                        info.capabilities.includes('source-voice-audio-checked')
+                      : sourceFiles && item.mediaType === 'application/octet-stream',
+                );
                 if (
                   parsed.channel !== platform ||
                   (platform === 'qq' &&
@@ -799,16 +810,18 @@ export function createDshImProvider(
                       parsed.reply.threadId !== undefined ||
                       parsed.reply.rootId !== undefined ||
                       parsed.reply.parentId !== undefined ||
-                      (parsed.attachments?.length ?? 0) > 0)) ||
+                      ((parsed.attachments?.length ?? 0) > 0 && !qqAttachments))) ||
                   ((parsed.contentParts ||
                     (parsed.attachments?.length ?? 0) > 1 ||
                     (platform === 'feishu' &&
                       parsed.attachments?.some((item) => item.mediaType?.startsWith('image/')))) &&
-                    (platform !== 'feishu' ||
-                      !info.capabilities.includes('source-image-checked') ||
-                      !parsed.attachments?.every((item) =>
-                        item.mediaType?.startsWith('image/'),
-                      ))) ||
+                    (platform === 'qq'
+                      ? !qqAttachments
+                      : platform !== 'feishu' ||
+                        !info.capabilities.includes('source-image-checked') ||
+                        !parsed.attachments?.every((item) =>
+                          item.mediaType?.startsWith('image/'),
+                        ))) ||
                   new Set(parsed.attachments?.map((item) => item.id)).size !==
                     (parsed.attachments?.length ?? 0) ||
                   parsed.contentParts?.some(
@@ -1083,7 +1096,13 @@ export function createDshImProvider(
             const info = await host.describeBot(input.accountRef);
             if (
               info.account.fingerprint !== input.fingerprint ||
-              !info.capabilities.includes('source-file-checked')
+              !info.capabilities.includes('source-file-checked') ||
+              (platform === 'qq' &&
+                !input.attachment.mediaType?.startsWith('image/') &&
+                (input.attachment.mediaType === 'audio/unknown'
+                  ? !info.capabilities.includes('source-voice-audio-checked')
+                  : !info.capabilities.includes('source-generic-file-checked') ||
+                    !info.capabilities.includes('reply-file-fence-checked')))
             )
               throw new MessagingError('provider-incompatible');
             return host.readSourceFile!(input.accountRef, input.route, input.attachment, {
@@ -1097,9 +1116,10 @@ export function createDshImProvider(
               if (
                 info.account.fingerprint !== input.fingerprint ||
                 !info.capabilities.includes('reply-file-checked') ||
-                (platform === 'weixin' &&
+                ((platform === 'weixin' ||
+                  (platform === 'qq' && !input.file.mediaType?.startsWith('image/'))) &&
                   !info.capabilities.includes('reply-file-fence-checked')) ||
-                (platform === 'weixin' &&
+                ((platform === 'weixin' || platform === 'qq') &&
                   input.file.mediaType?.startsWith('image/') &&
                   !info.capabilities.includes('reply-image-fence-checked')) ||
                 (platform === 'weixin' &&
@@ -1107,10 +1127,13 @@ export function createDshImProvider(
                   !info.capabilities.includes('reply-video-fence-checked'))
               )
                 throw new MessagingProviderError('capability-unavailable', 'not-started');
+              const receiptChecked = info.capabilities.includes('reply-file-receipt-checked');
+              if (platform === 'qq' && !receiptChecked)
+                throw new MessagingProviderError('capability-unavailable', 'not-started');
               const result = await host.replyFileChecked!(
                 input.accountRef,
                 input.route,
-                platform === 'weixin'
+                platform === 'weixin' || platform === 'qq'
                   ? input.file
                   : { id: input.file.id, name: input.file.name, bytes: input.file.bytes },
                 {
@@ -1121,6 +1144,36 @@ export function createDshImProvider(
               );
               if (result.sent !== true)
                 throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              if (receiptChecked) {
+                const receipt = z
+                  .object({
+                    version: z.literal(1),
+                    messageId: identifier,
+                    conversationId: identifier,
+                    identityKind: z.literal('client-acknowledgement').optional(),
+                  })
+                  .strict()
+                  .safeParse(result.receipt);
+                if (
+                  !receipt.success ||
+                  receipt.data.conversationId !== input.route.conversationId ||
+                  (platform === 'weixin'
+                    ? receipt.data.identityKind !== 'client-acknowledgement'
+                    : receipt.data.identityKind !== undefined)
+                )
+                  throw new MessagingProviderError('provider-result-unknown', 'unknown');
+                return {
+                  accepted: true as const,
+                  receipt: {
+                    version: 1 as const,
+                    messageId: receipt.data.messageId,
+                    conversationId: receipt.data.conversationId,
+                    ...(receipt.data.identityKind === undefined
+                      ? {}
+                      : { identityKind: receipt.data.identityKind }),
+                  },
+                };
+              }
               return { accepted: true as const };
             } catch (error) {
               throw providerFailure(error);
