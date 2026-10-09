@@ -242,4 +242,86 @@ describe('Bot Self-Records for bot_dm_send', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('treats a Bot DM steered into a Group-woken turn as the cause of the reply', async () => {
+    let groupId = '';
+    let markNovaStarted!: () => void;
+    const novaStarted = new Promise<void>((resolve) => (markNovaStarted = resolve));
+    let markSteered!: () => void;
+    const steered = new Promise<void>((resolve) => (markSteered = resolve));
+    const core: Core = createCore({
+      dshHome: createTempRoot('botharness-self-record-steer-'),
+      agents: {
+        async runOrchestrator(run) {
+          if (run.bot.slug === 'nova' && run.inboundChannelId === groupId) {
+            markNovaStarted();
+            await steered;
+            await run.channels.send({
+              channelId: botDmChannelId('mira', 'nova'),
+              body: '章鱼有三颗心',
+              deliveryKey: 'n1',
+            });
+          }
+          if (run.bot.slug === 'mira' && run.inboundChannelId === 'dm-mira')
+            await run.channels.sendToBot({
+              botSlug: 'nova',
+              body: '讲个章鱼冷知识',
+              deliveryKey: 'm1',
+            });
+        },
+        steerOrchestrator(botSlug) {
+          if (botSlug === 'nova') markSteered();
+          return true;
+        },
+        async runAssignment() {},
+        requestAssignment(): AssignmentRequestDelivery {
+          throw new Error('No Assignment expected');
+        },
+        async close() {},
+      },
+    });
+    try {
+      core.registry.create({ slug: 'mira', displayName: 'Mira' });
+      core.registry.create({ slug: 'nova', displayName: 'Nova' });
+      const group = core.channels.createGroup({ name: 'Crew', members: ['mira', 'nova'] });
+      groupId = group.id;
+      core.channels.setGroupWakePolicy(group.id, 'mira', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      const miraDm = core.channels.getOrCreateDm('mira', 'Mira')!;
+      core.channels.getOrCreateDm('nova', 'Nova');
+      await core.channels.appendMessage(group.id, {
+        id: 'ask-nova',
+        at: AT,
+        author: { kind: 'human' },
+        body: '@Nova 在吗',
+        mentions: [{ botSlug: 'nova', label: 'Nova', start: 0, end: 5 }],
+      });
+      core.runtime.admitGroupMessage(group.id, 'ask-nova');
+      await novaStarted;
+      await core.channels.appendMessage(miraDm.id, {
+        id: 'ask-mira',
+        at: AT,
+        author: { kind: 'human' },
+        body: '去问 Nova',
+      });
+      core.runtime.admitDmMessage({
+        channelId: miraDm.id,
+        messageId: 'ask-mira',
+        body: '去问 Nova',
+      });
+      await core.runtime.whenIdle();
+      expect(
+        core.channels.readMessages(botDmChannelId('mira', 'nova')).map((item) => item.body),
+      ).toEqual(expect.arrayContaining(['讲个章鱼冷知识', '章鱼有三颗心']));
+      expect(noticesIn(core, group.id)).toEqual([]);
+      expect(noticesIn(core, 'dm-nova')).toEqual([]);
+      expect(noticesIn(core, miraDm.id)).toHaveLength(1);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });

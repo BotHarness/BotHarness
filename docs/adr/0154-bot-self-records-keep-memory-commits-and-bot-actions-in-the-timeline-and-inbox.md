@@ -22,6 +22,7 @@ The Human set the direction on 2026-10-09 (#1272) and refined it the same day: r
 
 - Every self-record names its **cause**: the Source Event the acting Bot was handling. This is the cause the Host already uses for `botCausation`.
   - **Orchestrator turns:** the cause is the turn's wake Source Event.
+  - **Messages that joined the turn:** a send into a Channel where one of the turn's own Source Events arrived (for example, a Bot DM steered into a Group-woken turn) takes that event as its cause. The send answers that conversation, not the event that woke the turn.
   - **BotHarness tools:** a tool that acts on several harvested events may name one of the turn's own Source Events as its cause. The Host rejects any other id.
 - The **Cause Channel** is that Source Event's Channel: a Group, a Human–PersonaBot DM, or a Bot-to-Bot DM.
   - The notice goes there when the Channel still exists and the Bot is still a member.
