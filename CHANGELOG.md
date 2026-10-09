@@ -23,7 +23,7 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Documentation
 
-- Documented five-companion foreground frame measurements and ten-cycle heap observations with a repeatable protocol and explicit remaining qualification; no performance budget has been accepted ([report](docs/research/2026-10-09-window-companion-performance.md), [#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)).
+- Documented five-companion foreground frame, concurrent-output and stream-recovery/Client-reload measurements, plus ten-cycle heap observations, with repeatable protocols and explicit remaining qualification; no performance budget has been accepted ([report](docs/research/2026-10-09-window-companion-performance.md), [#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)).
 
 ## [1.2.0] - 2026-10-08
 

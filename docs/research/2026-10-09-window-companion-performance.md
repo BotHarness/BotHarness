@@ -24,7 +24,7 @@ The candidate's original light-theme collection is retained privately and exclud
 
 ## Actual measured page state
 
-These are state records, not a controlled visual before/after comparison: shell content differs as disclosed above. Screenshots were captured outside the timed traces; recording a screencast during profiling would add workload.
+These idle-state screenshots are state records, not a controlled visual before/after comparison: shell content differs as disclosed above. This pair was captured outside the timed traces; recording a screencast during profiling would add workload. The later stream-recovery protocol separately discloses its in-trace screenshot overhead.
 
 ![Parent: five idle companions, native dark, 960 × 640](../assets/pr/1167-companion-performance/parent-five-idle.png)
 
@@ -99,6 +99,36 @@ Rendered-card counts include collapsed inert layers; they do not assert that eve
 
 The first candidate attempt used script focus after mouse setup and failed the reading precondition: the current view deliberately requires focus-visible for keyboard entry. Its raw trace and failure remain private and excluded. A second attempt tried a hidden toolbar control as its starting focus target; that preflight failed before sending any new model input. Both failures are retained privately and excluded. The final protocol validates actual Tab followed by Shift+Tab from the visible character before sending any new model input, and both revisions were measured again with that route. No product interaction rule was relaxed to pass the test. One successful paired interaction sample does not establish sustained-load performance, low-end support or an accepted budget.
 
+## Measured stream recovery and fresh Client startup
+
+Both revisions use an actual loopback forwarding hop to the unchanged installed Host. It destroys and temporarily refuses only the native Companion SSE endpoint; other native requests and Host model execution continue normally. All five companions must actually become stale. Two new Bot messages are then committed to their canonical DMs while the feed is cut. Existing Bot5 reading remains active with its earlier real card; after forwarding resumes, Bot1 receives its message and Bot5 retains its reading card with one pending message. Fifteen seconds later, releasing reading admits that message. A five-second bounded count check observes exactly the three real cards, without duplicate delivery. The three actual body hashes and five saved appearances match across revisions.
+
+The next trace starts before a full Client document reload with cache bypass. The document time origin must change, five persisted pins must become live again, and none of the old or just-created canonical messages may appear as cards or pending content for fifteen seconds. This measures a fresh Client document on a live Host and browser process. It does **not** qualify a cold browser process, Host restart, full-network outage or genuine hidden/background return.
+
+| Revision / scene                   | Trace seconds | Frame wall p95 / p99 / max ms | Presentation interval p95 / p99 / max ms | >50 ms frame wall / interval |
+| ---------------------------------- | ------------: | ----------------------------: | ---------------------------------------: | ---------------------------: |
+| parent: reconnect-return           |        39.513 |      10.741 / 11.268 / 52.436 |                 17.953 / 18.307 / 82.975 |                        1 / 1 |
+| parent: client-reload-no-replay    |        19.505 |      9.705 / 12.115 / 825.301 |                 9.831 / 18.058 / 839.908 |                        6 / 8 |
+| candidate: reconnect-return        |        40.315 |      12.563 / 14.053 / 87.830 |                17.940 / 26.991 / 105.267 |                        1 / 1 |
+| candidate: client-reload-no-replay |        18.997 |      9.742 / 14.152 / 720.509 |                 9.909 / 26.820 / 735.081 |                        9 / 9 |
+
+| Revision  | Actual shared SSE streams destroyed | Return observed upper bound, seconds | Fresh Client live observed upper bound, seconds | Intentional connection errors | Post-reload console errors |
+| --------- | ----------------------------------: | -----------------------------------: | ----------------------------------------------: | ----------------------------: | -------------------------: |
+| parent    |                                   1 |                                5.049 |                                           3.562 |                             2 |                          0 |
+| candidate |                                   1 |                                5.483 |                                           3.076 |                             2 |                          0 |
+
+The upper bounds include tool dispatch and polling; they are not pure Client execution timings or accepted service-level targets. Navigation Timing, full distributions and state counts are in [recovery-startup.json](../assets/pr/1167-companion-performance/recovery-startup.json). All recorded states are foreground/visible. Shared-stream counts are actual transport connections, not one stream per companion. Bounded DOM checks, native focus operations and one reading-state screenshot are included in the recovery traces. The forwarding hop makes these a separate protocol from the earlier direct-origin samples; source/history/model-timing differences still prevent owning-feature attribution.
+
+| Retained reading after real stream recovery | Parent                                                                                                                     | Candidate                                                                                                                        |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Native dark, 960 × 640                      | ![Parent: reading retained after real feed recovery](../assets/pr/1167-companion-performance/parent-recovered-reading.png) | ![Candidate: reading retained after real feed recovery](../assets/pr/1167-companion-performance/candidate-recovered-reading.png) |
+
+| Fresh Client document, no history replay after fifteen seconds | Parent                                                                                                                 | Candidate                                                                                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Native dark, 960 × 640                                         | ![Parent: fresh Client document without replay](../assets/pr/1167-companion-performance/parent-reloaded-no-replay.png) | ![Candidate: fresh Client document without replay](../assets/pr/1167-companion-performance/candidate-reloaded-no-replay.png) |
+
+Two earlier attempts remain private and excluded: browser Offline left established SSE connections live; a short-message run reached correct reading recovery but its fixed-count oracle failed after normal automatic card expiry. The final paired protocol uses longer real output, keeping the observation within natural lifetime without changing product timers. All successful measurement browsers and loopback proxies are closed. Intentional connection failures are recorded separately from the post-reload console check. These bounded samples do not establish sustained-load support, absence of regressions or Human budget agreement.
+
 ## Post-GC heap and resources
 
 Both revisions use the same official take_heapsnapshot procedure, which collects garbage before capturing the graph. Chrome also documents snapshot GC in its [heap snapshot guide](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots). Each snapshot follows a 2.5-second settle, with all five live companions paused and no cards. Ten real existing pin/unpin button handlers observed mounted counts 5 → 4 → 5 per cycle, with 150 ms after each transition and a live-stream check before the second snapshot. This tests lifecycle disposal, not mouse usability.
@@ -145,7 +175,7 @@ Both final collectors and the retaining-path inspector closed their owned browse
 | Same-procedure ten-cycle heap and bounded resource inspection  | Recorded for this foreground load; not a leak-free guarantee                                                                                                 |
 | Concurrent real message reveal and expanded reading cost       | Recorded in one actual paired seven-message/keyboard-reading workload above; repeated/sustained qualification remains open                                   |
 | Actual hidden/background → visible                             | Still unqualified: official MCP forces focused-page emulation; selecting another tab left visibilityState=visible. No synthetic hidden state was substituted |
-| Bounded reconnect return, cold-start no-replay cost            | Still to measure; functional evidence alone does not qualify cost                                                                                            |
+| Bounded reconnect return, cold-start no-replay cost            | Recorded for bounded Companion-feed loss and cache-bypass Client document reload; full browser/Host process cold start remains unqualified                   |
 | Larger/sustained loads and supported-device envelope           | Not established by these short five-companion runs                                                                                                           |
 | Human agreement on measured budgets                            | Pending; no threshold is accepted by this report                                                                                                             |
 
