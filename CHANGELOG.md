@@ -53,6 +53,8 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 - Bot settings can export and inspect one verified complete `.botharness-backup`, including retained custom/deleted Memory, current attachments, model templates and independent plans, and the canonical purge checkpoint; the installed local command restores only into a new stopped environment ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)).
 
+- Window Companion bubbles follow the displayed pixel bust's head through tilt, stretch and movement, retain an origin connector when cards move to avoid overlap or viewport edges, and keep text upright; resize updates the clamped character and bubble origin together, while image and unsupported-rig fallbacks use their visible box top ([#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)).
+
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 
 - Isolated AX launches expose bounded, allowlisted real Client startup/runtime evidence and explicit shell readiness for coding agents, retaining first failures across document retries ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)).

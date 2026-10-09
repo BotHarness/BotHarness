@@ -53,6 +53,8 @@ Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个�
 
 - Bot 设置可导出、检查一个完整且已验证的 `.botharness-backup`，包含自定义及已删除身份保留的 Memory、当前附件、模型模板与独立计划，以及真实清除检查点；安装包提供的本地命令仅恢复至新的停止环境（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
 
+- 窗口伙伴气泡随像素半身的头部倾斜、拉伸与移动定位；卡片因避让或视口限位偏移时保留来源连线，文字保持直立；窗口缩小时人物与连线锚点同步限位，图片与不支持的形象使用可见盒子顶部锚点（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
+
 - 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
 
 - 隔离 AX 启动向 coding agent 提供有界、白名单化的真实 Client 启动／运行证据和明确 shell 就绪状态，跨文档重试保留首次失败（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)）。
