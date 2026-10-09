@@ -6335,7 +6335,6 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 }
 .bh-bot-dm-action:hover {
   color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-button-elevated-fill);
 }
 .bh-bot-dm-action-label {
   display: inline-flex;
@@ -6368,7 +6367,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   cursor: pointer;
 }
 .bh-memory-commit-line > * { flex: none; }
-.bh-memory-commit-line:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-button-elevated-fill); }
+.bh-memory-commit-line:hover { color: var(--dsw-alias-label-primary); }
 .bh-memory-commit-line:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
 .bh-memory-commit-line > .bh-memory-commit-subject {
   flex: 0 1 auto;
