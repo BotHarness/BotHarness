@@ -214,14 +214,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     sourceEventId: string,
     botSlug: string,
     targetChannelId: string,
-  ): ChannelRecord | undefined => {
+  ): ChannelRecord | 'target' | undefined => {
     const cause = database.read(
       (db) =>
         db
           .prepare('SELECT channel_id FROM source_events WHERE source_event_id = ?')
           .get(sourceEventId) as { channel_id: string | null } | undefined,
     );
-    if (cause?.channel_id == null || cause.channel_id === targetChannelId) return undefined;
+    if (cause?.channel_id == null) return undefined;
+    if (cause.channel_id === targetChannelId) return 'target';
     const channel = readRecord(cause.channel_id);
     if (channel === undefined) return undefined;
     if (channel.type === 'group' || isBotDmChannel(channel))
@@ -587,17 +588,18 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       botDm && senderSlug !== undefined ? readRecord(dmChannelId(senderSlug)) : undefined;
     if (botDm && (senderDm?.type !== 'dm' || senderDm.botSlug !== senderSlug))
       throw new Error('Sender Human DM is unavailable for the Bot action notice');
-    const noticeChannel =
+    const cause =
       botDm && senderSlug !== undefined && message.botCausation !== undefined
-        ? (causeChannel(message.botCausation.parentSourceEventId, senderSlug, id) ?? senderDm)
+        ? causeChannel(message.botCausation.parentSourceEventId, senderSlug, id)
         : undefined;
+    const noticeChannel = !botDm || cause === 'target' ? undefined : (cause ?? senderDm);
     const recipient = botDm ? channel.members.find((slug) => slug !== senderSlug) : undefined;
     if (botDm && recipient === undefined) throw new Error('Bot DM has no recipient');
     const durable = rawMessage(message);
     const revision = previous.length + 1;
     const sourceEventId = randomUUID();
     const action: ChannelMessage | undefined =
-      botDm && senderDm !== undefined && recipient !== undefined && senderSlug !== undefined
+      noticeChannel !== undefined && recipient !== undefined && senderSlug !== undefined
         ? {
             id: `bot-dm-action-${durable.id}`,
             at: durable.at,

@@ -205,4 +205,41 @@ describe('Bot Self-Records for bot_dm_send', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('records nothing for a reply inside the Bot DM that caused it', async () => {
+    const core = createCore({
+      dshHome: createTempRoot('botharness-self-record-reply-'),
+      agents: adapter(async (run) => {
+        if (run.bot.slug === 'ada' && run.inboundChannelId === 'dm-ada')
+          await run.channels.sendToBot({ botSlug: 'bea', body: '在吗', deliveryKey: 'a1' });
+        if (run.bot.slug === 'bea')
+          await run.channels.sendToBot({ botSlug: 'ada', body: '在', deliveryKey: 'b1' });
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      core.channels.getOrCreateDm('bea', 'Bea');
+      await core.channels.appendMessage(dm.id, {
+        id: 'ask',
+        at: AT,
+        author: { kind: 'human' },
+        body: '去问 Bea',
+      });
+      core.runtime.admitDmMessage({ channelId: dm.id, messageId: 'ask', body: '去问 Bea' });
+      await core.runtime.whenIdle();
+      expect(
+        core.channels.readMessages(botDmChannelId('ada', 'bea')).map((item) => item.body),
+      ).toEqual(expect.arrayContaining(['在吗', '在']));
+      expect(noticesIn(core, 'dm-bea')).toEqual([]);
+      expect(noticesIn(core, botDmChannelId('ada', 'bea'))).toEqual([]);
+      expect(selfRecords(core).map((row) => (row as { bot_slug: string }).bot_slug)).toEqual([
+        'ada',
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });
