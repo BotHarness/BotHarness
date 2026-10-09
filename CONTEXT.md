@@ -463,7 +463,7 @@ A Channel-owned, one-way connection that places every message of one external co
 _Avoid_: sync, mirror, Bridge (for this record)
 
 **App**:
-The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Bot Settings → IM apps lists every App and the Bot that uses it.
+The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Bot Settings → IM apps lists every App and the PersonaBot that uses it.
 _Avoid_: IM account (in UI copy), connector, integration
 
 **Default traffic**:
@@ -767,7 +767,7 @@ The RPC surface through which the Web Client reads PersonaBots and invokes separ
 _Avoid_: remote, IPC, gateway
 
 **Bot Settings**:
-The BotHarness-owned modal (Bot 设置) for profile-wide BotHarness configuration, organised into Bot Settings sections in its own sidebar. Configuration of one PersonaBot or one Channel never lives here; that is a Channel sidebar entry. DSH's own settings modal is called DSH settings and only points into Bot Settings.
+The BotHarness-owned modal (Bot 设置) for profile-wide BotHarness configuration, organised into Bot Settings sections in its own sidebar. Configuration of one PersonaBot or one Channel never lives here; that is a Channel sidebar entry. DSH's own settings modal is called DSH settings; its Bot 设置 item only points into Bot Settings, while App credentials remain in DSH settings.
 _Avoid_: Settings UI, settings page, preferences, admin panel, dashboard, web console
 
 **Bot Settings section**:
