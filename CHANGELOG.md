@@ -11,7 +11,11 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - The Part Library adds Profile schema Generation 73. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
 
+- QQ reception intervals add Profile schema Generation 74 and reuse the existing receive boundary; back up before upgrading and repair forward after upgrade ([#1153](https://github.com/BotHarness/BotHarness/issues/1153)).
+
 ### Added
+
+- QQ conversations can sync future mentions to a chosen Group Channel or remain Inbox-only, retain accepted history when sync stops, and show bounded local reception intervals across block/allow and reconnect without claiming remote backfill ([#1153](https://github.com/BotHarness/BotHarness/issues/1153), [QQ connection guide](docs/qq-connection.md)).
 
 - An official QQ Bot app can bind to a PersonaBot, admit group text @mentions into its Inbox and answer in the original group with a native acceptance receipt; the development Provider keeps passive-reply expiry and unknown send outcomes explicit ([#1152](https://github.com/BotHarness/BotHarness/issues/1152), [QQ connection guide](docs/qq-connection.md)).
 

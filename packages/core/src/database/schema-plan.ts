@@ -1930,6 +1930,21 @@ const AVATAR_PART_LIBRARY_MIGRATION: SchemaMigration = {
   },
 };
 
+const RECEPTION_HISTORY_MIGRATION: SchemaMigration = {
+  generation: 74,
+  module: 'messaging',
+  description: 'Retain bounded reception coverage observations without copying external messages',
+  migrate(database) {
+    database.exec(`CREATE TABLE messaging_reception_history (
+      bot_slug TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      body TEXT NOT NULL CHECK (json_valid(body)),
+      PRIMARY KEY (bot_slug, provider_id, fingerprint)
+    );`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -2003,4 +2018,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_ONBOARDING_MIGRATION,
   PROFILE_RECOVERY_MIGRATION,
   AVATAR_PART_LIBRARY_MIGRATION,
+  RECEPTION_HISTORY_MIGRATION,
 ]);

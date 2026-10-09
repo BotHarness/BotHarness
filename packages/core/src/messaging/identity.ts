@@ -105,6 +105,7 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
     defaultRevision: messagingDefaults(db, r.platform).revision,
     revision: r.revision,
     createdAt: r.created_at,
+    ...(r.platform === 'qq' ? { receiveAfter: r.receive_after ?? r.created_at } : {}),
     ...(r.revoked_at ? { revokedAt: r.revoked_at } : {}),
   };
 }
