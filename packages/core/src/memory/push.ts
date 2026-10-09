@@ -20,7 +20,12 @@ export type MemoryPushResult =
   | { ok: false; code: MemoryPushFailureCode };
 
 export interface MemoryPushCredential {
-  /** Opaque HTTPS Authorization header value, e.g. `Bearer <pat>`. Never logged. */
+  /**
+   * Opaque HTTPS Authorization header value. Never logged.
+   * Scheme is the caller's choice: GitHub's git HTTPS endpoints require
+   * `Basic base64(x-access-token:<pat>)` — a `Bearer` PAT authenticates the
+   * REST API but is rejected by `git push` with "invalid credentials".
+   */
   readonly authorizationHeader: string;
 }
 
