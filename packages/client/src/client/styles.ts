@@ -3816,7 +3816,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-timeline-new {
   position: absolute;
   z-index: 2;
-  bottom: 82px;
+  bottom: calc(82px + var(--bh-activity-overlay-inset, 0px));
   left: 50%;
   transform: translateX(-50%);
   border: 1px solid var(--dsw-alias-border-l2);
