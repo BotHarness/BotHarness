@@ -94,7 +94,7 @@ describe('operational database owner', () => {
     prior.close();
     const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     expect(upgraded.mode).toBe('ready');
-    expect(upgraded.generation).toBe(75);
+    expect(upgraded.generation).toBe(77);
     const preservedBindings = before.map((binding) => ({ ...binding, post_limit: 60 }));
     expect(readBindings(upgraded)).toEqual(preservedBindings);
     const module = attachOperationalModule(upgraded, 'qq-main-upgrade-history');

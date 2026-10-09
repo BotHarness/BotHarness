@@ -1470,6 +1470,7 @@ function rebuildWithKind(
   database: DatabaseSync,
   table: 'source_events' | 'inbox_admissions',
   lastKind: string,
+  addedKinds: readonly string[] = ['schedule'],
 ): void {
   const row = database
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
@@ -1477,21 +1478,21 @@ function rebuildWithKind(
   const marker = `'${lastKind}'))`;
   if (row === undefined || row.sql.split(marker).length !== 2)
     throw new Error(`Cannot extend the ${table} kind check`);
-  const indexes = (
+  const dependents = (
     database
       .prepare(
-        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL",
+        "SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = ? AND sql IS NOT NULL",
       )
       .all(table) as Array<{ sql: string }>
-  ).map((index) => index.sql);
+  ).map((dependent) => dependent.sql);
   const next = row.sql
-    .replace(marker, `'${lastKind}', 'schedule'))`)
+    .replace(marker, `'${[lastKind, ...addedKinds].join("', '")}'))`)
     .replace(/^CREATE TABLE\s+"?\w+"?/u, `CREATE TABLE ${table}_next`);
   database.exec(next);
   database.exec(`INSERT INTO ${table}_next SELECT * FROM ${table};
     DROP TABLE ${table};
     ALTER TABLE ${table}_next RENAME TO ${table};`);
-  for (const index of indexes) database.exec(index);
+  for (const dependent of dependents) database.exec(dependent);
 }
 
 const BOT_SCHEDULE_MIGRATION: SchemaMigration = {
@@ -1945,8 +1946,38 @@ const RECEPTION_HISTORY_MIGRATION: SchemaMigration = {
   },
 };
 
-const PROACTIVE_POST_LIMIT_MIGRATION: SchemaMigration = {
+const BOT_SELF_RECORD_MIGRATION: SchemaMigration = {
   generation: 75,
+  module: 'messaging',
+  description: 'Record Bot Self-Records as Channel Notices with born-handled Bot Inbox records',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    rebuildWithKind(database, 'source_events', 'schedule', ['self-record']);
+    rebuildWithKind(database, 'inbox_admissions', 'schedule', ['memory-commit', 'bot-action']);
+  },
+};
+
+const MEMORY_COMMIT_RECORD_MIGRATION: SchemaMigration = {
+  generation: 76,
+  module: 'messaging',
+  description: 'Track each PersonaBot Memory commit cursor and record each commit once',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_commit_cursors (
+        bot_slug TEXT PRIMARY KEY,
+        branch TEXT NOT NULL,
+        head TEXT NOT NULL CHECK (length(head) = 40),
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX source_events_memory_commit
+        ON source_events (bot_slug, json_extract(payload_json, '$.memoryCommit.sha'))
+        WHERE json_type(payload_json, '$.memoryCommit') IS NOT NULL;
+    `);
+  },
+};
+
+const PROACTIVE_POST_LIMIT_MIGRATION: SchemaMigration = {
+  generation: 77,
   module: 'messaging',
   description: 'Persist per-app proactive post limits',
   migrate(database) {
@@ -2030,5 +2061,7 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   PROFILE_RECOVERY_MIGRATION,
   AVATAR_PART_LIBRARY_MIGRATION,
   RECEPTION_HISTORY_MIGRATION,
+  BOT_SELF_RECORD_MIGRATION,
+  MEMORY_COMMIT_RECORD_MIGRATION,
   PROACTIVE_POST_LIMIT_MIGRATION,
 ]);
