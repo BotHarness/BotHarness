@@ -106,10 +106,10 @@ export function avatarSvg(
   if (recipe.family === 'illustrated' && options.surface === 'companion') {
     if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
     const yaw = { front: 0, left: -25, right: 25 }[recipe.pose];
-    const base = pixelFigure(recipe, yaw, options);
+    const base = pixelFigure(recipe, yaw, { ...options, speechMouthVersion: 2 });
     const turns = (options.turns ?? [])
       .map((delta) => {
-        const pose = pixelFigure(recipe, yaw + delta, options);
+        const pose = pixelFigure(recipe, yaw + delta, { ...options, speechMouthVersion: 2 });
         const layers = `${pose.body}${pose.head}`.replaceAll(
           'class="bh-illustrated-',
           'data-turn-part="',
