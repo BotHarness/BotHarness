@@ -2,7 +2,7 @@
 
 [Issue #1167](https://github.com/BotHarness/DeepSeekBot/issues/1167), part of [specification #1135](https://github.com/BotHarness/DeepSeekBot/issues/1135). Recorded 2026-10-09 UTC. **Partial qualification: no performance budget or overall performance acceptance is claimed.**
 
-This checkpoint records three foreground repetitions each of idle, roaming and drag/release, plus paired post-GC heap snapshots around ten pin/unpin cycles. It extends the earlier lifecycle-only observations to the later composed spring, anchor, approval, question and candidate-mouth implementation. It introduces no runtime change, pin cap or +N fold.
+This checkpoint records three foreground repetitions each of idle, roaming and drag/release, paired post-GC heap snapshots around ten pin/unpin cycles, and a later same-version/Profile walking pilot. It extends the earlier lifecycle-only observations to the later composed spring, anchor, approval, question and candidate-mouth implementation. It introduces no runtime change, pin cap or +N fold.
 
 ## Sources and controls
 
@@ -66,6 +66,41 @@ A follow-up keeps all five companions mounted in the same document and changes o
 | walkers-0-2 |               0 |                           0 |        15.093 |             9.665 |                        9.812 |                                 6 |
 
 [cadence-controls.json](../assets/pr/1167-companion-performance/cadence-controls.json) contains the complete distributions. All-static controls return to roughly 9.8–9.9 ms presentation p95; one walking companion reaches roughly 16.8–16.9 ms and five roughly 16.2 ms. One moving companion is sufficient to reproduce this observation among five mounted companions; it does not worsen proportionally with walking count in these samples. This narrows the workload, but does not identify a faulty module or prove a regression against an otherwise identical parent build. No code fix or physical display-FPS conclusion is claimed. Two sequential samples per setting and uncontrolled desktop workloads remain limits. Both the collector and offline analysis complete, console errors are zero, and the task-owned browser is closed.
+
+## Same-version, same-Profile walking pilot
+
+This separate pilot compares pinned main `d55d82feedc0d31ced860b65b564b5f83869fae6` with #1173 source `50b44535a8180a138268c4f52a7fb5581f61de13`. Both install **formal Avatar 0.8.0** and use the **same durable DSH Profile**, five canonical Bot identities, recipes, static portrait hashes and DM message counts. It measures the #1173 feature range, including spring, sound and reading/visibility changes, rather than isolating an individual module. It does not measure the subsequently accepted formal 0.10.1 mouth adoption in [PR #1254](https://github.com/BotHarness/DeepSeekBot/pull/1254).
+
+Both use the same Chrome 154.0.8037.98 / official MCP 1.10.1 / DSH 0.2.0-rc.1 configuration, native dark/Chinese, 960 × 640 / DPR 1. All five companions remain mounted and live. Native focus-visible and walking-button operations configure 0 → 1 → 5 → 5 → 1 → 0 walkers; native pointer hover and focus then move outside the companions, followed by 2.5 seconds settling. Each trace verifies zero message cards and reading companions, unchanged document identity, and actual horizontal movement above one CSS pixel matching the enabled count. No page evaluation runs during the timed interval.
+
+The pilot requests **five seconds per sample**, with two sequential repetitions per count. A preceding 15-second main run saved a complete raw trace but official stop-tool analysis timed out; an earlier hover preflight also failed. Both attempts remain private and excluded. The shorter pilot is an additional protocol, not a replacement for the earlier 15-second samples or full qualification. Offline analysis uses the unchanged official chunked parser and only its unchanged Meta and AnimationFrames handlers, preserving dependency, frame-ID, bounds and main-renderer/thread guards. A cross-check on the unchanged earlier candidate walkers-0-1 trace reproduces every previously published frame statistic exactly. No vendor code or application instrumentation was changed.
+
+Timing and threshold cells contain **pinned main / #1173**; enabled/actually-moved counts match in both revisions. Full distributions, canonical cohort hashes and asset checks are in [same-version-controls-pilot.json](../assets/pr/1167-companion-performance/same-version-controls-pilot.json).
+
+| Sample      | Enabled / actually moved | Trace seconds | Frame wall p95 ms | Presentation interval p95 ms | Presentation intervals >16.667 ms |
+| ----------- | -----------------------: | ------------: | ----------------: | ---------------------------: | --------------------------------: |
+| walkers-0-1 |                    0 / 0 | 5.431 / 5.440 |     8.621 / 8.542 |                8.754 / 8.662 |                             0 / 1 |
+| walkers-1-1 |                    1 / 1 | 5.088 / 5.203 |     7.848 / 7.933 |               8.395 / 13.949 |                             0 / 1 |
+| walkers-5-1 |                    5 / 5 | 5.086 / 5.087 |     8.017 / 7.944 |               8.389 / 13.228 |                             2 / 8 |
+| walkers-5-2 |                    5 / 5 | 5.091 / 5.105 |     8.861 / 9.268 |              16.666 / 18.433 |                           25 / 64 |
+| walkers-1-2 |                    1 / 1 | 5.077 / 5.108 |   12.382 / 12.276 |              16.695 / 20.090 |                           53 / 61 |
+| walkers-0-2 |                    0 / 0 | 5.101 / 5.098 |     8.589 / 8.569 |                8.715 / 8.753 |                             0 / 0 |
+
+**The higher candidate walking presentation tails remain an observation requiring attribution.** Matching Avatar and Profile removes those earlier confounds, but does not identify spring, reading, CSS, SVG or GPU as its cause. Main's repeated walking samples also vary substantially. Parent then candidate and count order are fixed; other desktop workloads remain uncontrolled. Neither revision has a sampled frame-wall duration or presentation interval above 50 ms here. These short headless samples do not establish sustained-load support, statistical parity, physical display FPS or a performance pass. Both runs have zero console errors and close their owned browsers.
+
+With matched Avatar versions, rebuilt client.js is 2,899,507 → 2,913,445 bytes (**+13,938**), gzip level 6 is 725,118 → 728,326 bytes (**+3,208**). These are the whole #1173 feature-range bundle costs, separate from frame observations; they are not the cost of SVG or one individual module.
+
+The following final paused-state screenshots were captured outside the timed traces. Native positions reflect the preceding roaming; they are state records rather than pixel-aligned artwork comparisons.
+
+| Pinned main, five paused                                                                                                                    | #1173, five paused                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Pinned main: five paused companions after the same-version pilot](../assets/pr/1167-companion-performance/parent-same-version-paused.png) | ![#1173: five paused companions after the same-version pilot](../assets/pr/1167-companion-performance/candidate-same-version-paused.png) |
+
+## GPU interpretation
+
+No GPU utilization, dedicated/shared GPU memory or power measurement is included. Browser heap and AnimationFrame wall/presentation durations do not supply those metrics. A separate read-only attempt to inspect the same profiler configuration's native chrome://gpu page was refused by the official tool's chrome: navigation rule; it produced no backend qualification and its owned browser was closed. No alternate navigation or raw-protocol override was used. Consequently this report cannot establish that SVG rendering is GPU-heavy, or that the sampled walking difference is a GPU bottleneck. Hardware-backend and actual GPU-cost qualification remain open.
+
+Package statuses in the original comparison describe the capture time: its candidate used a local unpublished pack then. Later Human-authorized formal publication/adoption does not convert that historical workload into a formal-package measurement.
 
 ## Real concurrent output and expanded reading
 

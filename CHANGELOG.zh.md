@@ -23,7 +23,7 @@
 
 ### Documentation
 
-- 记录五个窗口伙伴的前台帧耗时、真实消息并发、消息流恢复与 Client 重载测量，以及十次钉选循环后的堆内存观察，附可复现流程及尚未完成的验收项；目前没有已确认的性能预算（[报告](docs/research/2026-10-09-window-companion-performance.md)、[#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)）。
+- 记录五个窗口伙伴的前台帧耗时、真实消息并发、消息流恢复与 Client 重载测量、十次钉选循环后的堆内存观察，以及相同头像版本和 Profile 的走动试测，附可复现流程及尚未完成的验收项；目前没有已确认的 GPU 成本结论或性能预算（[报告](docs/research/2026-10-09-window-companion-performance.md)、[#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)）。
 
 ## [1.2.0] - 2026-10-08
 

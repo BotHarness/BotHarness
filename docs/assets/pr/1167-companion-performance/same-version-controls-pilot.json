@@ -1,0 +1,638 @@
+{
+  "protocol": "Separate bounded 5s pilot after 15s tool-analysis timeout; five mounted, native walking controls 0/1/5/5/1/0, two sequential repetitions per count, same durable Profile and formal Avatar0.8.0; no randomized order or accepted budget",
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "theme": "Native dark",
+  "locale": "Chinese",
+  "avatarVersion": "0.8.0",
+  "dsh": "0.2.0-rc.1",
+  "profiler": "Official Chrome DevTools MCP1.10.1",
+  "cohort": [
+    {
+      "index": 1,
+      "seed": "companion-performance-1",
+      "recipeSha256": "c81674f304b30d2ee6bfa058e5d6722b82125ad0512b2dbf2230f580173f016e",
+      "portraitSha256": "add6dc8e2bee863ca487cba3a226cb988b877fbc3fd42f5d4588bea63df25719",
+      "canonicalDmMessageCount": 1
+    },
+    {
+      "index": 2,
+      "seed": "companion-performance-2",
+      "recipeSha256": "9b34ee1f7414d792084e01cc9c489de10af0210158da0714571a4d37f749ca1a",
+      "portraitSha256": "8705e78a7dfa339f89caef503133e8f06b6a0517df2257b5f663126f7ca68de2",
+      "canonicalDmMessageCount": 1
+    },
+    {
+      "index": 3,
+      "seed": "companion-performance-3",
+      "recipeSha256": "c40ceac3da62a04c6790a77cc38cb33fbbaee8863487d7643dc39724812d45b7",
+      "portraitSha256": "79e30d8168508bded3d22d9e965d79ec1a7943b9038f6833080f5adccabcd4e1",
+      "canonicalDmMessageCount": 1
+    },
+    {
+      "index": 4,
+      "seed": "companion-performance-4",
+      "recipeSha256": "b2f988926a629e75c8f35c9a73fe37a2a7253c5348af5575067560550006a682",
+      "portraitSha256": "cb46e47d28fedc170ab6c215a77432bec6cfa1efadc7ea240efb0812f2703e8d",
+      "canonicalDmMessageCount": 1
+    },
+    {
+      "index": 5,
+      "seed": "companion-performance-5",
+      "recipeSha256": "f5e03b924f89abfbab950bcf47f4f9d39ccddce679fc08a53e99b11ef20726c8",
+      "portraitSha256": "6c25b5043058707da6787728e3cfc8c46108c5cadd81e5628fddcb517404e0a9",
+      "canonicalDmMessageCount": 1
+    }
+  ],
+  "revisions": [
+    {
+      "role": "parent",
+      "hostSource": "d55d82feedc0d31ced860b65b564b5f83869fae6",
+      "device": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "versions": {
+          "brands": [
+            {
+              "brand": "Chromium",
+              "version": "154"
+            },
+            {
+              "brand": "Google Chrome",
+              "version": "154"
+            },
+            {
+              "brand": "Not A(Brand",
+              "version": "99"
+            }
+          ],
+          "fullVersionList": [
+            {
+              "brand": "Chromium",
+              "version": "154.0.8037.98"
+            },
+            {
+              "brand": "Google Chrome",
+              "version": "154.0.8037.98"
+            },
+            {
+              "brand": "Not A(Brand",
+              "version": "99.0.0.0"
+            }
+          ],
+          "mobile": false,
+          "platform": "Windows",
+          "platformVersion": "19.0.0"
+        },
+        "hardwareConcurrency": 16,
+        "deviceMemory": 32,
+        "dpr": 1
+      },
+      "assetCost": {
+        "bundleBytes": 2899507,
+        "gzipLevel6Bytes": 725118,
+        "sha256": "7e8db5426dfc8f8d6249cef9d5324a5f99c0bb0c4bac7293ba1dee47423da626"
+      },
+      "consoleErrorCount": 0,
+      "closedOwnedBrowser": true,
+      "scenarios": [
+        {
+          "name": "walkers-0-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 0,
+          "actualMovedCompanions": 0,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.430935,
+          "frameWallDuration": {
+            "count": 632,
+            "minMs": 1.049,
+            "meanMs": 8.20548417721517,
+            "p50Ms": 8.232,
+            "p95Ms": 8.621,
+            "p99Ms": 9.005,
+            "maxMs": 9.914,
+            "over8_333Ms": 152,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 631,
+            "minMs": 3.691,
+            "meanMs": 8.326038034865293,
+            "p50Ms": 8.33,
+            "p95Ms": 8.754,
+            "p99Ms": 9.17,
+            "maxMs": 10.009,
+            "over8_333Ms": 309,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-1-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 1,
+          "actualMovedCompanions": 1,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.087944,
+          "frameWallDuration": {
+            "count": 591,
+            "minMs": 3.236,
+            "meanMs": 7.0898680203045705,
+            "p50Ms": 7.143,
+            "p95Ms": 7.848,
+            "p99Ms": 8.255,
+            "maxMs": 9.157,
+            "over8_333Ms": 5,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 587,
+            "minMs": 7.595,
+            "meanMs": 8.333010221465083,
+            "p50Ms": 8.334,
+            "p95Ms": 8.395,
+            "p99Ms": 8.419,
+            "maxMs": 9.06,
+            "over8_333Ms": 295,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-5-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 5,
+          "actualMovedCompanions": 5,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.08614,
+          "frameWallDuration": {
+            "count": 587,
+            "minMs": 5.129,
+            "meanMs": 6.775977853492341,
+            "p50Ms": 6.685,
+            "p95Ms": 8.017,
+            "p99Ms": 11.09,
+            "maxMs": 12.648,
+            "over8_333Ms": 23,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 582,
+            "minMs": 7.702,
+            "meanMs": 8.40484536082474,
+            "p50Ms": 8.333,
+            "p95Ms": 8.389,
+            "p99Ms": 8.928,
+            "maxMs": 16.718,
+            "over8_333Ms": 285,
+            "over16_667Ms": 2,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 1
+        },
+        {
+          "name": "walkers-5-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 5,
+          "actualMovedCompanions": 5,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.090648,
+          "frameWallDuration": {
+            "count": 550,
+            "minMs": 5.481,
+            "meanMs": 7.286174545454546,
+            "p50Ms": 7.115,
+            "p95Ms": 8.861,
+            "p99Ms": 12.033,
+            "maxMs": 15.255,
+            "over8_333Ms": 53,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 538,
+            "minMs": 8.115,
+            "meanMs": 9.07671747211896,
+            "p50Ms": 8.336,
+            "p95Ms": 16.666,
+            "p99Ms": 16.715,
+            "maxMs": 16.769,
+            "over8_333Ms": 286,
+            "over16_667Ms": 25,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 8
+        },
+        {
+          "name": "walkers-1-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 1,
+          "actualMovedCompanions": 1,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.076945,
+          "frameWallDuration": {
+            "count": 523,
+            "minMs": 6.134,
+            "meanMs": 8.312583173996192,
+            "p50Ms": 7.818,
+            "p95Ms": 12.382,
+            "p99Ms": 14.751,
+            "maxMs": 17.937,
+            "over8_333Ms": 155,
+            "over16_667Ms": 2,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 514,
+            "minMs": 8.192,
+            "meanMs": 9.71110505836576,
+            "p50Ms": 8.339,
+            "p95Ms": 16.695,
+            "p99Ms": 16.749,
+            "maxMs": 25.024,
+            "over8_333Ms": 287,
+            "over16_667Ms": 53,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 5
+        },
+        {
+          "name": "walkers-0-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 0,
+          "actualMovedCompanions": 0,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.100983,
+          "frameWallDuration": {
+            "count": 592,
+            "minMs": 0.886,
+            "meanMs": 8.21202027027027,
+            "p50Ms": 8.229,
+            "p95Ms": 8.589,
+            "p99Ms": 9.009,
+            "maxMs": 9.769,
+            "over8_333Ms": 149,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 591,
+            "minMs": 6.649,
+            "meanMs": 8.333485617597296,
+            "p50Ms": 8.337,
+            "p95Ms": 8.715,
+            "p99Ms": 9.147,
+            "maxMs": 9.915,
+            "over8_333Ms": 300,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        }
+      ]
+    },
+    {
+      "role": "candidate",
+      "hostSource": "50b44535a8180a138268c4f52a7fb5581f61de13",
+      "device": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "versions": {
+          "brands": [
+            {
+              "brand": "Chromium",
+              "version": "154"
+            },
+            {
+              "brand": "Google Chrome",
+              "version": "154"
+            },
+            {
+              "brand": "Not A(Brand",
+              "version": "99"
+            }
+          ],
+          "fullVersionList": [
+            {
+              "brand": "Chromium",
+              "version": "154.0.8037.98"
+            },
+            {
+              "brand": "Google Chrome",
+              "version": "154.0.8037.98"
+            },
+            {
+              "brand": "Not A(Brand",
+              "version": "99.0.0.0"
+            }
+          ],
+          "mobile": false,
+          "platform": "Windows",
+          "platformVersion": "19.0.0"
+        },
+        "hardwareConcurrency": 16,
+        "deviceMemory": 32,
+        "dpr": 1
+      },
+      "assetCost": {
+        "bundleBytes": 2913445,
+        "gzipLevel6Bytes": 728326,
+        "sha256": "cd55ffc238e845a1a1df9663a60633d08cf68cc2b9b7acf043f8ee62c7572dd4"
+      },
+      "consoleErrorCount": 0,
+      "closedOwnedBrowser": true,
+      "scenarios": [
+        {
+          "name": "walkers-0-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 0,
+          "actualMovedCompanions": 0,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.440306,
+          "frameWallDuration": {
+            "count": 631,
+            "minMs": 0.545,
+            "meanMs": 8.201253565768619,
+            "p50Ms": 8.233,
+            "p95Ms": 8.542,
+            "p99Ms": 8.946,
+            "maxMs": 21.562,
+            "over8_333Ms": 160,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 630,
+            "minMs": 0.681,
+            "meanMs": 8.321847619047633,
+            "p50Ms": 8.339,
+            "p95Ms": 8.662,
+            "p99Ms": 9.123,
+            "maxMs": 21.642,
+            "over8_333Ms": 324,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-1-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 1,
+          "actualMovedCompanions": 1,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.202976,
+          "frameWallDuration": {
+            "count": 610,
+            "minMs": 4.548,
+            "meanMs": 7.165509836065583,
+            "p50Ms": 7.221,
+            "p95Ms": 7.933,
+            "p99Ms": 8.355,
+            "maxMs": 9.917,
+            "over8_333Ms": 7,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 609,
+            "minMs": 2.372,
+            "meanMs": 8.33293431855501,
+            "p50Ms": 8.29,
+            "p95Ms": 13.949,
+            "p99Ms": 14.227,
+            "maxMs": 17.028,
+            "over8_333Ms": 286,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 20,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-5-1",
+          "requestedSeconds": 5,
+          "enabledWalkers": 5,
+          "actualMovedCompanions": 5,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.086577,
+          "frameWallDuration": {
+            "count": 590,
+            "minMs": 4.559,
+            "meanMs": 6.843554237288141,
+            "p50Ms": 6.858,
+            "p95Ms": 7.944,
+            "p99Ms": 10.141,
+            "maxMs": 12.677,
+            "over8_333Ms": 11,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 587,
+            "minMs": 0.294,
+            "meanMs": 8.349008517887555,
+            "p50Ms": 8.333,
+            "p95Ms": 13.228,
+            "p99Ms": 16.699,
+            "maxMs": 19.922,
+            "over8_333Ms": 285,
+            "over16_667Ms": 8,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-5-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 5,
+          "actualMovedCompanions": 5,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.105161,
+          "frameWallDuration": {
+            "count": 501,
+            "minMs": 5.324,
+            "meanMs": 7.901990019960082,
+            "p50Ms": 7.86,
+            "p95Ms": 9.268,
+            "p99Ms": 11,
+            "maxMs": 11.95,
+            "over8_333Ms": 133,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 498,
+            "minMs": 0.062,
+            "meanMs": 9.807198795180721,
+            "p50Ms": 8.353,
+            "p95Ms": 18.433,
+            "p99Ms": 20.703,
+            "maxMs": 25.794,
+            "over8_333Ms": 278,
+            "over16_667Ms": 64,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 2,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-1-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 1,
+          "actualMovedCompanions": 1,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.107982,
+          "frameWallDuration": {
+            "count": 451,
+            "minMs": 7.015,
+            "meanMs": 9.858206208425724,
+            "p50Ms": 9.726,
+            "p95Ms": 12.276,
+            "p99Ms": 13.946,
+            "maxMs": 17.126,
+            "over8_333Ms": 406,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 449,
+            "minMs": 0.33,
+            "meanMs": 11.263077951002238,
+            "p50Ms": 10.998,
+            "p95Ms": 20.09,
+            "p99Ms": 22.021,
+            "maxMs": 29.051,
+            "over8_333Ms": 361,
+            "over16_667Ms": 61,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 73,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        },
+        {
+          "name": "walkers-0-2",
+          "requestedSeconds": 5,
+          "enabledWalkers": 0,
+          "actualMovedCompanions": 0,
+          "visibleMountedCompanions": 5,
+          "messageCards": 0,
+          "readingCompanions": 0,
+          "visibility": "visible",
+          "sameDocument": true,
+          "traceSeconds": 5.097697,
+          "frameWallDuration": {
+            "count": 584,
+            "minMs": 0.928,
+            "meanMs": 8.148287671232875,
+            "p50Ms": 8.175,
+            "p95Ms": 8.569,
+            "p99Ms": 8.961,
+            "maxMs": 10.273,
+            "over8_333Ms": 143,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 583,
+            "minMs": 1.025,
+            "meanMs": 8.320663807890226,
+            "p50Ms": 8.324,
+            "p95Ms": 8.753,
+            "p99Ms": 9.109,
+            "maxMs": 10.447,
+            "over8_333Ms": 285,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0
+        }
+      ]
+    }
+  ],
+  "analysis": {
+    "parser": "Unchanged official ChunkedTraceParser",
+    "handlers": "Unchanged official Meta and AnimationFrames; dependencies and main-renderer/thread/bounds guards preserved",
+    "fullInsightEngineWasNotRequested": true,
+    "crosscheck": "Same unchanged cadence-isolation candidate walkers-0-1 trace reproduces all previously published statistics exactly",
+    "noCpuGpuFpsClaim": true,
+    "referenceThresholdsAreNotAgreedBudgets": true
+  },
+  "limits": [
+    "Five-second samples do not replace the earlier15s protocol or full performance qualification.",
+    "Parent then candidate and count order are fixed, with unrelated desktop workloads uncontrolled.",
+    "This compares the #1173 feature range at pinned main d55d82fe and source50b44535; it does not isolate individual spring, reading, audio or CSS changes.",
+    "No concurrent message reveal, actual hidden/background return, new GC heap sample, GPU usage or physical display-FPS measurement.",
+    "Failed hover preflight and15s analysis-timeout runs remain private and excluded; recovered raw trace completeness is not a successful paired workload."
+  ]
+}
