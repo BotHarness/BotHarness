@@ -19,7 +19,12 @@ import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
 import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
-import { BotSettings, BotSettingsView, botSettingsSectionSource } from './bot-settings.js';
+import {
+  BOT_SETTINGS_SECTIONS,
+  BotSettings,
+  BotSettingsView,
+  botSettingsSectionSource,
+} from './bot-settings.js';
 import { DshBotSettingsItem } from './dsh-bot-settings-item.js';
 import {
   AboutSection,
@@ -212,7 +217,7 @@ export function apply(ctx: ClientContext): void {
             void actions.openActivityCenter();
           },
           openSettings: () => {
-            botSettings.open('companions');
+            botSettings.open(BOT_SETTINGS_SECTIONS.companions);
           },
         }),
       },
@@ -234,7 +239,7 @@ export function apply(ctx: ClientContext): void {
   );
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
-    botSettings.open('data-privacy');
+    botSettings.open(BOT_SETTINGS_SECTIONS.dataPrivacy);
   });
   const lastView =
     typeof window === 'undefined'
@@ -389,7 +394,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'general',
+          id: BOT_SETTINGS_SECTIONS.general,
           order: 0,
           label: () => t('botSettings.section.general'),
           locale: LOCALE_NS,
@@ -407,7 +412,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'models',
+          id: BOT_SETTINGS_SECTIONS.models,
           order: 10,
           label: () => t('botSettings.section.models'),
           locale: LOCALE_NS,
@@ -420,7 +425,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'messaging',
+          id: BOT_SETTINGS_SECTIONS.messaging,
           order: 20,
           label: () => t('botSettings.section.messaging'),
           locale: LOCALE_NS,
@@ -433,7 +438,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'companions',
+          id: BOT_SETTINGS_SECTIONS.companions,
           order: 40,
           label: () => t('botSettings.section.companions'),
           locale: LOCALE_NS,
@@ -446,7 +451,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'data-privacy',
+          id: BOT_SETTINGS_SECTIONS.dataPrivacy,
           order: 50,
           label: () => t('botSettings.section.dataPrivacy'),
           locale: LOCALE_NS,
@@ -459,7 +464,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'advanced',
+          id: BOT_SETTINGS_SECTIONS.advanced,
           order: 60,
           label: () => t('botSettings.section.advanced'),
           locale: LOCALE_NS,
@@ -472,7 +477,7 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.section',
-          id: 'about',
+          id: BOT_SETTINGS_SECTIONS.about,
           order: 70,
           label: () => t('botSettings.section.about'),
           locale: LOCALE_NS,

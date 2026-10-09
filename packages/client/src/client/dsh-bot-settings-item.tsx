@@ -18,7 +18,7 @@ export function DshBotSettingsItem({
   t,
 }: DshBotSettingsItemProps): ReactElement {
   const [stalled, setStalled] = useState(false);
-  const leave = (): void => {
+  const redirectToBotSettings = (): void => {
     close();
     openBotSettings();
   };
@@ -26,7 +26,7 @@ export function DshBotSettingsItem({
     const fallback = setTimeout(() => {
       setStalled(true);
     }, DSH_BOT_SETTINGS_FALLBACK_MS);
-    leave();
+    redirectToBotSettings();
     return () => {
       clearTimeout(fallback);
     };
@@ -38,7 +38,7 @@ export function DshBotSettingsItem({
           <div className="bh-settings-row-text">
             <div className="bh-settings-row-desc">{t('settings.moved')}</div>
           </div>
-          <Button variant="outline" size="sm" onClick={leave}>
+          <Button variant="outline" size="sm" onClick={redirectToBotSettings}>
             {t('settings.open')}
           </Button>
         </div>

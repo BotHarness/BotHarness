@@ -7,7 +7,17 @@ import type {} from './bot-settings-slot.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 
-export const BOT_SETTINGS_DEFAULT_SECTION = 'general';
+export const BOT_SETTINGS_SECTIONS = {
+  general: 'general',
+  models: 'models',
+  messaging: 'messaging',
+  companions: 'companions',
+  dataPrivacy: 'data-privacy',
+  advanced: 'advanced',
+  about: 'about',
+} as const;
+
+export const BOT_SETTINGS_DEFAULT_SECTION = BOT_SETTINGS_SECTIONS.general;
 
 const SECTION_SLOT = 'botharness.settings.section';
 
