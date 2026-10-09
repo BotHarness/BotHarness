@@ -3363,7 +3363,15 @@ button.bh-profile-heat-cell:focus-visible {
   flex-direction: column;
   padding: 74px 18px calc(10px + var(--bh-activity-overlay-inset, 0px));
   overscroll-behavior: contain;
+  transition: padding-bottom 160ms ease;
 }
+/* The faded composer status gives its reserved space back only after the
+   fade, so the working rows slide down instead of jumping onto its text. */
+.bh-chat-pane[data-activity-concealed='true'] .bh-chat-body {
+  padding-bottom: 10px;
+  transition-delay: 160ms;
+}
+html[data-botharness-motion='reduce'] .bh-chat-body { transition: none; }
 .bh-chat-empty {
   height: 100%;
 }
@@ -3421,6 +3429,45 @@ button.bh-profile-heat-cell:focus-visible {
   background: transparent;
 }
 .bh-message-group-avatar-link { cursor: pointer; }
+/* Client-only working rows under the latest message: the composer status
+   stays the live region, so these rows are hidden from assistive tech. */
+.bh-timeline-working {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bh-timeline-working-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-timeline-working-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-timeline-working-name { color: var(--dsw-alias-label-secondary); }
+.bh-timeline-working-ellipsis i {
+  font-style: normal;
+  animation: bh-timeline-working-dot 1.2s ease-in-out infinite;
+}
+.bh-timeline-working-ellipsis i:nth-child(2) { animation-delay: 0.2s; }
+.bh-timeline-working-ellipsis i:nth-child(3) { animation-delay: 0.4s; }
+html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animation: none; }
+@keyframes bh-timeline-working-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+.bh-timeline-working-more {
+  padding-left: 36px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
 .bh-message-group-avatar-link:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
@@ -3769,7 +3816,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-timeline-new {
   position: absolute;
   z-index: 2;
-  bottom: 82px;
+  bottom: calc(82px + var(--bh-activity-overlay-inset, 0px));
   left: 50%;
   transform: translateX(-50%);
   border: 1px solid var(--dsw-alias-border-l2);
@@ -4122,6 +4169,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 }
 
 .bh-composer-activity-status {
+  transition: opacity 160ms ease, translate 160ms ease;
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
@@ -4135,6 +4183,22 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   color: var(--bh-overview-muted);
   font-size: var(--bh-overview-font);
 }
+/* Scrolled into history, the status sits over messages, so it carries a
+   backdrop that fades in from the chat background above it. */
+.bh-composer-activity-status { isolation: isolate; }
+.bh-composer-activity-status::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0 -6px;
+  z-index: -1;
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-base) 12px);
+  pointer-events: none;
+}
+/* At the latest message the working rows already show every active Bot, so
+   the status only fades out: it stays the screen-reader live region. */
+.bh-composer-activity-status[data-concealed='true'] { opacity: 0; translate: 0 4px; }
+.bh-composer-activity-status[data-concealed='true'] * { pointer-events: none; }
+html[data-botharness-motion='reduce'] .bh-composer-activity-status { transition: none; }
 .bh-composer-activity-facepile .bh-persona-avatar,
 .bh-composer-activity-facepile .bh-avatar-facepile-overflow {
   border: 0;
