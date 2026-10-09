@@ -509,7 +509,12 @@ export interface BotRuntimeOptions {
     MemoryService,
     'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
   > &
-    Partial<Pick<MemoryService, 'scanChanges' | 'preparedObservation'>>;
+    Partial<
+      Pick<
+        MemoryService,
+        'scanChanges' | 'preparedObservation' | 'pendingCommits' | 'advanceCommitCursor'
+      >
+    >;
   attachments?: AttachmentStore;
 
   ownership?: SessionOwnership;
@@ -3344,13 +3349,15 @@ class BotRuntimeImplementation implements BotRuntime {
           orchestrator.sessionId,
         ),
       });
-      if (observeMemory)
+      if (observeMemory) {
         this.#memory?.reconcileTurn({
           botSlug: bot.slug,
           sessionId: orchestrator.sessionId,
           sourceEventId,
           preserveObservation: this.#activeMemoryEvents.get(bot.slug)?.preserveObservation ?? false,
         });
+        this.#recordTurnCommits(bot.slug, sourceEventId);
+      }
       this.#markReportsHandled(memoryEventIds);
       this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
       this.#notifyReadAdmissions(readAdmissions);
@@ -4672,6 +4679,41 @@ class BotRuntimeImplementation implements BotRuntime {
     return result.message;
   }
 
+  #recordTurnCommits(botSlug: string, causeSourceEventId: string): void {
+    const memory = this.#memory;
+    if (memory?.pendingCommits === undefined || memory.advanceCommitCursor === undefined) return;
+    try {
+      const pending = memory.pendingCommits(botSlug);
+      if (pending.commits.length > 0)
+        this.#channels.appendMemoryCommits({
+          botSlug,
+          causeSourceEventId,
+          commits: pending.commits,
+        });
+      memory.advanceCommitCursor(botSlug, pending.branch, pending.head);
+    } catch (error) {
+      this.#warn?.(
+        `memory-commit-record-failed bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+      );
+    }
+  }
+
+  #turnSourceIn(botSlug: string, channelId: string): string | undefined {
+    const sources = [...(this.#turnSources.get(botSlug) ?? [])];
+    if (sources.length === 0) return undefined;
+    const row = this.#database.read(
+      (database) =>
+        database
+          .prepare(
+            `SELECT source_event_id FROM source_events
+              WHERE channel_id = ? AND source_event_id IN (${sources.map(() => '?').join(', ')})
+              ORDER BY rowid DESC LIMIT 1`,
+          )
+          .get(channelId, ...sources) as { source_event_id: string } | undefined,
+    );
+    return row?.source_event_id;
+  }
+
   #botCausation(sourceEventId: string): BotMessageCausation {
     const parent = this.#database.read((database) =>
       database
@@ -4758,7 +4800,9 @@ class BotRuntimeImplementation implements BotRuntime {
       throw new Error('Bot DM sender is no longer active');
     if (this.#channels.getOrCreateDm(botSlug, sender.displayName) === undefined)
       throw new Error('Sender Human DM is unavailable');
-    const botCausation = this.#botCausation(input.sourceEventId);
+    const botCausation = this.#botCausation(
+      this.#turnSourceIn(botSlug, channel.id) ?? input.sourceEventId,
+    );
     const messageId = this.#deliveryMessageId(input.sessionId, input.deliveryKey);
     const message: ChannelMessage = {
       id: messageId,

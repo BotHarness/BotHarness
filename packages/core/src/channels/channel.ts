@@ -178,6 +178,44 @@ export interface BotMessageCausation {
   hop: number;
 }
 
+export interface ChannelMemoryCommit {
+  botSlug: string;
+  sha: string;
+  subject: string;
+  authorName: string;
+  authoredAt: string;
+  files: Array<{ path: string; added: number | null; deleted: number | null }>;
+  moreFiles: number;
+}
+
+function isMemoryCommit(value: unknown): value is ChannelMemoryCommit {
+  if (typeof value !== 'object' || value === null) return false;
+  const commit = value as Record<string, unknown>;
+  const count = (item: unknown): boolean =>
+    item === null || (Number.isSafeInteger(item) && (item as number) >= 0);
+  return (
+    typeof commit['botSlug'] === 'string' &&
+    commit['botSlug'].length > 0 &&
+    typeof commit['sha'] === 'string' &&
+    /^[0-9a-f]{40}$/u.test(commit['sha']) &&
+    typeof commit['subject'] === 'string' &&
+    typeof commit['authorName'] === 'string' &&
+    typeof commit['authoredAt'] === 'string' &&
+    Array.isArray(commit['files']) &&
+    commit['files'].length <= 20 &&
+    commit['files'].every(
+      (file: unknown) =>
+        typeof file === 'object' &&
+        file !== null &&
+        typeof (file as Record<string, unknown>)['path'] === 'string' &&
+        count((file as Record<string, unknown>)['added']) &&
+        count((file as Record<string, unknown>)['deleted']),
+    ) &&
+    Number.isSafeInteger(commit['moreFiles']) &&
+    (commit['moreFiles'] as number) >= 0
+  );
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -198,6 +236,7 @@ export interface ChannelMessage {
 
   humanReceipts?: ChannelHumanReceipt[];
   botDmAction?: BotDmAction;
+  memoryCommit?: ChannelMemoryCommit;
   memberDeparture?: ChannelMemberDeparture;
   botCausation?: BotMessageCausation;
 
@@ -648,6 +687,12 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       (departure['departureType'] !== undefined &&
         departure['departureType'] !== 'left' &&
         departure['departureType'] !== 'removed')
+    )
+      return false;
+  } else if (message['memoryCommit'] !== undefined) {
+    if (
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'system' ||
+      !isMemoryCommit(message['memoryCommit'])
     )
       return false;
   } else if (

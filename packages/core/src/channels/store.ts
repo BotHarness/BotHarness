@@ -25,6 +25,7 @@ import {
   isGroupAvatar,
   isValidChannelId,
   type LocalHumanIdentity,
+  type ChannelMemoryCommit,
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
@@ -343,6 +344,11 @@ export interface ChannelStore {
   ): ChannelRecord;
 
   deleteGroup(channelId: string): void;
+  appendMemoryCommits(input: {
+    botSlug: string;
+    causeSourceEventId: string;
+    commits: ReadonlyArray<Omit<ChannelMemoryCommit, 'botSlug'>>;
+  }): ChannelMessage[];
   rename(id: string, name: string): ChannelRecord | undefined;
   previewAllBotMention(id: string): AllBotPreview;
   appendMessageOnce(
@@ -789,6 +795,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     },
     deleteGroup() {
       throw new Error('Group deletion requires the operational Channel store');
+    },
+    appendMemoryCommits() {
+      throw new Error('Memory commit notices require the operational Channel store');
     },
     rename(id, name) {
       const record = read(id);

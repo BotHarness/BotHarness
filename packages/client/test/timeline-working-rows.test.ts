@@ -82,6 +82,20 @@ describe('timelineWorkingRows', () => {
     expect(html).toContain('Mira</span> · 正在搜索 · web_search · deepseek.com<span');
   });
 
+  it('skips a thinking row for the Bot that wrote the latest message but keeps its tool row', () => {
+    expect(timelineWorkingRows({ items: [nova], summary: '' }, none, 'nova').items).toEqual([]);
+    expect(
+      timelineWorkingRows({ items: [mira], summary: '' }, none, 'mira').items.map(
+        (item) => item.personaBotId,
+      ),
+    ).toEqual(['mira']);
+    expect(
+      timelineWorkingRows({ items: [nova], summary: '' }, none, 'mira').items.map(
+        (item) => item.personaBotId,
+      ),
+    ).toEqual(['nova']);
+  });
+
   it('hands a Bot over to its streaming draft', () => {
     const rows = timelineWorkingRows({ items: [mira, nova], summary: '' }, new Set(['mira']));
     expect(rows.items.map((item) => item.personaBotId)).toEqual(['nova']);
@@ -89,16 +103,30 @@ describe('timelineWorkingRows', () => {
 });
 
 describe('timelineWorkingRowsCover', () => {
-  it('covers the composer status only when every Bot it lists has a working row', () => {
-    expect(timelineWorkingRowsCover(undefined)).toBe(false);
-    expect(timelineWorkingRowsCover({ items: [mira, nova, kai], summary: '' })).toBe(true);
-    expect(timelineWorkingRowsCover({ items: [mira, waiting], summary: '' })).toBe(false);
-    expect(
-      timelineWorkingRowsCover({
-        items: [{ ...mira, attention: { approvalCount: 0, informationalCount: 1 } }],
-        summary: '',
-      }),
-    ).toBe(false);
+  const cover = (items: PersonaBotFacepileItem[], streaming = none): boolean => {
+    const activity = { items, summary: '' };
+    return timelineWorkingRowsCover(activity, timelineWorkingRows(activity, streaming), streaming);
+  };
+
+  it('covers the composer status only when every Bot it lists has a row or a draft', () => {
+    expect(timelineWorkingRowsCover(undefined, { items: [], more: 0 }, none)).toBe(false);
+    expect(cover([mira, nova])).toBe(true);
+    expect(cover([mira, waiting])).toBe(false);
+    expect(cover([{ ...mira, attention: { approvalCount: 0, informationalCount: 1 } }])).toBe(
+      false,
+    );
+  });
+
+  it('keeps the composer status when Bots overflow the row cap', () => {
+    expect(cover([mira, nova, kai])).toBe(false);
+    expect(cover([mira, nova, kai], new Set(['kai']))).toBe(true);
+  });
+
+  it('keeps the composer status for a thinking Bot whose own reply is the latest message', () => {
+    const activity = { items: [nova], summary: '' };
+    const rows = timelineWorkingRows(activity, none, 'nova');
+    expect(rows.items).toEqual([]);
+    expect(timelineWorkingRowsCover(activity, rows, none)).toBe(false);
   });
 });
 

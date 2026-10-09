@@ -186,6 +186,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  store.applyActivity({ generation: crypto.randomUUID(), revision: 0, bots: [] });
   await act(async () => root.unmount());
   container.remove();
 });
@@ -292,5 +293,41 @@ describe('timeline working rows in the Channel body', () => {
     expect(
       container.querySelector<HTMLElement>('.bh-composer-activity-status')?.dataset['concealed'],
     ).toBeUndefined();
+  });
+
+  it('hides the thinking row right after the Bot replies', async () => {
+    const chat = await open(dm, [bot('mira', 'Mira', 'thinking')]);
+    expect(rowNames()).toEqual(['mira']);
+    await act(async () =>
+      store.setConversation({
+        messages: [
+          ...store.getSnapshot().conversation.messages,
+          { id: 'm-2', at: AT, author: { kind: 'bot', slug: 'mira' }, body: 'Done.' },
+        ],
+        revision: store.getSnapshot().conversation.revision + 1,
+      }),
+    );
+    expect(rowNames()).toEqual([]);
+    expect(
+      container.querySelector<HTMLElement>('.bh-composer-activity-status')?.dataset['concealed'],
+    ).toBeUndefined();
+    expect(chat.querySelector('[data-message-id="m-2"]')).not.toBeNull();
+  });
+
+  it('counts one unseen message in the singular', async () => {
+    const chat = await open(dm, [bot('mira', 'Mira', 'idle')]);
+    layout(chat, 1000);
+    chat.scrollTop = 100;
+    await act(async () => chat.dispatchEvent(new Event('scroll')));
+    await act(async () =>
+      store.setConversation({
+        messages: [
+          ...store.getSnapshot().conversation.messages,
+          { id: 'm-3', at: AT, author: { kind: 'bot', slug: 'mira' }, body: 'Hi' },
+        ],
+        revision: store.getSnapshot().conversation.revision + 1,
+      }),
+    );
+    expect(container.querySelector('.bh-timeline-new')?.textContent).toBe('1 条新消息 · 跳到最新');
   });
 });

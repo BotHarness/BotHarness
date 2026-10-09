@@ -1,6 +1,7 @@
 import { allBotPreview, assertAllBotPreview, type AllBotPreview } from './all-bot-mention.js';
 import { projectBridgeMessage } from '../messaging/channel-target.js';
 import type { ExternalSource } from '../messaging/inbound.js';
+import { isChannelNotice, notChannelNoticeSql } from './channel-notice.js';
 import {
   createLegacyAttachmentMigration,
   type RetainedAttachmentMessage,
@@ -209,6 +210,25 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       VALUES (?, ?, ?, ?, ?)
     `).run(sourceEventId, botSlug, sourceClass, rule.revision, rule.wake);
   };
+  const causeChannel = (
+    sourceEventId: string,
+    botSlug: string,
+    targetChannelId: string,
+  ): ChannelRecord | 'target' | undefined => {
+    const cause = database.read(
+      (db) =>
+        db
+          .prepare('SELECT channel_id FROM source_events WHERE source_event_id = ?')
+          .get(sourceEventId) as { channel_id: string | null } | undefined,
+    );
+    if (cause?.channel_id == null) return undefined;
+    if (cause.channel_id === targetChannelId) return 'target';
+    const channel = readRecord(cause.channel_id);
+    if (channel === undefined) return undefined;
+    if (channel.type === 'group' || isBotDmChannel(channel))
+      return channel.members.includes(botSlug) ? channel : undefined;
+    return channel.botSlug === botSlug ? channel : undefined;
+  };
   const settleInvitation = (db: DatabaseSync, invitationId: string, timestamp: string): void => {
     db.prepare(`
       UPDATE inbox_admissions SET attempt_state = 'handled',
@@ -391,7 +411,12 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     revision: number,
     members: ReturnType<typeof humanMembers>,
   ): ChannelMessage['humanReceipts'] => {
-    if (message.author.kind === 'human' || message.author.kind === 'system') return undefined;
+    if (
+      message.author.kind === 'human' ||
+      message.author.kind === 'system' ||
+      isChannelNotice(message)
+    )
+      return undefined;
     const recipients = members
       .filter((member) => member.visible_from_revision <= revision)
       .map((member) => ({
@@ -563,13 +588,18 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       botDm && senderSlug !== undefined ? readRecord(dmChannelId(senderSlug)) : undefined;
     if (botDm && (senderDm?.type !== 'dm' || senderDm.botSlug !== senderSlug))
       throw new Error('Sender Human DM is unavailable for the Bot action notice');
+    const cause =
+      botDm && senderSlug !== undefined && message.botCausation !== undefined
+        ? causeChannel(message.botCausation.parentSourceEventId, senderSlug, id)
+        : undefined;
+    const noticeChannel = !botDm || cause === 'target' ? undefined : (cause ?? senderDm);
     const recipient = botDm ? channel.members.find((slug) => slug !== senderSlug) : undefined;
     if (botDm && recipient === undefined) throw new Error('Bot DM has no recipient');
     const durable = rawMessage(message);
     const revision = previous.length + 1;
     const sourceEventId = randomUUID();
     const action: ChannelMessage | undefined =
-      botDm && senderDm !== undefined && recipient !== undefined && senderSlug !== undefined
+      noticeChannel !== undefined && recipient !== undefined && senderSlug !== undefined
         ? {
             id: `bot-dm-action-${durable.id}`,
             at: durable.at,
@@ -578,7 +608,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             botDmAction: { channelId: id, messageId: durable.id, recipientBotSlug: recipient },
           }
         : undefined;
-    const actionRevision = senderDm === undefined ? undefined : allMessages(senderDm.id).length + 1;
+    const actionRevision =
+      noticeChannel === undefined ? undefined : allMessages(noticeChannel.id).length + 1;
     try {
       database.transaction(
         (db) => {
@@ -746,7 +777,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           );
           if (
             action !== undefined &&
-            senderDm !== undefined &&
+            noticeChannel !== undefined &&
             actionRevision !== undefined &&
             senderSlug !== undefined
           ) {
@@ -758,9 +789,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
               actionSourceEventId,
-              'bot-message',
+              'self-record',
               senderSlug,
-              senderDm.id,
+              noticeChannel.id,
               action.id,
               '',
               action.at,
@@ -769,11 +800,12 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             db.prepare(`
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
             VALUES (?, ?, ?, ?)
-          `).run(senderDm.id, actionRevision, actionSourceEventId, action.id);
-            db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
-              JSON.stringify({ ...senderDm, updatedAt: now().toISOString() }),
-              senderDm.id,
-            );
+          `).run(noticeChannel.id, actionRevision, actionSourceEventId, action.id);
+            db.prepare(`
+            INSERT INTO inbox_admissions
+              (source_event_id, bot_slug, reason, attempt_state, handled_at)
+            VALUES (?, ?, 'bot-action', 'handled', ?)
+          `).run(actionSourceEventId, senderSlug, action.at);
           }
         },
         ['source-event', 'channel', 'bot-inbox'],
@@ -799,9 +831,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     };
     for (const commit of [
       { channelId: id, message: result, revision, ...(origin === undefined ? {} : { origin }) },
-      ...(action === undefined || senderDm === undefined || actionRevision === undefined
+      ...(action === undefined || noticeChannel === undefined || actionRevision === undefined
         ? []
-        : [{ channelId: senderDm.id, message: action, revision: actionRevision }]),
+        : [{ channelId: noticeChannel.id, message: action, revision: actionRevision }]),
     ]) {
       try {
         options.onCommitted?.(commit);
@@ -1759,6 +1791,68 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }
       return updated;
     },
+    appendMemoryCommits(input) {
+      const cause = causeChannel(input.causeSourceEventId, input.botSlug, '');
+      const channel =
+        (cause === 'target' ? undefined : cause) ?? readRecord(dmChannelId(input.botSlug));
+      if (channel === undefined) return [];
+      const committed: ChannelMessage[] = [];
+      for (const commit of input.commits) {
+        const recorded = database.read((db) =>
+          db
+            .prepare(`
+              SELECT 1 FROM source_events
+               WHERE bot_slug = ? AND json_type(payload_json, '$.memoryCommit') IS NOT NULL
+                 AND json_extract(payload_json, '$.memoryCommit.sha') = ?
+            `)
+            .get(input.botSlug, commit.sha),
+        );
+        if (recorded !== undefined) continue;
+        const message: ChannelMessage = {
+          id: `memory-commit-${randomUUID()}`,
+          at: now().toISOString(),
+          author: { kind: 'system' },
+          body: '',
+          memoryCommit: { botSlug: input.botSlug, ...commit },
+        };
+        const revision = allMessages(channel.id).length + 1;
+        const sourceEventId = randomUUID();
+        database.transaction(
+          (db) => {
+            db.prepare(`
+              INSERT INTO source_events (
+                source_event_id, source_kind, bot_slug, channel_id, message_id,
+                body, created_at, payload_json
+              ) VALUES (?, 'self-record', ?, ?, ?, '', ?, ?)
+            `).run(
+              sourceEventId,
+              input.botSlug,
+              channel.id,
+              message.id,
+              message.at,
+              eventPayload(message),
+            );
+            db.prepare(`
+              INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+              VALUES (?, ?, ?, ?)
+            `).run(channel.id, revision, sourceEventId, message.id);
+            db.prepare(`
+              INSERT INTO inbox_admissions
+                (source_event_id, bot_slug, reason, attempt_state, handled_at)
+              VALUES (?, ?, 'memory-commit', 'handled', ?)
+            `).run(sourceEventId, input.botSlug, message.at);
+          },
+          ['source-event', 'channel', 'bot-inbox'],
+        );
+        committed.push(message);
+        try {
+          options.onCommitted?.({ channelId: channel.id, message, revision });
+        } catch (error) {
+          options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+        }
+      }
+      return committed;
+    },
     deleteGroup(channelId) {
       const channel = readRecord(channelId);
       if (channel?.type !== 'group') throw new Error('Group Channel not found');
@@ -1859,7 +1953,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     },
     latestMessage(id) {
       const messages = allMessages(id);
-      const latest = messages.at(-1);
+      const latest = messages.findLast((message) => !isChannelNotice(message));
       return latest === undefined ? undefined : project(messages, latest);
     },
     hasMessage(id, messageId) {
@@ -2192,7 +2286,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           LEFT JOIN channel_human_members m ON m.channel_id = p.channel_id
             AND m.human_id = ? AND m.left_at IS NULL
          WHERE json_extract(c.record_json, '$.deletedAt') IS NULL
-           AND json_type(e.payload_json, '$.botDmAction') IS NULL
+           AND ${notChannelNoticeSql('e.payload_json')}
            AND ((json_extract(c.record_json, '$.type') = 'dm'
                  AND json_extract(c.record_json, '$.botSlug') IS NOT NULL)
              OR (json_extract(c.record_json, '$.type') = 'group'

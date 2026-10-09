@@ -6,12 +6,7 @@ import { WindowCompanion } from '../src/client/window-companion.js';
 import { WindowCompanionView } from '../src/client/window-companion-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { CompanionSound } from '../src/client/companion-sound.js';
-
-function companionPosition(surface: HTMLElement): { left: string; bottom: string } {
-  const match = /^translate3d\(([-\d.]+)px, ([-\d.]+)px, 0\)$/.exec(surface.style.transform);
-  expect(match).not.toBeNull();
-  return { left: `${Number(match![1])}px`, bottom: `${-Number(match![2])}px` };
-}
+import { companionPosition } from './companion-position.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({

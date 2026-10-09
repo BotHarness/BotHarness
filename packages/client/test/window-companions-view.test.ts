@@ -7,6 +7,7 @@ import { WindowCompanionsView, CompanionSettings } from '../src/client/window-co
 import { zhTranslate } from '../src/client/locale.js';
 import { GroupChannelHeader } from '../src/client/group-channel-header.js';
 import { CompanionSound } from '../src/client/companion-sound.js';
+import { companionPosition } from './companion-position.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -89,10 +90,10 @@ it('pins independently, exposes right-click controls and applies global bounded 
     .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
     .mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains('bh-persona-avatar')) {
-        const companion = this.closest<HTMLElement>('.bh-companion');
+        const position = companionPosition(this.closest<HTMLElement>('.bh-companion')!);
         return new DOMRect(
-          Number.parseFloat(companion?.style.left ?? '0'),
-          window.innerHeight - Number.parseFloat(companion?.style.bottom ?? '0') - 96,
+          Number.parseFloat(position.left),
+          window.innerHeight - Number.parseFloat(position.bottom) - 96,
           96,
           96,
         );
@@ -202,7 +203,7 @@ it('pins independently, exposes right-click controls and applies global bounded 
     const positions = bubbles.map((bubble) => ({
       x:
         Number.parseFloat(bubble.style.left) +
-        Number.parseFloat(bubble.closest<HTMLElement>('.bh-companion')!.style.left),
+        Number.parseFloat(companionPosition(bubble.closest<HTMLElement>('.bh-companion')!).left),
       y: Number.parseFloat(bubble.style.bottom),
     }));
     expect(
@@ -257,8 +258,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
     const bounds = (botId: string) => {
       const character = node.querySelector<HTMLElement>(`[data-bot="${botId}"]`)!;
       const cards = character.querySelector<HTMLElement>('.bh-companion-cards')!;
-      const left = Number.parseFloat(character.style.left) + Number.parseFloat(cards.style.left);
-      const bottom = Number.parseFloat(cards.style.bottom);
+      const position = companionPosition(character);
+      const left = Number.parseFloat(position.left) + Number.parseFloat(cards.style.left);
+      const bottom = Number.parseFloat(position.bottom) + Number.parseFloat(cards.style.bottom);
       return {
         left,
         right: left + 320,

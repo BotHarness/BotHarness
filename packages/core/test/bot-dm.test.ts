@@ -23,7 +23,7 @@ function adapter(onRun: (run: OrchestratorAgentRun) => Promise<void>): BotAgentA
 }
 
 describe('Bot-to-Bot DM tracer', () => {
-  it('delivers A → B → A through one two-member DM and shows bodyless Human DM actions', async () => {
+  it('delivers A → B → A through one two-member DM with one notice where the exchange began', async () => {
     const home = createTempRoot('botharness-bot-dm-');
     const runs: string[] = [];
     const core = createCore({
@@ -86,14 +86,9 @@ describe('Bot-to-Bot DM tracer', () => {
         body: '',
         botDmAction: { channelId: botDm.id, messageId: conversation[0]!.id },
       });
-      const beaActions = core.channels
-        .readMessages('dm-bea')
-        .filter((item) => item.botDmAction?.recipientBotSlug === 'ada');
-      expect(beaActions).toHaveLength(1);
-      expect(beaActions[0]).toMatchObject({
-        body: '',
-        botDmAction: { channelId: botDm.id, messageId: conversation[1]!.id },
-      });
+      expect(
+        core.channels.readMessages('dm-bea').filter((item) => item.botDmAction !== undefined),
+      ).toEqual([]);
       const facts = attachOperationalModule(core.operationalDatabase, 'bot-dm-test').read((db) =>
         db
           .prepare(`
