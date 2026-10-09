@@ -144,6 +144,8 @@ Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个�
 
 - 开发版 QQ Provider 新增有界、私密的群通知变化提示，帮助诊断主动发送拒绝；观察到开关变化不代表获得发送权限，也不会重试保留的结果（[#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)）。
 
+- QQ 独立 Bot 绑定在平台全量接收载荷中保留明确自身 @，机器人消息仍不进入 Human 接收路径。 ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156), [#1172](https://github.com/BotHarness/DeepSeekBot/pull/1172))
+
 - Bot 市场的卡片改成了资料卡的样子：资料横幅在上，Bot 头像压在横幅下沿，名称、仓库和安装按钮排在头像右侧，下面是两行简介，以及标签、星数、更新时间合成的一行。详情页顶部也用同样的横幅和头像，弹窗每行显示两张卡（[#1232](https://github.com/BotHarness/BotHarness/pull/1232)）。
 - **绑定应用** 弹窗可直接打开官网的 Lark／飞书、Slack、微信连接教程和更多平台总览；移除侧栏独立的 Lark 配置引导卡片，让平台配置说明集中在官网维护 ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
