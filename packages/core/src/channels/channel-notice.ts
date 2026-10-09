@@ -1,8 +1,10 @@
 import type { ChannelMessage } from './channel.js';
 
-const CHANNEL_NOTICE_FIELDS = ['botDmAction'] as const;
+const CHANNEL_NOTICE_FIELDS = ['botDmAction', 'memoryCommit'] as const;
 
-export function isChannelNotice(message: Pick<ChannelMessage, 'botDmAction'>): boolean {
+export function isChannelNotice(
+  message: Pick<ChannelMessage, 'botDmAction' | 'memoryCommit'>,
+): boolean {
   return CHANNEL_NOTICE_FIELDS.some((field) => message[field] !== undefined);
 }
 

@@ -509,7 +509,12 @@ export interface BotRuntimeOptions {
     MemoryService,
     'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
   > &
-    Partial<Pick<MemoryService, 'scanChanges' | 'preparedObservation'>>;
+    Partial<
+      Pick<
+        MemoryService,
+        'scanChanges' | 'preparedObservation' | 'pendingCommits' | 'advanceCommitCursor'
+      >
+    >;
   attachments?: AttachmentStore;
 
   ownership?: SessionOwnership;
@@ -3344,13 +3349,15 @@ class BotRuntimeImplementation implements BotRuntime {
           orchestrator.sessionId,
         ),
       });
-      if (observeMemory)
+      if (observeMemory) {
         this.#memory?.reconcileTurn({
           botSlug: bot.slug,
           sessionId: orchestrator.sessionId,
           sourceEventId,
           preserveObservation: this.#activeMemoryEvents.get(bot.slug)?.preserveObservation ?? false,
         });
+        this.#recordTurnCommits(bot.slug, sourceEventId);
+      }
       this.#markReportsHandled(memoryEventIds);
       this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
       this.#notifyReadAdmissions(readAdmissions);
@@ -4670,6 +4677,25 @@ class BotRuntimeImplementation implements BotRuntime {
     input.afterSend?.();
     this.admitGroupMessage(channel.id, result.message.id);
     return result.message;
+  }
+
+  #recordTurnCommits(botSlug: string, causeSourceEventId: string): void {
+    const memory = this.#memory;
+    if (memory?.pendingCommits === undefined || memory.advanceCommitCursor === undefined) return;
+    try {
+      const pending = memory.pendingCommits(botSlug);
+      if (pending.commits.length > 0)
+        this.#channels.appendMemoryCommits({
+          botSlug,
+          causeSourceEventId,
+          commits: pending.commits,
+        });
+      memory.advanceCommitCursor(botSlug, pending.branch, pending.head);
+    } catch (error) {
+      this.#warn?.(
+        `memory-commit-record-failed bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+      );
+    }
   }
 
   #turnSourceIn(botSlug: string, channelId: string): string | undefined {

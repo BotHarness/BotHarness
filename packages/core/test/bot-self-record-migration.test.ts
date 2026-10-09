@@ -29,7 +29,7 @@ it('admits Self-Record kinds at generation 75 and keeps rows and purge triggers'
 
   const current = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   expect(current.mode).toBe('ready');
-  expect(current.generation).toBe(75);
+  expect(current.generation).toBe(76);
   const port = attachOperationalModule(current, 'test');
   port.transaction((db) => {
     db.prepare(event).run('new', 'self-record', 'mira', 'dm-mira', 'm-2', '', AT, '{}');
