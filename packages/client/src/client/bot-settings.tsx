@@ -1,6 +1,10 @@
-import { useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
 
-import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  IconChevronDownOutlineRegular,
+  IconCloseOutlineRegular,
+  Menu,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots';
 
 import type {} from './bot-settings-slot.js';
@@ -83,6 +87,7 @@ export function BotSettingsView({
 }: BotSettingsViewProps): ReactElement | null {
   const state = useSyncExternalStore(botSettings.subscribe, botSettings.getSnapshot);
   const registered = useSyncExternalStore(sections.subscribe, sections.getSnapshot);
+  const [pickerOpen, setPickerOpen] = useState(false);
   if (!state.open) return null;
   const rows = [...registered].sort((a, b) => a.order - b.order);
   const active =
@@ -119,6 +124,35 @@ export function BotSettingsView({
       <div className="bh-bot-settings-content">
         <div className="bh-bot-settings-header">
           <h2 className="bh-bot-settings-title">{active?.label}</h2>
+          <Menu
+            open={pickerOpen}
+            portal
+            align="start"
+            items={rows.map((row) => ({ id: row.id, label: row.label }))}
+            selectedId={active?.id}
+            onSelect={(id) => {
+              setPickerOpen(false);
+              botSettings.select(id);
+            }}
+            onClose={() => {
+              setPickerOpen(false);
+            }}
+            anchor={
+              <button
+                type="button"
+                className="bh-settings-selector bh-bot-settings-picker"
+                aria-label={`${t('botSettings.nav')}: ${active?.label ?? ''}`}
+                aria-haspopup="menu"
+                aria-expanded={pickerOpen}
+                onClick={() => {
+                  setPickerOpen((value) => !value);
+                }}
+              >
+                {active?.label}
+                <IconChevronDownOutlineRegular className="bh-settings-chevron" />
+              </button>
+            }
+          />
           <button
             type="button"
             className="bh-bot-settings-close"
