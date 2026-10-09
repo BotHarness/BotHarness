@@ -138,6 +138,8 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 ### Changed
 
+- QQ independent Bot bindings retain explicit self mentions in the platform full-reception carrier while Bot-authored messages remain excluded from Human admission. ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156), [#1172](https://github.com/BotHarness/DeepSeekBot/pull/1172))
+
 - Bot Marketplace cards now read like a profile card: the Profile banner sits on top, the Bot's avatar overlaps its lower edge with the name, repository and Install beside it, then a two-line bio and one line of tags, stars and update date. The detail view opens with the same banner and avatar, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).
 - **Bind app** links directly to the website connection tutorials for Lark / Feishu, Slack and WeChat, with a more-platforms overview; the standalone Lark setup card is removed so platform instructions stay in one place ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
 
