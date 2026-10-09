@@ -1791,6 +1791,68 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }
       return updated;
     },
+    appendMemoryCommits(input) {
+      const cause = causeChannel(input.causeSourceEventId, input.botSlug, '');
+      const channel =
+        (cause === 'target' ? undefined : cause) ?? readRecord(dmChannelId(input.botSlug));
+      if (channel === undefined) return [];
+      const committed: ChannelMessage[] = [];
+      for (const commit of input.commits) {
+        const recorded = database.read((db) =>
+          db
+            .prepare(`
+              SELECT 1 FROM source_events
+               WHERE bot_slug = ? AND json_type(payload_json, '$.memoryCommit') IS NOT NULL
+                 AND json_extract(payload_json, '$.memoryCommit.sha') = ?
+            `)
+            .get(input.botSlug, commit.sha),
+        );
+        if (recorded !== undefined) continue;
+        const message: ChannelMessage = {
+          id: `memory-commit-${randomUUID()}`,
+          at: now().toISOString(),
+          author: { kind: 'system' },
+          body: '',
+          memoryCommit: { botSlug: input.botSlug, ...commit },
+        };
+        const revision = allMessages(channel.id).length + 1;
+        const sourceEventId = randomUUID();
+        database.transaction(
+          (db) => {
+            db.prepare(`
+              INSERT INTO source_events (
+                source_event_id, source_kind, bot_slug, channel_id, message_id,
+                body, created_at, payload_json
+              ) VALUES (?, 'self-record', ?, ?, ?, '', ?, ?)
+            `).run(
+              sourceEventId,
+              input.botSlug,
+              channel.id,
+              message.id,
+              message.at,
+              eventPayload(message),
+            );
+            db.prepare(`
+              INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+              VALUES (?, ?, ?, ?)
+            `).run(channel.id, revision, sourceEventId, message.id);
+            db.prepare(`
+              INSERT INTO inbox_admissions
+                (source_event_id, bot_slug, reason, attempt_state, handled_at)
+              VALUES (?, ?, 'memory-commit', 'handled', ?)
+            `).run(sourceEventId, input.botSlug, message.at);
+          },
+          ['source-event', 'channel', 'bot-inbox'],
+        );
+        committed.push(message);
+        try {
+          options.onCommitted?.({ channelId: channel.id, message, revision });
+        } catch (error) {
+          options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+        }
+      }
+      return committed;
+    },
     deleteGroup(channelId) {
       const channel = readRecord(channelId);
       if (channel?.type !== 'group') throw new Error('Group Channel not found');

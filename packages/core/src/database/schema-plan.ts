@@ -1957,6 +1957,25 @@ const BOT_SELF_RECORD_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_COMMIT_RECORD_MIGRATION: SchemaMigration = {
+  generation: 76,
+  module: 'messaging',
+  description: 'Track each PersonaBot Memory commit cursor and record each commit once',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_commit_cursors (
+        bot_slug TEXT PRIMARY KEY,
+        branch TEXT NOT NULL,
+        head TEXT NOT NULL CHECK (length(head) = 40),
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX source_events_memory_commit
+        ON source_events (bot_slug, json_extract(payload_json, '$.memoryCommit.sha'))
+        WHERE json_type(payload_json, '$.memoryCommit') IS NOT NULL;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -2032,4 +2051,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   AVATAR_PART_LIBRARY_MIGRATION,
   RECEPTION_HISTORY_MIGRATION,
   BOT_SELF_RECORD_MIGRATION,
+  MEMORY_COMMIT_RECORD_MIGRATION,
 ]);

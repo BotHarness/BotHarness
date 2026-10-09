@@ -200,4 +200,96 @@ describe('Channel Notices in a Group', () => {
     expect(openChannel).toHaveBeenCalledWith('dm-bot-mira-nova');
     expect(openAround).toHaveBeenCalledWith('dm-bot-mira-nova', 'x');
   });
+
+  const commit = {
+    botSlug: 'mira',
+    sha: 'a'.repeat(40),
+    subject: 'Remember the launch date',
+    authorName: 'Mira',
+    authoredAt: AT,
+    files: [
+      { path: 'MEMORY.md', added: 1, deleted: 0 },
+      { path: 'launch.md', added: 5, deleted: 2 },
+    ],
+    moreFiles: 1,
+  };
+  const mira: ChannelSummary = {
+    id: 'dm-mira',
+    type: 'dm',
+    name: 'Mira',
+    members: ['mira'],
+    botSlug: 'mira',
+    createdAt: AT,
+    updatedAt: AT,
+  };
+  const commitLine = {
+    id: 'memory-commit-1',
+    at: AT,
+    author: { kind: 'system' as const },
+    body: '',
+    memoryCommit: commit,
+  };
+
+  async function show(channel: ChannelSummary, noticeActions: BridgeActions): Promise<void> {
+    await act(async () => {
+      store.setRoster([bot('mira', 'Mira')], [group, mira]);
+      store.select(
+        channel.type === 'dm'
+          ? { kind: 'bot', slug: 'mira' }
+          : { kind: 'channel', channelId: channel.id },
+      );
+      store.setConversation({
+        status: 'ready',
+        channel,
+        messages: [commitLine],
+        drafts: [],
+        error: undefined,
+        sending: false,
+      });
+      store.setSessions({ status: 'ready', items: [], error: undefined });
+      root.render(
+        createElement(BotMain, {
+          actions: noticeActions,
+          channelSidebar: createChannelSidebarRegistry(),
+        }),
+      );
+    });
+  }
+
+  function proxyActions(overrides: Record<string, unknown>): BridgeActions {
+    return new Proxy(overrides, {
+      get: (target, key: string) => Reflect.get(target, key) ?? vi.fn(async () => undefined),
+    }) as unknown as BridgeActions;
+  }
+
+  it('renders a Memory commit line and sends a Group click to the Bot DM commit', async () => {
+    const openBot = vi.fn(async () => undefined);
+    await show(group, proxyActions({ openBot }));
+    const line = container.querySelector<HTMLButtonElement>('.bh-memory-commit-line');
+    expect(line?.textContent).toBe(
+      'Mira更新了记忆Remember the launch dateaaaaaaalaunch.md +5 −2 · 另有 2 个文件',
+    );
+    expect(line?.title).toBe(`${commit.sha} · Git 作者：Mira\nlaunch.md +5 −2 · 另有 2 个文件`);
+    expect(line?.querySelector('svg')).not.toBeNull();
+    await act(async () => line?.click());
+    expect(store.getSnapshot().memoryCommitIntent).toEqual({
+      channelId: 'dm-mira',
+      sha: commit.sha,
+    });
+    expect(openBot).toHaveBeenCalledWith('mira');
+    await act(async () => store.setMemoryCommitIntent(undefined));
+  });
+
+  it('opens the commit view in the Bot DM from a pending intent', async () => {
+    const memoryGitCommitDiff = vi.fn(async () => ({
+      sha: commit.sha,
+      files: [{ path: 'launch.md', status: 'A' }],
+      diff: '@@ -0,0 +1 @@\n+Launch is Friday',
+    }));
+    store.setMemoryCommitIntent({ channelId: 'dm-mira', sha: commit.sha });
+    await show(mira, proxyActions({ memoryGitCommitDiff }));
+    expect(container.querySelector('.bh-memory-commit-view')).not.toBeNull();
+    expect(memoryGitCommitDiff).toHaveBeenCalledWith('dm-mira', commit.sha);
+    await act(async () => store.setMemoryCommitIntent(undefined));
+  });
 });
