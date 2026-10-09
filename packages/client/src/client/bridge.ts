@@ -3781,6 +3781,7 @@ export async function loadMessagingApps(call: BridgeCall): Promise<MessagingApp[
         typeof app['ref'] === 'string' &&
         typeof app['platform'] === 'string' &&
         typeof app['name'] === 'string' &&
+        typeof app['fingerprint'] === 'string' &&
         typeof app['connected'] === 'boolean' &&
         (app['boundBotSlug'] === undefined || typeof app['boundBotSlug'] === 'string')
       );

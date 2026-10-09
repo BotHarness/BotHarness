@@ -23,7 +23,8 @@ export function createImApps({
   botSettings,
   openDshSettings = (returned, unavailable) =>
     openExternalBindingSettings(document, returned, () => {
-      closeTopModal(document);
+      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null)
+        closeTopModal(document);
       unavailable();
     }),
 }: {
@@ -85,7 +86,7 @@ export function ImAppsSection({
     };
   }, [imApps]);
   const botName = (slug: string): string =>
-    bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
+    bots.find((bot) => bot.slug === slug)?.displayName ?? t('imApps.removedBot');
   return (
     <div ref={mount} className="bh-settings-rows">
       <div className="bh-settings-row">
@@ -93,7 +94,7 @@ export function ImAppsSection({
           <div className="bh-settings-row-desc">{t('imApps.description')}</div>
           {notice === 'settings-unavailable' ? (
             <div className="bh-settings-row-desc" role="status">
-              {t('identity.settingsUnavailable')}
+              {t('imApps.settingsUnavailable')}
             </div>
           ) : null}
         </div>

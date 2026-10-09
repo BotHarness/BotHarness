@@ -83,7 +83,7 @@ it('lists Apps from every platform with their PersonaBot or an unbound marker', 
   expect(rows()).toEqual([
     'Lark SalesLark/飞书 · 已连接Ada',
     'QQ GroupQQ · 未连接未绑定',
-    'Old SlackSlack · 已连接gone',
+    'Old SlackSlack · 已连接已移除的 Bot',
   ]);
 });
 
@@ -103,7 +103,7 @@ it('shows a load failure', async () => {
 it('hands off to DSH settings and shows a notice when it could not be opened', async () => {
   const manage = vi.fn();
   await render(async () => [], manage, 'settings-unavailable');
-  expect(host.textContent).toContain('无法打开 IM 设置');
+  expect(host.textContent).toContain('无法打开 DSH 设置中的 IM 机器人页面');
   const button = [...host.querySelectorAll('button')].find(
     (candidate) => candidate.textContent === '在 DSH 设置中管理',
   );
@@ -138,4 +138,16 @@ it('closes Bot Settings for DSH settings and reopens at IM apps when it returns'
   expect(settings.getSnapshot()).toEqual({ open: true, sectionId: 'im-apps' });
   expect(imApps.takeNotice()).toBe('settings-unavailable');
   expect(imApps.takeNotice()).toBeUndefined();
+});
+
+it('loads the list again each time the section mounts', async () => {
+  const load = vi.fn(async () => [app({ ref: 'a', name: 'Lark Sales' })]);
+  await render(load);
+  act(() => {
+    root.unmount();
+  });
+  root = createRoot(host);
+  await render(load);
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(rows()).toEqual(['Lark SalesLark/飞书 · 已连接未绑定']);
 });
