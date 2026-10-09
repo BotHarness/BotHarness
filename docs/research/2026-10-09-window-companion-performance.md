@@ -96,6 +96,27 @@ The following final paused-state screenshots were captured outside the timed tra
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | ![Pinned main: five paused companions after the same-version pilot](../assets/pr/1167-companion-performance/parent-same-version-paused.png) | ![#1173: five paused companions after the same-version pilot](../assets/pr/1167-companion-performance/candidate-same-version-paused.png) |
 
+## Main-renderer stage observations from the matched pilot
+
+This offline analysis reuses exactly the twelve formal Avatar0.8.0/same-Profile pilot traces above; it adds no runtime sampling and does not describe the separate formal0.10.1 studies below. Only actual complete events on the previously verified main-frame renderer thread are selected. Wall duration and recorded thread duration are separate trace clocks, as described in [Chromium's trace reading guide](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/trace-event-reading/) and [DevTools trace types](https://chromium.googlesource.com/devtools/devtools-frontend/+/b88894b14f63f84c460f66cff8918b2b4d079eae/front_end/models/trace/types/TraceEvents.ts).
+
+**Paint contains nested Paint events.** Five-walker parent samples contain 6,468 / 6,061 Paint events but only 588 / 551 outermost same-name events; candidate samples contain 3,546 / 3,016 but only 591 / 506 outermost events. Inclusive sums would count that nesting repeatedly. The table keeps only outermost intervals for each stage; every same-name overlap is fully contained, with zero partial overlaps. Different stage names can still contain each other and must never be added. All selected UpdateLayoutTree, Layout and Paint events have actual thread-duration fields; missing thread durations in other stages are counted in the artifact rather than imputed.
+
+Cells contain **pinned main / #1173**, milliseconds per actual trace second. Paint thread duration is the recorded outermost tdur, not a CPU percentage or exclusive/self time.
+
+| Sample      | UpdateLayoutTree wall ms/s | Layout wall ms/s |  Paint wall ms/s | Recorded Paint thread ms/s |
+| ----------- | -------------------------: | ---------------: | ---------------: | -------------------------: |
+| walkers-0-1 |            21.909 / 15.977 |    0.000 / 0.000 |    0.000 / 0.000 |              0.000 / 0.000 |
+| walkers-1-1 |            48.456 / 33.895 |  24.876 / 24.495 |  55.769 / 75.387 |            53.681 / 70.365 |
+| walkers-5-1 |            68.345 / 37.214 |  31.945 / 23.108 | 97.530 / 115.166 |          107.272 / 113.695 |
+| walkers-5-2 |            68.676 / 37.166 |  32.560 / 23.040 | 91.677 / 120.683 |           99.077 / 121.556 |
+| walkers-1-2 |            46.604 / 34.359 |  26.595 / 25.213 |  52.897 / 75.009 |            49.318 / 88.332 |
+| walkers-0-2 |            21.530 / 21.754 |    0.000 / 0.000 |    0.000 / 0.000 |              0.000 / 0.000 |
+
+Neither revision has a selected Layout or Paint event in either paused control; this bounded main-thread observation does not establish zero rendering work elsewhere. Moving samples show higher candidate outermost Paint wall totals, while five-walker candidate UpdateLayoutTree and Layout wall totals are lower. These differences do not identify spring, CSS, SVG or GPU as their cause. Some recorded thread totals exceed the corresponding wall totals; the clocks are retained separately, without clamping, and their precision is not qualified as CPU utilization.
+
+[render-stage-times.json](../assets/pr/1167-companion-performance/render-stage-times.json) contains counts, missing-thread counts, same-name nesting, inclusive diagnostics and outermost wall/thread summaries for eight stage names across all twelve traces. These are whole-page main-renderer events, excluding attribution to particular shapes, JavaScript owners, raster workers, compositor and GPU processes. Fixed revision/count order, two short sequential samples and uncontrolled desktop workloads still preclude a causal regression claim. This narrows subsequent investigation; it does not justify a transform rewrite or runtime correction by itself.
+
 ## GPU interpretation
 
 The frame/heap sections do not measure GPU utilization, GPU memory or power. A separate read-only attempt to inspect the profiler configuration's native chrome://gpu page was refused by the official tool's chrome: navigation rule; it produced no backend qualification and its owned browser was closed. No alternate navigation or raw-protocol override was used. The subsequent Windows process-counter collection below is a distinct measurement path, rather than an inference from heap or AnimationFrames.
