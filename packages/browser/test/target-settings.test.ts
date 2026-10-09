@@ -153,7 +153,7 @@ describe('Browser Target native settings seam', () => {
     }
     expect(listeners.size).toBe(0);
   });
-  it('binds the shared Bot settings item to the canonical Browser configForms scope', () => {
+  it('registers a Browser Bot Settings section bound to the canonical Browser configForms scope', () => {
     const scope = {
       getSnapshot: () => ({ status: 'ready', writable: true, value: { target: 'local' } }),
       subscribe: () => () => undefined,
@@ -161,7 +161,10 @@ describe('Browser Target native settings seam', () => {
     };
     const get = vi.fn(() => scope);
     const register = vi.fn(
-      (_options: { name: string; id: string; inject(): { scope: unknown } }, _component: unknown) =>
+      (
+        _options: { name: string; id: string; label(): string; inject(): { scope: unknown } },
+        _component: unknown,
+      ) =>
         () =>
           undefined,
     );
@@ -177,7 +180,8 @@ describe('Browser Target native settings seam', () => {
     expect(get).toHaveBeenCalledExactlyOnceWith('botharness-browser');
     expect(register).toHaveBeenCalledOnce();
     const registration = register.mock.calls[0]![0];
-    expect(registration).toMatchObject({ name: 'botharness.settings.item', id: 'browser' });
+    expect(registration).toMatchObject({ name: 'botharness.settings.section', id: 'browser' });
+    expect(registration.label()).toBe('settings.section');
     expect(registration.inject().scope).toBe(scope);
   });
 });

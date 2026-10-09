@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,7 +25,15 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { BotIconCard, BotSettingsSection } from '../src/client/bot-settings-section.js';
+import {
+  AssignmentConcurrencyRow,
+  BotIconCard,
+  BotIconSetting,
+  DeveloperModeSetting,
+  GroupAutoAcceptSetting,
+  MotionSetting,
+  SortSetting,
+} from '../src/client/bot-mode-setting-rows.js';
 import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
 
 const t = zhTranslate;
@@ -54,18 +62,29 @@ function renderSection(
   setDeveloperMode: (enabled: boolean) => void = () => undefined,
   setAutoAcceptGroupInvites: (enabled: boolean) => void = () => undefined,
 ): string {
+  const props = {
+    t,
+    useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
+      selector(prefs)) as never,
+    setSortMode: setSortMode as never,
+    setMotionPreference: setMotionPreference as never,
+    setBotIcon: setBotIcon as never,
+    setDeveloperMode: setDeveloperMode as never,
+    setAutoAcceptGroupInvites: setAutoAcceptGroupInvites as never,
+  } as never;
   return renderToStaticMarkup(
-    createElement(BotSettingsSection, {
-      t,
-      renderSlot: () => null,
-      useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
-        selector(prefs)) as never,
-      setSortMode: setSortMode as never,
-      setMotionPreference: setMotionPreference as never,
-      setBotIcon: setBotIcon as never,
-      setDeveloperMode: setDeveloperMode as never,
-      setAutoAcceptGroupInvites: setAutoAcceptGroupInvites as never,
-    } as never),
+    createElement(
+      Fragment,
+      null,
+      ...[
+        BotIconSetting,
+        MotionSetting,
+        SortSetting,
+        DeveloperModeSetting,
+        GroupAutoAcceptSetting,
+        AssignmentConcurrencyRow,
+      ].map((row, index) => createElement(row, { key: index, ...(props as object) } as never)),
+    ),
   );
 }
 
@@ -98,7 +117,7 @@ beforeEach(() => {
   captured.switches.length = 0;
 });
 
-describe('BotHarness settings section', () => {
+describe('Bot mode setting rows', () => {
   it('renders the native developer switch and sends its next value', () => {
     const setDeveloperMode = vi.fn();
     const markup = renderSection(snapshot(), undefined, undefined, undefined, setDeveloperMode);

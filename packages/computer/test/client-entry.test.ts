@@ -147,7 +147,12 @@ describe('Computer channel sidebar entry registration', () => {
 
     expect(await pickFromSettings?.()).toBe('/native-picker');
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ id: 'computer', order: 10 });
+    expect(rows[0]).toMatchObject({
+      name: 'botharness.settings.section',
+      id: 'computer',
+      order: 30,
+    });
+    expect((rows[0] as { label(): string }).label()).toBe('Computer');
     expect(registered).toHaveLength(1);
     expect(registered[0]?.id).toBe('botharness-computer');
     expect(registered[0]?.label).toBe('电脑');

@@ -1,13 +1,13 @@
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
-    'botharness.settings.item': {
+    'botharness.settings.section': {
       kind: 'list';
       scope: 'root';
-      owner: BotHarnessSettingsItemOwnerProps;
+      owner: BotSettingsSectionOwnerProps;
     };
   }
 }
 
-export interface BotHarnessSettingsItemOwnerProps {
-  children?: never;
+export interface BotSettingsSectionOwnerProps {
+  close(): void;
 }

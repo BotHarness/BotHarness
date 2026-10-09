@@ -11,10 +11,6 @@ import { openBotSettings } from '../src/client/bot-settings-open.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: 'button', Input: 'input' }));
 
-const unusedHook = (): never => {
-  throw new Error('This setting does not use native Session hooks');
-};
-
 describe('Human name settings navigation', () => {
   it('uses the existing roster stream in Bot mode and owns only one while native mode is open', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -43,11 +39,6 @@ describe('Human name settings navigation', () => {
         root.render(
           createElement(HumanNameSettings, {
             store,
-            useSessions: unusedHook,
-            useSessionStatus: unusedHook,
-            useSessionRetainInfo: unusedHook,
-            useWorkspaces: unusedHook,
-            usePanelInfo: unusedHook,
             t: zhTranslate,
             call: async (): ReturnType<BridgeCall> => ({
               ok: true,

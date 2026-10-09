@@ -31,6 +31,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 
+### Changed
+
+- Bot settings open in their own window from the gear in the Bot panel, with a sidebar of General, Models & execution, Messaging, Computer, Browser, Window companions, Data & privacy, Advanced and About instead of one long page among other plugins' settings; **Bot settings** in DSH settings links to it ([#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
+
 ### Fixed
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
