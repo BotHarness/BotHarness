@@ -77,6 +77,7 @@ describe('Part Library through the public Host bridge', () => {
   it('reports unavailable storage as a structured result', async () => {
     await withCore(createTempRoot('bh-part-library-storage-'), (core) => {
       const failing = {
+        get: () => undefined,
         list: () => {
           throw new OperationalDatabaseError('closed', 'closed');
         },

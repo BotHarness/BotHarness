@@ -1962,6 +1962,37 @@ export async function loadPartLibrary(call: BridgeCall): Promise<PartLibraryEntr
   return parts.filter(isPartLibraryEntry);
 }
 
+export async function exportLibraryParts(
+  call: BridgeCall,
+  id?: string,
+  part?: PixelCustomPart,
+): Promise<{ fileName: string; data: string }> {
+  const value = asRecord(
+    await unwrap(
+      call,
+      'partLibraryExport',
+      part !== undefined ? { part } : id === undefined ? {} : { id },
+    ),
+  );
+  const fileName = value?.['fileName'];
+  const data = value?.['data'];
+  if (typeof fileName !== 'string' || typeof data !== 'string')
+    throw new Error('invalid partLibraryExport response');
+  return { fileName, data };
+}
+
+export async function importLibraryParts(
+  call: BridgeCall,
+  data: string,
+): Promise<{ added: PartLibraryEntry[]; refused: number }> {
+  const value = asRecord(await unwrap(call, 'partLibraryImport', { data }));
+  const added = value?.['added'];
+  const refused = value?.['refused'];
+  if (!Array.isArray(added) || !Array.isArray(refused))
+    throw new Error('invalid partLibraryImport response');
+  return { added: added.filter(isPartLibraryEntry), refused: refused.length };
+}
+
 export async function addLibraryPart(
   call: BridgeCall,
   part: PixelCustomPart,
