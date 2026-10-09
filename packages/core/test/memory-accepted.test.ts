@@ -13,7 +13,7 @@ import { createMemoryService } from '../src/memory/service.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 import { toMemoryRelativePath } from '../src/memory/jail.js';
 import { createSessionOwnership } from '../src/sessions/ownership.js';
-import { createTempRoot, FIXED_NOW } from './helpers.js';
+import { createTempRoot, FIXED_NOW, trackTestOwner } from './helpers.js';
 
 function git(root: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
@@ -21,8 +21,11 @@ function git(root: string, ...args: string[]): string {
 
 function fixture() {
   const home = createTempRoot('botharness-memory-git-');
-  const database = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  const database = trackTestOwner(
+    mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+  );
   const registry = createTestRegistry({
+    database,
     rootDir: join(home, 'bots'),
     initializeMemory(memoryDir) {
       const result = ensureMemoryRepository({ memoryDir });

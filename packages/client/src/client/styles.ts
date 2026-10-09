@@ -6275,7 +6275,6 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   white-space: nowrap;
 }
 .bh-memory-graph-list > .bh-memory-continue-form { margin: 6px 0 10px 24px; }
-/* A Memory diff fills the pane; the Channel chip would cover its title. */
 .bh-topbar[data-memory-diff='true'] .bh-channel-island-wrap { display: none; }
 .bh-memory-commit-title code { flex: none; font-family: var(--bh-memory-font-code); font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .bh-memory-commit-header .bh-memory-commit-title span {
