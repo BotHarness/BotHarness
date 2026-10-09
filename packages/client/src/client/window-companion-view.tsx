@@ -23,6 +23,8 @@ import { CompanionMotion, type CompanionPoint } from './companion-motion.js';
 import { CompanionBubbles, type BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+import type { BridgeActions } from './actions.js';
+import { CompanionRequests } from './companion-requests-view.js';
 import type { AvatarAnchor } from './avatar-anchor.js';
 
 function avatarLimitation(
@@ -49,6 +51,7 @@ export interface WindowCompanionViewProps {
   onRemove?(botId: string): void;
   bubbles?: CompanionBubbles | undefined;
   openSettings?(): void;
+  actions?: BridgeActions | undefined;
 }
 export function WindowCompanionView({
   companion,
@@ -59,6 +62,7 @@ export function WindowCompanionView({
   onRemove,
   bubbles,
   openSettings,
+  actions,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
@@ -163,17 +167,19 @@ export function WindowCompanionView({
       const placeBubble = (next: CompanionPoint, sampled: ReturnType<AvatarAnchor['read']>) => {
         const state = latest.current;
         if (state.selection) {
-          if (statusVisible(state) || state.cards.length) {
+          if (statusVisible(state) || state.cards.length || state.requests.length) {
             const placement = bubbleOwner.place(
               state.selection.botId,
               next.x,
               next.y,
               next.width,
               viewport.current.height,
-              state.reading
-                ? state.cards.length
-                : Math.min(state.cards.length, state.capacity.layers),
-              state.reading,
+              state.requests.length
+                ? 4
+                : state.reading
+                  ? state.cards.length
+                  : Math.min(state.cards.length, state.capacity.layers),
+              state.reading || state.requests.length > 0,
               sampled
                 ? {
                     x: next.x + sampled.x - viewport.current.left - displayedPoint.current.x,
@@ -245,7 +251,9 @@ export function WindowCompanionView({
           );
           const previousPoint = motion.point;
           const sampled =
-            statusVisible(state) || state.cards.length ? anchor.current?.read() : undefined;
+            statusVisible(state) || state.cards.length || state.requests.length
+              ? anchor.current?.read()
+              : undefined;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
           placeBubble(next, sampled);
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
@@ -337,7 +345,7 @@ export function WindowCompanionView({
     : Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
   const bubbleBottom = (bubble?.bottom ?? point.y + 134) - point.y;
   const connector =
-    bubble && (statusVisible(view) || view.cards.length)
+    bubble && (statusVisible(view) || view.cards.length || view.requests.length)
       ? {
           x: Math.max(
             bubble.left + 12,
@@ -397,7 +405,28 @@ export function WindowCompanionView({
             {limitation ? ` · ${limitation}` : null}
           </div>
         ) : null}
-        {view.cards.length ? (
+        {view.requests.length ? (
+          <CompanionRequests
+            requests={view.requests}
+            messageCount={view.cards.length + view.pending}
+            actions={actions}
+            live={view.sync === 'live' && !bot.paused}
+            t={t}
+            restoreFocus={() => {
+              if (character.current?.isConnected) character.current.focus();
+            }}
+            style={{
+              left: bubbleLeft,
+              bottom: bubbleBottom + 40,
+              maxHeight:
+                bubble?.cardHeight ??
+                Math.min(
+                  448,
+                  Math.max(112, viewport.current.height - point.y - bubbleBottom - 40 - 16),
+                ),
+            }}
+          />
+        ) : view.cards.length ? (
           <ol
             className="bh-companion-cards"
             aria-label={t('companion.messages')}

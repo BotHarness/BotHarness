@@ -1,3 +1,4 @@
+import { ToolApprovalCard } from './tool-approval-card.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { OnboardingWelcome } from './onboarding-view.js';
 import { BridgeImage } from './bridge-image.js';
@@ -13,7 +14,7 @@ import {
   type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import { errorMessage, type ToolApprovalExecutionState } from './bridge.js';
+import { errorMessage } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import { currentMentionLabel } from './actor-names.js';
@@ -21,7 +22,6 @@ import type { ChannelHumanMember } from './store.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser } from './workspace-grants-entry.js';
-import { WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -130,199 +130,6 @@ function SessionFailureNotice({
         <div className="bh-session-failure-raw">{failure.detail}</div>
         <code>{failure.sessionId}</code>
       </details>
-    </div>
-  );
-}
-
-function ToolApprovalCard({
-  message,
-  actions,
-  decision,
-  t,
-}: {
-  message: ChannelMessage;
-  actions: BridgeActions;
-  decision?:
-    | 'allowed-once'
-    | 'allowed-always-exact'
-    | 'allowed-always-all'
-    | 'rejected'
-    | undefined;
-  t: BotHarnessTranslate;
-}): ReactElement {
-  const request = message.toolApprovalRequest!;
-  const [acceptedDecision, setAcceptedDecision] = useState<typeof decision>();
-  const effectiveDecision = decision ?? acceptedDecision;
-  const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
-  const [status, setStatus] = useState<'loading' | 'pending' | 'expired' | 'decided'>(
-    decision === undefined ? 'loading' : 'decided',
-  );
-  const [busy, setBusy] = useState(false);
-  const [confirmAll, setConfirmAll] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [executionState, setExecutionState] = useState<ToolApprovalExecutionState | undefined>();
-  const approvalMount = useMountedResource<HTMLDivElement>(() => {
-    if (effectiveDecision !== undefined) setStatus('decided');
-    if (botSlug === undefined) return;
-    let active = true;
-    let poll: ReturnType<typeof setTimeout> | undefined;
-    const refreshExecution = (): void => {
-      if (request.role !== 'assignment' || actions.toolApprovalExecutionState === undefined) return;
-      void actions.toolApprovalExecutionState('dm-' + botSlug, message.id).then(
-        (value) => {
-          if (!active) return;
-          setExecutionState(value);
-          if (
-            value === 'waiting-human' ||
-            value === 'waiting-capacity' ||
-            (value === 'running' && effectiveDecision === undefined)
-          )
-            poll = setTimeout(refreshExecution, 1000);
-        },
-        () => {
-          if (!active) return;
-          setExecutionState(undefined);
-          poll = setTimeout(refreshExecution, 2000);
-        },
-      );
-    };
-    const refreshStatus = (): void => {
-      void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
-        (value) => {
-          if (active) {
-            setStatus((current) =>
-              current === 'expired' || current === 'decided' ? current : value,
-            );
-          }
-        },
-        () => {
-          if (active) setStatus('expired');
-        },
-      );
-    };
-    const onGrantChanged = (event: Event): void => {
-      if ((event as CustomEvent<{ slug: string }>).detail?.slug === botSlug) refreshStatus();
-    };
-    if (effectiveDecision === undefined) refreshStatus();
-    refreshExecution();
-    window.addEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-    return () => {
-      active = false;
-      clearTimeout(poll);
-      window.removeEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-    };
-  }, [actions, botSlug, effectiveDecision, message.id, request.role]);
-  const decide = (
-    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
-  ): void => {
-    if (botSlug === undefined || busy || status !== 'pending') return;
-    setBusy(true);
-    setError(undefined);
-    const channelId = 'dm-' + botSlug;
-    if (
-      store.getSnapshot().selection?.kind !== 'inbox' &&
-      store.getSnapshot().conversation.channel?.id !== channelId
-    ) {
-      setError(t('approval.channelChanged'));
-      setBusy(false);
-      return;
-    }
-    void actions
-      .decideToolApproval(channelId, message.id, outcome)
-      .then(
-        () => {
-          setAcceptedDecision(outcome);
-          setStatus('decided');
-        },
-        (cause: unknown) => {
-          return actions.toolApprovalStatus(channelId, message.id).then(
-            (latest) => {
-              setStatus(latest);
-              setError(latest === 'pending' ? errorMessage(cause) : undefined);
-            },
-            () => {
-              setStatus('expired');
-              setError(errorMessage(cause));
-            },
-          );
-        },
-      )
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div ref={approvalMount} className="bh-tool-approval-card">
-      <div className="bh-grant-request-title">{t('approval.requestTitle')}</div>
-      <div className="bh-note">
-        {request.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
-        {' · '}
-        {request.toolName}
-      </div>
-      <div className="bh-note">{t('approval.cwd', { path: request.cwd })}</div>
-      <pre className="bh-tool-approval-input">{request.input}</pre>
-      <div className="bh-note">
-        {t(
-          request.toolName === 'channel_attachment_open'
-            ? 'approval.originalRisk'
-            : 'approval.risk',
-        )}
-      </div>
-      {effectiveDecision !== undefined ? (
-        <div role="status" className="bh-note">
-          {effectiveDecision === 'rejected'
-            ? t('approval.rejected')
-            : effectiveDecision === 'allowed-once'
-              ? t('approval.approved')
-              : t('approval.ruleSaved')}
-        </div>
-      ) : status === 'pending' && !confirmAll ? (
-        <div className="bh-tool-approval-actions">
-          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-once')}>
-            {t('approval.allowOnce')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => decide('allowed-always-exact')}>
-            {t('approval.allowExact')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(true)}>
-            {t('approval.allowAll')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => decide('rejected')}>
-            {t('approval.reject')}
-          </Button>
-        </div>
-      ) : confirmAll && status === 'pending' ? null : (
-        <div role="status" className="bh-note">
-          {status === 'loading' ? t('approval.loading') : t('approval.expired')}
-        </div>
-      )}
-      {confirmAll && status === 'pending' ? (
-        <div className="bh-tool-approval-confirm" role="group" aria-label={t('approval.allowAll')}>
-          <div className="bh-note">{t('approval.allowAllRisk')}</div>
-          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-always-all')}>
-            {t('approval.confirmAll')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(false)}>
-            {t('approval.cancel')}
-          </Button>
-        </div>
-      ) : null}
-      {executionState === 'waiting-human' ||
-      executionState === 'waiting-capacity' ||
-      executionState === 'needs-repair' ? (
-        <div role="status" className="bh-note">
-          {t(
-            executionState === 'waiting-human'
-              ? 'approval.waitingHumanCapacity'
-              : executionState === 'waiting-capacity'
-                ? 'approval.waitingCapacity'
-                : 'approval.needsRepair',
-          )}
-        </div>
-      ) : null}
-      {error === undefined ? null : (
-        <div className="bh-error" role="alert">
-          {error}
-        </div>
-      )}
     </div>
   );
 }
