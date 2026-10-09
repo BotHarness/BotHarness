@@ -37,6 +37,34 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
         )
       : null,
   IconCloseOutlineRegular: () => null,
+  IconChevronDownOutlineRegular: () => null,
+  Menu: ({
+    anchor,
+    open,
+    items,
+    selectedId,
+    onSelect,
+  }: {
+    anchor: ReactNode;
+    open: boolean;
+    items: { id: string; label: string }[];
+    selectedId?: string;
+    onSelect(id: string): void;
+  }) =>
+    createElement(
+      'div',
+      { 'data-menu': 'sections', 'data-selected': selectedId },
+      anchor,
+      open
+        ? items.map((item) =>
+            createElement(
+              'button',
+              { key: item.id, role: 'menuitem', onClick: () => onSelect(item.id) },
+              item.label,
+            ),
+          )
+        : null,
+    ),
 }));
 
 import {
@@ -93,7 +121,9 @@ function mount(settings: BotSettings, rows: readonly BotSettingsSectionRow[] = R
 }
 
 function navLabels(): string[] {
-  return [...document.querySelectorAll('nav button')].map((button) => button.textContent ?? '');
+  return [...document.querySelectorAll('nav .bh-bot-settings-nav-cell')].map(
+    (button) => button.textContent ?? '',
+  );
 }
 
 function current(): string | null {
@@ -156,7 +186,7 @@ it('switches sections from the sidebar and reopens at the last section viewed', 
   act(() => {
     settings.open();
   });
-  const about = [...document.querySelectorAll('nav button')].find(
+  const about = [...document.querySelectorAll('nav .bh-bot-settings-nav-cell')].find(
     (button) => button.textContent === '关于',
   );
   act(() => {
@@ -225,4 +255,62 @@ it('notifies subscribers only on change', () => {
   settings.close();
   expect(listener).toHaveBeenCalledTimes(2);
   expect(settings.getSnapshot()).toEqual({ open: false, sectionId: 'models' });
+});
+
+function frameWidth(narrow: boolean): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: narrow && query.includes('max-width'),
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+it('renders only the rail in wide frames', () => {
+  frameWidth(false);
+  const settings = new BotSettings();
+  mount(settings);
+  act(() => {
+    settings.open();
+  });
+  expect(document.querySelector('nav')).not.toBeNull();
+  expect(document.querySelector('.bh-bot-settings-picker')).toBeNull();
+  expect(document.querySelector('[data-modal-autofocus]')?.textContent).toBe('通用');
+  vi.unstubAllGlobals();
+});
+
+it('renders only a section dropdown in narrow frames and switches sections from it', () => {
+  frameWidth(true);
+  const settings = new BotSettings();
+  mount(settings);
+  act(() => {
+    settings.open('models');
+  });
+  expect(document.querySelector('nav')).toBeNull();
+  expect(document.querySelector('h2')).toBeNull();
+  const picker = document.querySelector<HTMLButtonElement>('.bh-bot-settings-picker');
+  expect(picker?.textContent).toBe('模型与运行');
+  expect(picker?.hasAttribute('data-modal-autofocus')).toBe(true);
+  expect(picker?.getAttribute('aria-haspopup')).toBe('menu');
+  expect(picker?.getAttribute('aria-label')).toBe('Bot 设置分区：模型与运行');
+  expect(document.querySelector('[data-menu="sections"]')?.getAttribute('data-selected')).toBe(
+    'models',
+  );
+
+  act(() => {
+    picker?.click();
+  });
+  expect(picker?.getAttribute('aria-expanded')).toBe('true');
+  expect(
+    [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+  ).toEqual(['通用', '模型与运行', '数据与隐私', '关于']);
+  const about = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(
+    (item) => item.textContent === '关于',
+  );
+  act(() => {
+    about?.click();
+  });
+  expect(shownSection()).toBe('about');
+  expect(document.querySelector('.bh-bot-settings-picker')?.textContent).toBe('关于');
+  expect(document.querySelector('[role="menuitem"]')).toBeNull();
+  vi.unstubAllGlobals();
 });

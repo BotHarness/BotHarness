@@ -5621,6 +5621,13 @@ button.bh-bot-nav > svg {
   padding: 0 24px 24px;
   overflow-y: auto;
 }
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-header {
+  align-items: center;
+  padding: 16px 14px 8px 16px;
+}
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-options {
+  padding: 0 16px 16px;
+}
 .bh-settings-row {
   display: flex;
   align-items: center;
