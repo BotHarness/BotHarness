@@ -434,6 +434,24 @@ describe('worktree delta for out-of-band Memory changes', () => {
     git(root, 'config', 'user.email', 'oob@example.com');
   }
 
+  it('returns the commit subject with its diff', () => {
+    const { database, memory, root } = fixture();
+    try {
+      gitIdentity(root);
+      writeFileSync(join(root, 'launch.md'), 'Launch is Friday\n');
+      git(root, 'add', 'launch.md');
+      git(root, 'commit', '-m', 'Remember the launch date');
+      const sha = git(root, 'rev-parse', 'HEAD');
+      expect(memory.gitCommitDiff('atlas', sha)).toMatchObject({
+        sha,
+        subject: 'Remember the launch date',
+        files: [{ path: 'launch.md', status: 'A' }],
+      });
+    } finally {
+      database.close();
+    }
+  });
+
   it('stays silent on the first turn and for the agent’s own committed turn', () => {
     const { database, memory, root, addSource } = fixture();
     try {

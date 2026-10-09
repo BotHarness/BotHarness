@@ -122,6 +122,7 @@ export interface MemoryGitGraph {
 
 export interface MemoryGitCommitDiff {
   sha: string;
+  subject: string;
   files: { path: string; status: string }[];
   diff: string;
 }
@@ -1526,6 +1527,7 @@ export function createMemoryAcceptance(options: {
       }
       return {
         sha,
+        subject: output(root, ['show', '--no-patch', '--format=%s', sha]).slice(0, 200),
         files,
         diff: output(
           root,

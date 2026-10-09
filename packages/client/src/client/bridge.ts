@@ -3049,6 +3049,7 @@ export interface MemoryGitGraph {
 
 export interface MemoryGitCommitDiff {
   sha: string;
+  subject?: string;
   files: { path: string; status: string }[];
   diff: string;
 }

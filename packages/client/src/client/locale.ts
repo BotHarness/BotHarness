@@ -2259,7 +2259,7 @@ export const zh = {
   'memory.gitStatus.pending': 'Git 提交',
   'memory.gitStatus.needs-repair': '待修复',
   'memory.diff': '提交差异',
-  'memory.continueHere': '从该记忆节点新建并切换分支',
+  'memory.continueHere': '从这里新建并切换分支',
   'memory.newBranch': '新分支名称',
   'memory.createAndSwitch': '创建并切换',
   'memory.continuePrompt':
@@ -5006,7 +5006,7 @@ My relationship with you, established lore and topics to avoid: [fill in].
   'memory.gitStatus.pending': 'Git commit',
   'memory.gitStatus.needs-repair': 'Needs repair',
   'memory.diff': 'Commit diff',
-  'memory.continueHere': 'Create and switch branch from this memory',
+  'memory.continueHere': 'Create and switch branch from here',
   'memory.newBranch': 'New branch name',
   'memory.createAndSwitch': 'Create and switch',
   'memory.continuePrompt':

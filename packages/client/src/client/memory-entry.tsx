@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactElement } from 'react';
 import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot, MemoryWorkingChange } from './bridge.js';
@@ -45,6 +45,14 @@ function MemoryEntryForScope({
   const [branchFilter, setBranchFilter] = useState('');
   const skipBranchFocus = useRef(false);
   const [branchRequest, setBranchRequest] = useState<string>();
+  const [commitMenu, setCommitMenu] = useState<{
+    sha: string;
+    x: number;
+    y: number;
+    returnFocus: HTMLElement;
+  }>();
+  const [continueForm, setContinueForm] = useState<{ sha: string; branch: string }>();
+  const commitMenuAnchor = useRef<HTMLSpanElement>(null);
   const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
   const [graph, setGraph] = useState<MemoryGitGraph | undefined>(cache.graph);
   const [working, setWorking] = useState<MemoryWorkingChange[]>(cache.working ?? []);
@@ -329,6 +337,43 @@ function MemoryEntryForScope({
     }
   };
 
+  const openCommitMenu = (
+    sha: string,
+    event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>,
+  ): void => {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointer = 'clientX' in event && event.type === 'contextmenu';
+    setCommitMenu({
+      sha,
+      x: pointer ? event.clientX : rect.left,
+      y: pointer ? event.clientY : rect.bottom,
+      returnFocus: event.currentTarget,
+    });
+  };
+
+  const requestContinue = async (): Promise<void> => {
+    if (continueForm === undefined || continueForm.branch.trim() === '' || busy) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const sent = await actions.send(
+        t('memory.continuePrompt', {
+          sha: continueForm.sha,
+          branch: JSON.stringify(continueForm.branch.trim()),
+          path: JSON.stringify('MEMORY.md'),
+        }),
+      );
+      if (!sent) throw new Error(t('memory.branchRequestFailed'));
+      setBranchRequest(continueForm.branch.trim());
+      setContinueForm(undefined);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async (): Promise<void> => {
     if (file === undefined || file.binary || busy || draft === file.body) return;
     setBusy(true);
@@ -591,6 +636,67 @@ function MemoryEntryForScope({
                 {t('memory.branchRequested')} {branchRequest}
               </div>
             )}
+            {continueForm === undefined ? null : (
+              <form
+                className="bh-memory-continue-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void requestContinue();
+                }}
+              >
+                <label htmlFor="bh-memory-new-branch">
+                  {t('memory.newBranch')} · <code>{continueForm.sha.slice(0, 7)}</code>
+                </label>
+                <Input
+                  id="bh-memory-new-branch"
+                  autoFocus
+                  value={continueForm.branch}
+                  onChange={(event) =>
+                    setContinueForm({ ...continueForm, branch: event.currentTarget.value })
+                  }
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  type="submit"
+                  disabled={busy || continueForm.branch.trim() === ''}
+                >
+                  {t('memory.createAndSwitch')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => setContinueForm(undefined)}
+                >
+                  {t('common.cancel')}
+                </Button>
+              </form>
+            )}
+            {commitMenu === undefined ? null : (
+              <span className="bh-menu-anchor" style={{ left: commitMenu.x, top: commitMenu.y }}>
+                <Menu
+                  open
+                  portal
+                  dense
+                  autoFocus
+                  anchor={<span ref={commitMenuAnchor} aria-hidden="true" />}
+                  getAnchorRect={() => commitMenuAnchor.current?.getBoundingClientRect() ?? null}
+                  items={[{ id: 'continue', label: t('memory.continueHere') }]}
+                  onSelect={() => {
+                    setContinueForm({
+                      sha: commitMenu.sha,
+                      branch: 'memory-' + commitMenu.sha.slice(0, 7),
+                    });
+                    setCommitMenu(undefined);
+                  }}
+                  onClose={() => {
+                    commitMenu.returnFocus.focus();
+                    setCommitMenu(undefined);
+                  }}
+                />
+              </span>
+            )}
             <div className="bh-memory-graph-list" role="list" aria-label={t('memory.gitGraph')}>
               {graph.commits.map((commit, index) => {
                 const row = lanes[index]!;
@@ -607,6 +713,11 @@ function MemoryEntryForScope({
                     }
                     aria-pressed={commit.sha === selectedMemoryCommitSha}
                     onClick={() => onMemoryCommitSelect?.(commit.sha)}
+                    onContextMenu={(event) => openCommitMenu(commit.sha, event)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
+                        openCommitMenu(commit.sha, event);
+                    }}
                     title={commit.sha}
                   >
                     <svg
