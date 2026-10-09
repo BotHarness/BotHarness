@@ -6271,7 +6271,7 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  max-width: calc(50% - 130px);
+  max-width: calc(50% - 180px);
   white-space: nowrap;
 }
 .bh-memory-graph-list > .bh-memory-continue-form { margin: 6px 0 10px 24px; }
