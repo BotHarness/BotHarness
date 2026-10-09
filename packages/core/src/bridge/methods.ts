@@ -1407,7 +1407,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         const grant = snapshot.grants.find((value) => value.id === grantId);
         return {
           intent:
-            grant?.platform === 'weixin'
+            grant?.platform === 'weixin' || grant?.platform === 'qq'
               ? await service.post(slug, grantId, requestId, text)
               : await service.send(slug, grantId, requestId, text),
         };

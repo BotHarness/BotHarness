@@ -320,6 +320,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'private-context-unavailable',
     'private-context-rejected',
     'send-permission-denied',
+    'send-rate-limited',
+
     'reaction-permission-denied',
     'reaction-provider-rejected',
   ].includes(code);
@@ -439,7 +441,16 @@ export function createDshImProvider(
               target.kind === 'user' &&
               typeof target.route.toUserId === 'string'
             ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
-            : {}),
+            : platform === 'qq' &&
+                target.kind === 'group' &&
+                typeof target.route.groupOpenId === 'string'
+              ? {
+                  receiveScope: {
+                    kind: 'group' as const,
+                    conversationId: target.route.groupOpenId,
+                  },
+                }
+              : {}),
     }));
   return {
     id: `dsh-im/${platform}`,
@@ -1183,7 +1194,7 @@ export function createDshImProvider(
       : {}),
     ...((platform === 'feishu' ||
       platform === 'slack' ||
-      (platform === 'weixin' && host.postFenceVersion === 1)) &&
+      ((platform === 'weixin' || platform === 'qq') && host.postFenceVersion === 1)) &&
     host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
@@ -1193,7 +1204,10 @@ export function createDshImProvider(
               throw new MessagingProviderError('account-changed', 'not-started');
             if (!info.capabilities.includes('proactive-receipt-checked'))
               throw new MessagingProviderError('capability-unavailable', 'not-started');
-            if (platform === 'weixin' && !info.capabilities.includes('proactive-fence-checked'))
+            if (
+              (platform === 'weixin' || platform === 'qq') &&
+              !info.capabilities.includes('proactive-fence-checked')
+            )
               throw new MessagingProviderError('capability-unavailable', 'not-started');
             try {
               const result = await host.sendChecked(input.accountRef, input.targetRef, input.text, {
@@ -1233,6 +1247,14 @@ export function createDshImProvider(
                 },
               };
             } catch (error) {
+              if (
+                platform === 'qq' &&
+                error !== null &&
+                typeof error === 'object' &&
+                'code' in error &&
+                error.code === 'provider-unavailable'
+              )
+                throw new MessagingProviderError('provider-unavailable', 'not-started');
               throw providerFailure(error);
             }
           },

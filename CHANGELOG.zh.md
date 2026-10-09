@@ -15,6 +15,8 @@
 
 ### Added
 
+- 已保存的 QQ 群发送目标可复用现有授权发送流程，发送前复核权限并保存原生回执；配额或权限拒绝保留为失败，结果不确定时保留记录且不自动重发（[#1154](https://github.com/BotHarness/BotHarness/issues/1154)、[QQ 教程](docs/qq-connection.md)）。
+
 - 新增 QQ 引用语音接收，保留原生平台转写来源，支持原音下载及 Channel 按需有界 SILK 播放；一个维护版运行应用已通过真实语音 → 模型 → 原群文字答复、Human 确认及实际 Client 键盘播放验收（[#1159](https://github.com/BotHarness/DeepSeekBot/issues/1159)，[指南](docs/qq-connection.md)）。
 
 - 新增 QQ 群文件候选路径，提供直接或显式原生引用文件关联、受授权的 Channel 下载、独立工作副本处理及受检原群结果文件回复；一个已授权应用已通过真实引用 CSV 处理及 Human 结果下载验收（[#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158)、[指南](docs/qq-connection.md)）。
@@ -138,6 +140,10 @@ Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个�
 
 ### Changed
 
+- QQ 开启全量群接收后保留明确的自身 @ 文字；发送前不可用保留为明确失败，主动发送与回声验收仍按实际版本记录。 ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154), [#1204](https://github.com/BotHarness/DeepSeekBot/pull/1204))
+
+- 开发版 QQ Provider 新增有界、私密的群通知变化提示，帮助诊断主动发送拒绝；观察到开关变化不代表获得发送权限，也不会重试保留的结果（[#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)）。
+
 - QQ 独立 Bot 绑定在平台全量接收载荷中保留明确自身 @，机器人消息仍不进入 Human 接收路径。 ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156), [#1172](https://github.com/BotHarness/DeepSeekBot/pull/1172))
 
 - Bot 市场的卡片改成了资料卡的样子：资料横幅在上，Bot 头像压在横幅下沿，名称、仓库和安装按钮排在头像右侧，下面是两行简介，以及标签、星数、更新时间合成的一行。详情页顶部也用同样的横幅和头像，弹窗每行显示两张卡（[#1232](https://github.com/BotHarness/BotHarness/pull/1232)）。
@@ -178,6 +184,8 @@ Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个�
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
 
 ### Documentation
+
+- 记录当前 QQ 群主动发送规则、通知权限事件及官方 SDK／插件实现，区分具体应用／群的权限拒绝与过期的全局停用说法；运行行为不变（[#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)、[调研](docs/research/2026-10-09-qq-proactive-posting.md)）。
 
 - 通过隔离的真实模型实验验证 RC2 原生 timed question：稍后答案可准确关联原问题，等待期间仍可对话；现有 Web 问题卡片仍会过期，生产权限审批与容量门禁继续阻塞（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](docs/research/1220-native-timed-question-experiment.md)）。
 

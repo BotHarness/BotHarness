@@ -15,6 +15,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- Saved QQ group targets can use the existing authorized posting path with a current-send fence and native receipts; quota or permission refusals remain failures, and uncertain results are retained without automatic retries ([#1154](https://github.com/BotHarness/BotHarness/issues/1154), [QQ guide](docs/qq-connection.md)).
+
 - Added QQ quoted-voice intake with native platform-transcript provenance, original-audio downloads and on-demand bounded SILK playback in the Channel; one maintained-runtime application passed real voice → model → original-group text reply, Human confirmation and actual Client keyboard playback ([#1159](https://github.com/BotHarness/DeepSeekBot/issues/1159), [guide](docs/qq-connection.md)).
 
 - Added a candidate QQ group file path with direct or explicit native quoted-file association, authorized Channel downloads, independent working-copy processing and checked original-group result files; one authorized application passed real quoted-CSV processing and Human result-download verification ([#1158](https://github.com/BotHarness/DeepSeekBot/issues/1158), [guide](docs/qq-connection.md)).
@@ -138,6 +140,10 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 ### Changed
 
+- QQ checked text intake preserves explicit self mentions after the Human enables full group reception; preflight unavailability stays a definite retained failure, and native posting/echo qualifications remain revision-specific. ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154), [#1204](https://github.com/BotHarness/DeepSeekBot/pull/1204))
+
+- The development QQ Provider records bounded, private group notification-change hints for diagnosing proactive-send refusals; observed switches do not grant posting permission or retry retained results ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)).
+
 - QQ independent Bot bindings retain explicit self mentions in the platform full-reception carrier while Bot-authored messages remain excluded from Human admission. ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156), [#1172](https://github.com/BotHarness/DeepSeekBot/pull/1172))
 
 - Bot Marketplace cards now read like a profile card: the Profile banner sits on top, the Bot's avatar overlaps its lower edge with the name, repository and Install beside it, then a two-line bio and one line of tags, stars and update date. The detail view opens with the same banner and avatar, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).
@@ -178,6 +184,8 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation
+
+- Documented current QQ group proactive-posting rules, notification permission events and first-party SDK/plugin implementations, distinguishing an app/group permission refusal from obsolete global-shutdown claims; runtime behavior is unchanged ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154), [research](docs/research/2026-10-09-qq-proactive-posting.md)).
 
 - Qualified native RC2 timed questions in an isolated real-model experiment: conversation can continue before a correlated late answer, while the existing Web question card still expires and production permission/capacity gates remain blocked ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](docs/research/1220-native-timed-question-experiment.md)).
 
