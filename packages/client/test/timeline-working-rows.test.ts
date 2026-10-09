@@ -88,16 +88,29 @@ describe('timelineWorkingRows', () => {
   });
 });
 
+const NO_ROWS = { items: [], more: 0 };
+
 describe('timelineWorkingRowsCover', () => {
-  it('covers the composer status only when every Bot it lists has a working row', () => {
-    expect(timelineWorkingRowsCover(undefined)).toBe(false);
-    expect(timelineWorkingRowsCover({ items: [mira, nova, kai], summary: '' })).toBe(true);
-    expect(timelineWorkingRowsCover({ items: [mira, waiting], summary: '' })).toBe(false);
+  it('keeps the composer status when Bots overflow the row cap', () => {
+    const activity = { items: [mira, nova, kai], summary: '' };
+    expect(timelineWorkingRowsCover(activity, timelineWorkingRows(activity, none))).toBe(false);
     expect(
-      timelineWorkingRowsCover({
-        items: [{ ...mira, attention: { approvalCount: 0, informationalCount: 1 } }],
-        summary: '',
-      }),
+      timelineWorkingRowsCover(activity, timelineWorkingRows(activity, new Set(['kai']))),
+    ).toBe(true);
+  });
+
+  it('covers the composer status only when every Bot it lists has a working row', () => {
+    expect(timelineWorkingRowsCover(undefined, NO_ROWS)).toBe(false);
+    expect(timelineWorkingRowsCover({ items: [mira, nova], summary: '' }, NO_ROWS)).toBe(true);
+    expect(timelineWorkingRowsCover({ items: [mira, waiting], summary: '' }, NO_ROWS)).toBe(false);
+    expect(
+      timelineWorkingRowsCover(
+        {
+          items: [{ ...mira, attention: { approvalCount: 0, informationalCount: 1 } }],
+          summary: '',
+        },
+        NO_ROWS,
+      ),
     ).toBe(false);
   });
 });
