@@ -1,0 +1,54 @@
+{
+  "runtimeCode": "ce926cbec838594bc2db098e42e108b95efd7bed",
+  "integratedMain": "5efae378ac47752b49aa20b4397d1c6d38d07892",
+  "formalPixelAvatar": "0.7.0",
+  "viewport": [1559, 865],
+  "locale": "zh-CN",
+  "themes": ["light", "dark"],
+  "competing": {
+    "independentOfficialBrowserContexts": 2,
+    "actualNativeQuestions": 2,
+    "independentChoiceDrafts": true,
+    "uiAttempts": ["fulfilled", "rejected"],
+    "canonicalAnswerOncePerQuestion": true,
+    "originalBotContinuesWithWinningAnswer": true,
+    "explicitConcurrentExistingAnswerCommands": {
+      "accepted": 1,
+      "refused": 1,
+      "refusalCode": "invalid-input"
+    },
+    "bothClientsRemoveResolvedControls": true,
+    "bothDocumentsUnchanged": true,
+    "unrelatedChannelRetained": true,
+    "consoleErrors": [0, 0],
+    "closedOwnedBrowser": true,
+    "recordingSeconds": 39.1
+  },
+  "reduced": {
+    "actualBrowserPrefersReducedMotion": true,
+    "launchMechanism": "Official MCP chromeArg --force-prefers-reduced-motion",
+    "effectiveApplicationPolicy": "reduce",
+    "actualNativeQuestion": true,
+    "pendingReadableInBothThemes": true,
+    "actualTabSequence": ["other choice", "custom input", "submit button"],
+    "nativeEnterSubmits": true,
+    "canonicalAnswerOnce": true,
+    "originalBotContinues": true,
+    "currentControlsRemove": true,
+    "unrelatedChannelRetained": true,
+    "afterMouthState": ["saved"],
+    "consoleErrors": [0, 0],
+    "closedOwnedBrowsers": true,
+    "recordingsSeconds": [12.1, 12.333]
+  },
+  "limits": [
+    "Initial setup expected optional paused flag to be false instead of omitted; corrected before browser/question creation. First same-context mount focus was premature; a bounded mounted wait then also failed. Both attempts created no question and owned browsers closed",
+    "Same-context second page showed selected pin but no companion: companion GET pending, no selection POST, no console errors. Independent official browser contexts both connected. This supports connection contention as a hypothesis but does not establish root cause or fix same-context multi-tab behavior; failure remains separate",
+    "First question uses native UI choices and attempted concurrent MCP clicks. One click succeeds; the other MCP tool reports element did not become interactive before timeout. Exact cause unestablished. This is not two successful mouse submissions or proof of two browser-originated answer writes",
+    "Second actual native question independently exercises two Promise.all authenticated existing answer commands with correct answer.answers contract: one accepts, one refuses, one canonical resolution and winning original-Bot reply. Both real UI clients reconcile. Commands are native Host calls, not two recorded mouse actions",
+    "Competing recording continuously captures client A only; client B states are actual separate screenshots. These are successive interaction states, not matched-base design comparisons",
+    "Reduced first clip ends before submission: script assumed two Tabs reached submit, but actual focus was custom input. Original pending question remains, no answer. Second fresh reduced browser explicitly repins that same request, observes three actual Tabs, submits by native Enter and verifies original Bot reply. Clips are separate continuous recordings, not a spliced single workflow",
+    "Reduced browser preference comes from a documented official MCP Chrome launch argument; no matchMedia or DOM policy injection. Saved mouth is an after-action observation, not continuous proof about every reveal frame or a mouth-shape acceptance",
+    "Official MCP silent screencasts, container-remux only;11screenshots and3recordings are not performance measurements. Same-context multi-tab investigation, current multiple-Bot/Chat evidence refresh and overall issue acceptance remain separate"
+  ]
+}

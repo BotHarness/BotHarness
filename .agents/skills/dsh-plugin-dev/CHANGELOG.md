@@ -12,6 +12,18 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 - Recorded verified Cordis diagnostic exporter/Patch insertion requirements, delayed-ready QQ restoration checks, and an unconfirmed native Client locale capture failure in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), checked on DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156)).
 
+- Recorded the isolated RC2 timed-question foreground/continued distinction, native late-answer wire verification, the original application-card incompatibility, and the verified application run-lifecycle trap in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); production RC1, DSH/Cordis Context and Decision Tree remain unchanged ([#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](../../../docs/research/1220-native-timed-question-experiment.md)).
+
+- Recorded RC1 native Human waits holding the current Agent step, the difference between Inbox acceptance and model processing, and exact-call decision/result verification in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); DSH/Cordis Context and Decision Tree remain unchanged ([#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)).
+
+- Recorded RC1 streaming GET request rejection and the real authenticated Host verification path in the [debugging playbook](../dsh-dev/references/debugging-playbook.md); DSH/Cordis Context and Decision Tree remain unchanged ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886)).
+
+- Recorded proactive real Client console/DOM verification, bounded diagnostics, background-tab limits and exact native root/Session guard reproductions in the [local development guide](../dsh-dev/SKILL.md), verified against DSH 0.2.0 RC1; DSH/Cordis Context and Decision Tree remain unchanged ([#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)).
+
+- Recorded Windows native Sandbox provisioning rights and the installed ACL diagnostic skill's scoped repair/verification path in the [local development guide](../dsh-dev/SKILL.md), verified with an actual DSH 0.2.0 RC1 native pwsh wait; platform vocabulary and Skill behavior remain unchanged ([#911](https://github.com/BotHarness/BotHarness/issues/911)).
+
+- Recorded terminal EventSource closure after temporary HTTP refusal and application-owned bounded retry/resume cleanup in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), observed with the installed DSH 0.2.0 RC1 Profile; platform vocabulary and authentication ownership remain unchanged ([#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)).
+
 - Recorded Windows physical AppData paths, isolated Profile package-manager qualification, native Shell result checks and process timestamp guards in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Recorded the native Go Session header requirement and the qualified DSH 0.2.0 RC1 adapter patch in the [local development guide](../dsh-dev/SKILL.md), verified with an actual model call and committed DM reply; DSH/Cordis vocabulary and Skill behavior remain unchanged ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [AX guide](../../../docs/agents/ax-model.md)).

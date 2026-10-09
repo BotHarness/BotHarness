@@ -1,5 +1,8 @@
+import type { PartLibraryEntry } from '../bots/part-library.js';
+import type { OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
 import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
+import type { ChannelHistoryItem, PurgeSource, PurgePreview } from '../purge/contracts.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type {
@@ -10,6 +13,10 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { MessagingConversationInput } from '../messaging/conversations.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
   MarketplaceDetail,
@@ -35,6 +42,7 @@ import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
+import type { PersonaBotDeletionPreview, PersonaBotDeletion } from '../bots/deletion.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import type { UsageFilter, UsageQueryResult } from '../usage/query.js';
@@ -193,6 +201,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
   }
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot> {
+    return unwrapAsync(this.methods.channelIngests({ channelId }));
+  }
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelIngest({ channelId, input }));
+  }
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.channelBridge({ channelId, input }));
   }
@@ -275,6 +289,25 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
+  onboarding(slug?: string, action?: TutorialAction): Promise<OnboardingSnapshot> {
+    return unwrapAsync(this.methods.onboarding({ slug, action }));
+  }
+  onboardingModel(
+    slug: string | undefined,
+    expectedRevision: number,
+    route: ModelRoute,
+    globalDefault: boolean,
+  ): Promise<{ revision: number }> {
+    return unwrapAsync(
+      this.methods.onboardingModel({ slug, expectedRevision, route, globalDefault }),
+    );
+  }
+  modelPlanInherit(slug: string, expectedRevision: number): { revision: number } {
+    return unwrap(this.methods.modelPlanInherit({ slug, expectedRevision }));
+  }
+  channelRetry(channelId: string, messageId: string): Promise<{ accepted: true }> {
+    return unwrapAsync(this.methods.channelRetry({ channelId, messageId }));
+  }
   modelCatalog(): Promise<{
     models: ModelCatalogEntry[];
     default?: ModelRoute;
@@ -410,6 +443,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.update({ slug, patch }));
   }
 
+  deletionPreview(slug: string): { preview: PersonaBotDeletionPreview } {
+    return unwrap(this.methods.deletionPreview({ slug }));
+  }
+  async deletionConfirm(
+    slug: string,
+    token: string,
+    eraseMemory: boolean,
+  ): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionConfirm({ slug, token, eraseMemory }));
+  }
+  async deletionRetry(slug: string): Promise<{ deletion: PersonaBotDeletion }> {
+    return unwrapAsync(this.methods.deletionRetry({ slug }));
+  }
+  deletionMemoryFolder(slug: string): {
+    target: { path: string; relativePath: string; kind: 'directory' };
+  } {
+    return unwrap(this.methods.deletionMemoryFolder({ slug }));
+  }
   pause(slug: string): { bot: PersonaBotDetail } {
     return unwrap(this.methods.pause({ slug }));
   }
@@ -435,6 +486,42 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
+  }
+
+  partLibraryList(): { parts: PartLibraryEntry[] } {
+    return unwrap(this.methods.partLibraryList());
+  }
+
+  partLibraryExport(id?: string, part?: unknown): { fileName: string; data: string } {
+    return unwrap(
+      this.methods.partLibraryExport(
+        part !== undefined ? { part } : id === undefined ? {} : { id },
+      ),
+    );
+  }
+
+  partLibraryImport(data: string): {
+    added: PartLibraryEntry[];
+    refused: { name: string; reason: string }[];
+  } {
+    return unwrap(this.methods.partLibraryImport({ data }));
+  }
+
+  partLibraryImportImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryImportImage({ data, slot, colors, name }));
+  }
+
+  partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryAdd({ part, name, parent }));
+  }
+
+  botBannerSet(channelId: string, banner: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botBannerSet({ channelId, banner }));
   }
 
   botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
@@ -522,6 +609,31 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   channelGroupDelete(channelId: string): { deleted: boolean } {
     return unwrap(this.methods.channelGroupDelete({ channelId }));
+  }
+
+  channelHistory(): { channels: ChannelHistoryItem[] } {
+    return unwrap(this.methods.channelHistory({}));
+  }
+  channelHistorySources(
+    channelId: string,
+    before?: string,
+  ): { sources: PurgeSource[]; before?: string } {
+    return unwrap(
+      this.methods.channelHistorySources({
+        channelId,
+        ...(before === undefined ? {} : { before }),
+      }),
+    );
+  }
+  channelPurgePreview(channelId: string, sourceEventIds: string[]): PurgePreview {
+    return unwrap(this.methods.channelPurgePreview({ channelId, sourceEventIds }));
+  }
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): { accepted: number } {
+    return unwrap(this.methods.channelPurgeConfirm({ channelId, sourceEventIds, token }));
   }
 
   channelMessages(
@@ -741,7 +853,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
   }
 
-  toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  toolApprovalStatus(
+    channelId: string,
+    messageId: string,
+  ): {
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  } {
     return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
   }
 
@@ -753,7 +871,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
   }
 
-  userQuestionStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): { status: 'pending' | 'submitted' | 'answered' | 'expired' } {
     return unwrap(this.methods.userQuestionStatus({ channelId, messageId }));
   }
 
@@ -856,8 +977,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.profileUsage({ channelId, filter }));
   }
 
-  profileActivity(channelId: string): ProfileActivity {
-    return unwrap(this.methods.profileActivity({ channelId }));
+  profileActivity(channelId: string, before?: string, weeks?: number): ProfileActivity {
+    return unwrap(this.methods.profileActivity({ channelId, before, weeks }));
   }
 
   groupProfileActivity(channelId: string): GroupProfileActivity {
@@ -1012,6 +1133,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
+  'channelIngests',
+  'channelIngest',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
@@ -1028,6 +1151,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingRevoke',
   'messagingConversation',
   'messagingSend',
+  'onboarding',
+  'onboardingModel',
+  'modelPlanInherit',
+  'channelRetry',
   'modelCatalog',
   'modelPresets',
   'modelPresetCreate',
@@ -1043,6 +1170,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'create',
   'createFromGit',
   'update',
+  'deletionPreview',
+  'deletionConfirm',
+  'deletionRetry',
+  'deletionMemoryFolder',
   'pause',
   'resume',
   'channels',
@@ -1060,6 +1191,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelGroupWakeSet',
   'channelGroupWakePolicies',
   'channelGroupDelete',
+  'channelHistory',
+  'channelHistorySources',
+  'channelPurgePreview',
+  'channelPurgeConfirm',
   'channelMessages',
   'channelTimeline',
   'channelReadPosition',
@@ -1132,6 +1267,12 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'standingLimitsSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'partLibraryList',
+  'partLibraryAdd',
+  'partLibraryExport',
+  'partLibraryImport',
+  'partLibraryImportImage',
+  'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',

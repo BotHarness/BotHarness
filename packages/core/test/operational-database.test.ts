@@ -61,6 +61,128 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
+  it('upgrades the current main Profile without changing QQ and WeChat reception authority', () => {
+    const dshHome = createTempRoot('botharness-qq-main-upgrade-');
+    const priorPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation <= 73),
+    );
+    const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+    expect(prior.mode).toBe('ready');
+    const seed = attachOperationalModule(prior, 'qq-main-upgrade-seed');
+    seed.transaction((database) => {
+      for (const platform of ['qq', 'weixin'])
+        database
+          .prepare(`INSERT INTO messaging_bindings
+          (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at,
+           revision, enabled, display_name, enabled_inherited, typing_enabled,
+           typing_inherited, receive_after)
+          VALUES (?, 'ada', ?, ?, 'app', ?, ?, 7, 0, 'QA', 0, 0, 0, ?)`)
+          .run(
+            platform,
+            `dsh-im/${platform}`,
+            platform,
+            'a'.repeat(64),
+            '2026-10-08T00:00:00Z',
+            '2026-10-09T00:00:00Z',
+          );
+    });
+    const readBindings = (owner: ReturnType<typeof mountOperationalDatabase>) =>
+      attachOperationalModule(owner, 'qq-main-upgrade-read').read((database) =>
+        database.prepare('SELECT * FROM messaging_bindings ORDER BY id').all(),
+      );
+    const before = readBindings(prior);
+    prior.close();
+    const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(upgraded.mode).toBe('ready');
+    expect(upgraded.generation).toBe(74);
+    expect(readBindings(upgraded)).toEqual(before);
+    const module = attachOperationalModule(upgraded, 'qq-main-upgrade-history');
+    expect(
+      module.read((database) =>
+        database.prepare('SELECT * FROM messaging_reception_history').all(),
+      ),
+    ).toEqual([]);
+    module.transaction((database) =>
+      database
+        .prepare(
+          'INSERT INTO messaging_reception_history (bot_slug, provider_id, fingerprint, body) VALUES (?, ?, ?, ?)',
+        )
+        .run('ada', 'dsh-im/qq', 'a'.repeat(64), '[]'),
+    );
+    upgraded.close();
+    const reopened = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(readBindings(reopened)).toEqual(before);
+    expect(
+      attachOperationalModule(reopened, 'qq-main-upgrade-reopen').read((database) =>
+        database.prepare('SELECT body FROM messaging_reception_history').all(),
+      ),
+    ).toEqual([{ body: '[]' }]);
+    reopened.close();
+  });
+
+  it.each([59, 60, 61, 62, 63, 64, 65, 66])(
+    'upgrades generation %s identities with a durable typing preference and preserves their authority',
+    (generation) => {
+      const dshHome = createTempRoot('botharness-typing-migration-');
+      const priorPlan = defineSchemaPlan(
+        BOT_HARNESS_SCHEMA_PLAN.migrations.filter(
+          (migration) => migration.generation <= generation,
+        ),
+      );
+      const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+      attachOperationalModule(prior, 'typing-seed').transaction((database) => {
+        database
+          .prepare(`INSERT INTO messaging_bindings
+        (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at,
+         revision, enabled, display_name, enabled_inherited)
+        VALUES ('own', 'ada', 'dsh-im/weixin', 'weixin', 'paired', ?, ?, 7, 0, 'Own WeChat', 0)`)
+          .run('a'.repeat(64), FIXED_NOW().toISOString());
+        if (generation >= 60)
+          database
+            .prepare(
+              'INSERT INTO messaging_approval_routes (bot_slug, revision, body) VALUES (?, ?, ?)',
+            )
+            .run('ada', 1, null);
+      });
+      prior.close();
+      const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+      const module = attachOperationalModule(upgraded, 'typing-check');
+      const read = () =>
+        module.read((database) =>
+          database
+            .prepare(
+              'SELECT revision, enabled, display_name, fingerprint, typing_enabled FROM messaging_bindings WHERE id = ?',
+            )
+            .get('own'),
+        );
+      expect(read()).toEqual({
+        revision: 7,
+        enabled: 0,
+        display_name: 'Own WeChat',
+        fingerprint: 'a'.repeat(64),
+        typing_enabled: 1,
+      });
+      expect(
+        module.read((database) =>
+          database.prepare('SELECT * FROM messaging_approval_routes').all(),
+        ),
+      ).toEqual(generation >= 60 ? [{ bot_slug: 'ada', revision: 1, body: null }] : []);
+      module.transaction((database) =>
+        database
+          .prepare('UPDATE messaging_bindings SET typing_enabled = 0 WHERE id = ?')
+          .run('own'),
+      );
+      upgraded.close();
+      const reopened = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+      expect(
+        attachOperationalModule(reopened, 'typing-reopen').read((database) =>
+          database.prepare('SELECT typing_enabled FROM messaging_bindings WHERE id = ?').get('own'),
+        ),
+      ).toEqual({ typing_enabled: 0 });
+      reopened.close();
+    },
+  );
+
   it('adds pairing after current Discord defaults without rewriting their immutable history', () => {
     const dshHome = createTempRoot('botharness-pairing-migration-');
     const priorPlan = defineSchemaPlan(

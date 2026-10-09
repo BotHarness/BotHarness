@@ -250,6 +250,11 @@ export function createChannelMediaAccess(options: {
         validate();
       }
       acquiring = false;
+      options.database.transaction((db) =>
+        db
+          .prepare('INSERT OR IGNORE INTO messaging_managed_files VALUES (?, ?, ?)')
+          .run(input.sourceEventId, ref!.fileId!, 'original'),
+      );
       const downloaded = await options.attachments.download(ref.fileId!, ref.name, signal);
       if (downloaded.ref.size > options.attachments.maxBytes) {
         await downloaded.body.cancel();

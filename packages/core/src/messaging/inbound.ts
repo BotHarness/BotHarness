@@ -1,4 +1,25 @@
-import { admissionBound, conversationName, hold, readBlock, removeHeld } from './conversations.js';
+import { sourceContentPurged } from '../purge/fence.js';
+import {
+  admissionBound,
+  conversationName,
+  hold,
+  listHeld,
+  readBlock,
+  removeHeld,
+} from './conversations.js';
+import {
+  DEFAULT_INGEST_WAKE,
+  admitIngestMembers,
+  channelIngests,
+  deleteIngest,
+  matchingIngests,
+  readIngest,
+  writeIngest,
+  type ConversationIngest,
+  type ConversationIngestInput,
+  type ConversationIngestSnapshot,
+} from './conversation-ingest.js';
+import type { MessagingIdentity } from './identity.js';
 import type { BotPairing } from './pairing.js';
 import { recordLocalReception } from './reception-history.js';
 import { readMessagingIdentity } from './identity.js';
@@ -30,7 +51,7 @@ import {
   type GroupReceptionPolicy,
 } from './group-policy.js';
 import type { BotSourcePolicyEditor } from '../runtime/source-policy.js';
-import { bridgeChannel, placeBridgeSource } from './channel-target.js';
+import { bridgeChannel, humanBridgeChannel, placeBridgeSource } from './channel-target.js';
 import { admitBridgeMembers } from './member-admission.js';
 import { messagingDefaults } from './defaults.js';
 import { assertMessagingIdentity } from './identity.js';
@@ -40,6 +61,7 @@ import {
   type ChannelBridgeInput,
 } from './channel-bridge.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
+import type { ChannelRecord } from '../channels/channel.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { relatedReport, recordReportEcho, type RelatedReport } from './report.js';
 import type { DatabaseSync } from 'node:sqlite';
@@ -119,6 +141,8 @@ export interface ExternalSource {
   event: Omit<MessagingInboundEvent, 'text'>;
   grantId: string;
   grantRevision: number;
+  ingestId?: string;
+  ingestRevision?: number;
   defaultRevision?: number;
   receptionRevision?: number;
   bridgeRevision?: number;
@@ -142,6 +166,8 @@ export interface InboundMessaging {
   register(provider: MessagingProvider): () => void;
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  ingests(channelId: string): ConversationIngestSnapshot;
+  ingest(channelId: string, input: ConversationIngestInput): Promise<void>;
   setChannelTarget(botSlug: string, grantId: string, channelId: string | null): Promise<void>;
   policy(botSlug: string, grantId: string): GroupReceptionPolicy;
   setPolicy(
@@ -181,6 +207,7 @@ export interface InboundMessaging {
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   startEntry(grantId: string): void;
+  endChannel(channelId: string): void;
   close(): void;
 }
 
@@ -196,9 +223,11 @@ export function createInboundMessaging(options: {
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
+  onAdmissionCommitted?(botSlug: string, sourceEventId: string): void;
   onReceptionChanged?(): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
+  onIngested?(channelId: string, messageId: string): void;
   warn?(message: string): void;
 }): InboundMessaging {
   const { database } = options;
@@ -262,7 +291,10 @@ export function createInboundMessaging(options: {
     }
   >();
   const retainedCursors = new Map<string, RetainedCursor>();
-  const sourceId = (value: MessagingGrant, event: MessagingInboundEvent) =>
+  const sourceId = (
+    value: Pick<MessagingGrant, 'providerId' | 'fingerprint'>,
+    event: MessagingInboundEvent,
+  ) =>
     'im-' +
     createHash('sha256')
       .update(
@@ -274,12 +306,15 @@ export function createInboundMessaging(options: {
         ]),
       )
       .digest('hex');
+  const ingestName = (ingest: ConversationIngest, event: MessagingInboundEvent) =>
+    event.conversation.name || ingest.conversation.name;
   const persistSource = (
     db: DatabaseSync,
-    value: MessagingGrant,
+    value: MessagingGrant | { ingest: ConversationIngest; botSlug: string },
     event: MessagingInboundEvent,
   ): string => {
-    const id = sourceId(value, event);
+    const id = sourceId('ingest' in value ? value.ingest : value, event);
+    if (sourceContentPurged(db, id)) throw new MessagingError('content-purged');
     const existing = db
       .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
       .get(id) as { body: string; payload_json: string } | undefined;
@@ -321,24 +356,41 @@ export function createInboundMessaging(options: {
       }
     } else {
       const { text: _text, ...evidence } = event;
-      const external: Omit<ExternalSource, 'body'> = {
-        id,
-        at: event.at,
-        platform: event.channel,
-        accountName: value.accountName,
-        conversationName: value.targetName,
-        event: evidence,
-        grantId: value.id,
-        grantRevision: value.revision,
-        defaultRevision: messagingDefaults(db, value.platform).revision,
-        ...(event.conversation.kind === 'group'
-          ? { receptionRevision: groupReceptionPolicy(db, value.id).revision }
-          : {}),
-        ...(value.channelBridge ? { bridgeRevision: value.channelBridge.revision } : {}),
-        ...(!value.bridgeRoutes && value.receiveTargetChannelId
-          ? { localChannelId: value.receiveTargetChannelId }
-          : {}),
-      };
+      const external: Omit<ExternalSource, 'body'> =
+        'ingest' in value
+          ? {
+              id,
+              at: event.at,
+              platform: event.channel,
+              accountName: value.ingest.accountName,
+              conversationName: ingestName(value.ingest, event),
+              event: evidence,
+              grantId: '',
+              grantRevision: 0,
+              ingestId: value.ingest.id,
+              ingestRevision: value.ingest.revision,
+              defaultRevision: messagingDefaults(db, value.ingest.platform).revision,
+            }
+          : {
+              id,
+              at: event.at,
+              platform: event.channel,
+              accountName: value.accountName,
+              conversationName:
+                (event.conversation.kind === 'group' && event.conversation.name) ||
+                value.targetName,
+              event: evidence,
+              grantId: value.id,
+              grantRevision: value.revision,
+              defaultRevision: messagingDefaults(db, value.platform).revision,
+              ...(event.conversation.kind === 'group'
+                ? { receptionRevision: groupReceptionPolicy(db, value.id).revision }
+                : {}),
+              ...(value.channelBridge ? { bridgeRevision: value.channelBridge.revision } : {}),
+              ...(!value.bridgeRoutes && value.receiveTargetChannelId
+                ? { localChannelId: value.receiveTargetChannelId }
+                : {}),
+            };
       db.prepare(`INSERT INTO source_events (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
         VALUES (?, 'bridge-message', ?, ?, ?, ?)`).run(
         id,
@@ -613,6 +665,7 @@ export function createInboundMessaging(options: {
             );
             if (id !== undefined)
               setImmediate(() => {
+                options.onAdmissionCommitted?.(value.botSlug, id);
                 if (!closed && valid(grant(value.id))) options.onAdmitted(value.botSlug, id);
               });
             return { accepted: true };
@@ -785,6 +838,7 @@ export function createInboundMessaging(options: {
               ['source-event', 'channel', 'bot-inbox'],
             );
             if (id) {
+              options.onAdmissionCommitted?.(value.botSlug, id);
               for (const commit of placed) {
                 try {
                   options.onPlaced?.(commit);
@@ -924,6 +978,7 @@ export function createInboundMessaging(options: {
             ['source-event', 'channel', 'bot-inbox'],
           );
           if (id === undefined) return { accepted: true };
+          options.onAdmissionCommitted?.(value.botSlug, id);
           if (placement) {
             try {
               options.onPlaced?.(placement);
@@ -1003,6 +1058,8 @@ export function createInboundMessaging(options: {
     includeQuote = true,
     includeContext = true,
   ): ExternalSource => {
+    if (database.read((db) => sourceContentPurged(db, id)))
+      throw new MessagingError('content-purged');
     const row = database.read((db) =>
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
@@ -1012,6 +1069,7 @@ export function createInboundMessaging(options: {
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
     const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+    if (retained.ingestId) throw new MessagingError('source-unavailable');
     const routed = database.read((db) =>
       db.prepare('SELECT 1 FROM messaging_source_paths WHERE source_event_id = ?').get(id),
     );
@@ -1036,7 +1094,7 @@ export function createInboundMessaging(options: {
           .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
           .get(sourceEventId),
       ) as { body: string; payload_json: string } | undefined;
-      if (!context) continue;
+      if (!context || database.read((db) => sourceContentPurged(db, sourceEventId))) continue;
       if (latest?.coverage === 'retained-local-sources') {
         try {
           read(botSlug, sourceEventId, false, false);
@@ -1096,6 +1154,8 @@ export function createInboundMessaging(options: {
     };
   };
   const readShared = (botSlug: string, id: string): ExternalSource => {
+    if (database.read((db) => sourceContentPurged(db, id)))
+      throw new MessagingError('content-purged');
     const row = database.read((db) =>
       db
         .prepare(
@@ -1105,7 +1165,7 @@ export function createInboundMessaging(options: {
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
     const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
-    if (grant(retained.grantId).botSlug === botSlug) return read(botSlug, id);
+    if (!retained.ingestId && grant(retained.grantId).botSlug === botSlug) return read(botSlug, id);
     const channelId = database.read((db) => {
       const placements = db
         .prepare(
@@ -1161,6 +1221,98 @@ export function createInboundMessaging(options: {
       }),
     );
   };
+  const renameEntries = (
+    db: DatabaseSync,
+    entries: MessagingGrant[],
+    event: MessagingInboundEvent,
+  ): MessagingGrant[] => {
+    const name = event.conversation.kind === 'group' ? event.conversation.name : event.actor.name;
+    if (!name) return entries;
+    return entries.map((item) => {
+      if (
+        item.targetName === name ||
+        (event.conversation.kind === 'dm' && item.origin !== 'implicit')
+      )
+        return item;
+      const renamed = { ...item, targetName: name };
+      db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+        JSON.stringify(renamed),
+        item.id,
+      );
+      return renamed;
+    });
+  };
+  const placeIngests = (identity: MessagingIdentity, event: MessagingInboundEvent) => {
+    if (event.conversation.kind !== 'group') return;
+    const current = (db: DatabaseSync) =>
+      matchingIngests(db, identity.providerId, identity.fingerprint, event.conversation).filter(
+        (item) =>
+          item.enabled &&
+          item.accountRef === identity.accountRef &&
+          Date.parse(event.at) >= Date.parse(item.intakeAfter),
+      );
+    if (!database.read(current).length) return;
+    const placed: ChannelMessageCommit[] = [];
+    const members = new Set<string>();
+    transaction(
+      (db) => {
+        for (const ingest of current(db)) {
+          let channel: ChannelRecord;
+          try {
+            channel = humanBridgeChannel(db, ingest.channelId);
+          } catch (error) {
+            if (!(error instanceof MessagingError)) throw error;
+            continue;
+          }
+          if (channel.type !== 'group') continue;
+          const id = persistSource(db, { ingest, botSlug: identity.botSlug }, event);
+          const row = db
+            .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+            .get(id) as { payload_json: string };
+          const source = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+          const commit = placeBridgeSource(
+            db,
+            { ...source, body: event.text, localChannelId: ingest.channelId },
+            undefined,
+          );
+          if (!commit) continue;
+          placed.push(commit);
+          for (const slug of admitIngestMembers(
+            db,
+            id,
+            channel,
+            ingest,
+            options.sourcePolicy,
+            options.isBotActive,
+          ))
+            members.add(slug);
+          writeIngest(db, {
+            ...ingest,
+            conversation: { ...ingest.conversation, name: ingestName(ingest, event) },
+            lastMessageAt: event.at,
+          });
+        }
+      },
+      ['source-event', 'channel', 'bot-inbox'],
+    );
+    for (const commit of placed) {
+      try {
+        options.onPlaced?.(commit);
+      } catch {
+        options.warn?.('ingest-channel-publication-failed');
+      }
+      try {
+        options.onIngested?.(commit.channelId, commit.message.id);
+      } catch {
+        options.warn?.('ingest-admission-wake-failed');
+      }
+    }
+    try {
+      if (members.size) options.onShared?.([...members]);
+    } catch {
+      options.warn?.('ingest-share-wake-failed');
+    }
+  };
   const defaultTraffic = async (
     id: string,
     lease: { controller: AbortController; token: object },
@@ -1183,7 +1335,24 @@ export function createInboundMessaging(options: {
       throw new MessagingError('consumer-unavailable');
     if (event.fingerprint !== identity.fingerprint || event.botId !== identity.accountRef)
       throw new MessagingError('untrusted-source');
-    if (event.conversation.kind === 'group' && !event.mentionedAccount) return { accepted: true };
+    if (identity.receiveAfter && Date.parse(event.at) < Date.parse(identity.receiveAfter))
+      return { accepted: true };
+    if (event.conversation.kind === 'group' && !event.mentionedAccount) {
+      placeIngests(identity, event);
+      return { accepted: true };
+    }
+    const result = await admitDefault(id, lease, identity, entry, event, signal);
+    placeIngests(identity, event);
+    return result;
+  };
+  const admitDefault = async (
+    id: string,
+    lease: { controller: AbortController; token: object },
+    identity: MessagingIdentity,
+    entry: NonNullable<ReturnType<typeof providers.get>>,
+    event: MessagingInboundEvent,
+    signal: AbortSignal,
+  ): Promise<{ accepted: true }> => {
     if (
       identity.platform === 'weixin' &&
       (event.conversation.kind !== 'dm' ||
@@ -1205,9 +1374,15 @@ export function createInboundMessaging(options: {
           Date.parse(event.at) < Date.parse(currentIdentity.receiveAfter)
         )
           return undefined;
-        const entries = conversationEntries(db, id, event.conversation);
+        const entries = renameEntries(db, conversationEntries(db, id, event.conversation), event);
         if (entries.some((item) => item.origin !== 'implicit')) return undefined;
         let value: MessagingGrant | undefined = entries[0];
+        if (
+          identity.platform === 'weixin' &&
+          value?.receiveAfter &&
+          Date.parse(event.at) < Date.parse(value.receiveAfter)
+        )
+          return undefined;
         let created = false;
         if (value === undefined) {
           if (readBlock(db, identity.botSlug, identity.fingerprint, event.conversation))
@@ -1292,8 +1467,13 @@ export function createInboundMessaging(options: {
       return { accepted: true };
     }
     const { value, created, sourceEventId } = admitted;
-    if (created || !leases.has(value.id)) void start(value);
+    const reception = created || !leases.has(value.id) ? start(value) : undefined;
     if (created) receptionChanged();
+    if (sourceEventId !== undefined) {
+      const committed = () => options.onAdmissionCommitted?.(value.botSlug, sourceEventId);
+      if (reception) void reception.then(committed);
+      else setImmediate(committed);
+    }
     if (sourceEventId !== undefined && !value.muted)
       setImmediate(() => {
         if (closed) return;
@@ -1524,6 +1704,139 @@ export function createInboundMessaging(options: {
         for (const [id, lease] of leases) if (lease.token === token) stop(id);
         for (const [id, retry] of retries) if (retry.token === token) stop(id);
       };
+    },
+    ingests(channelId) {
+      return database.read((db) => {
+        humanBridgeChannel(db, channelId);
+        const bindings = (
+          db
+            .prepare(
+              "SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND platform <> 'weixin' ORDER BY created_at",
+            )
+            .all() as { id: string }[]
+        ).map((row) => readMessagingIdentity(db, row.id));
+        const state = (
+          ingest: ConversationIngest,
+        ): ConversationIngestSnapshot['ingests'][number]['state'] => {
+          if (!ingest.enabled) return 'paused';
+          const binding = bindings.find(
+            (item) =>
+              item.providerId === ingest.providerId &&
+              item.fingerprint === ingest.fingerprint &&
+              item.accountRef === ingest.accountRef,
+          );
+          if (!binding || service.pairingReception(binding.id) !== 'receiving')
+            return 'unavailable';
+          return ingest.lastMessageAt ? 'receiving' : 'waiting';
+        };
+        return {
+          channelId,
+          ingests: channelIngests(db, channelId).map((ingest) => {
+            const binding = bindings.find(
+              (item) =>
+                item.providerId === ingest.providerId && item.fingerprint === ingest.fingerprint,
+            );
+            return {
+              ...ingest,
+              ...(binding ? { botSlug: binding.botSlug } : {}),
+              state: state(ingest),
+            };
+          }),
+          candidates: bindings.map((binding) => {
+            const known = new Map<string, string>();
+            for (const row of db
+              .prepare(
+                `SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL
+                AND json_extract(body, '$.receiveScope.kind') = 'group' ORDER BY created_at`,
+              )
+              .all(binding.id) as { body: string }[]) {
+              const value = JSON.parse(row.body) as MessagingGrant;
+              if (value.receiveScope)
+                known.set(value.receiveScope.conversationId, value.targetName);
+            }
+            for (const held of listHeld(db, binding.id))
+              if (held.conversation.kind === 'group' && !known.has(held.conversation.id))
+                known.set(held.conversation.id, held.name);
+            return {
+              bindingId: binding.id,
+              botSlug: binding.botSlug,
+              platform: binding.platform,
+              accountName: binding.name,
+              conversations: [...known].map(([id, name]) => ({ kind: 'group' as const, id, name })),
+            };
+          }),
+        };
+      });
+    },
+    async ingest(channelId, input) {
+      transaction(
+        (db) => {
+          const channel = humanBridgeChannel(db, channelId);
+          if (channel.type !== 'group') throw new MessagingError('channel-unavailable');
+          if (input.kind === 'add') {
+            const identity = readMessagingIdentity(db, input.bindingId);
+            if (identity.revokedAt || identity.platform === 'weixin')
+              throw new MessagingError('identity-unavailable');
+            const entry = conversationEntries(db, identity.id, input.conversation).find(
+              (item) => item.receiveScope?.kind === 'group',
+            );
+            const held = listHeld(db, identity.id).find(
+              (item) =>
+                item.conversation.kind === 'group' &&
+                item.conversation.id === input.conversation.id,
+            );
+            if (!entry && !held) throw new MessagingError('conversation-unavailable');
+            if (
+              matchingIngests(
+                db,
+                identity.providerId,
+                identity.fingerprint,
+                input.conversation,
+              ).some((item) => item.channelId === channelId)
+            )
+              throw new MessagingError('ingest-exists');
+            const at = new Date().toISOString();
+            writeIngest(db, {
+              id: randomUUID(),
+              channelId,
+              providerId: identity.providerId,
+              accountRef: identity.accountRef,
+              fingerprint: identity.fingerprint,
+              platform: identity.platform,
+              accountName: identity.name,
+              conversation: {
+                kind: 'group',
+                id: input.conversation.id,
+                name: entry?.targetName ?? held?.name ?? input.conversation.id,
+              },
+              revision: 1,
+              enabled: true,
+              intakeAfter: at,
+              wake: input.wake ?? DEFAULT_INGEST_WAKE,
+              createdAt: at,
+            });
+            return;
+          }
+          const value = readIngest(db, input.ingestId);
+          if (value.channelId !== channelId) throw new MessagingError('ingest-unavailable');
+          if (value.revision !== input.expectedRevision) throw new MessagingError('ingest-changed');
+          if (input.kind === 'delete') {
+            deleteIngest(db, value.id);
+            return;
+          }
+          writeIngest(db, {
+            ...value,
+            revision: value.revision + 1,
+            ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+            ...(input.enabled === true && !value.enabled
+              ? { intakeAfter: new Date().toISOString() }
+              : {}),
+            ...(input.wake ? { wake: input.wake } : {}),
+          });
+        },
+        ['grants'],
+      );
+      receptionChanged();
     },
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
@@ -2010,6 +2323,59 @@ export function createInboundMessaging(options: {
     },
     pendingPaths(botSlug, now, context = false) {
       return database.read((db) => pendingReceptionPaths(db, botSlug, now, valid, context));
+    },
+    endChannel(channelId) {
+      transaction(
+        (db) => {
+          for (const row of db.prepare('SELECT id, body FROM messaging_grants').all()) {
+            const value = JSON.parse(String(row.body)) as MessagingGrant;
+            const routes = channelBridgeRoutes(value);
+            if (!routes.some((route) => route.channelId === channelId)) continue;
+            const next = {
+              ...value,
+              bridgeRoutes: routes.filter((route) => route.channelId !== channelId),
+            };
+            delete next.receiveTargetChannelId;
+            db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+              JSON.stringify(next),
+              String(row.id),
+            );
+          }
+          for (const row of db
+            .prepare('SELECT id, body FROM messaging_conversation_ingests WHERE channel_id = ?')
+            .all(channelId)) {
+            const value = JSON.parse(String(row.body));
+            db.prepare(
+              'UPDATE messaging_conversation_ingests SET body = ?, revision = revision + 1 WHERE id = ?',
+            ).run(
+              JSON.stringify({ ...value, enabled: false, revision: Number(value.revision) + 1 }),
+              String(row.id),
+            );
+          }
+          for (const row of db
+            .prepare(`SELECT a.source_event_id, a.bot_slug FROM inbox_admissions a
+          WHERE a.attempt_state IN ('pending', 'retryable', 'running') AND EXISTS
+            (SELECT 1 FROM messaging_source_paths p WHERE p.source_event_id = a.source_event_id
+              AND p.bot_slug = a.bot_slug AND p.channel_id = ?)`)
+            .all(channelId)) {
+            if (
+              currentReceptionPaths(
+                db,
+                String(row.bot_slug),
+                String(row.source_event_id),
+                undefined,
+                'reply',
+              ).length
+            )
+              continue;
+            db.prepare(
+              "UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = 'channel-ended' WHERE source_event_id = ? AND bot_slug = ?",
+            ).run(String(row.source_event_id), String(row.bot_slug));
+          }
+        },
+        ['channel', 'bot-inbox', 'messaging'],
+      );
+      options.onReceptionChanged?.();
     },
     available(botSlug, id) {
       try {

@@ -13,12 +13,15 @@ import { blobatar } from 'blobatar';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import {
   isAvatarAppearance,
-  seededAvatarRecipe,
+  seededAvatarFor,
   type AvatarAppearance,
+  type PixelMouthState,
   type RetainedAvatarAppearance,
   pixelSymbolFor,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { IllustratedAvatar } from './illustrated-avatar.js';
+import { createAvatarAnchor, type AvatarAnchor } from './avatar-anchor.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
@@ -43,6 +46,7 @@ export interface PersonaBotAvatarProps {
   size: number;
   src?: string | undefined;
   appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
+  avatarSeed?: 2 | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -50,6 +54,10 @@ export interface PersonaBotAvatarProps {
   indicator?: boolean | undefined;
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
+  surface?: 'portrait' | 'companion' | undefined;
+  still?: boolean | undefined;
+  mouth?: PixelMouthState | undefined;
+  anchorRef?: ((anchor: AvatarAnchor | undefined) => void) | undefined;
 }
 
 export interface PersonaBotFacepileItem {
@@ -58,6 +66,7 @@ export interface PersonaBotFacepileItem {
   name: string;
   src?: string | undefined;
   appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
+  avatarSeed?: 2 | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -333,12 +342,17 @@ export function PersonaBotAvatar({
   size,
   src,
   appearance,
+  avatarSeed,
   state = 'idle',
   effect,
   activity,
   attention,
   indicator = true,
   className,
+  surface = 'portrait',
+  still = false,
+  mouth = 'saved',
+  anchorRef,
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
@@ -347,18 +361,28 @@ export function PersonaBotAvatar({
   const composed = isAvatarAppearance(appearance);
   const seeded = !composed && (src === undefined || src.length === 0);
   const seededRecipe = useMemo(
-    () => (seeded ? seededAvatarRecipe(name || personaBotId) : undefined),
-    [seeded, name, personaBotId],
+    () => (seeded ? seededAvatarFor(name || personaBotId, avatarSeed) : undefined),
+    [seeded, name, personaBotId, avatarSeed],
   );
   const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
-  const active = state === 'thinking' || state === 'working';
+  const active = !still && (state === 'thinking' || state === 'working');
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
+  const anchorMount = useMountedResource<HTMLSpanElement>(
+    (node) => {
+      if (!anchorRef || surface !== 'companion') return;
+      anchorRef(createAvatarAnchor(node));
+      return () => anchorRef(undefined);
+    },
+    [anchorRef, appearance, seededRecipe, src, size, state, surface],
+  );
 
   return (
     <span
+      ref={anchorMount}
       className={classes}
       style={{ width: size, height: size }}
       data-state={state}
+      data-surface={surface}
       data-effect={resolvedEffect}
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
@@ -377,6 +401,9 @@ export function PersonaBotAvatar({
             activity ?? EFFECT_ACTIVITY[resolvedEffect ?? 'generic-working'],
             attention?.approvalCount ?? 0,
           )}
+          surface={surface}
+          still={still}
+          mouth={mouth}
         />
       ) : (
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />

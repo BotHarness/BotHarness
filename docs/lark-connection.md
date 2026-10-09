@@ -84,11 +84,13 @@ Enable permissions by purpose:
 
 - `im:message.group_at_msg:readonly`: receive group messages mentioning the bot; needed for the initial intake test.
 - `im:message:send_as_bot`: send and reply as the application bot; needed for the initial reply test.
-- `im:message:readonly`: read messages and message resources; needed for original-message and attachment reading.
+- `im:message:readonly`: read messages and message resources; also required for protected replies, which re-read the original message to verify its sender and conversation before sending.
 - `im:message.group_msg`: obtain all group messages; needed for ordinary-message intake, group history and topic following. Request this sensitive permission when needed.
 - `im:resource`: upload images and files; needed when sending attachments.
 
 Your organization determines availability and approval requirements. Even with all-group-message permission, BotHarness only takes ordinary messages from groups whose **Rules** allow them; mentions and DMs are admitted on their own. See the official [message receive event](https://open.larksuite.com/document/server-docs/im-v1/message/events/receive) and [message history API](https://open.larksuite.com/document/server-docs/im-v1/message/get-2).
+
+Receiving an event and reading the original message are separate capabilities. If intake and model execution succeed but original-message verification returns `99991672`, check that application-identity `im:message:readonly` is enabled and published. DM/group-mention event scopes plus send permission alone do not qualify protected replies. Keep original-message verification enabled; see [Get message details](https://open.larksuite.com/document/server-docs/im-v1/message/get).
 
 ### Compare the actual console configuration
 
@@ -155,9 +157,7 @@ In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the
 
 _Each admitted DM or group appears in the app’s conversation list. **Mute** keeps the conversation but stops the Bot from being woken by it. **Rules** sets which group messages are received, for example ordinary messages without a mention. **Block** refuses the conversation durably until you click **Allow again**; nothing sent while blocked is backfilled._
 
-**Connect Lark / Feishu** (the setup guide in External identities) tracks the same three steps: connect the app, bind it to this Bot and send a test message. **Locate** highlights the matching control; steps are marked done only from real configuration and a correlated reply.
-
-![The setup guide with three steps: connect the app, bind it, send a test message](/guides/lark/28-setup-guide.en.webp)
+**Bind app** includes a link to this website tutorial. Keep it open in another tab while creating, connecting and binding the app; the sidebar no longer duplicates these instructions in a separate setup guide.
 
 ## 5. Optional: sync a conversation into a local Channel
 
@@ -176,13 +176,13 @@ Adjust behaviour after the first successful test:
 Start small: **mention the application bot** in a test group and send “Please reply here with LARK-OK.” Avoid testing several Bots at once.
 
 1. The message appears in the Bot DM’s right-hand **Bot Inbox** with the correct Lark group, sender and content, and the group appears under **Active** in the app’s conversation list.
-2. Source details show the external message ID, Source Event ID and topic information when present.
+2. Source details show the external message ID, Event ID and topic information when present.
 3. Lark receives `LARK-OK` from this Bot’s own app in the original conversation. A topic test replies in the same topic.
 4. Send an ordinary unmentioned message and confirm it does not reach this Bot unless the group’s **Rules** allow ordinary messages.
 
 **Lark’s green or gray read circle does not show whether a Bot received a message.** Use the local Inbox source record and the actual reply.
 
-![Real source details, native message ID and Source Event ID](/guides/lark/08-source.webp)
+![Real source details, native message ID and Event ID](/guides/lark/08-source.webp)
 
 _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details._
 
@@ -278,7 +278,7 @@ These additional captures use the integrated source preview in a fresh isolated 
 | Mention does not enter Inbox                         | Application bot in the group; application permissions, long-connection `im.message.receive_v1` subscription, published version and approval; identity enabled, conversation not muted or blocked |
 | Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                                 |
 | History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                                        |
-| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity and `im:message:send_as_bot`                                                                                                      |
+| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity; published `im:message:send_as_bot` and `im:message:readonly` for original-message verification                                   |
 | No message in local DM                               | Conversations reach the Bot Inbox by default; only an existing sync (see **External connectors**) shows them in a Channel                                                                        |
 
 When requesting help, include the platform, reproduction steps, a public-safe error code and checks already performed. Do not include App Secrets, access tokens or unrelated group messages.
@@ -344,6 +344,18 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 ![Actual recovery: notifications off and the old request expired](/guides/lark/approvals/recovery-dark.jpg)
 
 [Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
+
+## Receipt and answer feedback (candidate)
+
+The [#1040](https://github.com/BotHarness/BotHarness/issues/1040) candidate adds optional feedback on the **original incoming message**. After its Source Event and Inbox Admission are durably committed, BotHarness attempts native `GLANCE`. Only after that source's explicit reply is accepted by the external Provider does it attempt native `DONE`. The Human selected these two official types; both rendered on original DM messages in the authorized retest. Neither reaction proves that a Human read the message.
+
+Ordinary unmentioned group traffic, held requests and blocked conversations receive no Admission feedback. Mute still admits silently and may show `GLANCE`; an explicit accepted reply may later show `DONE`. Silence, waiting for clarification, delegation completion, failed or unknown sends and unrelated proactive output do not qualify as an answer.
+
+This requires the optional checked `reactionVersion: 1` / `reaction-write-checked` Provider capability. An older Provider remains usable for normal messaging and reports feedback unavailable. The qualified Provider pin is unchanged. The [official create-reaction API](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/create) requires reaction write permission or an existing broader message permission, plus access to the source conversation. A maintainer must review any missing permission; this candidate does not expand app scopes or subscribe to reaction events automatically. See the [official reaction types](https://open.larksuite.com/document/server-docs/im-v1/message-reaction/emojis-introduce).
+
+Feedback runs separately with a four-second deadline and bounded concurrency. Permission failures, missing/deleted sources and unavailable transport do not block Inbox receipt, model work or replies. Attempts are retained without automatic retry, including after restart or reconnect; enabling a permission later does not replay historical messages. The authenticated `messagingSnapshot` management API exposes `reactionSupported` and recent `feedback` attempt states: `attempted`, `accepted`, `unavailable`, `failed` or `unknown`. In Web, open the existing Lark identity editor to inspect feedback capability and the five most recent source attempts; refresh external identities to update them. An interrupted `attempted` or `unknown` record is not success.
+
+Use the [candidate QA runbook](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/agents/qa-lark-feedback.md) for preparation, exact tested sources and recovery. After the first window exposed missing permission, the Human authorized and added `im:message.reactions:write_only`. The guarded 2026-10-09 retest verified two distinct DM replies with original-source `GLANCE` / `DONE`, and a silent DM with `GLANCE` only, using the signed-in Codex in-app browser. A further authorized window verified real group-mention receipt/reply states, receipt-only muted Admission, retained feedback across Provider reconnect, and matching post-merge Web light/dark captures; the Human sent messages from their working client when the web mention chooser failed. Production was restored and the Human confirmed normal Lark and Discord replies. A later guarded window verified a real same-Profile Host restart followed by a new accepted reply, retaining the identity and historical feedback. Its blocked DM was sent inside the window with no reply or reaction; a single official delivery record falls within the reported minute, but exact marker correlation remains unproven. The Human subsequently supplied the exact `BH1040-R3-GROUP` original-message screenshot showing both reaction chips attributed to DeepSeekBot and the matching reply, completing group rendering evidence. Exact blocked-marker correlation, the earlier Web failure with an unverified trigger and unexercised cases remain unresolved. Source PRs have merged; remaining cases gate broader qualification and Provider pin promotion. Older guide screenshots above are not feedback evidence.
 
 ## Images in Channel history
 

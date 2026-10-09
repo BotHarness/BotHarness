@@ -8,6 +8,7 @@ import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from '../src/client/actions.js';
 import { ChannelMessageBody } from '../src/client/channel-message-body.js';
+import { parseChannelMessage } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { WORKSPACE_GRANTS_CHANGED } from '../src/client/workspace-grants-entry.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
@@ -21,6 +22,22 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
 }));
+
+it('renders the restored Host tombstone as purged content', () => {
+  const message = parseChannelMessage({
+    id: 'purged',
+    at: '2026-10-08T00:00:00.000Z',
+    author: { kind: 'human' },
+    body: '',
+    contentPurge: { actor: 'local-human', reason: 'human-request', at: '2026-10-08T00:00:00.000Z' },
+  });
+  expect(message?.contentPurged).toBe(true);
+  expect(
+    renderToStaticMarkup(
+      createElement(ChannelMessageBody, { message: message!, channelId: 'shared', t: zhTranslate }),
+    ),
+  ).toContain('正文已清除');
+});
 
 function render(
   author: ChannelMessage['author'],
@@ -475,6 +492,61 @@ describe('Channel message body', () => {
 });
 
 describe('Tool approval card', () => {
+  it('keeps an accepted decision visible while capacity is unavailable, then clears the wait on execution', async () => {
+    vi.useFakeTimers();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const toolApprovalExecutionState = vi
+      .fn()
+      .mockResolvedValueOnce('waiting-capacity')
+      .mockResolvedValueOnce('running');
+    const actions = { toolApprovalExecutionState } as unknown as BridgeActions;
+    const message: ChannelMessage = {
+      id: 'approval-capacity',
+      at: '2026-10-09T00:00:00Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'Approve bash',
+      toolApprovalRequest: {
+        sessionId: 'original',
+        callId: 'call',
+        role: 'assignment',
+        toolName: 'bash',
+        cwd: '/qa',
+        input: '{}',
+      },
+    };
+    try {
+      await act(async () =>
+        root.render(
+          createElement(ChannelMessageBody, {
+            message,
+            actions,
+            t: zhTranslate,
+            toolApprovalDecision: 'allowed-once',
+          }),
+        ),
+      );
+      expect(container.textContent).toContain('已批准这一次调用');
+      expect(container.textContent).toContain('等待运行名额');
+      expect(container.textContent).not.toContain('仅批准这一次');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(container.textContent).not.toContain('等待运行名额');
+      expect(container.textContent).toContain('已批准这一次调用');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(toolApprovalExecutionState).toHaveBeenCalledTimes(2);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('removes approval actions immediately when a Workspace Grant change expires the request', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');
@@ -562,4 +634,25 @@ it('renders current names for historical typed IDs without changing plain text o
   );
   expect(fallback).toContain('@Human');
   expect(fallback).toContain('Ada');
+});
+
+it('renders a purged welcome as a tombstone before considering onboarding actions', () => {
+  const html = renderToStaticMarkup(
+    createElement(ChannelMessageBody, {
+      message: {
+        id: 'welcome-purged',
+        at: '2026-10-08T00:00:00Z',
+        author: { kind: 'system' },
+        body: '',
+        onboardingWelcome: { version: 1 },
+        contentPurged: true,
+      },
+      channelId: 'dm-ada',
+      actions: {} as BridgeActions,
+      t: zhTranslate,
+    }),
+  );
+  expect(html).toContain(zhTranslate('purge.purged'));
+  expect(html).not.toContain('data-onboarding-welcome');
+  expect(html).not.toContain('<button');
 });

@@ -9,16 +9,16 @@ import { pnpmCommand } from './dev-package-manager.mjs';
 
 export const productImProvider = Object.freeze({
   name: '@botharness/im-provider',
-  version: '4.32.0-botharness.12',
+  version: '4.32.0-botharness.17',
   sourceManifestSha256: '501e62d558eceb2b42ad9cd03fc0910e09581fd6531ec68e074fe5a16225ed1e',
   sourceLockSha256: 'c7f16baaa5bb1ab3bbb607b59a10327f0af010c61e1ea1ab4a72d7d08af9ffe9',
   upstream: Object.freeze({
     package: '@xmanrui/dsh-im',
     packageVersion: '4.32.0',
-    source: '4f4f0a6282580bb59968eb90571778eb7e37ee73',
+    source: 'bddd7d93e1c1b969ce137721c2494f6d72bfa8bc',
     dsh: '0.2.0-rc.1',
-    runtimeFiles: 397,
-    runtimeSha256: '8c8d34fb8e85cb9845ca05d0cbc691d9a3373f051efa2da9e614315791975f98',
+    runtimeFiles: 412,
+    runtimeSha256: 'c2047738952dc155f95eb1b23cd56ba96bb7585a7e343e3916ee7da63b282548',
   }),
 });
 
@@ -62,7 +62,7 @@ export function productManifest(manifest, version) {
       [productImProvider.name]: productImProvider.version,
     },
     dsh: { ...manifest.dsh, bundle: { patch: './cordis.im.patch.yml' } },
-    files: ['cordis.im.patch.yml', 'README.md', 'LICENSE'],
+    files: ['dist', 'cordis.im.patch.yml', 'README.md', 'LICENSE'],
   };
 }
 
@@ -268,7 +268,7 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
   mkdirSync(product);
   const source = join(repoRoot, 'packages/deepseekbot');
   writeJson(join(product, 'package.json'), productRelease);
-  copyAvailable(source, product, ['cordis.im.patch.yml', 'README.md']);
+  copyAvailable(source, product, ['dist', 'cordis.im.patch.yml', 'README.md']);
   cpSync(join(repoRoot, 'LICENSE'), join(product, 'LICENSE'));
   packageDirectories.push(product);
   for (const directory of packageDirectories) {

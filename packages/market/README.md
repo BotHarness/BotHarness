@@ -32,8 +32,11 @@ interface MarketplaceEntry {
   name: string;
   fullName: string; // "owner/name"
   displayName: string | null; // from .botharness/bot.json
-  roles: string[]; // from .botharness/bot.json
-  description: string | null;
+  tags: string[]; // from .botharness/bot.json `tags`, or legacy `roles`
+  roles: string[]; // same as tags, kept for older readers
+  bio: string | null; // .botharness/bot.json `bio`, else the GitHub description
+  banner: { recipe: { scene: string; seed: number } } | { image: string } | null; // .botharness/bot.json `banner`; an image is a raw.githubusercontent.com URL at the indexed commit
+  description: string | null; // GitHub repository description
   topics: string[]; // without botharness-bot
   stars: number;
   pushedAt: string; // ISO 8601
@@ -79,17 +82,18 @@ Set the secrets with `wrangler secret put ALTCHA_HMAC_KEY` and `wrangler secret 
 
 For Bot authors, the user guide is [Share a Bot](https://deepseekbot.botharness.ai/en/docs/share-bot).
 
-An optional descriptor in the Bot repository. Every field is optional; an invalid file (bad JSON, a wrong type, more than 8 roles, a name over 60 characters, an image path that is absolute, has `..` or a scheme, or is not `.png`/`.jpg`/`.jpeg`/`.webp`) is ignored as a whole and the defaults stay (repository name, no roles, generated avatar).
+An optional descriptor in the Bot repository. Every field is optional; an invalid file (bad JSON, a wrong type, more than 8 tags, a tag over 32 characters, a bio over 160 characters, a name over 60 characters, an image path that is absolute, has `..` or a scheme, or is not `.png`/`.jpg`/`.jpeg`/`.webp`) is ignored as a whole and the defaults stay (repository name, no tags, the GitHub description as bio, generated avatar).
 
 ```json
 {
   "name": "BotPixel 像素画师",
-  "roles": ["像素画", "头像设计"],
+  "tags": ["像素画", "头像设计"],
+  "bio": "把一句话描述画成像素头像。",
   "avatar": { "image": "assets/avatar.png" }
 }
 ```
 
-`avatar` is either `{ "image": "<path in the repository>" }` (PNG, JPEG or WebP, at most 128 KiB) or `{ "recipe": { … } }` (the generated-avatar recipe a PersonaBot stores in `appearance.recipe`). The Worker reads the descriptor together with the README after each push and shows `name` and `roles` in the Marketplace. The Host reads it again from the cloned tree when installing and applies the avatar, never from the catalog; a symlink that leaves the clone is refused.
+`avatar` is either `{ "image": "<path in the repository>" }` (PNG, JPEG or WebP, at most 128 KiB) or `{ "recipe": { … } }` (the generated-avatar recipe a PersonaBot stores in `appearance.recipe`). The Worker reads the descriptor together with the README after each push and shows `name`, `tags`, `bio` and `banner` in the Marketplace. `banner` is either `{ "recipe": { "scene", "seed" } }`, which readers draw with `@botharness/pixel-banner`, or `{ "image": ".botharness/banner.png" }`, which the API turns into a `raw.githubusercontent.com` URL pinned to the indexed commit. Without it, readers show a neutral header. Older descriptors that write `roles` instead of `tags` are still read as tags. The Host reads it again from the cloned tree when installing and applies the avatar, never from the catalog; a symlink that leaves the clone is refused.
 
 ## Scheduled crawl
 

@@ -115,6 +115,7 @@ export interface ChannelReplyPreview {
 }
 
 export interface SessionFailureCard {
+  requestMessageId?: string;
   assignmentAnswerTo?: string;
   role: 'orchestrator' | 'assignment';
   sessionId: string;
@@ -182,6 +183,8 @@ export interface ChannelMessage {
   at: string;
   author: ChannelMessageAuthor;
   body: string;
+
+  onboardingWelcome?: { version: 1 };
 
   memorySwitchTarget?: string;
 
@@ -395,6 +398,15 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (typeof message['id'] !== 'string' || message['id'].length === 0) return false;
   if (typeof message['at'] !== 'string' || message['at'].length === 0) return false;
   if (typeof message['body'] !== 'string') return false;
+  const welcome = message['onboardingWelcome'];
+  if (
+    welcome !== undefined &&
+    (typeof welcome !== 'object' ||
+      welcome === null ||
+      (welcome as { version?: unknown }).version !== 1 ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'system')
+  )
+    return false;
   const switchTarget = message['memorySwitchTarget'];
   if (
     switchTarget !== undefined &&
@@ -580,6 +592,8 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     if (
       typeof request['sessionId'] !== 'string' ||
       request['sessionId'].length === 0 ||
+      (request['callId'] !== undefined &&
+        (typeof request['callId'] !== 'string' || request['callId'].length === 0)) ||
       !Array.isArray(request['questions']) ||
       request['questions'].length === 0 ||
       request['questions'].length > 3 ||
@@ -639,7 +653,14 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
         departure['departureType'] !== 'removed')
     )
       return false;
-  } else if ((message['author'] as ChannelMessageAuthor)?.kind === 'system') {
+  } else if (
+    (message['author'] as ChannelMessageAuthor)?.kind === 'system' &&
+    !(
+      typeof message['onboardingWelcome'] === 'object' &&
+      message['onboardingWelcome'] !== null &&
+      (message['onboardingWelcome'] as { version?: unknown }).version === 1
+    )
+  ) {
     return false;
   }
   const botDmAction = message['botDmAction'];

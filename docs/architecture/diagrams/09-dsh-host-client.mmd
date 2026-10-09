@@ -6,14 +6,22 @@ flowchart TB
     ReadRPC["botharness/channelMarkAllRead<br/>应用定义的 RPC"] --> Channels["Channel owner<br/>可见消息位置快照"]
     Channels --> ReadPositions["既有 Human 已读位置"]
     Remote <--> Gateway["API Gateway<br/>唯一 /api interceptor"]
+    Registry["Registry commit / Activity / Session ownership"] -->|"committed identity / Activity / owned output"| Feed["应用定义的 Companion Feed<br/>有界引用租约与恢复"]
+    Channels --> Observation["outputCheckpoint / observeOutput<br/>规范位置 + 正文 + 成员关系 + 读取判定"]
+    Observation --> Feed
   end
   subgraph Browser["DSH Web Client"]
     direction LR
     ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
     Overview["BotHarness Overview"] --> ReadAction["actions.markAllRead"]
     Model --> Slots["Slots<br/>UI composition"]
+    Companion["WindowCompanions collection<br/>Profile 偏好 + 独立 Bot 播放"] --> Overlay["shell.overlay"]
+    Companion --> Activity["共享 Client Activity store<br/>钉选时替代独立 Activity SSE"]
   end
   Gateway <--> Model
+  Gateway -->|"受认证的 Connection Fetch"| Feed
+  Feed -->|"单条认证 SSE<br/>选择确认 + 未来消息 / 有界补播"| Companion
+  Companion -->|"认证 POST<br/>选择 + 来源 epochs + 容量 + revision"| Feed
   ReadAction --> Gateway
   Remote --> ReadRPC
   Overview --> UsageAction["actions.overviewUsage"]

@@ -218,35 +218,20 @@ describe('Registry database authority', () => {
     expect(next.mode).toBe('ready');
     expect(readFileSync(f.file, 'utf8')).toBe('{broken');
   });
-  it('retains Soul and legacy source on normal remove without resurrecting a deleted Bot', () => {
+  it('refuses legacy removal/purge and preserves Registry authority and Soul', () => {
     const f = fixture();
     writeFileSync(f.file, JSON.stringify(legacy));
     const owner = mount(f.home);
     const registry = createPersonaBotRegistry({ rootDir: f.rootDir, database: owner });
-    expect(registry.remove(legacy.slug)).toBe(true);
-    expect(registry.get(legacy.slug)).toBeUndefined();
+    expect(() => registry.remove(legacy.slug)).toThrow('confirmed PersonaBot deletion');
+    expect(() => registry.remove(legacy.slug, { purge: true })).toThrow(
+      'confirmed PersonaBot deletion',
+    );
+    expect(registry.get(legacy.slug)).toEqual(legacy);
     expect(readFileSync(f.file, 'utf8')).toBe(JSON.stringify(legacy));
-    owner.close();
-    expect(
-      createPersonaBotRegistry({ rootDir: f.rootDir, database: mount(f.home) }).get(legacy.slug),
-    ).toBeUndefined();
     expect(readFileSync(join(f.directory, 'memory', 'PERSONA.md'), 'utf8')).toBe(
       '# Handwritten Soul\n',
     );
-  });
-  it('retains the Registry record when the existing purge hook refuses the operation', () => {
-    const f = fixture();
-    writeFileSync(f.file, JSON.stringify(legacy));
-    const registry = createPersonaBotRegistry({
-      rootDir: f.rootDir,
-      database: mount(f.home),
-      onPurge: () => {
-        throw new Error('purge refused');
-      },
-    });
-    expect(() => registry.remove(legacy.slug, { purge: true })).toThrow('purge refused');
-    expect(registry.get(legacy.slug)).toEqual(legacy);
-    expect(existsSync(f.directory)).toBe(true);
   });
   it('keeps Core recovery diagnostics available and rejects Registry operations in a competing Host', async () => {
     const f = fixture();

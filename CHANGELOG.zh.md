@@ -5,7 +5,13 @@
 
 ## [Unreleased]
 
-微信原始语音可准备播放，可读取原生引用与本地保留上下文，原生视频可通过受检查的媒体链路播放与回传；Discord 默认设置可独立保存并由 Profile 继承；Bot 可以导出为 zip，在别处导入成新的 Bot。
+像素头像新增精灵、矮人、兽人和会说话的花，以及胡子、中世纪服装和头饰；可以自己画头饰和头发并存入部件库；新建的 PersonaBot 会从全部物种中随机生成初始形象；兼容 Provider 可在绑定窗口内创建 Lark 应用或展示微信配对二维码。
+
+### Breaking Changes
+
+- 部件库新增 Profile schema Generation 73。升级前请备份；升级后的 Profile 需要兼容的程序版本才能重新打开，否则请恢复升级前的备份（[#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)）。
+
+- QQ 接收区间追加 Profile schema Generation 74，并复用既有接收边界字段；升级前备份，升级后应向前修复（[#1153](https://github.com/BotHarness/BotHarness/issues/1153)）。
 
 ### Added
 
@@ -21,7 +27,81 @@
 
 - 官方 QQ Bot 应用可绑定 PersonaBot，将群文字 @ 提及收入其收件箱，并携带原生接收回执在原群答复；开发 Provider 明确保留被动答复过期和发送结果不确定状态（[#1152](https://github.com/BotHarness/BotHarness/issues/1152)、[QQ 接入指南](docs/qq-connection.md)）。
 
+- 其他部件也都能自己画了：衣服、配饰、胡子、眼镜、鼻子、腮红、花瓣和花盆都有 **绘制／修改这一片**，从当前戴的样式开始；外形颜色的像素仍会跟着变色；自绘的脸部部件不会挡住说话的嘴；物种或头饰隐藏内置部件时，自绘部件也会隐藏；**换回内置样式** 可恢复原来的选择。只有在取下自绘部件时，选内置样式才会升级旧头像的 recipe（[#1240](https://github.com/BotHarness/DeepSeekBot/issues/1240)）。
+- 自绘部件可以分享了：导出的 Bot 会带上它戴着的部件，导入后这些部件会进入你的部件库，标记为“来自导入的 Bot”；单个部件可导出为任何地方都能预览的 PNG，并能无损导回；整个部件库可导出为这些 PNG 的 zip。导入时相同内容的部件会合并，并按内容重新计算部件身份，格式错误或过大的文件会被拒绝并给出提示；部件库可按来源筛选（[#1215](https://github.com/BotHarness/DeepSeekBot/issues/1215)）。
+- 部件编辑器新增直线和矩形（按住 Shift 锁定直角和正方形）、带 4×4 或 2×2 抖动的明暗渐变、可调强度并可 **重新随机** 的杂色、吸管（也可按住 Alt 点击或长按），以及每笔只变亮或变暗一次的 **明暗笔**。所有工具都支持镜像，每次操作是一步撤销；结果仍是外形颜色加明暗，部件照样跟着变色。触屏上双指轻点撤销、三指轻点重做，**偏移光标** 配合 **按住绘制** 按钮，手指不会挡住要画的像素（[#1216](https://github.com/BotHarness/DeepSeekBot/issues/1216)）。
+- 每片头发都能单独设颜色：前发、后发和新的单根呆毛（呆毛、卷翘或双呆毛）加入左右侧发颜色的行列，没选颜色时跟随发色。**头饰** 现在提供内置的猫耳、兔耳、马耳、小角、光环和新的小翅膀，可以和任意配饰一起戴；根部藏在头发后面，转头时远侧会隐藏。已保存的头像如果把这些当作配饰戴着，在你编辑前外观不变，编辑时会移到头饰位（[#1217](https://github.com/BotHarness/DeepSeekBot/issues/1217)）。
+- 其他工具画的像素画也能变成部件：**导入部件文件** 现在也接受部件尺寸的普通 PNG（32×32、32×16 或其整数倍放大）。会先显示尺寸和颜色数，再选择保留几种颜色（最多 32 种，取最接近的颜色，不抖动）；导入的像素是固定颜色，可以用 **替换颜色** 换成外形颜色和明暗。内置头饰可以作为压平的起点打开；基于别人部件保存的新部件会记录父部件并保留原作者名字。部件库筛选新增 **基于其他部件修改** 和 **来自导入的图片**（[#1219](https://github.com/BotHarness/DeepSeekBot/issues/1219)）。
+- 像素头像可以是动物了：猫、狗、狐狸、兔子和熊各有口鼻、动物鼻子和自己的耳朵，并有建议毛色（肤色就是毛色，也可以选任意颜色）。**毛色花纹** 提供虎斑、斑点、奶牛斑和重点色，用毛色明暗绘制，换色后仍保留；也可以自己画花纹。动物戴耳朵类头饰或配饰时会保留但隐藏，并显示说明（[#1218](https://github.com/BotHarness/DeepSeekBot/issues/1218)）。
+- 头发也能自己画了：在前发、左右侧发或后发里，从当前戴的样式开始（压平成像素），用同样的工具改形状，存进部件库并戴在这个位置。自绘头发会像内置头发一样上阴影、跟着发色变色、随头部转动，戴头盔／兜帽或变成花朵时会隐藏。点 **换回内置样式** 可恢复原来的选择（[#1238](https://github.com/BotHarness/DeepSeekBot/issues/1238)）。
+- 可以为像素头像自己画头饰：铅笔、橡皮、填充、沿脸部中线镜像，前层盖在头发上、后层在头发后面，支持撤销重做，并在真实头像上显示 1× 预览。颜色可以跟随头像的发色、肤色、眼睛或衣服颜色（五档明暗），也可以是固定色。保存的部件进入 Profile 里的部件库，任何 PersonaBot 都能戴上；戴上的副本会在窗口伙伴里随头部转动和说话，并随导出的 Bot 一起带走；修改库里的部件会另存为新部件，不会改变已经戴着旧部件的头像（[#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)）。
+- 像素头像新增精灵、矮人、兽人和会说话的花。胡子始终露出说话的嘴，新增盔甲、法袍、束腰外衣和斗篷，戴上头盔或兜帽会遮住下面的头发。花有豆豆眼、五种花瓣样式，以及茎叶或花盆。当前物种或头饰不显示的选择会保留并给出提示，换回后恢复（[#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212)、[#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)）。
+- 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
+- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用或开始微信扫码配对，并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。内联配置会保留已有微信账号，避免替换原有配对。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
+
+### Fixed
+
+- 已静止的 Assignment 等待工具审批时释放运行名额，让其他事项继续；审批决定收到后，原调用先等待名额再继续，卡片分别显示两种等待。等待会话有独立上限，有后代的 root 保守占用名额，撤权或重启均不重放原调用（[#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)）。
+
+## [1.2.0] - 2026-10-08
+
+Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个应用即可在飞书、Slack、Discord 和微信收发消息；群 Channel 可以连接外部会话；Bot 可以导出为 zip 并在别处导入；Bot 资料页新增横幅、标签和简介，设置项移到 Channel 侧栏；Bot 市场改为资料卡；Bot 模式可以帮你安装 Git；首次进入 Bot 模式会带你完成一次真实对话。
+
+### Breaking Changes
+
+- 环境恢复新增 Schema Generation 72；升级后应向前修复。恢复环境保留身份和历史，但需要明确授权目标本地模型并激活新会话；旧 Session 和 Outbox 工作不会重放（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
+
+- 内容清除新增 Profile schema Generation 70 与必须保留的独立 Purge Ledger；恢复运行数据库快照时须保留该账本，升级后应向前修复。v2 检查点包含托管文件选择器并兼容导入 v1 纯文本检查点；回退代码或运行数据库不能撤销已接受的清除事实（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)）。
+- Bot 引导增加 Profile schema Generation 71。升级前请备份；升级后的 Profile 需使用兼容版本，或从升级前备份恢复（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
+- PersonaBot 删除引入 Profile schema Generation 66；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
+
+### Added
+
+- 欢迎消息仅在原生搜索凭据和 Bot 的搜索工具已配置时提供带来源的今日 AI 新闻，否则显示通用工作规划示例；新闻请求明确要求如实说明搜索失败（[#1174](https://github.com/BotHarness/DeepSeekBot/issues/1174)）。
+
+- 像素头像可以选择哥布林：尖耳朵穿出头发、带小獠牙、配建议的绿色肤色；左右侧发可以分别选择样式和颜色。哥布林在 Window Companion 中同样支持转头和说话嘴型，随机也会覆盖两个物种，已有头像渲染不变（[#1210](https://github.com/BotHarness/DeepSeekBot/issues/1210)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)）。
+
+- 欢迎消息提供每天 21:00 的晚间问候示例，选择前显示浏览器时区与当前私聊；无法识别时区时先询问，既有模型配置流程保留完整请求并等待明确发送（[#1228](https://github.com/BotHarness/DeepSeekBot/issues/1228)）。
+
+- Bot 市场现在会显示每个 Bot 的资料横幅：列表每一行有缩略图，详情页顶部是完整横幅；没有横幅的 Bot 显示中性占位。市场 Worker 从 `.botharness/bot.json` 读取 `banner`：像素场景在本地绘制，上传的图片按收录时的提交从仓库加载（[#1093](https://github.com/BotHarness/BotHarness/issues/1093)）。
+
+- 欢迎消息的十分钟提醒会展示浏览器时区，明确只提醒一次并发回当前私聊；主程序计算相对提醒时间，避免向下取整导致提前，Bot 获得简洁的一次性任务与明确投递位置指引（[#1208](https://github.com/BotHarness/DeepSeekBot/issues/1208)）。
+
+- 每个 Bot 的资料页和资料小窗顶部都有了横幅。新建的 Bot 会按名字挑一张像素场景，改名不会变；已有的 Bot 在下次启动时补上一张。点 **更换横幅** 可以从十个场景里挑、换一张、上传图片并裁成 3:1，或恢复生成的场景。`.botharness/bot.json` 记录横幅，`.botharness/banner.png` 总会写入，Bot Zip 导出、导入和从 Git 导入都会保留它（[#1092](https://github.com/BotHarness/BotHarness/issues/1092)）。
+
+- 完成首次真实 Bot 对话后，欢迎消息提供可选的「绑定应用」入口，复用既有平台选择和官网教程；选择「暂时不绑定」保留完成状态，绑定结果与接收状态以真实记录为准（[#1203](https://github.com/BotHarness/DeepSeekBot/issues/1203)）。
+
+- Bot 模式首次真实回复后，欢迎消息提供可选的记忆体验：查看现有记忆文件与实际变更，或将自由填写的偏好作为普通私聊请求发送；跳过不打扰，也不会把初始模板或回复当作保存成功的证据（[#1200](https://github.com/BotHarness/DeepSeekBot/issues/1200)）。
+
+- Bot 设置可导出、检查一个完整且已验证的 `.botharness-backup`，包含自定义及已删除身份保留的 Memory、当前附件、模型模板与独立计划，以及真实清除检查点；安装包提供的本地命令仅恢复至新的停止环境（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)）。
+
+- 窗口伙伴气泡随像素半身的头部倾斜、拉伸与移动定位；卡片因避让或视口限位偏移时保留来源连线，文字保持直立；窗口缩小时人物与连线锚点同步限位，图片与不支持的形象使用可见盒子顶部锚点（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
+
+- 微信身份启停与原生输入状态可分别继承全局默认值或保留 Bot 自定义；升级保留现有选择，界面不显示未支持的群聊／Thread 设置（[#912](https://github.com/BotHarness/BotHarness/issues/912)，[指南](docs/wechat-connection.md)）。
+
+- 隔离 AX 启动向 coding agent 提供有界、白名单化的真实 Client 启动／运行证据和明确 shell 就绪状态，跨文档重试保留首次失败（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184), [guide](docs/dev/guides/client-startup-diagnostics.md)）。
+
+- 已结束群聊可查看保留历史，并单独预览、确认 Source Event 内容清除，确认前展示全部共享位置、收件记录、托管文件与依赖效果。独占的当前／旧版附件会清理，共享文件保留，中断清理重启后继续，已发出回复保留真实结果；恢复检查点和异步清除屏障为后续 Profile 备份提供合同（[#897](https://github.com/BotHarness/DeepSeekBot/issues/897)，[验收指南](docs/agents/qa-channel-purge.md)）。
+- 首次进入 Bot 模式会准备一个 DeepSeek Bot、真实私聊，以及能力介绍、新闻和定时请求的欢迎选项；模型保存与问题发送分步进行，保留未发出的请求，支持 Profile 默认模型与 Bot 继承，只有收到真实回复才算完成；欢迎消息收紧间距，底部创建入口使用独立的主题强调色按钮，提问默认隐藏 Session 来源与短标题，仅开发者模式展示，其他回答使用紧凑输入提示，切换偏好保留答案；欢迎与提问选项复用首尾圆角相连的侧栏卡片，使用独立背景、直接单选和复选框多选，引导与全局模型设置复用 Bot 编辑器的模型和推理强度控件。教程进度可跨重启恢复，安全的手动重试沿用原 Human 消息（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)，[ADR-0147](docs/adr/0147-onboarding-is-profile-progress-over-canonical-dm-evidence.md)）。
+
+- 钉选的窗口伙伴在审批之外显示正式待答问题，可通过相连选项列表、复选框多选或紧凑输入直接回答，无需切换聊天；草稿不受新消息及开发者模式切换影响，只有既有提问拥有者可接受回答并恢复原本等待的 Session（[#1179](https://github.com/BotHarness/DeepSeekBot/issues/1179)）。
+
+- 已钉选的窗口伙伴常驻显示工具审批请求，Human 无需打开 Bot 私聊即可处理，沿用既有审批拥有者、规则确认、断线状态校验与请求延迟移除后的键盘焦点恢复（[#1178](https://github.com/BotHarness/DeepSeekBot/issues/1178)）。
+- 支持的像素窗口伙伴会随着已提交消息逐字呈现而开合嘴，在标点处闭嘴，播放结束、取消或切到后台后恢复保存的表情；名册头像与图片降级保留原有形象（[#1143](https://github.com/BotHarness/DeepSeekBot/issues/1143)）。
+
+- 窗口伙伴独立于 Bot 模式跟随归档和删除，保留图片及未知版本快照回退，并支持键盘阅读与操作；键盘菜单在定位完成后接收焦点，关闭时将焦点交还原控件；动态效果偏好变化立即归位，离屏呈现和旧动画停止，不重播旧消息 ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).
+
+- 窗口伙伴在同一 Host 的短暂断线后，有界恢复尚未播放且仍符合范围的回复，暂时关闭的消息流会重试，保留阅读进度；页面隐藏时暂停呈现。重新开启来源只播放后续消息，首次钉选及 Client／Host 重启不重播历史（[#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)）。
+
+- 窗口伙伴可以独立开启群聊消息，按每个 Bot 选择仅自己的私聊、共同会话或该 Bot 的全部会话；Bot–Bot 私聊标明双方参与者，所有气泡标明原 Channel 并遵守其现有读取权限。切换来源或范围只移除不再符合条件的卡片，保留仍可见的阅读和排队消息，新开启来源只播放后续已提交的 Bot 正文，不改变已读位置（[#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)）。
+
+- Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
+
+- 飞书、Slack 和 Discord 的群现在显示真实群名，不再显示 ID：外部身份、接入的外部会话、频道里的消息和 Bot 读到的内容都改为群名，Bot 仍会同时看到 ID。Discord 群显示为「服务器 #频道」。飞书发送者名字查询放宽了超时，并按应用缓存；查询失败时退回显示 ID。已有条目会在下一条消息到达时更新名字（[#1151](https://github.com/BotHarness/BotHarness/issues/1151)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 群频道可以接入外部会话：在群频道侧栏的「外部连接器」中点 **接入外部会话**，选一个已绑定的应用和它已知的一个群，之后这个群里的每条消息都会出现在频道里。成员 Bot 默认只把这些消息当作上下文，只有被 @ 时才会被唤醒；接入的唤醒设置可以改成攒够条数后唤醒或每条立即唤醒，成员在频道里单独设置的唤醒策略仍然优先。每一行显示状态和最后一条消息的时间，可以用开关暂停，**删除** 后不再接收新消息，已接入的消息保留（[#1145](https://github.com/BotHarness/BotHarness/issues/1145)，[ADR-0143](docs/adr/0143-an-external-conversation-streams-into-a-channel-as-one-way-context.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
 - 私聊已绑定的 Slack 应用，消息现在会进入 Bot 收件箱，Bot 直接在私聊里回复，不开 thread；Discord 应用也重新出现在 **绑定应用** 里。开发用的 IM Provider 换到新的 dsh-im 版本，包含 Slack 私聊接收、Discord checked 发送，以及 Slack/Discord 回复里的 checked @（[#1125](https://github.com/BotHarness/BotHarness/issues/1125)、[外部身份指南](docs/channel-sidebar/external-identities.md)）。
+
+- 从侧栏菜单或 Channel 顶部各 Bot 的独立按钮可钉选多个透明像素窗口伙伴，各自保留真实 Activity、新 Human–Bot 私聊气泡、拖拽物理效果、阅读列表和走动偏好；Profile 共用设置控制层叠层数与有界卡片容量，重启恢复偏好且不重播旧消息。减少动效时关闭下落和姿态效果，暂停只停止走动，不暂停 Bot 执行（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)、[#1139](https://github.com/BotHarness/DeepSeekBot/issues/1139)）。
 
 - 一个 Bot 可以绑定同一平台的多个应用，例如两个飞书应用：每个应用的私聊和 @ 都进入同一个收件箱，并通过收到消息的应用回复。**绑定应用** 列出所有已连接的应用，已被 Bot 使用的应用置灰并注明是哪个 Bot；外部身份按平台列出这个 Bot 的应用。Bot 在同一个群里有两个应用时，转发来源的回复会明确拒绝（[#1110](https://github.com/BotHarness/BotHarness/issues/1110)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 
@@ -34,6 +114,7 @@
 - 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
 
 - AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。
+- 新增微信原生输入状态源码预览候选，随已授权扫码者私聊的实际处理启动，有界续期并在处理结束或授权失效时清理，身份设置可单独关闭；原生客户端显示和打包产品验证仍由 [#911](https://github.com/BotHarness/BotHarness/issues/911) 跟踪（[指南](docs/wechat-connection.md)、[ADR-0145](docs/adr/0145-wechat-typing-follows-owned-processing-leases.md)）。
 
 - 个人微信已授权扫码者私聊支持受控主动文字报告，复用纯外部 Outbox、发送前授权检查及私有上下文缺失的恢复提示；Profile 可显式投递，客户端确认和实际返回的原生服务器消息 ID 分开记录，不宣称送达或已读回执（[#910](https://github.com/BotHarness/BotHarness/issues/910)，[指南](docs/wechat-connection.md)）。
 
@@ -53,16 +134,39 @@
 - Bot 模式现在可以帮你安装 Git：Host 上的 Git 不可用时，点 **安装 Git** 会把固定版本的便携版 Git 下载到 DeepSeek Harness 数据目录（先从 `media.botharness.ai`，失败再从 GitHub），校验 SHA-256 后立即启用，不用重启，也不需要管理员权限；Orchestrator 的 Shell 也会用同一个 Git。每次启动时仍优先使用可用的系统 Git（[#1097](https://github.com/BotHarness/BotHarness/issues/1097)，[Git 一节](docs/installation.md#git)）。
 - 从 SSH 地址导入 Bot 现在会自动改用 HTTPS：克隆 `git@host:owner/repo` 或 `ssh://git@host/owner/repo` 失败时，Host 会用对应的 HTTPS 地址重试一次并告诉你已经切换，之后这个 Bot 通过 HTTPS 同步；HTTPS 也失败时显示原来的 SSH 错误。DeepSeekBot 设置新增 **Git** 一行，显示正在使用的 Git 版本以及是系统 Git 还是托管 Git（[#1098](https://github.com/BotHarness/BotHarness/issues/1098)，[Git 一节](docs/installation.md#git)）。
 
+- Lark 反馈候选通过可选 checked Provider，在 Inbox 持久接收后显示原生 `GLANCE`、对应回复获外部接受后显示 `DONE`；首条反馈等待受校验连接就绪，权限拒绝归为明确失败。有界 QA 已确认私聊及群表情、群回复状态、静音仅接收、Provider 重连、现场 Host 重启后的新回复及 Web 明暗截图；屏蔽来源精确到达及 Web 生命周期可靠性尚未通过验证（[#1040](https://github.com/BotHarness/BotHarness/issues/1040), [guide](docs/lark-connection.md#receipt-and-answer-feedback-candidate)）。
+
 ### Changed
 
+- Bot 市场的卡片改成了资料卡的样子：资料横幅在上，Bot 头像压在横幅下沿，名称、仓库和安装按钮排在头像右侧，下面是两行简介，以及标签、星数、更新时间合成的一行。详情页顶部也用同样的横幅和头像，弹窗每行显示两张卡（[#1232](https://github.com/BotHarness/BotHarness/pull/1232)）。
+- **绑定应用** 弹窗可直接打开官网的 Lark／飞书、Slack、微信连接教程和更多平台总览；移除侧栏独立的 Lark 配置引导卡片，让平台配置说明集中在官网维护 ([#822](https://github.com/BotHarness/DeepSeekBot/issues/822)).
+
+- **新会话** 也成了平台默认设置：飞书、Slack、Discord 的全局 IM 默认设置里各有一个 **新会话** 选项（不改就是 **自动接收**），每个已绑定应用都跟随它，除非你为这个应用单独选择。已经设为 **先问我** 的应用保持不变（[#1134](https://github.com/BotHarness/BotHarness/issues/1134)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
 - 「外部连接器」不再提供 **添加外部连接器** 和 **授权外部会话**（同步正在围绕“接入任意应用的会话”重新设计），只列出已有的同步，并保留 **保存发送目标（高级）** 给不能直接发往会话的应用。会话行会显示已同步到哪里，操作按钮（**静音**、**规则**、**屏蔽**）单独一行并各带说明提示。Lark 配置引导缩减为三步（连接应用、绑定、发消息验证），Lark、Slack、微信连接教程围绕 **绑定应用** 重写（[#1113](https://github.com/BotHarness/BotHarness/issues/1113)、[Lark 教程](docs/lark-connection.md)、[外部连接器说明](docs/channel-sidebar/external-connectors.md)）。
 
 - Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
 - Bot 的 IM 设置从 Profile 移到私聊 Channel sidebar 的两个新分区。**外部身份** 每个已绑定身份一行，显示可用状态和启用开关，下面是 **绑定身份**、Lark 配置引导、IM 管理员配对和 Lark 审批通知。**外部连接器** 每个连接器一行，显示状态和启用开关，下面是 **添加外部连接器** 和外部会话授权。点击一行打开弹窗修改，选项与原来一致。**频道连接器** 改名为 **外部连接器**。SOUL.md 和 MEMORY.md 的常驻记忆上限变成 **记忆文件** 下的一行，点击打开弹窗。迁移后的表单统一使用共享的下拉框、输入框和复选框（[#1085](https://github.com/BotHarness/BotHarness/issues/1085)，[外部身份教程](docs/channel-sidebar/external-identities.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- 本地群的成员唤醒设置和外部连接器从群 Profile 移到群 Channel sidebar 的两个新分区 **唤醒策略** 与 **外部连接器**，位于成员和群管理之间。唤醒策略每个成员 Bot 一张卡片，显示它在这个群里的规则、与之不同的外部平台规则，为这个群单独设置时带 **频道自定义** 标记；点击卡片打开与原来相同的弹窗。外部连接器把这个群的连接器和已接入的外部会话列成卡片行，点击打开编辑弹窗。两个分区都可排序或隐藏，群 Profile 现在只显示群名、头像和消息活跃度（[#1086](https://github.com/BotHarness/BotHarness/issues/1086)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)，[外部连接器教程](docs/channel-sidebar/external-connectors.md)）。
+- Bot 资料页现在只显示 Bot 是谁和它的活动。新的头部有横幅区域、头像、名称、**标签** 和 **简介**，右上角是 **分享**、**编辑资料** 和 **⋯** 菜单。**编辑资料** 可以一起修改名称、标签（最多 8 个，每个不超过 32 个字）和简介（最多 160 个字）；点头像打开头像编辑。**分享** 导出 Bot zip，侧栏里右键 Bot 也能分享；**删除 Bot** 移到了 **⋯** 菜单。岗位徽章改叫标签，描述改叫简介。`.botharness/bot.json` 写入 `tags` 和 `bio`，改简介会像改名一样同步；仍使用 `roles` 的文件和 zip 会当作标签读取，从 zip 导入时保留标签和简介。Bot 市场 API 返回 `tags` 和 `bio`，没有时使用 `roles` 和 GitHub 仓库描述（[#1087](https://github.com/BotHarness/BotHarness/issues/1087)，[分享 Bot 教程](docs/share-bot.md)，[导出与导入教程](docs/bot-zip.md)）。
+- Profile 里的 **Token 用量** 卡片更短了：可在 **每日总量** 和 **按模型** 之间切换，时间范围为 7 / 30 / 90 天和全部，自定义范围在 **⋯** 菜单里。去掉了角色筛选、模型/提供商筛选、缓存占比区域和执行明细；鼠标悬停在柱子上可以看到缓存输入、非缓存输入和输出的拆分。单独的 **累计值** 卡片已移除，之前置顶它的设置会被自动忽略（[#1088](https://github.com/BotHarness/BotHarness/issues/1088)，[设置教程](docs/settings.md)）。
+- Bot 资料页的事件活跃和 Memory 提交热力图现在铺满卡片宽度，最新一周在最右边，向左滚动会加载更早的周，一直到 Bot 创建那天；小窗里的热力图铺满小窗，不需要滚动。按来源分的事件列表移到了每天的悬停提示里（[#1089](https://github.com/BotHarness/BotHarness/issues/1089)）。
+- 界面文案统一称呼「你」和「Bot」：中英文标签里不再出现 Human、PersonaBot、Source Event 和 Attention，清除后的占位显示「`正文已清除 · 你 · {时间}`」，连接器入口统一叫「外部连接器」。这些内部术语再次出现时会有测试失败（[#1090](https://github.com/BotHarness/BotHarness/issues/1090)）。
 
 ### Fixed
 
 - QQ 应用在 Host 重启时延迟就绪后，已有群 Channel 同步会沿用有界重试恢复，首条新提及不再只进入 Inbox（[#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156)）。
+
+- 显式配置原生 RC2 timed 问题的 Profile 中，DM 问题卡片在前台超时后仍可回答，同一个 Bot 可以处理其他消息；稍后提交的答案在原生会话接收前显示为已提交。生产版本依赖与 RC1 阻塞式提问保持不变（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。
+
+- Bot 引导不会再因旁观窗口退出或设置模型而暂停其他窗口的教程；完成后仍可主动重播，单独保存 Bot 模型或恢复继承后，已打开的模型卡片立即刷新（[#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)）。
+
+- **绑定应用** 保留其他 Bot 已绑定的应用并明确标注归属，教程链接增加跳转箭头，应用标题行和各种下拉状态始终提供 **添加新应用** 入口；从 IM 设置返回后恢复弹窗并自动刷新，选择框右侧提供带提示的刷新图标以便重试（[#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
+- npm 发布准备因工作区不干净而拒绝时，会列出具体变更路径并限制诊断输出数量，保留尚未审核的文件改动 ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).
+
+- 取消窗口伙伴钉选会清除其 Activity 连接异常提示；成功加载 Bot 名单后，会清理已删除 Bot 的恢复钉选，网络失败仍保留用户钉选偏好（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
+
+- 窗口伙伴向左右拖动时，身体按惯性落后于抓取点；落地贴住窗口内容区底边，不再保留底部间隙（[#1138](https://github.com/BotHarness/DeepSeekBot/issues/1138)）。
 
 - Bot 读到的 IM @ 改成名字，不再是平台占位符：飞书的 `@_user_1` 和 Slack 的 `<@U…>` 以 `@名字` 交给模型（平台没给名字时用 `@ID`），每条外部消息还列出发送人和被 @ 的人及其平台 ID。Bot 在 `bridge_reply` 正文任意位置写 `<@ID>`，就能在飞书、Slack 或 Discord 上 @ 这条消息的发送人或其中被 @ 的人（Slack 和 Discord 通过 IM Provider 的 checked @ 提醒，旧版 Provider 退回 `@名字` 文字）；其他 ID 或 @ 标记按纯文本发出（[#1126](https://github.com/BotHarness/BotHarness/issues/1126)）。
 - **绑定应用** 不再隐藏 IM 插件暂时不支持的应用。插件缺少受检发送能力的 Discord 应用现在会置灰显示，并注明 **需要更新 IM 插件后才能绑定**，不会再悄悄从列表里消失（[#1123](https://github.com/BotHarness/BotHarness/issues/1123)）。
@@ -72,6 +176,16 @@
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
 
 ### Documentation
+
+- 通过隔离的真实模型实验验证 RC2 原生 timed question：稍后答案可准确关联原问题，等待期间仍可对话；现有 Web 问题卡片仍会过期，生产权限审批与容量门禁继续阻塞（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](docs/research/1220-native-timed-question-experiment.md)）。
+
+- 记录 [AX 浏览器验收流程](docs/agents/ax-browser.md)，区分准确地址的权限证据、Host 传输、导航拒绝和截图／输入超时，并保留用户明确授权的本地端口重试结果（[#1225](https://github.com/BotHarness/DeepSeekBot/issues/1225)）。
+
+- 记录已接受的像素 Avatar 扩展设计：同一 rig 上的 Avatar Species（奇幻、动物与花的基底）、可分别上色的头发分片、穿过头发的头饰槽，以及 Human 自绘、保存在 Profile 部件库中并随导出 PersonaBot 携带、以 PNG 流转的 Custom Part；运行时行为不变（[#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135)、[ADR-0148](docs/adr/0148-avatar-species-and-custom-parts-extend-one-pixel-rig.md)、[交接说明](docs/research/2026-10-08-avatar-species-and-custom-parts-handoff.md)）。
+
+- 记录固定版本的原生 Human 等待验证，以及提问／权限待决期间群聊仍可互动的后续要求：独立 Assignment 审批期间 Orchestrator 可继续处理，但其自身审批／提问仍阻塞无关模型处理；生产 continuation 仍保持 gate（[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [experiment](docs/research/1036-native-wait-experiment.md), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [#1038](https://github.com/BotHarness/DeepSeekBot/issues/1038)）。
+
+- 记录已确认的窗口内透明半身像素伙伴设计：本地伙伴选择、三档 Bot 输出范围、独立播放开关及不重播历史的有界消息消费；本次不改变运行行为（[#1132](https://github.com/BotHarness/BotHarness/issues/1132)、[规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135)、[ADR-0143](docs/adr/0143-window-companions-consume-owned-activity-and-scoped-output.md)）。
 
 - 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括 AppData 物理路径、隔离 Profile 的包管理器版本锁定、真实 Shell 退出证据及进程时间戳保护。双语 [Lark 指南](docs/lark-connection.md)记录准确候选源码经 Human 点击允许一次／拒绝的真实核验；此次文档更新不改变运行行为（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 

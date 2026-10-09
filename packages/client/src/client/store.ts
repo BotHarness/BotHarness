@@ -9,6 +9,9 @@ import type { AvatarAppearance } from '../../../core/src/bots/avatar-appearance.
 import type { GitAvailability } from './bridge.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
+import type { PurgedPlacement } from '../../../core/src/purge/contracts.js';
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
+import { createContentRedactions } from './content-redactions.js';
 
 export type ClientMode = 'dsh' | 'bot';
 
@@ -19,6 +22,8 @@ export interface StandingLimitsView {
   coreMemory: number;
 }
 
+export type BotBannerView = { recipe: PixelBannerRecipe } | { image: string };
+
 export interface BotSummary {
   slug: string;
   displayName: string;
@@ -27,7 +32,10 @@ export interface BotSummary {
   avatar?: string;
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
+  banner?: BotBannerView;
+  avatarSeed?: 2;
   paused?: boolean;
+  deleted?: boolean;
   standingLimits?: StandingLimitsView;
   aggregateState: string;
   activity?: PersonaBotToolActivity;
@@ -134,6 +142,7 @@ export interface UserQuestionAnswerItem {
 }
 
 export interface UserQuestionRequestCard {
+  callId?: string;
   sessionId: string;
   questions: UserQuestionItem[];
 }
@@ -145,6 +154,7 @@ export interface UserQuestionResolution {
 }
 
 export interface SessionFailureCard {
+  requestMessageId?: string;
   role: 'orchestrator' | 'assignment';
   sessionId: string;
   code?: string;
@@ -154,6 +164,8 @@ export interface SessionFailureCard {
 }
 
 export interface ChannelMessage {
+  onboardingWelcome?: { version: 1 };
+  contentPurged?: true;
   bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
   bridgeMedia?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeMedia'];
   id: string;
@@ -433,6 +445,7 @@ export interface PersonaBotActivitySnapshot {
 }
 
 export interface ClientStore {
+  purgeContent(placements: readonly PurgedPlacement[]): void;
   getSnapshot(): ClientState;
   subscribe(listener: () => void): () => void;
   setMode(mode: ClientMode): void;
@@ -526,6 +539,7 @@ function sameSelection(
 
 export function createStore(): ClientStore {
   const conversations = new Map<string, ConversationState>();
+  const redactions = createContentRedactions();
   const botChannels = new Map<string, string>();
   const sessionsByBot = new Map<string, SessionsState>();
   const inboxesByBot = new Map<string, BotInboxState>();
@@ -611,11 +625,34 @@ export function createStore(): ClientStore {
   };
 
   const update = (patch: Partial<ClientState>): void => {
-    state = { ...state, ...patch };
+    state = {
+      ...state,
+      ...patch,
+      ...(patch.channels === undefined ? {} : { channels: patch.channels.map(redactions.channel) }),
+      ...(patch.conversation === undefined
+        ? {}
+        : { conversation: redactions.conversation(patch.conversation) }),
+      ...(patch.botInbox === undefined ? {} : { botInbox: redactions.botInbox(patch.botInbox) }),
+      ...(patch.humanInbox === undefined
+        ? {}
+        : { humanInbox: redactions.humanInbox(patch.humanInbox) }),
+    };
     for (const listener of listeners) listener();
   };
 
   return {
+    purgeContent(placements) {
+      redactions.accept(placements);
+      for (const [id, conversation] of conversations)
+        conversations.set(id, redactions.conversation(conversation));
+      for (const [slug, inbox] of inboxesByBot) inboxesByBot.set(slug, redactions.botInbox(inbox));
+      update({
+        channels: state.channels,
+        conversation: state.conversation,
+        botInbox: state.botInbox,
+        humanInbox: state.humanInbox,
+      });
+    },
     getSnapshot: () => state,
     subscribe: (listener) => {
       listeners.add(listener);
@@ -702,7 +739,8 @@ export function createStore(): ClientStore {
     },
     updateCachedConversation(channelId, apply) {
       const cached = conversations.get(channelId);
-      if (cached !== undefined) conversations.set(channelId, apply(cached));
+      if (cached !== undefined)
+        conversations.set(channelId, redactions.conversation(apply(cached)));
     },
     setSessions(patch) {
       update({ sessions: { ...state.sessions, ...patch } });

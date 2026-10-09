@@ -62,6 +62,8 @@ export class SessionOwnershipConflictError extends SessionOwnershipError {
 }
 
 export interface SessionOwnership {
+  contentAvailable(sessionId: string): boolean;
+  markContentUnavailable(): void;
   claim(input: SessionOwnershipClaim): SessionOwnershipRecord;
 
   claimWithin(connection: DatabaseSync, input: SessionOwnershipClaim): SessionOwnershipRecord;
@@ -202,6 +204,17 @@ export function createSessionOwnership(database: OperationalDatabaseModulePort):
   };
 
   return {
+    contentAvailable(sessionId) {
+      return database.read(
+        (db) =>
+          db
+            .prepare('SELECT content_available FROM session_ownership WHERE session_id = ?')
+            .get(sessionId)?.content_available === 1,
+      );
+    },
+    markContentUnavailable() {
+      database.transaction((db) => db.exec('UPDATE session_ownership SET content_available = 0'));
+    },
     claim(input) {
       try {
         return database.transaction(

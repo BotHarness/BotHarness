@@ -27,6 +27,7 @@ function fixture() {
   broker = new ChannelToolApproval(core.channels, core.ownership, undefined, () =>
     valid ? 'qa-scope' : undefined,
   );
+  core.companions.attachApprovals(broker);
   const methods = createBridgeMethods({ ...core, toolApproval: broker });
   const start = async (slug: string, signal?: AbortSignal) => {
     core.registry.create({ slug, displayName: slug });
@@ -67,6 +68,70 @@ function fixture() {
 }
 
 describe('Human Inbox approval Host boundary', () => {
+  it.each(['allowed-once', 'rejected'] as const)(
+    'discovers current companion requests without speech replay and reconciles a competing %s decision',
+    async (outcome) => {
+      const f = fixture();
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+      try {
+        const ada = await f.start('ada');
+        const response = f.core.companions.open(
+          new Request('http://localhost/api/botharness/companion?botId=ada&dm=0'),
+        );
+        reader = response.body!.getReader();
+        const read = async () => {
+          const text = new TextDecoder().decode((await reader!.read()).value);
+          const data = /data: ([^\n]+)/u.exec(text)?.[1];
+          if (!data) throw new Error('Missing companion snapshot');
+          return JSON.parse(data) as { bot: { requests: unknown[] } };
+        };
+        expect((await read()).bot.requests).toMatchObject([
+          {
+            kind: 'tool-approval',
+            botSlug: 'ada',
+            channelId: 'dm-ada',
+            messageId: ada.message.id,
+            sessionId: 'qa-ada',
+            callId: 'call-ada',
+            input: '{\n  "command": "echo QA_RELEASE"\n}',
+          },
+        ]);
+        const results = await Promise.all(
+          [0, 1].map(() =>
+            f.methods.toolApprovalDecide({
+              channelId: ada.channelId,
+              messageId: ada.message.id,
+              outcome,
+            }),
+          ),
+        );
+        expect(results.map((result) => result.ok).sort()).toEqual([false, true]);
+        expect(await ada.answer).toBe(outcome);
+        expect((await read()).bot.requests).toEqual([]);
+        expect(
+          f.core.channels
+            .readMessages(ada.channelId)
+            .filter((message) => message.toolApprovalDecision),
+        ).toHaveLength(1);
+        await reader.cancel();
+        f.core.companions.attachApprovals(
+          new ChannelToolApproval(f.core.channels, f.core.ownership),
+        );
+        reader = f.core.companions
+          .open(new Request('http://localhost/api/botharness/companion?botId=ada'))
+          .body!.getReader();
+        expect((await read()).bot.requests).toEqual([]);
+      } finally {
+        await reader?.cancel();
+        f.broker.close();
+        f.core.companions.close();
+        await f.core.runtime.close();
+        f.core.externalMessaging.close();
+        f.core.live.close();
+        f.core.operationalDatabase.close();
+      }
+    },
+  );
   it.each(['allowed-once', 'rejected'] as const)(
     'settles %s once, resumes its native caller and preserves another Bot action',
     async (outcome) => {

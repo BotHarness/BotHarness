@@ -11,6 +11,18 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 - 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录经核验的 Cordis 诊断 exporter／Patch 插入要求、QQ 延迟就绪后的恢复检查及原因未明的原生 Client locale 截图失败，通过 DSH 0.2.0 RC1 检查；平台词汇与 Skill 行为不变（[#1156](https://github.com/BotHarness/DeepSeekBot/issues/1156)）。
 
+- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录隔离 RC2 timed question 的前台／持续问题区别、原生稍后回答接口复验、原始应用卡片不兼容及实测发现的应用运行生命周期陷阱；生产 RC1、DSH／Cordis Context 与 Decision Tree 保持不变（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](../../../docs/research/1220-native-timed-question-experiment.md)）。
+
+- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 RC1 原生 Human 等待持有当前 Agent Step、Inbox 接受与模型处理的区别，以及准确调用的决定／结果复验；DSH／Cordis Context 与 Decision Tree 保持不变（[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。
+
+- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 RC1 流式 GET 请求拒绝及真实认证 Host 复验路径；DSH／Cordis Context 与 Decision Tree 保持不变（[#886](https://github.com/BotHarness/DeepSeekBot/issues/886)）。
+
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录主动读取真实 Client console／DOM、有界诊断、后台标签限制和原生 root／Session guard 精确复现，通过 DSH 0.2.0 RC1 核验；DSH／Cordis Context 与 Decision Tree 不变（[#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)）。
+
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录 Windows 原生 Sandbox 初始化权限及已安装 ACL 诊断 Skill 的限定修复／复验路径，通过 DSH 0.2.0 RC1 实际原生 pwsh 等待命令核验；平台词汇与 Skill 行为不变（[#911](https://github.com/BotHarness/BotHarness/issues/911)）。
+
+- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录暂时 HTTP 拒绝后 EventSource 终态关闭及应用拥有的有界退避、恢复标识与清理，通过安装运行的 DSH 0.2.0 RC1 Profile 观察；平台词汇与认证归属保持不变（[#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)）。
+
 - 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 Windows AppData 物理路径、隔离 Profile 的包管理器资格核验、原生 Shell 结果检查及进程时间戳保护，通过 DSH 0.2.0 RC1 核验；平台词汇与 Skill 行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Go 的 Session 请求头要求及经核验的 DSH 0.2.0 RC1 适配器补丁，通过真实模型调用和已保存 DM 回复验证；DSH／Cordis 词汇与 Skill 行为不变（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [AX 指南](../../../docs/agents/ax-model.md)）。

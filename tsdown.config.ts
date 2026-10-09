@@ -114,6 +114,16 @@ export default defineConfig([
     outputOptions: { banner: '#!/usr/bin/env node' },
   },
   clientBundleOptions,
+  {
+    entry: ['packages/deepseekbot/src/profile-cli.mjs'],
+    outDir: 'packages/deepseekbot/dist',
+    format: ['esm'],
+    platform: 'node',
+    dts: false,
+    clean: true,
+    external: ['@botharness/core'],
+    outputOptions: { banner: '#!/usr/bin/env node' },
+  },
   computerClientBundleOptions,
   browserClientBundleOptions,
 ]);

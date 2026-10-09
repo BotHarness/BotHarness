@@ -7,6 +7,14 @@ export {
   name,
   PERSONA_SECTION_ORDER,
 } from './plugin.js';
+export {
+  exportProfileBackup,
+  inspectProfileBackup,
+  profileBackupPreview,
+  restoreProfileBackup,
+} from './portability/package.js';
+export { ProfileBackupError } from './portability/files.js';
+export { runProfileRestoreCli } from './portability/cli.js';
 export type { BotHarnessConfig, BotHarnessCore } from './plugin.js';
 export { createBridgeMethods } from './bridge/methods.js';
 export type {

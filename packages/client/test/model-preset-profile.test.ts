@@ -94,7 +94,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
 import type { BridgeActions } from '../src/client/actions.js';
 import type { ModelPlanView, ModelPresetView } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
+import { invalidateModelPlan, modelPlanOf } from '../src/client/model-plan-store.js';
+import { OnboardingController } from '../src/client/onboarding.js';
 import { ModelPresetProfile } from '../src/client/model-preset-profile.js';
+import { OnboardingModelDialog, OnboardingWelcome } from '../src/client/onboarding-view.js';
 
 function translate(key: string, params?: Record<string, unknown>): string {
   let text = (en as Record<string, string>)[key] ?? key;
@@ -250,7 +253,7 @@ describe('Model entry', () => {
       modelCatalog: vi.fn(async () => ({ models: catalog })),
       setModelPlan,
     } as unknown as BridgeActions);
-    expect(cards(host)).toContain('Not set. Click to choose a model');
+    expect(cards(host)).toContain('Inherit global');
     await openEditor(host);
     expect(document.querySelector('.bh-model-preset-source')).toBeNull();
 
@@ -509,4 +512,131 @@ describe('Model entry', () => {
     await act(async () => finishStale({ plan: original }));
     expect(cards(host)).toContain('k2 · Default');
   });
+});
+
+it('uses the shared model picker for onboarding and waits for an explicit model save after route and effort changes', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  const onConfirm = vi.fn(async () => {});
+  const actions = {
+    modelCatalog: vi.fn(async () => ({
+      models: catalog,
+      default: { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' },
+    })),
+    modelPlanState: vi.fn(async () => ({ revision: 7 })),
+  } as unknown as BridgeActions;
+  await act(async () =>
+    root!.render(
+      createElement(OnboardingModelDialog, {
+        actions,
+        slug: 'ada',
+        title: 'Choose a model',
+        request: 'My own question',
+        onClose: vi.fn(),
+        onConfirm,
+        t: translate,
+      }),
+    ),
+  );
+  expect(document.querySelector('.bh-onboarding-request')?.textContent).toContain(
+    'My own question',
+  );
+  expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+  await choose('Model', 'Moonshot', 'Kimi K2');
+  expect(document.querySelector('[role="tablist"]')).toBeNull();
+  await choose('Model', 'Flash', 'Flash');
+  await act(async () => button('High').click());
+  await act(async () =>
+    document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click(),
+  );
+  expect(onConfirm).not.toHaveBeenCalled();
+  await act(async () => button('Save model').click());
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith(
+    { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+    false,
+    7,
+  );
+});
+
+it('offers general, daily check-in and timed-test requests through the normal welcome send path', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  const send = vi.fn(async () => true);
+  const actions = {
+    modelCatalog: vi.fn(async () => ({ models: catalog })),
+    openChannel: vi.fn(async () => {}),
+    send,
+  } as unknown as BridgeActions;
+  await act(async () =>
+    root!.render(createElement(OnboardingWelcome, { actions, channelId: 'dm-ada', t: translate })),
+  );
+  const prompts = [en['onboarding.firstRequest'], en['onboarding.exampleRequest']];
+  for (const prompt of prompts) {
+    await act(async () => button(prompt).click());
+    expect(send).toHaveBeenLastCalledWith(prompt);
+  }
+  for (const [title, prefix] of [
+    [en['onboarding.dailyRequest'], 'daily'],
+    [en['onboarding.testRequest'], 'reminder'],
+  ] as const) {
+    const option = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (candidate) => candidate.querySelector('.bh-card-title')?.textContent === title,
+    );
+    if (option === undefined) throw new Error('Missing scheduling card');
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(option.textContent).toContain(
+      timeZone
+        ? translate(`onboarding.${prefix}Hint`, { timeZone })
+        : en['onboarding.reminderUnknownHint'],
+    );
+    await act(async () => option.click());
+    expect(send).toHaveBeenLastCalledWith(
+      timeZone
+        ? translate(`onboarding.${prefix}Body`, { timeZone })
+        : translate(`onboarding.${prefix}UnknownBody`),
+    );
+  }
+  expect(send).toHaveBeenCalledTimes(4);
+});
+
+it('refreshes the already-open Bot model card after onboarding saves a fixed model or returns to inheritance', async () => {
+  let state: { revision: number; plan?: ModelPlanView } = { revision: 0 };
+  const route = { provider: 'deepseek', model: 'flash' };
+  const actions = {
+    modelPlanState: vi.fn(async () => state),
+    onboardingModel: vi.fn(
+      async (_slug: string, _revision: number, _route: typeof route, globalDefault: boolean) => {
+        state = globalDefault
+          ? { revision: state.revision + 1 }
+          : {
+              revision: state.revision + 1,
+              plan: {
+                revision: state.revision + 1,
+                sourcePresetId: '',
+                sourcePresetName: '',
+                orchestrator: route,
+                assignmentDefault: route,
+                appliedAt: '',
+              },
+            };
+      },
+    ),
+  } as unknown as BridgeActions;
+  invalidateModelPlan('ada');
+  const host = await render(actions);
+  expect(cards(host)).toContain('Inherit global');
+  const controller = new OnboardingController(actions);
+  controller.chooseModel('dm-ada', 'ada');
+  await act(async () => controller.saveModel(route, false, 0));
+  expect(cards(host)).toContain('flash');
+  expect(cards(host)).not.toContain('Inherit global');
+  expect(modelPlanOf('ada')?.orchestrator).toEqual(route);
+  controller.chooseModel('dm-ada', 'ada');
+  await act(async () => controller.saveModel(route, true, 1));
+  expect(cards(host)).toContain('Inherit global');
+  expect(modelPlanOf('ada')).toBeNull();
 });

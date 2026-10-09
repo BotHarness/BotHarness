@@ -1,3 +1,4 @@
+import { ChannelHistory } from './channel-history.js';
 import {
   useRef,
   useState,
@@ -34,6 +35,7 @@ import {
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
+import type { WindowCompanions } from './window-companions.js';
 import {
   PersonaBotAvatar,
   PersonaBotStatusBadges,
@@ -73,7 +75,7 @@ import { needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
-import { ImportBotZipModal } from './bot-zip.js';
+import { BotZipShareDialog, ImportBotZipModal } from './bot-zip.js';
 import { GitUnavailableNotice, gitReady } from './git-unavailable-notice.js';
 import { MarketplaceModal } from './marketplace.js';
 import {
@@ -292,6 +294,7 @@ export function createBotPanelEntry(
 }
 
 interface SidebarProps {
+  companion?: WindowCompanions | undefined;
   wide: boolean;
   actions: BridgeActions;
   useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
@@ -343,6 +346,7 @@ function channelPreview(
   t: BotHarnessTranslate,
 ): string {
   const message = channel.latestMessage;
+  if (message?.contentPurged) return t('purge.purged');
   if (message === undefined) return t('rail.noMessages');
   if (message.memberDeparture !== undefined)
     return t(
@@ -455,6 +459,7 @@ function BotRow({
           name={bot.displayName}
           src={bot.avatar}
           appearance={bot.appearance}
+          avatarSeed={bot.avatarSeed}
           state={activity}
           activity={bot?.activity}
           attention={bot?.attention}
@@ -659,6 +664,7 @@ function RailChannel({
               name={bot.displayName}
               src={bot.avatar}
               appearance={bot.appearance}
+              avatarSeed={bot.avatarSeed}
               state={activity}
               activity={bot?.activity}
               attention={bot?.attention}
@@ -693,6 +699,7 @@ function RailChannel({
                 name={bot.displayName}
                 src={bot.avatar}
                 appearance={bot.appearance}
+                avatarSeed={bot.avatarSeed}
                 state={activity}
                 activity={bot?.activity}
                 attention={bot?.attention}
@@ -741,6 +748,7 @@ type FlatBlockView =
   | { kind: 'loose'; channels: ChannelSummary[] };
 
 export function BotSidebar({
+  companion,
   wide,
   actions,
   useBotModePrefs,
@@ -754,10 +762,12 @@ export function BotSidebar({
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [pinSortMenuOpen, setPinSortMenuOpen] = useState(false);
   const [hiddenManagerOpen, setHiddenManagerOpen] = useState(false);
+  const [channelHistoryOpen, setChannelHistoryOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
   const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
+  const [sharing, setSharing] = useState<BotSummary | undefined>(undefined);
   const [channelSelection, setChannelSelection] = useState<ChannelSelection>({
     ids: [],
     anchorId: undefined,
@@ -777,6 +787,11 @@ export function BotSidebar({
   const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
   const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
+  const createFromWelcome = useMountedResource<HTMLSpanElement>(() => {
+    const create = (): void => setCreateRequest({ kind: 'bot', source: 'empty' });
+    document.addEventListener('botharness/create-bot', create);
+    return () => document.removeEventListener('botharness/create-bot', create);
+  }, []);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
   const searchInput = useRef<HTMLInputElement | null>(null);
@@ -1057,6 +1072,10 @@ export function BotSidebar({
 
   const selectSortMenu = (id: string): void => {
     setSortMenuOpen(false);
+    if (id === 'channel-history') {
+      setChannelHistoryOpen(true);
+      return;
+    }
     if (id === 'hidden') {
       setHiddenManagerOpen(true);
       return;
@@ -1550,6 +1569,7 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      <span ref={createFromWelcome} hidden aria-hidden="true" />
       {state.activitySync === 'stale' ? (
         <div className="bh-activity-stale" role="status" data-activity-stale>
           {t('roster.activityStale')}
@@ -1899,6 +1919,7 @@ export function BotSidebar({
                           name={bot.displayName}
                           src={bot.avatar}
                           appearance={bot.appearance}
+                          avatarSeed={bot.avatarSeed}
                           state={personaBotActivity(state, bot)}
                           activity={bot.activity}
                           attention={bot.attention}
@@ -2343,6 +2364,9 @@ export function BotSidebar({
           }}
         />
       ) : null}
+      {channelHistoryOpen ? (
+        <ChannelHistory actions={actions} t={t} onClose={() => setChannelHistoryOpen(false)} />
+      ) : null}
       {hiddenManagerOpen ? (
         <HiddenChannelsModal
           items={hiddenItems}
@@ -2395,6 +2419,36 @@ export function BotSidebar({
           currentSectionId={sectionOfChannel(channelMenu.channelId)}
           pinned={channelMenu.pinnedView === true}
           t={t}
+          shareAction={(() => {
+            const botId = state.channels.find(
+              (channel) => channel.id === channelMenu.channelId && channel.type === 'dm',
+            )?.botSlug;
+            const bot = state.bots.find((item) => item.slug === botId);
+            if (bot === undefined || bot.deleted === true) return undefined;
+            return {
+              label: t('profile.share'),
+              run: () => {
+                setSharing(bot);
+                setChannelMenu(undefined);
+              },
+            };
+          })()}
+          companionAction={(() => {
+            const botId = state.channels.find(
+              (channel) => channel.id === channelMenu.channelId,
+            )?.botSlug;
+            if (botId === undefined || companion === undefined || !companion.getSnapshot().ready)
+              return undefined;
+            const selected = companion.get(botId) !== undefined;
+            return {
+              label: t(selected ? 'companion.remove' : 'companion.show'),
+              run: () => {
+                if (selected) companion.remove(botId);
+                else companion.select(botId);
+                setChannelMenu(undefined);
+              },
+            };
+          })()}
           onSetPinned={(channelId, pinned) => {
             void actions.setChannelPinned(channelId, pinned);
             setChannelMenu(undefined);
@@ -2429,6 +2483,15 @@ export function BotSidebar({
           }}
         />
       ) : null}
+      {sharing === undefined ? null : (
+        <BotZipShareDialog
+          key={sharing.slug}
+          bot={sharing}
+          actions={actions}
+          t={t}
+          onClose={() => setSharing(undefined)}
+        />
+      )}
     </div>
   );
 }
@@ -2547,6 +2610,8 @@ export function BulkChannelMenu({
 }
 
 export function ChannelMoveMenu({
+  companionAction,
+  shareAction,
   menu,
   sections,
   currentSectionId,
@@ -2559,6 +2624,8 @@ export function ChannelMoveMenu({
   onPick,
   onClose,
 }: {
+  companionAction?: { label: string; run(): void } | undefined;
+  shareAction?: { label: string; run(): void } | undefined;
   menu: ChannelMenuRequest;
   sections: readonly RosterSection[];
   currentSectionId: string | undefined;
@@ -2592,6 +2659,8 @@ export function ChannelMoveMenu({
     { id: 'hide', label: t('hidden.action') },
   ];
   const items: readonly MenuEntry[] = [
+    ...(companionAction === undefined ? [] : [{ id: 'companion', label: companionAction.label }]),
+    ...(shareAction === undefined ? [] : [{ id: 'share', label: shareAction.label }]),
     ...pinItems,
     { type: 'separator', id: 'pin-separator' },
     ...channelMoveMenuItems(t, sections, currentSectionId),
@@ -2610,6 +2679,14 @@ export function ChannelMoveMenu({
         getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
         items={items}
         onSelect={(id) => {
+          if (id === 'companion') {
+            companionAction?.run();
+            return;
+          }
+          if (id === 'share') {
+            shareAction?.run();
+            return;
+          }
           if (id === 'pin' || id === 'unpin') {
             onSetPinned?.(menu.channelId, id === 'pin');
             return;

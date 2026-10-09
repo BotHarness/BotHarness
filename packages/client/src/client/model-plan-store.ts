@@ -21,3 +21,8 @@ export function subscribeModelPlans(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+export function invalidateModelPlan(slug: string): void {
+  plans.delete(slug);
+  for (const listener of listeners) listener();
+}
