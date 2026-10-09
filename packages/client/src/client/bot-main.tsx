@@ -691,7 +691,7 @@ function ConversationView({
     atLatest &&
     conversation.status === 'ready' &&
     !conversation.timeline.hasNewer &&
-    timelineWorkingRowsCover(composerActivity);
+    timelineWorkingRowsCover(composerActivity, workingRows);
   const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
   const activeMemoryView =

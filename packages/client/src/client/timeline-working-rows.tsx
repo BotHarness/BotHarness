@@ -39,9 +39,13 @@ function rowActivity(
   return { ...rest, activeToolCount: 1 };
 }
 
-export function timelineWorkingRowsCover(activity: ChannelComposerActivity | undefined): boolean {
+export function timelineWorkingRowsCover(
+  activity: ChannelComposerActivity | undefined,
+  rows: TimelineWorkingRows,
+): boolean {
   return (
     activity !== undefined &&
+    rows.more === 0 &&
     activity.items.length > 0 &&
     activity.items.every(
       (item) =>
