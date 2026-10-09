@@ -1141,7 +1141,15 @@ function ConversationView({
           className="bh-chat-pane"
           data-activity-concealed={composerActivityConcealed ? 'true' : undefined}
         >
-          <div ref={profileMount} className="bh-topbar">
+          <div
+            ref={profileMount}
+            className="bh-topbar"
+            data-memory-diff={
+              activeMemoryView?.kind === 'commit' || activeMemoryView?.kind === 'working'
+                ? 'true'
+                : undefined
+            }
+          >
             {channel === undefined ? null : (
               <HumanChannelNameMenu key={channel.id} channel={channel} actions={actions} t={t} />
             )}

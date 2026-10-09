@@ -1007,6 +1007,7 @@ describe('Memory Git graph sidebar', () => {
       container.querySelectorAll<HTMLButtonElement>('.bh-memory-graph-row')[0]?.click();
     });
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain('Memory at a');
+    expect(container.querySelector<HTMLElement>('.bh-topbar')?.dataset['memoryDiff']).toBe('true');
     expect(chat?.style.display).toBe('none');
     expect(container.querySelector<HTMLElement>('.bh-memory-chat-composer')?.style.display).toBe(
       'none',
@@ -1024,6 +1025,9 @@ describe('Memory Git graph sidebar', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
     expect(chat?.style.display).not.toBe('none');
+    expect(
+      container.querySelector<HTMLElement>('.bh-topbar')?.dataset['memoryDiff'],
+    ).toBeUndefined();
     expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Unsent QA draft');
     expect(chat?.scrollTop).toBe(73);
 
