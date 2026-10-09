@@ -6,7 +6,13 @@ import {
   type PixelCustomPart,
 } from './avatar-appearance.js';
 
-export const PART_ORIGINS = ['drawn', 'imported-bot', 'imported-file'] as const;
+export const PART_ORIGINS = [
+  'drawn',
+  'derived',
+  'imported-bot',
+  'imported-file',
+  'imported-image',
+] as const;
 export type PartOrigin = (typeof PART_ORIGINS)[number];
 export const MAX_PART_NAME = 60;
 
@@ -17,6 +23,7 @@ export interface PartLibraryEntry {
   origins: PartOrigin[];
   parent?: string;
   author?: string;
+  parentAuthor?: string;
   addedAt: string;
 }
 
@@ -26,6 +33,7 @@ export interface PartLibraryInput {
   origin: PartOrigin;
   parent?: string | undefined;
   author?: string | undefined;
+  parentAuthor?: string | undefined;
 }
 
 export interface PartLibrary {
@@ -51,6 +59,8 @@ export function isPartLibraryEntry(value: unknown): value is PartLibraryEntry {
     (r['parent'] === undefined || (typeof r['parent'] === 'string' && ID.test(r['parent']))) &&
     (r['author'] === undefined ||
       (typeof r['author'] === 'string' && r['author'].length <= MAX_PART_NAME)) &&
+    (r['parentAuthor'] === undefined ||
+      (typeof r['parentAuthor'] === 'string' && r['parentAuthor'].length <= MAX_PART_NAME)) &&
     typeof r['addedAt'] === 'string'
   );
 }
@@ -95,6 +105,9 @@ export function createPartLibrary(options: {
             origins: [input.origin],
             ...(input.parent !== undefined && input.parent !== id ? { parent: input.parent } : {}),
             ...(input.author ? { author: input.author.slice(0, MAX_PART_NAME) } : {}),
+            ...(input.parentAuthor
+              ? { parentAuthor: input.parentAuthor.slice(0, MAX_PART_NAME) }
+              : {}),
             addedAt: now().toISOString(),
           };
       database.transaction(

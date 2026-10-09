@@ -15,6 +15,7 @@ import {
   AVATAR_PARTS,
   AVATAR_PRESETS,
   AVATAR_SPECIES,
+  AVATAR_ANIMAL_SPECIES,
   AVATAR_SPECIES_SWATCHES,
   isIllustratedAvatarRecipe,
   seededAvatarRecipe,
@@ -23,6 +24,8 @@ import {
   customPartId,
   hairPieceStart,
   replacePartStart,
+  headpieceStart,
+  withAvatarBuiltInHeadpiece,
   type PixelCustomPart,
 } from '../../core/src/bots/avatar-appearance.js';
 import type { PartLibraryEntry } from '../../core/src/bots/part-library.js';
@@ -253,7 +256,7 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-edit]');
       await click('[data-avatar-category="species"]');
       expect(container.querySelectorAll('[data-avatar-option^="species:"]')).toHaveLength(
-        AVATAR_SPECIES.length,
+        AVATAR_SPECIES.length + AVATAR_ANIMAL_SPECIES.length,
       );
       await click('[data-avatar-option="species:goblin"]');
       expect(
@@ -978,6 +981,210 @@ describe('Profile Avatar Appearance editing', () => {
       });
       expect(saved['backHairColor']).toBeUndefined();
       expect(AVATAR_HEADPIECES).toContain('wings');
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+  it('imports a plain PNG after showing its colors and labels derived parts', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const band: PixelCustomPart = { slot: 'headpiece', front: [[10, 2, '#efb93f', 0]], back: [] };
+    const wings: PixelCustomPart = { slot: 'headpiece', front: [[9, 1, '#f4f1ec', 0]], back: [] };
+    const importParts = vi.fn(async () => ({
+      added: [],
+      refused: 0,
+      image: { width: 32, height: 16, colors: 40, slots: ['headpiece'] },
+    }));
+    const importImage = vi.fn(async () => ({
+      id: customPartId(band),
+      part: canonicalCustomPart(band),
+      name: 'band',
+      origins: ['imported-image' as const],
+      addedAt: '',
+    }));
+    const load = vi.fn(async (): Promise<PartLibraryEntry[]> => [
+      {
+        id: customPartId(wings),
+        part: canonicalCustomPart(wings),
+        name: 'Wider wings',
+        origins: ['derived'],
+        parent: 'a'.repeat(64),
+        parentAuthor: 'Mika',
+        addedAt: '',
+      },
+    ]);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            library: { load, add: vi.fn(async () => undefined), importParts, importImage },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      expect(
+        $(`[data-avatar-option="headpiece:${customPartId(wings)}"]`)?.getAttribute('aria-label'),
+      ).toContain(zhTranslate('profile.avatar.part.basedOn', { author: 'Mika' }));
+      const input = $('[data-part-import] input') as HTMLInputElement;
+      const file = new File([new Uint8Array([1])], 'band.png', { type: 'image/png' });
+      Object.defineProperty(file, 'arrayBuffer', { value: async () => new Uint8Array([1]).buffer });
+      Object.defineProperty(input, 'files', { value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect($('[data-part-image] p')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.imageInfo', { width: 32, height: 16, colors: 40 }),
+      );
+      expect($('[data-part-image-reduce]')).not.toBeNull();
+      expect(($('[data-part-image-keep]') as HTMLInputElement).value).toBe('32');
+      await act(() => {
+        const keep = $('[data-part-image-keep]') as HTMLInputElement;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(keep, '6');
+        keep.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => {
+        $('[data-part-image-accept]')!.click();
+      });
+      expect(importImage).toHaveBeenCalledWith(
+        btoa(String.fromCharCode(1)),
+        'headpiece',
+        6,
+        'band',
+      );
+      expect($('[data-part-image]')).toBeNull();
+      expect(
+        $(`[data-avatar-option="headpiece:${customPartId(band)}"]`)?.getAttribute('aria-pressed'),
+      ).toBe('true');
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+  it('opens a built-in headpiece as a flattened starting canvas', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const add = vi.fn(async (part: PixelCustomPart, name: string): Promise<PartLibraryEntry> => ({
+      id: customPartId(part),
+      part: canonicalCustomPart(part),
+      name,
+      origins: ['drawn'],
+      addedAt: '',
+    }));
+    const recipe = withAvatarBuiltInHeadpiece(seededAvatarRecipe('Ada'), 'catears');
+    const start = headpieceStart(recipe);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+      appearance: { recipe, revision: '0'.repeat(64) },
+    };
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            library: { load: vi.fn(async () => []), add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      expect($('[data-avatar-option="headpiece:catears"]')?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      await click('[data-part-draw]');
+      expect($('[data-part-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.flattenPartNote'),
+      );
+      const [x, y, color, tone] = start.front[0]!;
+      expect($(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink')).toBe(
+        `${color}:${tone}`,
+      );
+      await click('[data-part-save]');
+      expect(add.mock.calls[0]![0]).toEqual(canonicalCustomPart(start));
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+  it('makes an animal with a fur pattern and keeps an ear headpiece hidden with a note', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async (_channel: string, _recipe: unknown) => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      expect($('[data-avatar-category="pattern"]')).toBeNull();
+      await click('[data-avatar-category="headpiece"]');
+      await click('[data-avatar-option="headpiece:bunnyears"]');
+      await click('[data-avatar-category="species"]');
+      await click('[data-avatar-option="species:cat"]');
+      await click('[data-avatar-category="pattern"]');
+      await click('[data-avatar-option="pattern:tabby"]');
+      await click('[data-avatar-category="nose"]');
+      expect($('[data-avatar-hidden-note="nose"]')).not.toBeNull();
+      await click('[data-avatar-category="headpiece"]');
+      expect($('[data-avatar-hidden-note="headpiece"]')).not.toBeNull();
+      await click('[data-avatar-category="colors"]');
+      expect($('[data-avatar-option="skinColor:#9aa3ad"]')).not.toBeNull();
+      await click('[data-avatar-option="skinColor:#9aa3ad"]');
+      await click('[data-avatar-save]');
+      expect(save.mock.calls[0]![1]).toMatchObject({
+        assetVersion: 4,
+        species: 'cat',
+        pattern: 'tabby',
+        headpiece: 'bunnyears',
+        skinColor: '#9aa3ad',
+      });
     } finally {
       await act(() => root.unmount());
       container.remove();

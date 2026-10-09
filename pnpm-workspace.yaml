@@ -308,7 +308,7 @@ minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-experimental-schedule-bundle@0.2.0-rc.1'
   - '@deepseek-ai/dsh-host-product-telemetry-otel@0.2.0-rc.1'
   - '@deepseek-ai/dsh-otel@0.2.0-rc.1'
-  - '@botharness/pixel-avatar@0.1.0 || 0.2.0 || 0.3.0 || 0.4.0 || 0.5.0 || 0.6.0 || 0.7.0 || 0.8.0 || 0.9.0'
+  - '@botharness/pixel-avatar@0.1.0 || 0.2.0 || 0.3.0 || 0.4.0 || 0.5.0 || 0.6.0 || 0.7.0 || 0.8.0 || 0.9.0 || 0.10.0'
   - '@botharness/pixel-banner@0.1.0'
   - '@botharness/pixel-morph@0.1.0 || 0.2.0'
 
