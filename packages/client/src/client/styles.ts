@@ -5288,8 +5288,9 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 }
 .bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
 /* Static member stack for a Group without an uploaded avatar: idle
-   faces on the Group tile, ringed in the tile fill so overlaps stay legible.
-   Faces ignore the pointer so their per-Bot titles never surface as state. */
+   portraits on the Group tile. Two faces overlap on a diagonal with a ring in
+   the tile fill; three or four sit in a 2x2 grid without overlap. Faces
+   ignore the pointer so their per-Bot titles never surface as state. */
 .bh-group-avatar-stack {
   position: relative;
   display: block;
@@ -5300,20 +5301,21 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 .bh-group-avatar-stack > .bh-persona-avatar {
   position: absolute;
   box-sizing: border-box;
-  border: 1.5px solid var(--dsw-alias-button-elevated-fill);
-  border-radius: 50%;
+  overflow: hidden;
+  border-radius: 28%;
   pointer-events: none;
 }
-.bh-group-avatar-stack[data-count='1'] > .bh-persona-avatar { top: 50%; left: 50%; translate: -50% -50%; border: 0; }
-.bh-group-avatar-stack[data-count='2'] > :nth-child(1) { top: 6%; left: 6%; }
-.bh-group-avatar-stack[data-count='2'] > :nth-child(2) { right: 6%; bottom: 6%; }
-.bh-group-avatar-stack[data-count='3'] > :nth-child(1) { top: 6%; left: 50%; translate: -50% 0; }
-.bh-group-avatar-stack[data-count='3'] > :nth-child(2) { bottom: 6%; left: 6%; }
-.bh-group-avatar-stack[data-count='3'] > :nth-child(3) { right: 6%; bottom: 6%; }
-.bh-group-avatar-stack[data-count='4'] > :nth-child(1) { top: 6%; left: 6%; }
-.bh-group-avatar-stack[data-count='4'] > :nth-child(2) { top: 6%; right: 6%; }
-.bh-group-avatar-stack[data-count='4'] > :nth-child(3) { bottom: 6%; left: 6%; }
-.bh-group-avatar-stack[data-count='4'] > :nth-child(4) { right: 6%; bottom: 6%; }
+.bh-group-avatar-stack[data-count='1'] > .bh-persona-avatar { top: 50%; left: 50%; translate: -50% -50%; }
+.bh-group-avatar-stack[data-count='2'] > .bh-persona-avatar { border: 1.5px solid var(--dsw-alias-button-elevated-fill); }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(1) { top: 8%; left: 8%; }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(2) { right: 8%; bottom: 8%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(1),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(1) { top: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(2),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(2) { top: 5%; right: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(3) { bottom: 5%; left: 50%; translate: -50% 0; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(3) { bottom: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(4) { right: 5%; bottom: 5%; }
 .bh-group-profile-avatar {
   display: inline-flex;
   align-items: center;

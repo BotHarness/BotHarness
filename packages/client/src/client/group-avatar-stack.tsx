@@ -5,6 +5,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 
 const MAX_STACKED_FACES = 4;
+const FACE_SCALE = [0.64, 0.6, 0.43] as const;
 
 export function groupAvatarStackBots(
   members: readonly string[],
@@ -55,7 +56,7 @@ export function GroupChannelIcon({
               src={bot.avatar}
               appearance={bot.appearance}
               avatarSeed={bot.avatarSeed}
-              size={Math.round(size * (faces.length === 1 ? 0.78 : 0.58))}
+              size={Math.round(size * FACE_SCALE[Math.min(faces.length, 3) - 1]!)}
               indicator={false}
               still
             />

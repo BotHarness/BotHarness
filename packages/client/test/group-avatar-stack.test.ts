@@ -52,14 +52,14 @@ describe('GroupChannelIcon', () => {
     expect(html).toContain('bh-channel-slot bh-group-channel-slot');
     expect(html).toContain('data-count="1"');
     expect(faces(html)).toEqual(['ADA']);
-    expect(html).toContain('width:27px;height:27px');
+    expect(html).toContain('width:22px;height:22px');
   });
 
   it('stacks four members in member order', () => {
     const html = render(group(['dee', 'ada', 'cy', 'bea']));
     expect(html).toContain('data-count="4"');
     expect(faces(html)).toEqual(['DEE', 'ADA', 'CY', 'BEA']);
-    expect(html).toContain('width:20px;height:20px');
+    expect(html).toContain('width:15px;height:15px');
   });
 
   it('caps six members at four faces without an overflow chip', () => {
