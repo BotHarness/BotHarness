@@ -122,9 +122,9 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 50 | Local browser permission display is mistaken for successful tool access | A listed allowed origin still returns ERR_BLOCKED_BY_CLIENT, or DOM reads work while screenshots/input time out | Qualify exact-origin authorization, listener ownership, Host transport, navigation and actual capture separately. Preserve each result and stop bounded retries without new evidence; see the [AX browser runbook](../../../docs/agents/ax-browser.md) (#1225). |
 
-## Reference
-
 | 51 | A new BotHarness-owned Tool is registered but omitted from the execution policy | The real Orchestrator pauses on a Human approval card for an own-Inbox read, although the Tool contract test passes | `grant-execution.ts` classifies checked application-owned Tools through `BOT_TOOL_NAMES`; registration alone does not exempt a name from generic operation approval. Add only the Host-scoped Tool whose own authority checks are implemented, cover `requiresHumanToolApproval`, then build/restart the exact owned Host and verify a fresh real model call. Preserve the first approval card rather than approving it to hide the omission (#1278). |
+
+## Reference
 
 Pinned DSH 0.2.0 RC1 selects one directory picker interaction at boot. A loopback Windows Host commonly serves native; uiWorkspace.listDirectory() then throws DirectoryBrowseError with rpcError.code = directory-picker/unavailable. A consumer may fall back to uiWorkspace.pickDirectory() only for this capability refusal; unreadable directories and other failures remain errors, and cancellation returns no selection. Authorization still follows an explicit Human choice.
 
