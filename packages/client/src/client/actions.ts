@@ -99,6 +99,8 @@ import {
   addLibraryPart as addLibraryPartViaBridge,
   exportLibraryParts as exportLibraryPartsViaBridge,
   importLibraryParts as importLibraryPartsViaBridge,
+  importLibraryImage as importLibraryImageViaBridge,
+  type PartImageInfo,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -602,9 +604,16 @@ export interface BridgeActions {
     | {
         added: import('../../../core/src/bots/part-library.js').PartLibraryEntry[];
         refused: number;
+        image?: PartImageInfo;
       }
     | { error: string }
   >;
+  importLibraryImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | { error: string }>;
   loadPartLibrary(): Promise<
     import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
   >;
@@ -2305,6 +2314,13 @@ export function createActions(
     async importLibraryParts(data) {
       try {
         return await importLibraryPartsViaBridge(call, data);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    async importLibraryImage(data, slot, colors, name) {
+      try {
+        return await importLibraryImageViaBridge(call, data, slot, colors, name);
       } catch (error) {
         return { error: error instanceof Error ? error.message : String(error) };
       }

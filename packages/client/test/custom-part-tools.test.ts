@@ -159,6 +159,31 @@ describe('Custom Part drawing tools', () => {
     }
   });
 
+  it('replaces every cell of one color and tone with the current ink in one step', async () => {
+    const two = createCustomPart('headpiece', {
+      front: partLayer('headpiece', [
+        [1, 1, '#123456', 0],
+        [5, 3, '#123456', 0],
+        [7, 3, '#654321', 0],
+      ]),
+      back: partLayer('headpiece', []),
+    });
+    const e = await mount(two);
+    try {
+      await e.click('[data-part-tool="replace"]');
+      await e.click('button.bh-part-swatch[data-part-ink="hairColor:-1"]');
+      await e.down(5, 3);
+      await e.up();
+      expect(e.ink(1, 1)).toBe('hairColor:-1');
+      expect(e.ink(5, 3)).toBe('hairColor:-1');
+      expect(e.ink(7, 3)).toBe('#654321:0');
+      await e.click('[data-part-undo]');
+      expect(e.ink(1, 1)).toBe('#123456:0');
+    } finally {
+      await e.close();
+    }
+  });
+
   it('shades once per stroke, picks colors with Alt-click and the eyedropper', async () => {
     const e = await mount();
     try {
