@@ -9,6 +9,8 @@ import { Modal } from './modal.js';
 
 export const BOT_SETTINGS_DEFAULT_SECTION = 'general';
 
+const SECTION_SLOT = 'botharness.settings.section';
+
 export interface BotSettingsSectionRow {
   readonly id: string;
   readonly order: number;
@@ -120,7 +122,7 @@ export function BotSettingsView({
           {active === undefined
             ? null
             : (renderSlot(
-                'botharness.settings.section',
+                SECTION_SLOT,
                 { close: botSettings.close },
                 { only: active.id },
               ) as unknown as ReactNode)}
@@ -143,8 +145,6 @@ interface SectionLedger {
     subscribe(listener: () => void): () => void;
   };
 }
-
-const SECTION_SLOT = 'botharness.settings.section';
 
 export function botSettingsSectionSource(ctx: SectionLedger): BotSettingsSectionSource {
   let version = -1;

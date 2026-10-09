@@ -305,7 +305,7 @@ describe('client apply', () => {
     expect(withoutSettings.some((spec) => spec.id === 'botharness-bot-settings')).toBe(true);
   });
 
-  it('opens Bot Settings from the Bot panel gear and the DSH settings item', () => {
+  it('opens Bot Settings from the Bot panel gear, the Window Companion menu and the DSH settings item', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     apply(createScoped(specs, [], true) as never);
@@ -315,6 +315,11 @@ describe('client apply', () => {
     };
     const panel = specs.find((spec) => spec.name === 'sidebar.panellist');
     (panel?.inject?.() as { openSettings(): void }).openSettings();
+    expect(botSettings.getSnapshot().open).toBe(true);
+
+    botSettings.close();
+    const companion = specs.find((spec) => spec.id === 'botharness-window-companion');
+    (companion?.inject?.() as { openSettings(): void }).openSettings();
     expect(botSettings.getSnapshot().open).toBe(true);
 
     botSettings.close();

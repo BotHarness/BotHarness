@@ -19,9 +19,8 @@ import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
 import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
-import { openBotSettings } from './bot-settings-open.js';
 import { BotSettings, BotSettingsView, botSettingsSectionSource } from './bot-settings.js';
-import { BotSettingsSection } from './bot-settings-section.js';
+import { DshBotSettingsItem } from './dsh-bot-settings-item.js';
 import {
   AboutSection,
   AdvancedSection,
@@ -189,6 +188,7 @@ export function apply(ctx: ClientContext): void {
     };
   }, 'botharness: independent Window Companion owner');
   const prefs = new BotModePrefs(storage);
+  const botSettings = new BotSettings();
   ctx.slots.inject('shell.overlay', () =>
     ctx.slots.register(
       {
@@ -211,13 +211,14 @@ export function apply(ctx: ClientContext): void {
             ctx.layout.selectPanel(PANEL_ID);
             void actions.openActivityCenter();
           },
-          openSettings: () => openBotSettings(() => [t('settings.nav')]),
+          openSettings: () => {
+            botSettings.open();
+          },
         }),
       },
       WindowCompanionsView,
     ),
   );
-  const botSettings = new BotSettings();
   const botSettingsSections = botSettingsSectionSource(ctx);
   ctx.slots.inject('shell.overlay', () =>
     ctx.slots.register(
@@ -233,7 +234,7 @@ export function apply(ctx: ClientContext): void {
   );
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
-    openBotSettings(() => [t('settings.nav')]);
+    botSettings.open();
   });
   const lastView =
     typeof window === 'undefined'
@@ -490,7 +491,7 @@ export function apply(ctx: ClientContext): void {
           locale: LOCALE_NS,
           inject: () => ({ openBotSettings: () => botSettings.open() }),
         },
-        BotSettingsSection,
+        DshBotSettingsItem,
       ),
     );
     return () => {

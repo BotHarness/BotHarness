@@ -4,15 +4,15 @@ import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
-export type BotSettingsSectionProps = PropsRuntime<'settings.section'> &
+export type DshBotSettingsItemProps = PropsRuntime<'settings.section'> &
   PropsLocale<'botharness'> &
   InjectFace<{ openBotSettings(): void }>;
 
-export function BotSettingsSection({
+export function DshBotSettingsItem({
   close,
   openBotSettings,
   t,
-}: BotSettingsSectionProps): ReactElement {
+}: DshBotSettingsItemProps): ReactElement {
   return (
     <div className="bh-settings-rows">
       <div className="bh-settings-row">

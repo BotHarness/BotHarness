@@ -5509,13 +5509,22 @@ button.bh-bot-nav > svg {
   flex-direction: column;
 }
 .bh-bot-settings.bh-bot-settings {
+  /* @bh-bot-settings-aliases:start — the modal portals outside .bh-root, so it
+     maps the native settings panel's tokens itself. */
+  --bh-bot-settings-label: var(--dsw-alias-label-primary);
+  --bh-bot-settings-hover: var(--dsw-alias-interactive-bg-hover);
+  --bh-bot-settings-nav-hover: var(--dsw-specific-sidebar-nav-item-hover);
+  --bh-bot-settings-nav-active: var(--dsw-specific-sidebar-nav-item-active);
+  --bh-bot-settings-radius-md: var(--dsw-radius-md);
+  --bh-bot-settings-radius-sm: var(--dsw-radius-sm);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* @bh-bot-settings-aliases:end */
   flex-direction: row;
   gap: 0;
   width: min(800px, 100%);
   height: min(800px, 100%);
   padding: 0;
-  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 .bh-bot-settings-nav {
   flex: none;
@@ -5531,7 +5540,7 @@ button.bh-bot-nav > svg {
   font-size: 16px;
   font-weight: 500;
   line-height: 24px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--bh-bot-settings-label);
 }
 .bh-bot-settings-nav-list {
   display: flex;
@@ -5546,21 +5555,21 @@ button.bh-bot-nav > svg {
   padding: 9px 16px 9px 12px;
   box-sizing: border-box;
   border: none;
-  border-radius: var(--dsw-radius-md);
+  border-radius: var(--bh-bot-settings-radius-md);
   background: transparent;
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--bh-bot-settings-label);
   text-align: left;
 }
 .bh-bot-settings-nav-cell:hover {
-  background: var(--dsw-specific-sidebar-nav-item-hover);
+  background: var(--bh-bot-settings-nav-hover);
 }
 .bh-bot-settings-nav-cell[aria-current='page'] {
-  background: var(--dsw-specific-sidebar-nav-item-active);
+  background: var(--bh-bot-settings-nav-active);
 }
 .bh-bot-settings-nav-label {
   flex: 1;
@@ -5588,7 +5597,7 @@ button.bh-bot-nav > svg {
   font-size: 16px;
   font-weight: 500;
   line-height: 24px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--bh-bot-settings-label);
 }
 .bh-bot-settings-close {
   display: inline-flex;
@@ -5598,13 +5607,13 @@ button.bh-bot-nav > svg {
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: var(--dsw-radius-sm);
+  border-radius: var(--bh-bot-settings-radius-sm);
   background: transparent;
   cursor: pointer;
-  color: var(--dsw-alias-label-primary);
+  color: var(--bh-bot-settings-label);
 }
 .bh-bot-settings-close:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--bh-bot-settings-hover);
 }
 .bh-bot-settings-options {
   flex: 1;
