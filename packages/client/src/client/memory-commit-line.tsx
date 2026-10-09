@@ -23,7 +23,9 @@ function fileSummary(commit: MemoryCommit, t: BotHarnessTranslate): string | und
   const more = commit.files.length - 1 + commit.moreFiles;
   return [
     counts.length === 0 ? main.path : `${main.path} ${counts}`,
-    more > 0 ? t('memoryCommit.moreFiles', { count: more }) : undefined,
+    more > 0
+      ? t(more === 1 ? 'memoryCommit.moreFilesOne' : 'memoryCommit.moreFiles', { count: more })
+      : undefined,
   ]
     .filter((part) => part !== undefined)
     .join(' · ');

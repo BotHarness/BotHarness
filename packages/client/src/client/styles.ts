@@ -6371,9 +6371,16 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-memory-commit-line:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
 .bh-memory-commit-line > .bh-memory-commit-subject {
   flex: 0 1 auto;
-  min-width: 48px;
+  min-width: 140px;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+}
+.bh-memory-commit-line:hover > .bh-memory-commit-subject { text-decoration: underline; }
+.bh-memory-commit-line > .bh-memory-commit-files {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 .bh-memory-commit-sha { font-family: var(--dsw-font-family-mono, monospace); font-size: 11px; }
