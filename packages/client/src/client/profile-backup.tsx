@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { Button, Checkbox } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
 
@@ -36,8 +36,7 @@ async function result<T>(response: Response): Promise<T> {
   if (!response.ok) throw new Error(value.error?.code ?? 'operation-failed');
   return value as T;
 }
-export type ProfileBackupSettingsProps = PropsRuntime<'botharness.settings.item'> &
-  PropsLocale<'botharness'>;
+export type ProfileBackupSettingsProps = PropsLocale<'botharness'>;
 export function ProfileBackupSettings({ t }: ProfileBackupSettingsProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<Preview>();

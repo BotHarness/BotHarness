@@ -2038,15 +2038,12 @@ window.__ModuleLoader__.load({
 						hidden: true,
 						ref: busyResource
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: "bh-settings-section-head",
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bh-settings-section-title",
-							children: t("section.title")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: "bh-settings-section-desc",
 							children: t("section.description")
-						})]
+						})
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
 						title: t("rows.target.title"),
@@ -2927,10 +2924,11 @@ window.__ModuleLoader__.load({
 					prefs: settingsPrefs,
 					pickDirectory: workspace?.pickDirectory?.bind(workspace)
 				});
-				workspaceCtx.slots.inject("botharness.settings.item", () => workspaceCtx.slots.register({
-					name: "botharness.settings.item",
+				workspaceCtx.slots.inject("botharness.settings.section", () => workspaceCtx.slots.register({
+					name: "botharness.settings.section",
 					id: "computer",
-					order: 10,
+					order: 30,
+					label: () => t("section.title"),
 					locale: LOCALE_NS,
 					inject: () => face
 				}, ComputerSettingsRows));
