@@ -21,7 +21,7 @@
 
 ### Added
 
-- 使用兼容的 Provider 时，Bot 和其 Profile 可以列出可发言的 Lark、Discord 和 Slack 群，无需保存目标或先被 @ 即可发送，并在首次发送时建立会话条目；每个应用有可调整的滚动每小时限额，未知发送结果不会重发（[#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)，[ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)）。
+- 使用兼容的 Provider 时，Bot 和其 Profile 可以列出可发言的 Lark、Discord 和 Slack 群，无需保存目标或先被 @ 即可发送，并在首次发送时建立会话条目；每个应用有可调整的滚动每小时限额，已保存目标的报告在最终发送检查中仍遵守会话屏蔽，未知发送结果不会重发（[#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)，[ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)）。
 
 - PersonaBot 在一轮工作中提交的每个记忆 commit，现在会在引起它的对话里显示为一行，带 commit 标题、短 hash 和改动的文件；点击会在该 Bot 的记忆历史里打开这个 commit。Bot 的收件箱同时把它保存为已处理的历史（[#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277)，[ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)）。
 

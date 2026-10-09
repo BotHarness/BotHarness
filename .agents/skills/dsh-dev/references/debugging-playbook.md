@@ -230,3 +230,11 @@ after Channel metadata loads. Select the existing `.bh-composer-input`, click it
 the browser; verify the actual send response. A cached textarea selector can disappear during
 that transition. Retain the first failure and current DOM/console, then use the established
 composer interaction path rather than bypassing it through RPC.
+
+## Experimental QA schema history
+
+When a private QA Profile came from an unreleased feature branch, verify its schema history before opening it with a merged migration plan. A generation marker identifies that branch's history; it does not prove that an experimental schema matches main at the same number. In #1115, a copied QQ QA database marked Generation 65 already had a receive boundary column; current Generation 69 failed with `duplicate column name: receive_after`. The AX public BotHarness probe returned `gateway/internal`, and the database owner reported `migration-failed`. A separate consistent SQLite snapshot reproduced the same Generation 69 failure through the owning module in under one second.
+
+Preserve the original Profile and failed attempt. Inspect the public database owner's recovery diagnostics on an independent consistent snapshot. Use a known compatible pre-feature backup for a real upgrade; for fresh QA, create a new isolated operational store and reuse only the already authorized application configuration and credential references. Establish its Binding through the actual Client. Leave the experimental generation marker and existing columns intact. Reusing authorization is not a new pairing, and a clean Profile does not qualify preservation or upgrade of the incompatible experimental database.
+
+The fresh RC1 AX Profile mounted the current merged schema and passed its authenticated public API probe with the exact pinned maintained Provider. Model use, Client actions, original-platform visibility and delayed-task completion still require their own evidence ([#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)).
