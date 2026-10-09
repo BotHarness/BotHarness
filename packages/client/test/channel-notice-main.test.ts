@@ -187,6 +187,15 @@ describe('Channel Notices in a Group', () => {
     const notice = container.querySelector<HTMLButtonElement>('.bh-bot-dm-action');
     expect(notice?.textContent).toBe('Mira 向 Nova 发送了私聊消息');
     expect(notice?.dataset['messageId']).toBe('bot-dm-action-x');
+    expect(
+      Array.from(notice?.querySelectorAll('.bh-bot-dm-action-bot') ?? []).map((chip) => [
+        chip.querySelector('.bh-persona-avatar') !== null,
+        chip.textContent,
+      ]),
+    ).toEqual([
+      [true, 'Mira'],
+      [true, 'Nova'],
+    ]);
     await act(async () => notice?.click());
     expect(openChannel).toHaveBeenCalledWith('dm-bot-mira-nova');
     expect(openAround).toHaveBeenCalledWith('dm-bot-mira-nova', 'x');
