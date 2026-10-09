@@ -54,6 +54,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - Channel attachment cards now share one 320px card rhythm: audio attachments play through a custom bubble player instead of falling back to a file row, and file cards stack the name over a human-readable size with a divider and a direct download action ([#1290](https://github.com/BotHarness/DeepSeekBot/issues/1290)).
 
+- Your own message headers now mirror the bubble side: the name hugs the right edge with the timestamp to its left, matching the left-side Bot order ([#1298](https://github.com/BotHarness/DeepSeekBot/issues/1298)).
+
 ### Fixed
 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).

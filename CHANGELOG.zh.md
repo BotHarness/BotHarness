@@ -54,6 +54,8 @@
 
 - Channel 附件卡片统一为 320px 同一形态：音频附件改用气泡内自绘播放器播放，不再按文件行显示；文件卡片纵向排布名称与易读尺寸，并以分隔线加直接下载按钮呈现（[#1290](https://github.com/BotHarness/DeepSeekBot/issues/1290)）。
 
+- 自己的消息头与气泡方向镜像：名字贴右边缘，时间在名字左侧，与左侧 Bot 的顺序对应（[#1298](https://github.com/BotHarness/DeepSeekBot/issues/1298)）。
+
 ### Fixed
 
 - PersonaBot 刚发出回复、还在收尾时，工作状态行不再以「思考中」重新出现在回复下方；只有一条新消息时，「跳到最新」提示的英文改用单数（[#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)）。
