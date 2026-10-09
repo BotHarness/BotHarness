@@ -16,6 +16,7 @@ import { PersonaBotAvatar } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { useDelayedSearch } from './delayed-search.js';
+import { humanLabel } from './actor-names.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -61,6 +62,7 @@ function InviteMemberModal({
   const available = bots.filter(
     (bot) =>
       !bot.paused &&
+      !bot.deleted &&
       !group.members.includes(bot.slug) &&
       !group.invitations?.some(
         (invitation) => invitation.targetBotSlug === bot.slug && invitation.status === 'pending',
@@ -124,6 +126,7 @@ function InviteMemberModal({
                   name={bot.displayName}
                   src={bot.avatar}
                   appearance={bot.appearance}
+                  avatarSeed={bot.avatarSeed}
                   size={28}
                 />
                 <span>{bot.displayName}</span>
@@ -381,7 +384,7 @@ export function MemberWakePolicyModal({
       closeLabel={t('common.close')}
       title={t('members.policy.title', { bot: name })}
       footer={
-        <>
+        <div className="bh-modal-footer">
           <Button variant="outline" disabled={busy} onClick={() => void save(true)}>
             {t('defaults.restore')}
           </Button>
@@ -391,7 +394,7 @@ export function MemberWakePolicyModal({
           <Button variant="primary" disabled={busy || !valid} onClick={() => void save()}>
             {t('members.wake.save')}
           </Button>
-        </>
+        </div>
       }
     >
       <div className="bh-member-policy-modal">
@@ -473,10 +476,12 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
           data-human-id={member.humanId}
         >
           <span className="bh-delivery-human-avatar" aria-hidden="true">
-            {member.displayName.slice(0, 1)}
+            {humanLabel(member.displayName, t).slice(0, 1)}
           </span>
-          <span className="bh-name">{member.displayName}</span>
-          <Tag tone="neutral">{t('message.mention.humanType')}</Tag>
+          <span className="bh-name">{humanLabel(member.displayName, t)}</span>
+          {member.displayName === 'Human' ? null : (
+            <Tag tone="neutral">{t('message.mention.humanType')}</Tag>
+          )}
         </div>
       ))}
       {members.map((slug) => {
@@ -508,6 +513,7 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
                 name={member?.displayName ?? slug}
                 src={member?.avatar}
                 appearance={member?.appearance}
+                avatarSeed={member?.avatarSeed}
                 state={member === undefined ? 'idle' : personaBotActivity(state, member)}
                 size={26}
               />

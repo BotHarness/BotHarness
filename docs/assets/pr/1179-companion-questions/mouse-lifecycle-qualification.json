@@ -1,0 +1,46 @@
+{
+  "runtimeCode": "a5193b36b31df37c918a509d4229165536b73106",
+  "kind": "additional-real-isolated-DSH-native-question-UI",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "locale": "zh",
+  "mouse": {
+    "checks": [
+      "Native mouse clicked: 固定底部 新内容自动跟随；保留阅读空间",
+      "Native mouse clicked: 点击选择 检查选项能通过鼠标切换",
+      "Native mouse clicked: 直接回答 不打开原聊天即可回复",
+      "Actual mouse submit commits once; request disappears; character focus restores; observer Channel stays selected",
+      "Original native Session resumes and actual Bot reply includes all selected labels"
+    ],
+    "canonicalAnswers": 1,
+    "actualOriginalBotReply": true,
+    "observerRemainsSelected": true,
+    "walkingPauseVerifiedThrough": "Actual toolbar aria-pressed, not data-static (which describes archived Bot state)"
+  },
+  "lifecycle": {
+    "checks": [
+      "Actual header unpin removes presentation only; canonical native question remains pending with zero answers",
+      "Actual header repin rediscovers the same owner request",
+      "Real document reload recreates Feed from current owner; same question reappears without a decision while observer stays selected",
+      "Native mouse answer after reload commits once; request removes and original Bot continues with every selection"
+    ],
+    "canonicalAnswers": 1,
+    "actualOriginalBotReply": true,
+    "ownerPendingBeforeAndAfterUnpin": true,
+    "ownerPendingAfterDocumentReload": true
+  },
+  "console": {
+    "errorsObserved": 0,
+    "advisory": "Both captures report Chromium form-field id/name advisories; these are not claimed clean-console runs."
+  },
+  "limits": [
+    "Existing first keyboard-only capture limits retain their original attribution; this supplement separately qualifies native mouse interaction.",
+    "Document reload creates a new connection and re-queries current owner; it does not qualify automatic recovery of an interrupted existing SSE connection, Host restart, cancellation or archive/deletion.",
+    "Pixel Avatar presentation and mouth animation are not qualified by these recordings.",
+    "Mouse precondition observer originally asserted the archived Bot data-static flag rather than the walking setting. The harness was corrected; the first failure is retained privately. No application code was changed."
+  ],
+  "media": "Four actual PNG states and two continuous silent official MCP WebM recordings; normal container remux only, no re-encoding, interpolation or dubbing.",
+  "ci": "https://github.com/BotHarness/DeepSeekBot/actions/runs/37831162008"
+}

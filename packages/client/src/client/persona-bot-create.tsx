@@ -1,11 +1,6 @@
 import { useId, useState, type ReactElement } from 'react';
 
-import {
-  Button,
-  IconCloseOutlineRegular,
-  SegmentedControl,
-  Tag,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import { BridgeCallError, errorMessage, type CreatedBot } from './bridge.js';
@@ -13,10 +8,9 @@ import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 import { PersonaBotAvatar } from './avatar.js';
+import { TagEditor, tagsWithDraft } from './tag-editor.js';
 
-export function normalizeRoleBadges(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
-}
+export { normalizeRoleBadges } from './tag-editor.js';
 
 export function personaBotCreateError(
   error: unknown,
@@ -105,13 +99,7 @@ export function CreatePersonaBotModal({
   const invalid =
     displayName.trim().length === 0 || (source === 'git' && gitUrl.trim().length === 0);
 
-  const rolesWithDraft = (): string[] =>
-    normalizeRoleBadges([...roles, ...roleDraft.split(/[,，]/u)]);
-
-  const commitRoleDraft = (): void => {
-    setRoles(rolesWithDraft());
-    setRoleDraft('');
-  };
+  const rolesWithDraft = (): string[] => tagsWithDraft(roles, roleDraft);
 
   const submit = (): void => {
     if (invalid || creating) return;
@@ -239,6 +227,7 @@ export function CreatePersonaBotModal({
               <PersonaBotAvatar
                 personaBotId=""
                 name={displayName.trim() || t('bot.create.name.placeholder')}
+                avatarSeed={2}
                 size={44}
                 indicator={false}
                 t={t}
@@ -255,41 +244,15 @@ export function CreatePersonaBotModal({
           </div>
         </Field>
         <Field id={roleId} label={t('bot.create.roles.label')} hint={t('bot.create.roles.hint')}>
-          <div className="bh-role-editor">
-            {roles.length === 0 ? null : (
-              <div className="bh-role-editor-badges" aria-label={t('bot.create.roles.list')}>
-                {roles.map((role) => (
-                  <span className="bh-role-edit-badge" key={role}>
-                    <Tag tone="neutral">{role}</Tag>
-                    <button
-                      type="button"
-                      aria-label={t('bot.create.roles.remove', { role })}
-                      disabled={creating}
-                      onClick={() => setRoles((current) => current.filter((item) => item !== role))}
-                    >
-                      <IconCloseOutlineRegular size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <NameInput
-              id={roleId}
-              value={roleDraft}
-              disabled={creating}
-              placeholder={t('bot.create.roles.placeholder')}
-              onBlur={commitRoleDraft}
-              onChange={(event) => setRoleDraft(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
-                  event.preventDefault();
-                  commitRoleDraft();
-                } else if (event.key === 'Backspace' && roleDraft.length === 0) {
-                  setRoles((current) => current.slice(0, -1));
-                }
-              }}
-            />
-          </div>
+          <TagEditor
+            id={roleId}
+            tags={roles}
+            draft={roleDraft}
+            disabled={creating}
+            t={t}
+            onTags={setRoles}
+            onDraft={setRoleDraft}
+          />
         </Field>
         <Field
           id={descriptionId}

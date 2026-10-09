@@ -3,21 +3,25 @@ import { MAX_DESCRIPTOR_BYTES, parseBotDescriptor } from '../../core/src/marketp
 import { createMarket, fakeRepository, submit } from './market-harness.js';
 
 describe('bot.json descriptor', () => {
-  it('keeps a valid name, roles and avatar', () => {
+  it('keeps a valid name, tags, bio and avatar, reading legacy roles as tags', () => {
     expect(
       parseBotDescriptor(
         JSON.stringify({
           name: '  Pixel Painter ',
-          roles: ['artist', ' reviewer ', 'artist'],
+          tags: ['artist', ' reviewer ', 'artist'],
+          bio: '  Paints pixel avatars. ',
           avatar: { image: './assets/avatar.png' },
           extra: 'ignored',
         }),
       ),
     ).toEqual({
       name: 'Pixel Painter',
-      roles: ['artist', 'reviewer'],
+      tags: ['artist', 'reviewer'],
+      bio: 'Paints pixel avatars.',
       avatar: { image: 'assets/avatar.png' },
     });
+    expect(parseBotDescriptor('{"roles":["legacy"]}')).toEqual({ tags: ['legacy'] });
+    expect(parseBotDescriptor('{"tags":["new"],"roles":["legacy"]}')).toEqual({ tags: ['new'] });
     expect(parseBotDescriptor('{"avatar":{"recipe":{"family":"illustrated"}}}')).toEqual({
       avatar: { recipe: { family: 'illustrated' } },
     });
@@ -32,6 +36,10 @@ describe('bot.json descriptor', () => {
     ['a long name', JSON.stringify({ name: 'x'.repeat(61) })],
     ['too many roles', JSON.stringify({ roles: Array.from({ length: 9 }, (_, i) => `r${i}`) })],
     ['a non-string role', '{"roles":["ok",1]}'],
+    ['too many tags', JSON.stringify({ tags: Array.from({ length: 9 }, (_, i) => `t${i}`) })],
+    ['a long tag', JSON.stringify({ tags: ['x'.repeat(33)] })],
+    ['a numeric bio', '{"bio":3}'],
+    ['a long bio', JSON.stringify({ bio: 'x'.repeat(161) })],
     ['a path traversal', '{"avatar":{"image":"../secret.png"}}'],
     ['an absolute path', '{"avatar":{"image":"/etc/avatar.png"}}'],
     ['a URL', '{"avatar":{"image":"https://evil.example/a.png"}}'],
@@ -44,17 +52,65 @@ describe('bot.json descriptor', () => {
 });
 
 describe('Marketplace Worker presentation', () => {
-  it('lists the descriptor name and role badges', async () => {
+  it('lists the descriptor name, tags and bio', async () => {
     const market = createMarket();
     const repository = fakeRepository({
-      descriptor: JSON.stringify({ name: 'Helper', roles: ['writer', 'editor'] }),
+      descriptor: JSON.stringify({ name: 'Helper', tags: ['writer', 'editor'], bio: 'Writes.' }),
     });
     market.publish(repository);
 
     const response = await submit(market, repository.htmlUrl);
 
     expect(await response.json()).toMatchObject({
-      bot: { name: 'helper-bot', displayName: 'Helper', roles: ['writer', 'editor'] },
+      bot: {
+        name: 'helper-bot',
+        displayName: 'Helper',
+        tags: ['writer', 'editor'],
+        roles: ['writer', 'editor'],
+        bio: 'Writes.',
+        description: 'A helpful bot',
+      },
+    });
+  });
+
+  it('serves a banner recipe as is and an uploaded banner as a raw URL at the indexed commit', async () => {
+    const market = createMarket();
+    const scene = fakeRepository({
+      name: 'scene',
+      descriptor: JSON.stringify({ banner: { recipe: { scene: 'sea', seed: 7 } } }),
+    });
+    const upload = fakeRepository({
+      name: 'upload',
+      descriptor: JSON.stringify({ banner: { image: '.botharness/banner.png' } }),
+    });
+    const none = fakeRepository({ name: 'none' });
+    for (const repository of [scene, upload, none]) market.publish(repository);
+
+    const banners = [];
+    for (const repository of [scene, upload, none]) {
+      const body = (await (await submit(market, repository.htmlUrl)).json()) as {
+        bot: { banner: unknown; headCommit: { sha: string } | null };
+      };
+      banners.push(body.bot);
+    }
+    expect(banners[0]?.banner).toEqual({ recipe: { scene: 'sea', seed: 7 } });
+    expect(banners[1]?.banner).toEqual({
+      image: `https://raw.githubusercontent.com/${upload.owner}/upload/${banners[1]?.headCommit?.sha}/.botharness/banner.png`,
+    });
+    expect(banners[2]?.banner).toBeNull();
+  });
+
+  it('falls back to legacy roles and the GitHub description', async () => {
+    const market = createMarket();
+    const repository = fakeRepository({
+      descriptor: JSON.stringify({ name: 'Helper', roles: ['writer'] }),
+    });
+    market.publish(repository);
+
+    const response = await submit(market, repository.htmlUrl);
+
+    expect(await response.json()).toMatchObject({
+      bot: { tags: ['writer'], roles: ['writer'], bio: 'A helpful bot' },
     });
   });
 

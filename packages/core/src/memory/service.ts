@@ -123,6 +123,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
   };
 
   return {
+    sourceReferences: (ids) => requireAcceptance().sourceReferences(ids),
     ...createMemoryFiles(registry),
     continueFromCommit: (input) => requireAcceptance().continueFromCommit(input),
     switchBranch: (input) => requireAcceptance().switchBranch(input),

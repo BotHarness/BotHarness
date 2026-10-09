@@ -9,6 +9,7 @@ import {
   type AvatarRecipe,
   type PixelCell,
   type PixelSymbol,
+  type PixelMouthState,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { morphPixels, pixelPathMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
 import type { Sampled } from 'morphicons';
@@ -20,6 +21,7 @@ import {
   type LineMorphRun,
 } from './line-morph.js';
 import { useMountedResource } from './mounted-resource.js';
+import { AvatarSpeech } from './avatar-speech.js';
 import type { PersonaBotActivityEffect, PersonaBotActivityState } from './avatar.js';
 
 type Step = readonly [number, number];
@@ -147,17 +149,29 @@ export function IllustratedAvatar({
   effect,
   size,
   symbol,
+  surface = 'portrait',
+  still = false,
+  mouth = 'saved',
 }: {
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
   symbol?: PixelSymbol | undefined;
+  mouth?: PixelMouthState | undefined;
+  surface?: 'portrait' | 'companion' | undefined;
+  still?: boolean | undefined;
 }): ReactElement {
-  const turning = state === 'thinking' && size > 64;
+  const speech = surface === 'companion' && recipe.family === 'illustrated';
+  const turning = !still && state === 'thinking' && size > 64;
   const markup = useMemo(
-    () => avatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
-    [recipe, turning],
+    () =>
+      avatarSvg(recipe, {
+        surface,
+        mouthLayers: speech,
+        ...(turning ? { turns: AVATAR_TURNS } : {}),
+      }),
+    [recipe, turning, surface, speech],
   );
   const line = useRef<LineShown>({ velocity: 0, since: 0 });
   const pixel = useRef<PixelShown>({ since: 0 });
@@ -173,6 +187,7 @@ export function IllustratedAvatar({
       const animations = new Set<Animation>();
       let visible = seen.current;
       let disposed = false;
+      let revision = 0;
       let run: { run: LineMorphRun; key: PixelSymbol | 'face' } | undefined;
       let lineTimer: ReturnType<typeof setTimeout> | undefined;
       let pixelRun: { run: PixelMorphRun; key: PixelSymbol | 'face' } | undefined;
@@ -206,11 +221,14 @@ export function IllustratedAvatar({
       const fade = (target: SVGElement, to: number, duration: number) => {
         const from = Number(getComputedStyle(target).opacity || '1');
         target.style.opacity = String(to);
-        if (from !== to)
-          target.animate([{ opacity: from }, { opacity: to }], {
+        if (from !== to) {
+          const animation = target.animate([{ opacity: from }, { opacity: to }], {
             duration,
             easing: 'ease-in-out',
           });
+          animations.add(animation);
+          void animation.finished.then(() => animations.delete(animation)).catch(() => undefined);
+        }
       };
       const spring = () => (size <= 64 ? SMALL_SPRING : LARGE_SPRING);
       const showLine = (still: boolean): Promise<unknown> => {
@@ -339,6 +357,7 @@ export function IllustratedAvatar({
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
       const settled = () => animations.size === 0 && !run && !lineTimer && !pixelRun;
       const sync = () => {
+        const currentRevision = ++revision;
         const moving = !settled();
         const start = moving ? getComputedStyle(head).transform : 'none';
         const gazeStart = moving ? getComputedStyle(gaze).transform : 'none';
@@ -349,6 +368,7 @@ export function IllustratedAvatar({
         if (morphPath) morphPath.style.opacity = '';
         if (
           disposed ||
+          still ||
           !visible ||
           document.hidden ||
           document.documentElement.dataset['botharnessMotion'] === 'reduce' ||
@@ -380,6 +400,8 @@ export function IllustratedAvatar({
             if (
               (recipe.family === 'line' && symbol !== undefined) ||
               disposed ||
+              currentRevision !== revision ||
+              still ||
               !visible ||
               document.hidden ||
               document.documentElement.dataset['botharnessMotion'] === 'reduce' ||
@@ -453,13 +475,16 @@ export function IllustratedAvatar({
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup, recipe, symbol],
+    [state, effect, size, markup, recipe, symbol, still],
   );
   return (
-    <span
-      ref={mount}
-      className="bh-avatar-media bh-avatar-media-composed"
-      dangerouslySetInnerHTML={{ __html: markup }}
-    />
+    <>
+      <span
+        ref={mount}
+        className="bh-avatar-media bh-avatar-media-composed"
+        dangerouslySetInnerHTML={{ __html: markup }}
+      />
+      {speech && <AvatarSpeech markup={markup} mouth={mouth} still={still} />}
+    </>
   );
 }

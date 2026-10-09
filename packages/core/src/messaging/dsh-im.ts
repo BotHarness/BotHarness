@@ -10,6 +10,8 @@ import type {
   MessagingHistoryPage,
   MessagingApprovalCard,
   MessagingApprovalAck,
+  MessagingTypingState,
+  MessagingTypingLease,
 } from './provider.js';
 import { mentionTags } from './mention-text.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
@@ -23,6 +25,15 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  setupVersion?: 1;
+  describeSetup?(channel: string): Promise<unknown> | unknown;
+  reactionVersion?: 1;
+  reactionChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    reaction: 'received' | 'answered',
+    options: { expectedFingerprint: string; signal: AbortSignal; beforeSend(): boolean },
+  ): Promise<{ accepted: true }>;
   approvalCardVersion?: 1;
   approvalCardChecked?(
     botId: string,
@@ -41,6 +52,17 @@ export interface DshImOutboundService {
   replyFenceVersion?: 1;
   receiptVersion?: 1;
   postFenceVersion?: 1;
+  typingVersion?: 1;
+  beginTypingChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    options: {
+      expectedFingerprint: string;
+      signal: AbortSignal;
+      beforeSend(): boolean;
+      onState(state: MessagingTypingState): void;
+    },
+  ): Promise<MessagingTypingLease>;
   echoVersion?: 1;
   readSourceFile?(
     botId: string,
@@ -146,7 +168,13 @@ const inboundSchema = z
       .object({ kind: z.literal('user'), id: identifier, name: identifier.optional() })
       .strict()
       .transform(({ name, ...actor }) => ({ ...actor, ...(name === undefined ? {} : { name }) })),
-    conversation: z.object({ kind: z.enum(['group', 'dm']), id: identifier }).strict(),
+    conversation: z
+      .object({ kind: z.enum(['group', 'dm']), id: identifier, name: identifier.optional() })
+      .strict()
+      .transform(({ name, ...conversation }) => ({
+        ...conversation,
+        ...(name === undefined ? {} : { name }),
+      })),
     mentions: z
       .array(
         z
@@ -292,6 +320,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'private-context-unavailable',
     'private-context-rejected',
     'send-permission-denied',
+    'reaction-permission-denied',
+    'reaction-provider-rejected',
   ].includes(code);
   return new MessagingProviderError(
     definite ? code : 'provider-result-unknown',
@@ -338,6 +368,20 @@ export function createDshImProvider(
       name: info.account.name ?? ref,
       fingerprint: info.account.fingerprint,
       connected: info.connected,
+      ...(platform === 'feishu'
+        ? {
+            reactionSupported:
+              host.reactionVersion === 1 &&
+              typeof host.reactionChecked === 'function' &&
+              info.capabilities.includes('reaction-write-checked'),
+          }
+        : {}),
+      ...(platform === 'weixin' &&
+      host.typingVersion === 1 &&
+      typeof host.beginTypingChecked === 'function' &&
+      info.capabilities.includes('typing-lifecycle-checked')
+        ? { typingSupported: true }
+        : {}),
       ...(info.capabilities.includes('proactive-text-checked') ||
       (platform === 'qq' &&
         host.replyContextVersion === 1 &&
@@ -399,12 +443,117 @@ export function createDshImProvider(
     }));
   return {
     id: `dsh-im/${platform}`,
+    ...(host.setupVersion === 1 &&
+    typeof host.describeSetup === 'function' &&
+    (platform === 'feishu' || platform === 'weixin')
+      ? {
+          async setup() {
+            const raw = await host.describeSetup!(platform);
+            if (!raw || typeof raw !== 'object') return undefined;
+            const descriptor = raw as Record<string, unknown>;
+            const kind = platform === 'feishu' ? 'credentials' : 'qr';
+            if (
+              descriptor['version'] !== 1 ||
+              descriptor['channel'] !== platform ||
+              descriptor['endpoint'] !== 'dsh-im/app-setup' ||
+              descriptor['kind'] !== kind
+            )
+              return undefined;
+            return { version: 1 as const, platform, endpoint: 'dsh-im/app-setup' as const, kind };
+          },
+        }
+      : {}),
     async accounts() {
       const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
       const result = await Promise.allSettled(bots.map((bot) => describe(bot.botId)));
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
+    ...(platform === 'feishu' &&
+    host.reactionVersion === 1 &&
+    typeof host.reactionChecked === 'function'
+      ? {
+          async react(input: Parameters<NonNullable<MessagingProvider['react']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingProviderError('account-changed', 'not-started');
+            if (!info.connected || !info.capabilities.includes('reaction-write-checked'))
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
+            try {
+              const result = await host.reactionChecked!(
+                input.accountRef,
+                input.route,
+                input.reaction,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                  beforeSend: input.beforeSend,
+                },
+              );
+              if (result?.accepted !== true)
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return { accepted: true as const };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
+    ...(platform === 'weixin' &&
+    host.typingVersion === 1 &&
+    typeof host.beginTypingChecked === 'function'
+      ? {
+          async beginTyping(input: Parameters<NonNullable<MessagingProvider['beginTyping']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (!info.connected || !info.capabilities.includes('typing-lifecycle-checked'))
+              throw new MessagingError('capability-unavailable');
+            try {
+              const result = await host.beginTypingChecked!(input.accountRef, input.route, {
+                expectedFingerprint: input.fingerprint,
+                signal: input.signal,
+                beforeSend: input.beforeSend,
+                onState(state) {
+                  const parsed = z
+                    .object({
+                      phase: z.enum(['idle', 'requesting', 'accepted', 'cleanup-unconfirmed']),
+                      reason: z
+                        .enum([
+                          'completed',
+                          'cancelled',
+                          'disposed',
+                          'maximum-duration',
+                          'renewal-refused',
+                          'typing-unavailable',
+                        ])
+                        .optional(),
+                    })
+                    .safeParse(state);
+                  if (parsed.success)
+                    input.onState({
+                      phase: parsed.data.phase,
+                      ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
+                    });
+                },
+              });
+              if (result?.accepted !== true || typeof result.stop !== 'function')
+                throw new MessagingError('provider-incompatible');
+              return result;
+            } catch (error) {
+              throw new MessagingError(
+                error instanceof MessagingError
+                  ? error.code
+                  : input.signal.aborted
+                    ? 'cancelled'
+                    : 'typing-unavailable',
+              );
+            }
+          },
+        }
+      : {}),
     inspectAccount: account,
     async inspect(accountRef, targetRef) {
       const current = await account(accountRef);

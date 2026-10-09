@@ -644,6 +644,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'dev/guides/client-startup-diagnostics',
+    order: 6,
+    en: {
+      source: 'docs/dev/guides/client-startup-diagnostics.md',
+      title: 'Client startup diagnostics',
+      description: 'Proactive browser console, bounded boot evidence and explicit readiness',
+      lang: 'en',
+    },
+    zh: {
+      source: 'docs/dev/guides/client-startup-diagnostics.zh.md',
+      title: 'Client 启动诊断',
+      description: '主动读取浏览器 console、有界启动证据与明确就绪状态',
+    },
+  },
+  {
     slug: 'dev/guides/client-bridge',
     order: 1,
     zh: {

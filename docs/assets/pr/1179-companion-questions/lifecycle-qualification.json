@@ -1,0 +1,42 @@
+{
+  "runtimeCode": "ce926cbec838594bc2db098e42e108b95efd7bed",
+  "integratedMain": "5efae378ac47752b49aa20b4397d1c6d38d07892",
+  "formalPixelAvatar": "0.7.0",
+  "viewport": [1559, 865],
+  "locale": "zh-CN",
+  "themes": ["light", "dark"],
+  "freshTaskOnlyQaBot": true,
+  "actualNativeQuestions": true,
+  "authenticatedExistingHostCommands": [
+    "pause",
+    "resume",
+    "session/cancel",
+    "deletionPreview",
+    "deletionConfirm"
+  ],
+  "archivedQuestionControlsRemoved": true,
+  "stillLiveOwnerRestoredAfterUnarchive": true,
+  "nativeCancelExpiresOwner": true,
+  "canonicalCancelledExactlyOnce": true,
+  "noCanonicalAnswers": true,
+  "cancellationRemovesCurrentControlsSameDocument": true,
+  "deletionComplete": true,
+  "deletedCompanionAndControlsRemovedSameDocument": true,
+  "deletionMemory": "retained",
+  "unrelatedChannelRetained": true,
+  "correctLateAnswerContractRefusedAfterCancellationAndDeletion": true,
+  "lateAnswerCanonicalResolutionsUnchanged": true,
+  "consoleErrorsInEachCapture": 0,
+  "closedOwnedBrowser": true,
+  "recordingsSeconds": [14.6, 19.233],
+  "limits": [
+    "Existing authenticated Host commands exercise real owners, identity lifecycle and native Session cancellation. This does not qualify mouse operation of archive/delete/cancel menus. No owner, question, answer, activity or card injection",
+    "First capture ends after native cancel command: QA observer expected result.accepted instead of actual result.ok/value.accepted and failed after the real cancellation committed. Failure/raw response retained; no product change needed",
+    "First follow-up browser had fresh isolated preferences and no pin. Explicit exact-Bot repin corrected the observer precondition before recording a new native question/cancellation and deletion. The failed follow-up produced no request and is not published as recovery evidence",
+    "Two initial stale-answer probes used malformed top-level answers, qualifying only validation. Separate postflight uses correct answer.answers, observes invalid-input after cancellation/deletion and unchanged canonical resolutions. It is not a recorded mouse action",
+    "First clip qualifies archive/unarchive; second clip starts with the previous request already cancelled, then includes a new real question, native cancellation, another real pending question and actual deletion",
+    "Only the fresh Bot created for this test is deleted, eraseMemory=false. Its memory directory is retained. No Human or pre-existing QA identity was deleted",
+    "Seven screenshots are successive real interaction states, not matched-base design comparisons. Official MCP continuous silent recordings are container-remuxed only; they are not performance measurements",
+    "Pending question-mark presentation versus idle pixel Avatar does not qualify mouth animation. Competing-client and reduced-motion runtime edges remain separate"
+  ]
+}

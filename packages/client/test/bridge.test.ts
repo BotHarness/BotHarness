@@ -10,6 +10,7 @@ import {
   loadMemoryGitCommitDiff,
   loadSessionBotOwner,
   loadActivityOverview,
+  botExists,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
@@ -19,6 +20,7 @@ import {
   type BridgeCall,
 } from '../src/client/bridge.js';
 import { createStore } from '../src/client/store.js';
+import { onboardingFor } from '../src/client/onboarding.js';
 
 type Handler = (payload: Record<string, unknown>) => unknown;
 
@@ -59,6 +61,19 @@ const DM = {
 };
 
 describe('bridge transport', () => {
+  it('proves Bot existence from a complete identity list and rejects malformed results', async () => {
+    expect(await botExists(bridgeCall({ list: () => ({ bots: [{ slug: 'ada' }] }) }), 'ada')).toBe(
+      true,
+    );
+    expect(await botExists(bridgeCall({ list: () => ({ bots: [] }) }), 'ada')).toBe(false);
+    for (const value of [{}, { bots: [{}] }, { bots: [{ slug: 'grace' }, null] }])
+      await expect(botExists(bridgeCall({ list: () => value }), 'ada')).rejects.toThrow();
+    await expect(
+      botExists(async () => {
+        throw new Error('Offline');
+      }, 'ada'),
+    ).rejects.toThrow('Offline');
+  });
   it('loads a bounded owner for one native root Session', async () => {
     const owner = await loadSessionBotOwner(
       bridgeCall({
@@ -172,6 +187,10 @@ describe('bridge parsers', () => {
       parseBotSummary({ slug: 'legacy', displayName: 'Legacy', tag: '旧岗位' })?.roles,
     ).toEqual(['旧岗位']);
     expect(parseBotSummary({ slug: '', displayName: 'Broken' })).toBeUndefined();
+    expect(parseBotSummary({ slug: 'n', displayName: 'N', avatarSeed: 2 })?.avatarSeed).toBe(2);
+    expect(parseBotSummary({ slug: 'n', displayName: 'N', avatarSeed: 3 })).not.toHaveProperty(
+      'avatarSeed',
+    );
   });
 
   it('drops malformed channels and keeps botSlug only when present', () => {
@@ -305,6 +324,47 @@ describe('bridge parsers', () => {
 });
 
 describe('bridge actions', () => {
+  it('opens a newly observed source from the owner roster and refuses lost read permission before selection', async () => {
+    const fresh = { ...GROUP, id: 'new-source' };
+    let readable = true;
+    const { clientStore, actions } = setup({
+      channels: () => ({ channels: [fresh] }),
+      channelTimeline: ({ channelId, direction, around }) => {
+        expect({ channelId, direction, around }).toEqual({
+          channelId: 'new-source',
+          direction: 'around',
+          around: 'reply',
+        });
+        if (!readable) throw new Error('Source permission revoked');
+        return {
+          revision: 1,
+          page: {
+            entries: [],
+            olderCursor: null,
+            newerCursor: null,
+            hasOlder: false,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    expect(clientStore.getSnapshot().channels).toEqual([]);
+    await actions.openChannelAtMessage('new-source', 'reply');
+    expect(clientStore.getSnapshot().conversation).toMatchObject({
+      status: 'ready',
+      channel: { id: 'new-source' },
+      focusMessageId: 'reply',
+    });
+    clientStore.select(undefined);
+    readable = false;
+    await expect(actions.openChannelAtMessage('new-source', 'reply')).rejects.toThrow(
+      'Source permission revoked',
+    );
+    expect(clientStore.getSnapshot().selection).toBeUndefined();
+    await expect(actions.openChannelAtMessage('deleted', 'reply')).rejects.toThrow(
+      'Source Channel is no longer available',
+    );
+  });
   it('keeps All Bots intent out of failed local echoes and preserves the stale-preview error for composer recovery', async () => {
     const preview = { revision: 'fresh', recipients: [{ botSlug: 'ada', label: 'Ada' }] };
     const { clientStore, actions } = setup({
@@ -1441,6 +1501,48 @@ describe('bridge actions', () => {
     expect(committed?.id).toBe(local.id);
     expect(committed?.pending).toBeUndefined();
     expect(committed?.failed).toBeUndefined();
+  });
+
+  it('hands a confirmed onboarding draft to its original message when the accepted response is lost', async () => {
+    const accepted: Array<{ id: string; at: string; author: { kind: 'human' }; body: string }> = [];
+    const { clientStore, actions } = setup({
+      onboardingModel: () => ({}),
+      channelSend: (payload) => {
+        accepted.push({
+          id: String(payload['messageId']),
+          at: BOT.createdAt,
+          author: { kind: 'human' },
+          body: String(payload['body']),
+        });
+        throw new Error('response lost');
+      },
+      channelTimeline: () => ({
+        revision: accepted.length,
+        page: {
+          entries: accepted,
+          olderCursor: null,
+          newerCursor: null,
+          hasOlder: false,
+          hasNewer: false,
+        },
+      }),
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const controller = onboardingFor(actions);
+    controller.chooseModel('dm-ada', 'ada', 'Only one question');
+    await controller.saveModel({ provider: 'deepseek', model: 'chat' }, true, 0);
+    await controller.sendPending();
+    expect(clientStore.getSnapshot().conversation.messages).toEqual([
+      expect.objectContaining({ id: accepted[0]!.id, failed: 'response lost' }),
+    ]);
+    expect(controller.getSnapshot().pending).toBeUndefined();
+    await actions.refreshChannelMessages('dm-ada');
+    controller.reviewPending();
+    await controller.sendPending();
+    expect(accepted).toHaveLength(1);
+    expect(clientStore.getSnapshot().conversation.messages).toEqual([accepted[0]]);
+    expect(controller.getSnapshot().modelOpen).toBe(false);
   });
 
   it('generates a Host-valid UUID fallback when Web Crypto is unavailable', async () => {

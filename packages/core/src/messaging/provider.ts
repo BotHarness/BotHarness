@@ -4,7 +4,19 @@ export interface MessagingAccount {
   name: string;
   fingerprint: string;
   connected: boolean;
+  typingSupported?: boolean;
+  reactionSupported?: boolean;
   unsupported?: 'checked-send';
+}
+
+export interface MessagingTypingState {
+  phase: 'idle' | 'requesting' | 'accepted' | 'cleanup-unconfirmed';
+  reason?: string;
+}
+
+export interface MessagingTypingLease {
+  accepted: true;
+  stop(): Promise<void>;
 }
 
 export interface MessagingTarget {
@@ -60,7 +72,7 @@ export interface MessagingInboundEvent {
   eventId: string;
   messageId: string;
   actor: { kind: 'user'; id: string; name?: string };
-  conversation: { kind: 'group' | 'dm'; id: string };
+  conversation: { kind: 'group' | 'dm'; id: string; name?: string };
   mentions: { id: string; key: string; name?: string }[];
   mentionedAccount: boolean;
   at: string;
@@ -154,8 +166,24 @@ export interface MessagingApprovalAck {
   status: 'queued' | 'refused';
 }
 
+export interface MessagingSetup {
+  version: 1;
+  platform: 'feishu' | 'weixin';
+  endpoint: 'dsh-im/app-setup';
+  kind: 'credentials' | 'qr';
+}
+
 export interface MessagingProvider {
+  setup?(): Promise<MessagingSetup | undefined>;
   id: string;
+  react?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    reaction: 'received' | 'answered';
+    signal: AbortSignal;
+    beforeSend(): boolean;
+  }): Promise<{ accepted: true }>;
   accounts(): Promise<MessagingAccount[]>;
   targets(accountRef: string): Promise<MessagingTarget[]>;
   inspectAccount?(accountRef: string): Promise<MessagingAccount>;
@@ -189,6 +217,14 @@ export interface MessagingProvider {
     route: MessagingReplyRoute;
     signal: AbortSignal;
   }): Promise<MessagingReplyRoute>;
+  beginTyping?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    signal: AbortSignal;
+    beforeSend(): boolean;
+    onState(state: MessagingTypingState): void;
+  }): Promise<MessagingTypingLease>;
   reply?(input: {
     accountRef: string;
     fingerprint: string;

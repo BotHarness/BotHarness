@@ -27,6 +27,7 @@ export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
     { id: 'manual', label: t('sort.manual') },
     { type: 'separator', id: 'roster-separator' },
     { id: 'hidden', label: t('hidden.manage') },
+    { id: 'channel-history', label: t('purge.history') },
   ];
 }
 

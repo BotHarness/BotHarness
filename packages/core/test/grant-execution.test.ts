@@ -40,12 +40,13 @@ function fixture() {
     },
   }));
   const overrideOf = vi.fn(() => 'ask');
+  const getBot = vi.fn((): { slug: string } | undefined => ({ slug: botSlug }));
   const memoryDirFor = vi.fn(() => '/tmp/memory');
   const core = {
     ownership: { resolve },
     runtime: { getAssignment },
     grants: { requireActive },
-    registry: { memoryDirFor },
+    registry: { memoryDirFor, get: getBot },
     hostTools: new Set<string>(),
   } as never;
   const resolvePolicy = vi.fn(() => ({ mode: 'workspace-write' }));
@@ -62,10 +63,30 @@ function fixture() {
     getAssignment,
     overrideOf,
     memoryDirFor,
+    getBot,
   };
 }
 
 describe('Workspace Grant execution boundary', () => {
+  it('denies deleted native roots and saved tool approvals even with retained Memory cwd', () => {
+    const state = fixture();
+    state.getBot.mockReturnValue(undefined);
+    const session = { id: 'botharness-orchestrator', header: { cwd: '/tmp/memory' } } as never;
+    expect(grantExecutionDenial(state.core, session, state.policy, state.approval)).toBe(
+      'PersonaBot identity is deleted or unavailable',
+    );
+    expect(
+      grantToolExecutionDenial(state.core, session, state.policy, state.approval, 'read', {
+        file_path: '/tmp/memory/PERSONA.md',
+      }),
+    ).toBe('PersonaBot identity is deleted or unavailable');
+    expect(grantExecutionDenial(state.core, state.assignment, state.policy, state.approval)).toBe(
+      'PersonaBot identity is deleted or unavailable',
+    );
+    expect(state.overrideOf).not.toHaveBeenCalled();
+    expect(state.requireActive).not.toHaveBeenCalled();
+  });
+
   it('treats Host-checked Bot DM contact tools as internal Messaging tools', () => {
     expect(requiresHumanToolApproval('list_bot_contacts')).toBe(false);
     expect(requiresHumanToolApproval('channel_list')).toBe(false);

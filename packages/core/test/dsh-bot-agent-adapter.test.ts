@@ -239,6 +239,91 @@ describe('DSH Bot Agent adapter', () => {
     }
   });
 
+  it('rechecks source authority for native tools on the current Orchestrator turn', async () => {
+    const denials: Array<string | undefined> = [];
+    let invalid = false;
+    const refusal = {
+      outcome: 'capacity' as const,
+      code: 'assignment-capacity' as const,
+      activeCount: 3,
+      limit: 3,
+      retryable: true as const,
+      message: 'Nothing was awakened. Wait for active work to settle before retrying.',
+    };
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        onAgentCreated: () => {
+          const guards = host.scopes.get('orchestrator-ada')!.guards;
+          denials.push(guards.map((guard) => guard({ name: 'shell' })).find(Boolean));
+          invalid = true;
+          denials.push(guards.map((guard) => guard({ name: 'shell' })).find(Boolean));
+        },
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      await adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume: false,
+        requireContent: () => {
+          if (invalid) throw new Error('Source Event content was purged');
+        },
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        inbox: '',
+        message: 'Continue A',
+        channels: {
+          ...groupTools,
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
+          read: () => [],
+          requestGrant: async () => {
+            throw new Error('unexpected Grant request');
+          },
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        assignments: {
+          create: () => refusal,
+          request: () => ({
+            ...refusal,
+            assignment: { ...ASSIGNMENT, activity: 'idle' },
+            delivery: 'capacity',
+          }),
+          grants: () => [],
+          list: () => [],
+          inspect: () => undefined,
+          stop: async () => {
+            throw new Error('unexpected stop');
+          },
+        },
+      });
+      expect(denials).toEqual([
+        undefined,
+        'Source Event content was purged or its authority is unavailable',
+      ]);
+    } finally {
+      await adapter.close();
+    }
+  });
+
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];
@@ -1694,6 +1779,7 @@ it('routes external Tools through the active owning Orchestrator without a local
 
 describe('Bot Schedule Tools', () => {
   it('route schedule changes through the run and refuse native schedule tools', async () => {
+    const clockBefore = Date.now();
     const calls: Array<Promise<unknown>> = [];
     const created: unknown[] = [];
     const updated: unknown[] = [];
@@ -1753,6 +1839,9 @@ describe('Bot Schedule Tools', () => {
             { cron: '0 9 * * 1-5', time_zone: 'Asia/Shanghai' },
             { weekdays: [1] },
             { once_at: 'tomorrow' },
+            { once_in_minutes: 10, time_zone: 'Asia/Tokyo' },
+            { once_in_minutes: 10 },
+            { once_in_minutes: 10, once_at: '2026-11-01 09:00', time_zone: 'Asia/Tokyo' },
           ])
             calls.push(
               tool('bot_schedule_create').execute(
@@ -1837,7 +1926,10 @@ describe('Bot Schedule Tools', () => {
       },
     });
     try {
-      expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
+      const results = (await Promise.all(calls)).map((value) => JSON.parse(String(value)));
+      expect(Date.parse(results[0].currentTime)).toBeGreaterThanOrEqual(clockBefore);
+      expect(Date.parse(results[0].currentTime)).toBeLessThanOrEqual(Date.now());
+      expect(results).toMatchObject([
         { schedules: [{ id: 'sch-1' }], enabledLimit: 20 },
         { trigger: { kind: 'every', everySeconds: 3600 } },
         { trigger: { kind: 'daily', time: '09:00', timeZone: 'Asia/Shanghai' } },
@@ -1856,11 +1948,14 @@ describe('Bot Schedule Tools', () => {
         { trigger: { kind: 'cron', expression: '0 9 * * 1-5', timeZone: 'Asia/Shanghai' } },
         { error: { code: 'invalid-input', message: 'weekdays needs daily_time' } },
         { error: { code: 'invalid-input' } },
+        { trigger: { kind: 'once', timeZone: 'Asia/Tokyo' } },
+        { error: { code: 'invalid-input', message: 'once_in_minutes needs time_zone' } },
+        { error: { code: 'invalid-input' } },
         { enabled: false },
         { error: { code: 'locked', message: 'Bot Schedule locked-1 is locked by the Human' } },
         { id: 'sch-1', deleted: true },
       ]);
-      expect(created).toHaveLength(5);
+      expect(created).toHaveLength(6);
       expect(updated).toEqual([{ enabled: false }]);
       expect(denial).toContain('bot_schedule_create');
       expect(allowed).toBeUndefined();

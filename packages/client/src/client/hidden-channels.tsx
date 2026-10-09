@@ -106,6 +106,7 @@ export function HiddenChannelsModal({
                 name={bot.displayName}
                 src={bot.avatar}
                 appearance={bot.appearance}
+                avatarSeed={bot.avatarSeed}
                 state={activity}
                 size={28}
               />

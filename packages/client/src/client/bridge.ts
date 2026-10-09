@@ -1,3 +1,4 @@
+import { isPixelBannerRecipe, type PixelBannerRecipe } from '@botharness/pixel-banner';
 import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
@@ -50,8 +51,14 @@ import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
+import { isPartLibraryEntry, type PartLibraryEntry } from '../../../core/src/bots/part-library.js';
+import type { PixelCustomPart } from '../../../core/src/bots/avatar-appearance.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
+import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
@@ -74,6 +81,7 @@ import type {
   HumanAttentionPage,
   HumanInboxCategory,
   HumanInboxFilters,
+  BotBannerView,
   BotSummary,
   ChannelAuthor,
   ChannelAttachmentRef,
@@ -200,6 +208,7 @@ export async function loadModelPlan(
 }
 
 export interface ModelPlanStateView {
+  revision?: number;
   plan?: ModelPlanView;
   repair?: {
     code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
@@ -599,9 +608,20 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
       : isRetainedAvatarAppearance(record['appearance'])
         ? { appearanceUnsupported: true as const }
         : {}),
+    ...(parseBanner(record['banner']) ?? {}),
+    ...(record['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
+    ...(record['deleted'] === true ? { deleted: true } : {}),
     ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseBanner(value: unknown): { banner: BotBannerView } | undefined {
+  const banner = asRecord(value);
+  if (banner === undefined) return undefined;
+  if (isPixelBannerRecipe(banner['recipe'])) return { banner: { recipe: banner['recipe'] } };
+  const image = banner['image'];
+  return typeof image === 'string' && image.length > 0 ? { banner: { image } } : undefined;
 }
 
 function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
@@ -983,6 +1003,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     if (parsed.some((item) => item === undefined)) return undefined;
     userQuestionRequest = {
       sessionId: request['sessionId'],
+      ...(typeof request['callId'] === 'string' ? { callId: request['callId'] } : {}),
       questions: parsed as NonNullable<ChannelMessage['userQuestionRequest']>['questions'],
     };
   }
@@ -1004,6 +1025,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       role: failure['role'],
       sessionId: failure['sessionId'],
       detail: failure['detail'],
+      ...(typeof failure['requestMessageId'] === 'string'
+        ? { requestMessageId: failure['requestMessageId'] }
+        : {}),
       ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
       ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
@@ -1031,7 +1055,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       displayName: departure['displayName'],
       departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
-  } else if (author.kind === 'system') {
+  } else if (author.kind === 'system' && asRecord(record['onboardingWelcome'])?.['version'] !== 1) {
     return undefined;
   }
   let botDmAction: ChannelMessage['botDmAction'];
@@ -1312,6 +1336,12 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(asRecord(record['onboardingWelcome'])?.['version'] === 1 && author.kind === 'system'
+      ? { onboardingWelcome: { version: 1 as const } }
+      : {}),
+    ...(body === '' && asRecord(record['contentPurge'])?.['actor'] === 'local-human'
+      ? { contentPurged: true as const }
+      : {}),
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(mentions === undefined
       ? {}
@@ -1365,6 +1395,7 @@ export interface SessionBotOwner {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance;
+  avatarSeed?: 2;
   role: 'orchestrator' | 'assignment';
 }
 
@@ -1383,6 +1414,7 @@ export function parseSessionBotOwner(value: unknown): SessionBotOwner | undefine
     displayName,
     ...(typeof avatar === 'string' && avatar.length > 0 ? { avatar } : {}),
     ...(isAvatarAppearance(owner['appearance']) ? { appearance: owner['appearance'] } : {}),
+    ...(owner['avatarSeed'] === 2 ? { avatarSeed: 2 as const } : {}),
     role,
   };
 }
@@ -1429,6 +1461,16 @@ export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[
 
 export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<BotSummary[]> {
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
+}
+
+export async function botExists(call: BridgeCall, slug: string): Promise<boolean> {
+  const bots = asRecord(await unwrap(call, 'list', {}))?.['bots'];
+  if (!Array.isArray(bots))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  const identities = bots.map((entry) => asRecord(entry)?.['slug']);
+  if (!identities.every((identity) => typeof identity === 'string' && identity.length > 0))
+    throw new BridgeCallError('invalid-response', 'Invalid Bot identity list');
+  return identities.includes(slug);
 }
 
 export type SshFailureReason =
@@ -1881,6 +1923,28 @@ export async function setBotAvatar(
   return bot;
 }
 
+export async function setBotBanner(
+  call: BridgeCall,
+  channelId: string,
+  banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botBannerSet', { channelId, banner }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botBannerSet response');
+  return bot;
+}
+
+export async function updateBotProfile(
+  call: BridgeCall,
+  slug: string,
+  patch: { roles?: string[]; description?: string },
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'update', { slug, patch }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid update response');
+  return bot;
+}
+
 export async function setBotAppearance(
   call: BridgeCall,
   channelId: string,
@@ -1890,6 +1954,56 @@ export async function setBotAppearance(
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAppearanceSet response');
   return bot;
+}
+
+export async function loadPartLibrary(call: BridgeCall): Promise<PartLibraryEntry[]> {
+  const parts = asRecord(await unwrap(call, 'partLibraryList', {}))?.['parts'];
+  if (!Array.isArray(parts)) throw new Error('invalid partLibraryList response');
+  return parts.filter(isPartLibraryEntry);
+}
+
+export async function exportLibraryParts(
+  call: BridgeCall,
+  id?: string,
+  part?: PixelCustomPart,
+): Promise<{ fileName: string; data: string }> {
+  const value = asRecord(
+    await unwrap(
+      call,
+      'partLibraryExport',
+      part !== undefined ? { part } : id === undefined ? {} : { id },
+    ),
+  );
+  const fileName = value?.['fileName'];
+  const data = value?.['data'];
+  if (typeof fileName !== 'string' || typeof data !== 'string')
+    throw new Error('invalid partLibraryExport response');
+  return { fileName, data };
+}
+
+export async function importLibraryParts(
+  call: BridgeCall,
+  data: string,
+): Promise<{ added: PartLibraryEntry[]; refused: number }> {
+  const value = asRecord(await unwrap(call, 'partLibraryImport', { data }));
+  const added = value?.['added'];
+  const refused = value?.['refused'];
+  if (!Array.isArray(added) || !Array.isArray(refused))
+    throw new Error('invalid partLibraryImport response');
+  return { added: added.filter(isPartLibraryEntry), refused: refused.length };
+}
+
+export async function addLibraryPart(
+  call: BridgeCall,
+  part: PixelCustomPart,
+  name: string,
+  parent?: string,
+): Promise<PartLibraryEntry> {
+  const entry = asRecord(
+    await unwrap(call, 'partLibraryAdd', { part, name, ...(parent ? { parent } : {}) }),
+  )?.['entry'];
+  if (!isPartLibraryEntry(entry)) throw new Error('invalid partLibraryAdd response');
+  return entry;
 }
 
 export async function inviteGroupBot(
@@ -2291,6 +2405,32 @@ export async function loadToolApprovalStatus(
   return status;
 }
 
+export type ToolApprovalExecutionState =
+  | 'waiting-human'
+  | 'waiting-capacity'
+  | 'running'
+  | 'settled'
+  | 'needs-repair';
+
+export async function loadToolApprovalExecutionState(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<ToolApprovalExecutionState | undefined> {
+  const response = asRecord(await unwrap(call, 'toolApprovalStatus', { channelId, messageId }));
+  const execution = response?.['execution'];
+  if (
+    execution !== undefined &&
+    execution !== 'waiting-human' &&
+    execution !== 'waiting-capacity' &&
+    execution !== 'running' &&
+    execution !== 'settled' &&
+    execution !== 'needs-repair'
+  )
+    throw new Error('invalid toolApprovalStatus execution');
+  return execution;
+}
+
 export async function decideToolApproval(
   call: BridgeCall,
   channelId: string,
@@ -2311,10 +2451,15 @@ export async function loadUserQuestionStatus(
   call: BridgeCall,
   channelId: string,
   messageId: string,
-): Promise<'pending' | 'expired'> {
+): Promise<'pending' | 'submitted' | 'answered' | 'expired'> {
   const response = asRecord(await unwrap(call, 'userQuestionStatus', { channelId, messageId }));
   const status = response?.['status'];
-  if (status !== 'pending' && status !== 'expired')
+  if (
+    status !== 'pending' &&
+    status !== 'submitted' &&
+    status !== 'answered' &&
+    status !== 'expired'
+  )
     throw new Error('invalid userQuestionStatus response');
   return status;
 }
@@ -2889,6 +3034,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
   today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
@@ -3184,11 +3331,19 @@ export async function loadProfileUsage(
   return value as unknown as UsageQueryResult;
 }
 
+export interface ProfileActivityWindow {
+  before: string;
+  weeks: number;
+}
+
 export async function loadProfileActivity(
   call: BridgeCall,
   channelId: string,
+  window?: ProfileActivityWindow,
 ): Promise<ProfileActivity> {
-  const response = asRecord(await unwrap(call, 'profileActivity', { channelId }));
+  const response = asRecord(
+    await unwrap(call, 'profileActivity', { channelId, ...(window ?? {}) }),
+  );
   if (
     response === undefined ||
     typeof response['slug'] !== 'string' ||
@@ -3234,7 +3389,8 @@ export async function loadProfileActivity(
           );
         }))) ||
     (response['modelUsageStatus'] !== undefined &&
-      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus']))) ||
+    (response['createdDay'] !== undefined && typeof response['createdDay'] !== 'string')
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
@@ -3413,6 +3569,7 @@ export async function loadMessagingDefaults(
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
     typeof value['identityEnabled'] !== 'boolean' ||
+    (platform === 'weixin' && typeof value['typingEnabled'] !== 'boolean') ||
     !['mentions', 'all'].includes(String(value['collection'])) ||
     !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
     !Number.isInteger(value['count']) ||
@@ -3475,6 +3632,56 @@ export async function loadChannelBridges(
   )
     throw new BridgeCallError('invalid-response', 'Invalid Channel Bridge snapshot');
   return value as unknown as ChannelBridgeSnapshot;
+}
+export async function loadChannelIngests(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ConversationIngestSnapshot> {
+  const value = asRecord(await unwrap(call, 'channelIngests', { channelId }));
+  if (
+    !value ||
+    value['channelId'] !== channelId ||
+    !Array.isArray(value['ingests']) ||
+    !value['ingests'].every((item) => {
+      const row = asRecord(item);
+      const conversation = asRecord(row?.['conversation']);
+      const wake = asRecord(row?.['wake']);
+      return (
+        row &&
+        conversation &&
+        wake &&
+        ['id', 'channelId', 'platform', 'accountName', 'intakeAfter'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        typeof conversation['id'] === 'string' &&
+        typeof conversation['name'] === 'string' &&
+        typeof row['enabled'] === 'boolean' &&
+        Number.isInteger(row['revision']) &&
+        ['mentions', 'digest', 'all'].includes(String(wake['mode'])) &&
+        ['waiting', 'receiving', 'paused', 'unavailable'].includes(String(row['state']))
+      );
+    }) ||
+    !Array.isArray(value['candidates']) ||
+    !value['candidates'].every((item) => {
+      const row = asRecord(item);
+      return (
+        row &&
+        ['bindingId', 'botSlug', 'platform', 'accountName'].every(
+          (key) => typeof row[key] === 'string',
+        ) &&
+        Array.isArray(row['conversations'])
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid external conversation snapshot');
+  return value as unknown as ConversationIngestSnapshot;
+}
+export async function manageChannelIngest(
+  call: BridgeCall,
+  channelId: string,
+  input: ConversationIngestInput,
+): Promise<void> {
+  await unwrap(call, 'channelIngest', { channelId, input });
 }
 export async function manageChannelBridge(
   call: BridgeCall,

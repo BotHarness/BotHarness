@@ -122,6 +122,30 @@ it('Lark exact private chat uses canonical Inbox without mentions and replies th
     });
   }
   expect((await core.externalMessaging.snapshot('ada')).identities).toHaveLength(2);
+  const asking = (await core.externalMessaging.snapshot('ada')).identities!.find(
+    (value) => value.platform === 'discord',
+  )!;
+  expect(asking).toMatchObject({ newConversations: 'ask', newConversationsInheritance: 'custom' });
+  const following = await core.externalMessaging.identity('ada', {
+    kind: 'update',
+    id: asking.id,
+    expectedRevision: asking.revision,
+    name: asking.name,
+    enabled: true,
+    newConversations: 'inherit',
+  });
+  expect(following).toMatchObject({
+    newConversations: 'auto',
+    newConversationsInheritance: 'inherit',
+  });
+  await core.externalMessaging.identity('ada', {
+    kind: 'update',
+    id: following.id,
+    expectedRevision: following.revision,
+    name: following.name,
+    enabled: true,
+    newConversations: 'ask',
+  });
   expect(await createDshImProvider(transport, 'slack')!.accounts()).toEqual([]);
   expect(provider.post).toBeUndefined();
   expect(provider.readFile).toBeUndefined();

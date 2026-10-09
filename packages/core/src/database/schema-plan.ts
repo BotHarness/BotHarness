@@ -1594,6 +1594,19 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
+  generation: 65,
+  module: 'messaging',
+  description: 'Let a bound app inherit the platform default new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations_inherited INTEGER NOT NULL DEFAULT 1
+        CHECK (new_conversations_inherited IN (0, 1));
+      UPDATE messaging_bindings SET new_conversations_inherited = 0 WHERE new_conversations = 'ask';
+    `);
+  },
+};
+
 const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
   generation: 61,
   module: 'messaging',
@@ -1678,17 +1691,247 @@ const SEVERAL_APPS_MIGRATION: SchemaMigration = {
   },
 };
 
-const QQ_RECEPTION_BOUNDARY_MIGRATION: SchemaMigration = {
-  generation: 65,
+const CONVERSATION_INGEST_MIGRATION: SchemaMigration = {
+  generation: 64,
   module: 'messaging',
-  description: 'Fence QQ redelivery by the latest receiver eligibility boundary',
+  description: 'Let a Channel ingest an external conversation as one-way context',
   migrate(database) {
-    database.exec('ALTER TABLE messaging_bindings ADD COLUMN receive_after TEXT;');
+    database.exec(`
+      CREATE TABLE messaging_conversation_ingests (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        account_ref TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE UNIQUE INDEX messaging_conversation_ingest_target ON messaging_conversation_ingests
+        (channel_id, provider_id, fingerprint, conversation_kind, conversation_id);
+      CREATE INDEX messaging_conversation_ingest_source ON messaging_conversation_ingests
+        (provider_id, fingerprint, conversation_kind, conversation_id);
+    `);
+  },
+};
+
+const PERSONA_BOT_DELETION_MIGRATION: SchemaMigration = {
+  generation: 66,
+  module: 'bot-registry',
+  description: 'Terminal PersonaBot deletion and exclusive Memory ownership proofs',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE persona_bot_deletions (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE TABLE persona_bot_memory_ownership (
+        slug TEXT PRIMARY KEY REFERENCES persona_bots(slug),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+    `);
+  },
+};
+
+const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
+  generation: 67,
+  module: 'messaging',
+  description: 'Persist identity-local native typing preference without persisting tickets',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN typing_enabled INTEGER NOT NULL DEFAULT 1
+        CHECK (typing_enabled IN (0, 1));
+    `);
+  },
+};
+
+const CONTENT_PURGE_MIGRATION: SchemaMigration = {
+  generation: 68,
+  module: 'messaging-purge',
+  description: 'Require an independent Purge Ledger and fence accepted local Source Events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_purge_requirement (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), version INTEGER NOT NULL);
+      CREATE TABLE messaging_purge_facts (
+        source_event_id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, message_id TEXT NOT NULL,
+        accepted_at TEXT NOT NULL, tombstone_json TEXT NOT NULL CHECK(json_valid(tombstone_json))
+      );
+      CREATE TRIGGER messaging_purge_no_delete BEFORE DELETE ON messaging_purge_facts
+        BEGIN SELECT RAISE(ABORT, 'purge facts are monotonic'); END;
+      CREATE TRIGGER messaging_purge_no_update BEFORE UPDATE ON messaging_purge_facts
+        BEGIN SELECT RAISE(ABORT, 'purge facts are monotonic'); END;
+      CREATE TRIGGER messaging_purge_source_insert BEFORE INSERT ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE f.source_event_id = NEW.source_event_id
+          OR (f.channel_id = NEW.channel_id AND f.message_id = NEW.message_id)
+          OR f.source_event_id = json_extract(NEW.payload_json, '$.botCausation.rootSourceEventId')
+          OR f.source_event_id = json_extract(NEW.payload_json, '$.botCausation.parentSourceEventId'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_source_update BEFORE UPDATE ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE (f.source_event_id = OLD.source_event_id
+          OR (f.channel_id = NEW.channel_id AND f.message_id = NEW.message_id))
+          AND (NEW.source_event_id != f.source_event_id OR NEW.channel_id != f.channel_id OR NEW.message_id != f.message_id
+            OR NEW.body != '' OR NEW.payload_json != f.tombstone_json))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_source_delete BEFORE DELETE ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = OLD.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'retain purge causality'); END;
+      CREATE TRIGGER messaging_purge_admission_insert BEFORE INSERT ON inbox_admissions
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_admission_update BEFORE UPDATE ON inbox_admissions
+        WHEN NEW.attempt_state IN ('pending', 'retryable', 'running') AND EXISTS
+          (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_outbox_insert BEFORE INSERT ON messaging_outbox
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = json_extract(NEW.body, '$.sourceEventId'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_outbox_update BEFORE UPDATE ON messaging_outbox
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = json_extract(NEW.body, '$.sourceEventId'))
+          AND (COALESCE(json_extract(NEW.body, '$.text'), '') != '' OR json_type(NEW.body, '$.file') IS NOT NULL
+            OR NEW.state IN ('pending', 'in-flight'))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+    `);
+  },
+};
+
+const WECHAT_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
+  generation: 69,
+  module: 'messaging',
+  description: 'Qualify WeChat defaults and preserve existing identity-local typing overrides',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions_qualified (
+        platform TEXT NOT NULL CHECK (platform IN ('feishu', 'slack', 'discord', 'weixin')),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      INSERT INTO messaging_default_revisions_qualified SELECT * FROM messaging_default_revisions;
+      DROP TABLE messaging_default_revisions;
+      ALTER TABLE messaging_default_revisions_qualified RENAME TO messaging_default_revisions;
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      ALTER TABLE messaging_bindings ADD COLUMN typing_inherited INTEGER NOT NULL DEFAULT 0
+        CHECK (typing_inherited IN (0, 1));
+      ALTER TABLE messaging_bindings ADD COLUMN receive_after TEXT;
+    `);
+  },
+};
+
+const COMPLETE_CONTENT_PURGE_MIGRATION: SchemaMigration = {
+  generation: 70,
+  module: 'messaging-purge',
+  description:
+    'Track acquired media and fence shared content, stale effects and attachment bindings',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_managed_files (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        file_id TEXT NOT NULL, role TEXT NOT NULL,
+        PRIMARY KEY (source_event_id, file_id)
+      );
+      CREATE INDEX memory_accepted_commits_source ON memory_accepted_commits(cause_kind, cause_id);
+      DROP TRIGGER messaging_purge_source_update;
+      CREATE TRIGGER messaging_purge_source_update BEFORE UPDATE ON source_events
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts f WHERE
+          ((f.source_event_id IN (OLD.source_event_id, NEW.source_event_id)
+            OR (f.channel_id = NEW.channel_id AND f.message_id = NEW.message_id))
+           AND (NEW.source_event_id != f.source_event_id OR NEW.channel_id IS NOT f.channel_id
+             OR NEW.message_id IS NOT f.message_id OR NEW.body != '' OR NEW.payload_json IS NOT f.tombstone_json))
+          OR (f.source_event_id IN (json_extract(NEW.payload_json, '$.botCausation.rootSourceEventId'),
+            json_extract(NEW.payload_json, '$.botCausation.parentSourceEventId'))
+            AND NEW.payload_json IS NOT f.tombstone_json AND NEW.payload_json IS NOT OLD.payload_json))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      DROP TRIGGER messaging_purge_outbox_update;
+      CREATE TRIGGER messaging_purge_outbox_update BEFORE UPDATE ON messaging_outbox
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id IN
+          (json_extract(OLD.body, '$.sourceEventId'), json_extract(NEW.body, '$.sourceEventId')))
+          AND (json_extract(OLD.body, '$.sourceEventId') IS NOT json_extract(NEW.body, '$.sourceEventId')
+            OR COALESCE(json_extract(NEW.body, '$.text'), '') != '' OR json_type(NEW.body, '$.file') IS NOT NULL
+            OR NEW.state = 'pending')
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_file_binding_insert BEFORE INSERT ON attachment_file_bindings
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_file_binding_update BEFORE UPDATE ON attachment_file_bindings
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id IN (OLD.source_event_id, NEW.source_event_id))
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_managed_file_insert BEFORE INSERT ON messaging_managed_files
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_placement_insert BEFORE INSERT ON channel_placements
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+      CREATE TRIGGER messaging_purge_assignment_insert BEFORE INSERT ON assignments
+        WHEN EXISTS (SELECT 1 FROM messaging_purge_facts WHERE source_event_id = NEW.source_event_id)
+        BEGIN SELECT RAISE(ABORT, 'content purged'); END;
+    `);
+  },
+};
+
+const BOT_ONBOARDING_MIGRATION: SchemaMigration = {
+  generation: 71,
+  module: 'bot-onboarding',
+  description: 'Persist Profile onboarding receipts and trusted Channel output provenance',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_onboarding (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        profile_id TEXT NOT NULL,
+        entered_at TEXT NOT NULL,
+        default_bot_slug TEXT,
+        preparation TEXT NOT NULL CHECK (preparation IN ('requested', 'ready')),
+        tutorial TEXT NOT NULL DEFAULT 'not-started'
+          CHECK (tutorial IN ('not-started', 'active', 'paused', 'skipped')),
+        completed_channel_id TEXT,
+        completed_message_id TEXT
+      );
+      CREATE TABLE channel_output_origins (
+        source_event_id TEXT PRIMARY KEY REFERENCES source_events(source_event_id),
+        session_id TEXT NOT NULL REFERENCES session_ownership(session_id),
+        request_source_event_id TEXT REFERENCES source_events(source_event_id)
+      );
+    `);
+  },
+};
+
+const PROFILE_RECOVERY_MIGRATION: SchemaMigration = {
+  generation: 72,
+  module: 'profile-portability',
+  description: 'Persist Disaster Restore receipt and explicit target-local activation',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE profile_recovery (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), body TEXT NOT NULL
+      );
+      CREATE TABLE profile_recovery_bots (
+        bot_slug TEXT PRIMARY KEY, desired_json TEXT NOT NULL,
+        authorized_plan_revision INTEGER, activated_session_id TEXT
+      );
+      ALTER TABLE session_ownership ADD COLUMN content_available INTEGER NOT NULL DEFAULT 1
+        CHECK (content_available IN (0, 1));
+    `);
+  },
+};
+
+const AVATAR_PART_LIBRARY_MIGRATION: SchemaMigration = {
+  generation: 73,
+  module: 'avatar-part-library',
+  description: 'Persist the Profile Part Library of Human-drawn Avatar Custom Parts',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE avatar_part_library (
+        id TEXT PRIMARY KEY CHECK (length(id) = 64),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+    `);
   },
 };
 
 const RECEPTION_HISTORY_MIGRATION: SchemaMigration = {
-  generation: 64,
+  generation: 74,
   module: 'messaging',
   description: 'Retain bounded reception coverage observations without copying external messages',
   migrate(database) {
@@ -1765,6 +2008,15 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOUND_APP_ADMISSION_MIGRATION,
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
+  CONVERSATION_INGEST_MIGRATION,
+  NEW_CONVERSATION_DEFAULT_MIGRATION,
+  PERSONA_BOT_DELETION_MIGRATION,
+  MESSAGING_TYPING_MIGRATION,
+  CONTENT_PURGE_MIGRATION,
+  WECHAT_PLATFORM_DEFAULTS_MIGRATION,
+  COMPLETE_CONTENT_PURGE_MIGRATION,
+  BOT_ONBOARDING_MIGRATION,
+  PROFILE_RECOVERY_MIGRATION,
+  AVATAR_PART_LIBRARY_MIGRATION,
   RECEPTION_HISTORY_MIGRATION,
-  QQ_RECEPTION_BOUNDARY_MIGRATION,
 ]);

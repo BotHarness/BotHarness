@@ -4,6 +4,21 @@ import type { PersonaBotRegistry } from './registry.js';
 
 export const BOT_AVATAR_PATH = '/api/botharness/bot-avatar';
 
+const avatarVersion = (avatar: string) =>
+  createHash('sha256').update(avatar).digest('hex').slice(0, 16);
+
+const avatarUrlCache = new Map<string, string>();
+export function botAvatarUrl(slug: string, avatar: string): string {
+  const key = `${slug}\u0000${avatar}`;
+  const cached = avatarUrlCache.get(key);
+  if (cached !== undefined) return cached;
+  const version = avatarVersion(avatar);
+  const url = `${BOT_AVATAR_PATH}?slug=${encodeURIComponent(slug)}&v=${version}`;
+  if (avatarUrlCache.size > 256) avatarUrlCache.clear();
+  avatarUrlCache.set(key, url);
+  return url;
+}
+
 const CACHE_CONTROL = 'private, max-age=300';
 
 export function createBotAvatarHttp(
@@ -18,10 +33,13 @@ export function createBotAvatarHttp(
     if (slug === null || slug.length === 0) {
       return new Response('slug is required', { status: 400 });
     }
-    const avatar = registry.get(slug)?.avatar;
+    const avatar = registry.getHistorical(slug)?.avatar;
     if (avatar === undefined || !avatar.startsWith('data:image/')) {
       return new Response('not found', { status: 404, headers: { 'cache-control': 'no-store' } });
     }
+    const version = url.searchParams.get('v');
+    if (version !== null && version !== avatarVersion(avatar))
+      return new Response('not found', { status: 404, headers: { 'cache-control': 'no-store' } });
     const separator = avatar.indexOf(',');
     const mime = avatar.slice('data:'.length, separator).split(';', 1)[0] ?? 'image/webp';
     const bytes = Buffer.from(avatar.slice(separator + 1), 'base64');
