@@ -1,0 +1,843 @@
+{
+  "source": {
+    "productCommit": "a009678599dcc7913e0c3a26de00a856a71f2e7d",
+    "documentationHeadAtCapture": "2ef1106a1d1431ed516d71d57475807582542b0a",
+    "formalAvatar": "0.10.1",
+    "speechMouthVersion": 2,
+    "dsh": "0.2.0-rc.1"
+  },
+  "browser": {
+    "profiler": "Official Chrome DevTools MCP1.10.1",
+    "isolated": true,
+    "headless": true,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 16,
+    "deviceMemory": 32,
+    "dpr": 1,
+    "dark": true
+  },
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "installedVideoControllers": [
+    {
+      "name": "Parsec Virtual Display Adapter",
+      "driverVersion": "0.45.0.0"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 3090",
+      "driverVersion": "32.0.16.1074"
+    }
+  ],
+  "activeCounterAdapterCaptionMappingVerified": false,
+  "cohort": [
+    {
+      "index": 1,
+      "seed": "companion-performance-1",
+      "recipeSha256": "c81674f304b30d2ee6bfa058e5d6722b82125ad0512b2dbf2230f580173f016e",
+      "portraitSha256": "add6dc8e2bee863ca487cba3a226cb988b877fbc3fd42f5d4588bea63df25719",
+      "canonicalDmMessagesBefore": 1
+    },
+    {
+      "index": 2,
+      "seed": "companion-performance-2",
+      "recipeSha256": "9b34ee1f7414d792084e01cc9c489de10af0210158da0714571a4d37f749ca1a",
+      "portraitSha256": "8705e78a7dfa339f89caef503133e8f06b6a0517df2257b5f663126f7ca68de2",
+      "canonicalDmMessagesBefore": 1
+    },
+    {
+      "index": 3,
+      "seed": "companion-performance-3",
+      "recipeSha256": "c40ceac3da62a04c6790a77cc38cb33fbbaee8863487d7643dc39724812d45b7",
+      "portraitSha256": "79e30d8168508bded3d22d9e965d79ec1a7943b9038f6833080f5adccabcd4e1",
+      "canonicalDmMessagesBefore": 1
+    },
+    {
+      "index": 4,
+      "seed": "companion-performance-4",
+      "recipeSha256": "b2f988926a629e75c8f35c9a73fe37a2a7253c5348af5575067560550006a682",
+      "portraitSha256": "cb46e47d28fedc170ab6c215a77432bec6cfa1efadc7ea240efb0812f2703e8d",
+      "canonicalDmMessagesBefore": 1
+    },
+    {
+      "index": 5,
+      "seed": "companion-performance-5",
+      "recipeSha256": "f5e03b924f89abfbab950bcf47f4f9d39ccddce679fc08a53e99b11ef20726c8",
+      "portraitSha256": "6c25b5043058707da6787728e3cfc8c46108c5cadd81e5628fddcb517404e0a9",
+      "canonicalDmMessagesBefore": 1
+    }
+  ],
+  "method": {
+    "source": "Windows PDH GPU Engine Utilization Percentage via PowerShell Get-Counter CookedValue",
+    "sampleIntervalSeconds": 1,
+    "collectedPerScene": 16,
+    "discardFirstSampleAsWarmup": true,
+    "retainedPerScene": 15,
+    "aggregate": "For each interval take maximum across engines of the single owned GPU process; never sum distinct engines",
+    "scope": "Whole owned Chrome GPU process including native DSH; not SVG-only, physical GPU total or all Chrome processes",
+    "sameGpuProcessAcrossScenes": true,
+    "noConcurrentTraceVideoOrBrowserEvaluation": true
+  },
+  "scenarios": [
+    {
+      "name": "mounted-0-before",
+      "mountedCompanions": 0,
+      "enabledWalkers": 0,
+      "actualMovedCompanions": 0,
+      "messageCards": 0,
+      "readingCompanions": 0,
+      "visible": true,
+      "sameDocument": true,
+      "retainedSamples": 15,
+      "retainedWindowSeconds": 15.181,
+      "actualIntervalsSeconds": [
+        1.042, 1.012, 1.015, 1.015, 1.013, 1.006, 1.008, 1.01, 1.001, 1.014, 1.012, 1.002, 1.011,
+        1.006, 1.014
+      ],
+      "busiestEnginePercent": {
+        "count": 15,
+        "minPercent": 0,
+        "meanPercent": 0,
+        "p50Percent": 0,
+        "p95Percent": 0,
+        "maxPercent": 0
+      },
+      "busiestEnginePercentPerInterval": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "engines": [
+        {
+          "engine": "phys_0_eng_0_engtype_3d",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_10_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_11_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_12_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_1_engtype_legacyoverlay",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_2_engtype_videodecode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_3_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_4_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_5_engtype_security",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_6_engtype_videoencode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_7_engtype_ofa_0",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_8_engtype_vr",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_9_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        }
+      ],
+      "explicitSoftwareAngleSwitch": false,
+      "explicitDisableGpuSwitch": false
+    },
+    {
+      "name": "mounted-1-static",
+      "mountedCompanions": 1,
+      "enabledWalkers": 0,
+      "actualMovedCompanions": 0,
+      "messageCards": 0,
+      "readingCompanions": 0,
+      "visible": true,
+      "sameDocument": true,
+      "retainedSamples": 15,
+      "retainedWindowSeconds": 15.223999999999998,
+      "actualIntervalsSeconds": [
+        1.03, 1.015, 1.014, 1.013, 1.013, 1.016, 1.016, 1.012, 1.013, 1.013, 1.015, 1.013, 1.014,
+        1.011, 1.016
+      ],
+      "busiestEnginePercent": {
+        "count": 15,
+        "minPercent": 0,
+        "meanPercent": 0.0051615319248918155,
+        "p50Percent": 0,
+        "p95Percent": 0.02632410702674938,
+        "maxPercent": 0.02632410702674938
+      },
+      "busiestEnginePercentPerInterval": [
+        0, 0, 0, 0.02632410702674938, 0, 0, 0, 0.012663966008413734, 0.012279878974093108, 0, 0, 0,
+        0.013249436011730483, 0.012905590852390524, 0
+      ],
+      "engines": [
+        {
+          "engine": "phys_0_eng_0_engtype_3d",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.0051615319248918155,
+          "p50Percent": 0,
+          "p95Percent": 0.02632410702674938,
+          "maxPercent": 0.02632410702674938
+        },
+        {
+          "engine": "phys_0_eng_10_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_11_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_12_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_1_engtype_legacyoverlay",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_2_engtype_videodecode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_3_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_4_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.00009878288618107437,
+          "p50Percent": 0,
+          "p95Percent": 0.0014817432927161154,
+          "maxPercent": 0.0014817432927161154
+        },
+        {
+          "engine": "phys_0_eng_5_engtype_security",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_6_engtype_videoencode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_7_engtype_ofa_0",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_8_engtype_vr",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_9_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        }
+      ],
+      "explicitSoftwareAngleSwitch": false,
+      "explicitDisableGpuSwitch": false
+    },
+    {
+      "name": "mounted-5-static",
+      "mountedCompanions": 5,
+      "enabledWalkers": 0,
+      "actualMovedCompanions": 0,
+      "messageCards": 0,
+      "readingCompanions": 0,
+      "visible": true,
+      "sameDocument": true,
+      "retainedSamples": 15,
+      "retainedWindowSeconds": 15.262999999999998,
+      "actualIntervalsSeconds": [
+        1.084, 1.017, 1.011, 1.015, 1.015, 1.016, 1.002, 1.012, 1.015, 1.016, 1.012, 1.011, 1.015,
+        1.011, 1.011
+      ],
+      "busiestEnginePercent": {
+        "count": 15,
+        "minPercent": 0,
+        "meanPercent": 0.0052799132576968315,
+        "p50Percent": 0,
+        "p95Percent": 0.028246976672311137,
+        "maxPercent": 0.028246976672311137
+      },
+      "busiestEnginePercentPerInterval": [
+        0, 0, 0, 0.028246976672311137, 0, 0, 0, 0, 0.025520760873129034, 0, 0, 0, 0,
+        0.0254309613200123, 0
+      ],
+      "engines": [
+        {
+          "engine": "phys_0_eng_0_engtype_3d",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.0052799132576968315,
+          "p50Percent": 0,
+          "p95Percent": 0.028246976672311137,
+          "maxPercent": 0.028246976672311137
+        },
+        {
+          "engine": "phys_0_eng_10_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_11_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_12_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_1_engtype_legacyoverlay",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_2_engtype_videodecode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_3_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_4_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.00022580097068817867,
+          "p50Percent": 0,
+          "p95Percent": 0.00338701456032268,
+          "maxPercent": 0.00338701456032268
+        },
+        {
+          "engine": "phys_0_eng_5_engtype_security",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_6_engtype_videoencode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_7_engtype_ofa_0",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_8_engtype_vr",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_9_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        }
+      ],
+      "explicitSoftwareAngleSwitch": false,
+      "explicitDisableGpuSwitch": false
+    },
+    {
+      "name": "mounted-5-walking",
+      "mountedCompanions": 5,
+      "enabledWalkers": 5,
+      "actualMovedCompanions": 5,
+      "messageCards": 0,
+      "readingCompanions": 0,
+      "visible": true,
+      "sameDocument": true,
+      "retainedSamples": 15,
+      "retainedWindowSeconds": 15.205999999999998,
+      "actualIntervalsSeconds": [
+        1.043, 1.015, 1.008, 1.015, 1.014, 1.013, 1.013, 1.002, 1.013, 1.001, 1.015, 1.016, 1.011,
+        1.013, 1.014
+      ],
+      "busiestEnginePercent": {
+        "count": 15,
+        "minPercent": 2.9493050712696163,
+        "meanPercent": 3.1045284025165905,
+        "p50Percent": 3.0719782884005222,
+        "p95Percent": 3.5060556374952894,
+        "maxPercent": 3.5060556374952894
+      },
+      "busiestEnginePercentPerInterval": [
+        3.0981461727700528, 3.089922434633887, 3.0719782884005222, 3.187405651905533,
+        3.0633036546716284, 2.983816587997303, 2.98195259169407, 3.032922843229629,
+        3.2507339494289242, 3.5060556374952894, 3.120926271545333, 3.000005711183107,
+        2.955470370013371, 2.9493050712696163, 3.275980801510587
+      ],
+      "engines": [
+        {
+          "engine": "phys_0_eng_0_engtype_3d",
+          "count": 15,
+          "minPercent": 2.9493050712696163,
+          "meanPercent": 3.1045284025165905,
+          "p50Percent": 3.0719782884005222,
+          "p95Percent": 3.5060556374952894,
+          "maxPercent": 3.5060556374952894
+        },
+        {
+          "engine": "phys_0_eng_10_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_11_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_12_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_1_engtype_legacyoverlay",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_2_engtype_videodecode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_3_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_4_engtype_copy",
+          "count": 15,
+          "minPercent": 0.013147298727816522,
+          "meanPercent": 0.014833682989223329,
+          "p50Percent": 0.015024370674323766,
+          "p95Percent": 0.016316259324737282,
+          "maxPercent": 0.016316259324737282
+        },
+        {
+          "engine": "phys_0_eng_5_engtype_security",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_6_engtype_videoencode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_7_engtype_ofa_0",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_8_engtype_vr",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_9_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        }
+      ],
+      "explicitSoftwareAngleSwitch": false,
+      "explicitDisableGpuSwitch": false
+    },
+    {
+      "name": "mounted-5-static-after",
+      "mountedCompanions": 5,
+      "enabledWalkers": 0,
+      "actualMovedCompanions": 0,
+      "messageCards": 0,
+      "readingCompanions": 0,
+      "visible": true,
+      "sameDocument": true,
+      "retainedSamples": 15,
+      "retainedWindowSeconds": 15.162999999999998,
+      "actualIntervalsSeconds": [
+        1.03, 1.006, 1.01, 1.001, 1.013, 1.015, 1.014, 1.011, 1.017, 1.013, 1.007, 1.01, 1.01,
+        1.003, 1.003
+      ],
+      "busiestEnginePercent": {
+        "count": 15,
+        "minPercent": 0,
+        "meanPercent": 0.005574830028159838,
+        "p50Percent": 0,
+        "p95Percent": 0.02548353049088132,
+        "maxPercent": 0.02548353049088132
+      },
+      "busiestEnginePercentPerInterval": [
+        0.009270886478092051, 0, 0, 0, 0.02548353049088132, 0, 0, 0, 0, 0.024351754135063963, 0, 0,
+        0, 0.01224437499096379, 0.012271904327396463
+      ],
+      "engines": [
+        {
+          "engine": "phys_0_eng_0_engtype_3d",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.005574830028159838,
+          "p50Percent": 0,
+          "p95Percent": 0.02548353049088132,
+          "maxPercent": 0.02548353049088132
+        },
+        {
+          "engine": "phys_0_eng_10_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_11_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_12_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_1_engtype_legacyoverlay",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_2_engtype_videodecode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_3_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_4_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0.00010915056531444896,
+          "p50Percent": 0,
+          "p95Percent": 0.0016372584797167344,
+          "maxPercent": 0.0016372584797167344
+        },
+        {
+          "engine": "phys_0_eng_5_engtype_security",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_6_engtype_videoencode",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_7_engtype_ofa_0",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_8_engtype_vr",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        },
+        {
+          "engine": "phys_0_eng_9_engtype_copy",
+          "count": 15,
+          "minPercent": 0,
+          "meanPercent": 0,
+          "p50Percent": 0,
+          "p95Percent": 0,
+          "maxPercent": 0
+        }
+      ],
+      "explicitSoftwareAngleSwitch": false,
+      "explicitDisableGpuSwitch": false
+    }
+  ],
+  "consoleErrorCount": 0,
+  "closedOwnedBrowser": true,
+  "performanceBudgetAccepted": false,
+  "limitations": [
+    "One ordered run,15 one-second windows per scene; no randomized repetition, sub-second GPU spikes or sustained/low-end qualification.",
+    "Only the owned GPU process is counted; other Chrome processes and total device usage are not aggregated.",
+    "Installed adapter captions do not establish the identity of the active counter LUID or actual SVG hardware pipeline.",
+    "No GPU memory/power, active speech/mouth, concurrent messages, drag/release, background return or process-cold-start GPU measurement.",
+    "Earlier frame/heap sources and this accepted formal0.10.1 GPU collection are distinct workloads; do not mix their measurements or infer FPS."
+  ],
+  "references": [
+    "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-counter?view=powershell-7.6",
+    "https://learn.microsoft.com/en-us/windows/win32/perfctrs/checking-pdh-interface-return-values",
+    "https://devblogs.microsoft.com/directx/gpus-in-the-task-manager/"
+  ]
+}
