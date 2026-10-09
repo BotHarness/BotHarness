@@ -1,0 +1,46 @@
+{
+  "runtimeSource": "0599884392078754e969b1447949b06e9d3d9767",
+  "runtimeMain": "652410b578077446a5265875c512c238125a2a8e",
+  "runtimeApprovalParent": "1b00b0a5898977e9c4173a4278e164bd6c89a45b",
+  "formalPixelAvatar": "0.8.0",
+  "mergeTarget": "7a4f99316467ab401043b39495816b5591fe3e83",
+  "postCaptureMainMerge": "9e4e3f5ae548f3a5bd1be596a5b2590bfb75c6db",
+  "postCaptureMainMergeChangesRuntimeCode": false,
+  "capture": "Actual isolated DSH 0.2.0-rc.1, Chinese, light/dark, 1559 x 865, foreground",
+  "recording": {
+    "file": "main652-two-bots-and-chat.webm",
+    "seconds": 37.067,
+    "continuous": true,
+    "silent": true,
+    "containerRemuxOnly": true,
+    "performanceMeasurement": false
+  },
+  "observations": {
+    "nativeQuestionOwners": 2,
+    "questionsPerOwner": [3, 1],
+    "singleMultiCustomDraftsSurviveThemeChange": true,
+    "noAnswerBeforeExplicitSubmit": true,
+    "companionAAnswerAcceptedOnce": true,
+    "unrelatedChannelRemainsSelectedWhileAnsweringA": true,
+    "originalACommitsAllActualAnswers": true,
+    "BDraftRetainedAfterAReply": true,
+    "chatAndCompanionInputIdsUnique": true,
+    "nativeChatBAnswerAcceptedOnce": true,
+    "originalBCommitsActualAnswer": true,
+    "bothCompanionRequestsRemoved": true,
+    "documentTimeOriginUnchanged": true,
+    "lateDuplicateRefused": "invalid-input",
+    "consoleErrors": 0
+  },
+  "cleanup": {
+    "ownedBrowserClosed": true,
+    "pendingQaQuestions": 0
+  },
+  "limits": [
+    "Native keyboard/input answers; mouse, performance and genuine background behavior are not claimed by this recording.",
+    "Pin/pause/native drag setup precedes the recording.",
+    "Tall A and initial B Chat remain scrollable; some stills show only the currently scrolled portion.",
+    "Question-mark presentations do not qualify mouth animation.",
+    "Earlier captures retain their original revision attribution."
+  ]
+}
