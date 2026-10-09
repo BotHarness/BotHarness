@@ -17,7 +17,7 @@
 
 ### Added
 
-- 使用兼容的 Provider 时，Bot 和其 Profile 可以列出可发言的 Lark 群，无需保存目标或先被 @ 即可发送，并在首次发送时建立会话条目；每个应用有可调整的滚动每小时限额，未知发送结果不会重发（[#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)，[ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)）。
+- 使用兼容的 Provider 时，Bot 和其 Profile 可以列出可发言的 Lark、Discord 和 Slack 群，无需保存目标或先被 @ 即可发送，并在首次发送时建立会话条目；每个应用有可调整的滚动每小时限额，未知发送结果不会重发（[#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)，[ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)）。
 
 - Bot 设置新增 **IM 应用** 分区，列出 Lark、Slack、Discord、QQ 和微信上的所有应用及使用它们的 Bot，并可跳转到 DSH 设置管理凭据（[#1263](https://github.com/BotHarness/DeepSeekBot/issues/1263)，[ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)）。
 - 在 **IM 应用** 中可以把未绑定的应用绑定到 Bot、确认后解绑已绑定的应用，并在 Provider 支持时为选定的 Bot 创建 Lark 或微信应用（[#1264](https://github.com/BotHarness/DeepSeekBot/issues/1264)）。

@@ -17,7 +17,7 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
-- With a compatible Provider, the Bot and its Profile can list reachable Lark groups and post without a saved target or prior mention, creating a conversation entry on first post; each app has a configurable rolling hourly limit and uncertain results are never replayed ([#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115), [ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)).
+- With a compatible Provider, the Bot and its Profile can list reachable Lark, Discord and Slack groups and post without a saved target or prior mention, creating a conversation entry on first post; each app has a configurable rolling hourly limit and uncertain results are never replayed ([#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115), [ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)).
 
 - Bot settings has an **IM apps** section listing every app on Lark, Slack, Discord, QQ and WeChat with the Bot that uses it, and a link to DSH settings for credentials ([#1263](https://github.com/BotHarness/DeepSeekBot/issues/1263), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
 - From **IM apps**, an unbound app can be bound to a Bot, a bound app unbound after confirmation, and a Lark or WeChat app created for a chosen Bot when the Provider supports setup ([#1264](https://github.com/BotHarness/DeepSeekBot/issues/1264)).
