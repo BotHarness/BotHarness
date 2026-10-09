@@ -28,7 +28,7 @@ WebMs are container-remuxed with no re-encoding, dubbing or screenshot interpola
 
 ## Remaining scope
 
-Successful native Shell execution remains separately unqualified after the earlier Windows ACL refusal. Automatic SSE reconnection and simultaneous pending Sessions/overflow still rely on automated coverage rather than this real capture. Broad rules were cancelled rather than saved. Ordinary Chat ownership guards remain covered automatically.
+Successful native Shell execution remains separately unqualified after the earlier Windows ACL refusal. The later sections qualify actual Host-restart and same-Host Companion SSE recovery; simultaneous pending Sessions/overflow still rely on automated coverage rather than these real captures. Broad rules were cancelled rather than saved. Ordinary Chat ownership guards remain covered automatically.
 
 ## Actual Host restart and automatic transport recovery
 
@@ -38,4 +38,14 @@ The browser stays on the same document: performance.timeOrigin and its read-only
 
 The five screenshots show pending, disconnected, automatically recovered in light/dark, and the new message in dark. `host-restart.webm` is a continuous silent official MCP recording, remuxed only; no synthetic SSE/state/card/approval was injected. `restart-qualification.json` records scoped checks. Downtime produces55expected connection refused/reset console errors plus native retry warnings; no non-connection error was found in the complete105message console capture. This is not a clean-console claim. All owned browser pages and the isolated browser were closed.
 
-This qualifies real Host restart/new-generation automatic recovery, not a temporary same-Host network break with a still-live owner. Real simultaneous Sessions/overflow and actually saved broad rules remain separate. Earlier media keep their original revisions; unrelated newly integrated Avatar/onboarding UI is not a matched before/after comparison of this feature. No Shell execution, performance or full-issue acceptance is claimed.
+This section qualifies Host restart/new-generation recovery; the following section separately qualifies a temporary same-Host Companion stream break with a still-live owner. Real simultaneous Sessions/overflow and actually saved broad rules remain separate. Earlier media keep their original revisions; unrelated newly integrated Avatar/onboarding UI is not a matched before/after comparison of this feature. No Shell execution, performance or full-issue acceptance is claimed.
+
+## Actual same-Host Companion stream interruption and return
+
+Same runtime `3afc8f0a7e69f0b22cdf770f2a948f4d9cc827a9`, formal pixel-avatar0.7.0, Chinese light theme,1559 × 865. An actual native bash echo request is created by the model and never approved/executed. A loopback forwarding fixture destroys one established shared Companion SSE and refuses four reconnect attempts while other Host/model routes remain live. Restoring forwarding allows the real Client to recover automatically. Host generation and browser document timeOrigin remain unchanged.
+
+The request remains pending through disconnection and recovery, with zero decisions until the native mouse rejection. All45stale observations out of58total samples retain the card with all four actions disabled. After owner revalidation, controls become enabled. Native keyboard focus and Control+End expose the Reject action before interruption and again after recovery; both geometry checks show the action completely inside the scroll list and viewport. Clicking Reject creates exactly one canonical rejection, releases the card and resumes the original Bot to commit its denial reply. A late duplicate submission returns invalid-input and leaves the decision count at one. The unrelated conversation remains selected from the setup baseline through settlement and continuation; only the final explicit QA visit switches to the owner DM to capture that reply.
+
+Five `stream-*.png` screenshots and the continuous silent `stream-return.webm` record this path. The video is remuxed without re-encoding or dubbing. `stream-return-qualification.json` is an allowlisted summary. Two expected console errors report the deliberately broken stream; no other error was observed. The owned isolated browser and forwarding fixture are closed. No fake SSE, DOM events, approvals or visibility state were injected.
+
+The first separate attempt is retained privately and excluded from success: native MCP clicking timed out with the action below the clipped list. Cleanup rejected only that QA request via the canonical RPC. The successful new-request run adds actual native scrolling and visibility checks, without changing product code. This proves foreground same-Host Companion stream recovery, not full-network outage, background, successful Shell execution, simultaneous pending Sessions/overflow, saved broad rules or overall issue acceptance.
