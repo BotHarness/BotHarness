@@ -60,6 +60,7 @@ function IdentitiesForBot({
         </p>
       ) : null}
       <ExternalIdentityList
+        appSetup={actions.appSetup ? { client: actions.appSetup, botSlug: slug } : undefined}
         snapshot={snapshot}
         refresh={refresh}
         t={t}

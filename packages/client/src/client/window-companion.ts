@@ -1,4 +1,9 @@
-import type { CompanionBot, CompanionMessage } from '../../../core/src/companions/feed.js';
+import type {
+  CompanionBot,
+  CompanionMessage,
+  CompanionRequest,
+} from '../../../core/src/companions/feed.js';
+import { companionRequests } from './companion-requests.js';
 import {
   companionSourceEnabled,
   companionMessageIdentity,
@@ -37,6 +42,7 @@ export interface CompanionViewState {
   activity?: PersonaBotActivitySnapshot['bots'][number] | undefined;
   sync: 'connecting' | 'live' | 'stale';
   cards: readonly CompanionCard[];
+  requests: readonly CompanionRequest[];
   pending: number;
   reading: boolean;
   mouth?: PixelMouthState | undefined;
@@ -70,7 +76,7 @@ function decode(event: Event): Record<string, unknown> | undefined {
 }
 
 function speechMouth(state: CompanionViewState): PixelMouthState {
-  if (state.bot?.paused || state.sync !== 'live') return 'saved';
+  if (state.bot?.paused || state.sync !== 'live' || state.requests.length) return 'saved';
   const card = state.cards.find((card) => card.shown > 0 && card.shown < card.body.length);
   if (!card) return 'saved';
   const index = card.boundaries.indexOf(card.shown);
@@ -85,6 +91,7 @@ export class WindowCompanion {
     ready: false,
     sync: 'connecting',
     cards: [],
+    requests: [],
     pending: 0,
     reading: false,
     mouth: 'saved',
@@ -164,6 +171,7 @@ export class WindowCompanion {
       bot: undefined,
       activity: undefined,
       reading: false,
+      requests: [],
     });
     this.save();
     this.connect();
@@ -176,6 +184,7 @@ export class WindowCompanion {
       activity: undefined,
       cards: [],
       pending: 0,
+      requests: [],
       reading: false,
     });
     this.save();
@@ -217,6 +226,7 @@ export class WindowCompanion {
       this.disposed ||
       !Number.isFinite(milliseconds) ||
       milliseconds <= 0 ||
+      this.state.requests.length > 0 ||
       !this.state.cards.length
     )
       return;
@@ -298,7 +308,12 @@ export class WindowCompanion {
     this.preservedGeneration = preserve ? previousGeneration : undefined;
     this.pendingCards = pending;
     this.seen = seen;
-    this.update({ cards, pending: pending.length, sync: 'connecting' });
+    this.update({
+      cards,
+      pending: pending.length,
+      sync: 'connecting',
+      requests: preserve ? this.state.requests : [],
+    });
     if (!selection || this.disposed) return;
     let stream: CompanionStream;
     try {
@@ -353,6 +368,7 @@ export class WindowCompanion {
       this.deps.onActivity?.(activity);
       this.update({
         sync: 'live',
+        requests: bot['paused'] ? [] : companionRequests(bot['requests'], selection.botId),
         bot: {
           slug: selection.botId,
           name: bot['name'],
@@ -445,6 +461,7 @@ export class WindowCompanion {
       pending: 0,
       reading: false,
       mouth: 'saved',
+      requests: [],
     };
     this.listeners.clear();
   }

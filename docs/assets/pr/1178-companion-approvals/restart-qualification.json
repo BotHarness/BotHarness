@@ -1,0 +1,40 @@
+{
+  "runtimeCode": "3afc8f0a7e69f0b22cdf770f2a948f4d9cc827a9",
+  "integratedMain": "5efae378ac47752b49aa20b4397d1c6d38d07892",
+  "formalPixelAvatar": "0.7.0",
+  "viewport": [1559, 865],
+  "locale": "zh-CN",
+  "themes": ["light", "dark"],
+  "actualNativePendingRequest": true,
+  "actualHostStoppedAndRestarted": true,
+  "sameBrowserDocument": true,
+  "timeOriginUnchanged": true,
+  "generationChanged": true,
+  "observedSync": ["live", "stale"],
+  "samples": 1859,
+  "samplingMilliseconds": 100,
+  "staleControlsAllDisabled": true,
+  "oldRequestStatus": "expired",
+  "oldDecisionRefusedCode": "invalid-input",
+  "noStaleDecisionCommitted": true,
+  "noHistoricalSpeechAfterRecovery": true,
+  "newCanonicalReplyAfterRestart": true,
+  "newReplyVisibleWithoutReload": true,
+  "expectedConnectionErrors": 55,
+  "unexpectedConsoleErrors": 0,
+  "closedOwnedPages": [1, 2],
+  "closedOwnedBrowser": true,
+  "sampledTransition": {
+    "firstStaleMilliseconds": 23897.90000000596,
+    "firstLiveAfterStaleMilliseconds": 81048
+  },
+  "limits": [
+    "Real Host stop/restart terminates its transport and process-local approval authority; this is not same-Host short network-interruption qualification",
+    "Same document verified using unchanged performance.timeOrigin and retained read-only observer; no reload, synthetic EventSource/error, cards, approval or activity injection",
+    "Connection refused/reset and native read-position retry warnings during deliberate downtime are expected; no clean-console claim",
+    "New after-restart DM is canonical and visible; no successful Shell execution claim and the interrupted approval was never granted",
+    "Earlier screenshots/recordings retain original runtime attribution; this capture does not visually qualify every newly integrated Avatar feature",
+    "Simultaneous pending Sessions/overflow, actual broad-rule saving and same-Host interrupted-SSE recovery remain unqualified",
+    "Continuous silent official MCP recording, remux only; 100ms state sampling is not a performance measurement or proof about unsampled transients"
+  ]
+}

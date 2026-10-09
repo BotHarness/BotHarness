@@ -1,3 +1,5 @@
+import { CreateAppForm } from './create-app-form.js';
+import type { ProviderAppSetup } from './provider-app-setup.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { useRef, useState, type ReactElement } from 'react';
 import {
@@ -43,6 +45,7 @@ export function ExternalIdentityList({
   channels,
   botName = (slug) => slug,
   bindDialog,
+  appSetup,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
@@ -52,12 +55,14 @@ export function ExternalIdentityList({
   refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
   botName?(slug: string): string;
+  appSetup?: { client: ProviderAppSetup; botSlug: string } | undefined;
   bindDialog?: { onClose(): void; dismissLabel: string; description: string };
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind' | undefined>(
     bindDialog ? 'bind' : undefined,
   );
   const [selected, setSelected] = useState<MessagingIdentityView>();
+  const [creatingApp, setCreatingApp] = useState(false);
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
@@ -109,6 +114,7 @@ export function ExternalIdentityList({
     setRefreshing(false);
     setError('');
     setMode(next);
+    setCreatingApp(false);
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
@@ -335,7 +341,7 @@ export function ExternalIdentityList({
               <Button variant="primary" onClick={close}>
                 {t('identity.done')}
               </Button>
-            ) : (
+            ) : creatingApp ? null : (
               <Button
                 variant="primary"
                 className={mode === 'unbind' ? 'bh-im-danger' : undefined}
@@ -374,7 +380,24 @@ export function ExternalIdentityList({
               {error}
             </p>
           ) : null}
-          {mode === 'bind' ? (
+          {mode === 'bind' && creatingApp && appSetup ? (
+            <CreateAppForm
+              client={appSetup.client}
+              botSlug={appSetup.botSlug}
+              descriptors={snapshot?.appSetups ?? []}
+              t={t}
+              onBack={() => setCreatingApp(false)}
+              onCreated={async () => {
+                const input = appSetup.client.binding(appSetup.botSlug);
+                await mutate(input);
+                await refresh();
+                if (input.kind === 'bind') setAccountKey(input.providerId + ':' + input.accountRef);
+                appSetup.client.forget(appSetup.botSlug);
+                setCreatingApp(false);
+                setMode('bound');
+              }}
+            />
+          ) : mode === 'bind' ? (
             <>
               <nav className="bh-im-field" aria-label={t('identity.tutorials')}>
                 <span className="bh-muted">{t('identity.tutorials')}</span>
@@ -395,6 +418,16 @@ export function ExternalIdentityList({
               <div className="bh-im-field">
                 <div className="bh-im-app-heading">
                   <span>{t('identity.app')}</span>
+                  {appSetup && snapshot?.appSetups?.length ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy || refreshing}
+                      onClick={() => setCreatingApp(true)}
+                    >
+                      {t('appSetup.create')}
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -474,6 +507,9 @@ export function ExternalIdentityList({
                   </Tooltip>
                 </div>
               </div>
+              {appSetup && !snapshot?.appSetups?.length ? (
+                <p className="bh-note">{t('appSetup.fallback')}</p>
+              ) : null}
               {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
             </>
           ) : mode === 'bound' && selectedAccount ? (

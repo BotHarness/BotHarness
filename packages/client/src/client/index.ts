@@ -15,6 +15,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createNativeHostFiles } from './host-file-actions.js';
 import { createActions, type BridgeActions } from './actions.js';
+import { ProviderAppSetup } from './provider-app-setup.js';
 import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
 import { botIconMarkup } from './bot-icon.js';
@@ -40,6 +41,7 @@ import { createGroupProfileCards } from './group-profile.js';
 import { createProfileCardRegistry } from './profile-cards.js';
 import {
   createBridgeCall,
+  connectionRpc,
   loadActivitySnapshot,
   loadSessionBotOwner,
   botExists,
@@ -133,6 +135,8 @@ export function apply(ctx: ClientContext): void {
       ctx.uiWorkspace.openSession(sessionId as SessionId);
     },
   });
+  const setupRpc = connectionRpc(ctx);
+  if (setupRpc) actions.appSetup = new ProviderAppSetup(setupRpc);
   const companion = new WindowCompanions({
     storage,
     exists: (botId) => botExists(call, botId),
@@ -181,6 +185,7 @@ export function apply(ctx: ClientContext): void {
       companion.dispose();
     };
   }, 'botharness: independent Window Companion owner');
+  const prefs = new BotModePrefs(storage);
   ctx.slots.inject('shell.overlay', () =>
     ctx.slots.register(
       {
@@ -189,6 +194,8 @@ export function apply(ctx: ClientContext): void {
         locale: LOCALE_NS,
         inject: () => ({
           companion,
+          prefs,
+          actions,
           openDm: (botId: string) => {
             ctx.layout.selectPanel(PANEL_ID);
             void actions.openBot(botId);
@@ -207,7 +214,6 @@ export function apply(ctx: ClientContext): void {
       WindowCompanionsView,
     ),
   );
-  const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
     openBotSettings(() => [t('settings.nav')]);

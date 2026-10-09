@@ -30,6 +30,7 @@ export interface PartLibraryInput {
 
 export interface PartLibrary {
   list(): PartLibraryEntry[];
+  get(id: string): PartLibraryEntry | undefined;
   add(input: PartLibraryInput): PartLibraryEntry;
 }
 
@@ -73,6 +74,7 @@ export function createPartLibrary(options: {
     });
   return {
     list: () => read(),
+    get: (id) => (ID.test(id) ? read(id)[0] : undefined),
     add(input) {
       const part = canonicalCustomPart(input.part);
       const id = customPartId(part);

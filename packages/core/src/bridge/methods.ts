@@ -90,8 +90,16 @@ import {
 import { botAvatarUrl } from '../bots/avatar-http.js';
 import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
 import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
-import { isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { customPartId, isPixelCustomPart } from '../bots/avatar-appearance.js';
 import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
+import {
+  MAX_PART_LIBRARY_FILES,
+  MAX_PART_LIBRARY_FILE_BYTES,
+  decodePartFiles,
+  encodePartFile,
+  encodePartLibrary,
+  partFileName,
+} from '../bots/part-file.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -461,7 +469,10 @@ export interface BridgeMethods {
   assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
-  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   userQuestionStatus(
     payload: unknown,
@@ -514,6 +525,11 @@ export interface BridgeMethods {
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   partLibraryList(): BridgeResult<{ parts: PartLibraryEntry[] }>;
   partLibraryAdd(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
+  partLibraryExport(payload: unknown): BridgeResult<{ fileName: string; data: string }>;
+  partLibraryImport(payload: unknown): BridgeResult<{
+    added: PartLibraryEntry[];
+    refused: { name: string; reason: string }[];
+  }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -2222,6 +2238,91 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         throw error;
       }
     },
+    partLibraryExport(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const id = input['id'];
+      const worn = input['part'];
+      try {
+        if (worn !== undefined) {
+          if (!isPixelCustomPart(worn)) return invalidInput('part must be a valid Custom Part');
+          const saved = deps.partLibrary.get(customPartId(worn));
+          const file = {
+            part: worn,
+            name: saved?.name ?? '',
+            ...(saved?.author ? { author: saved.author } : {}),
+          };
+          return {
+            ok: true,
+            value: { fileName: partFileName(file), data: encodePartFile(file).toString('base64') },
+          };
+        }
+        if (id === undefined) {
+          const listed = deps.partLibrary.list();
+          if (listed.length > MAX_PART_LIBRARY_FILES)
+            return invalidInput(
+              `The library has more than ${MAX_PART_LIBRARY_FILES} parts; export parts one at a time`,
+            );
+          const files = listed.map((entry) => ({
+            part: entry.part,
+            name: entry.name,
+            ...(entry.author ? { author: entry.author } : {}),
+          }));
+          return {
+            ok: true,
+            value: {
+              fileName: 'part-library.zip',
+              data: encodePartLibrary(files).toString('base64'),
+            },
+          };
+        }
+        const entry = typeof id === 'string' ? deps.partLibrary.get(id) : undefined;
+        if (!entry) return invalidInput('id must name a Part Library part');
+        const file = {
+          part: entry.part,
+          name: entry.name,
+          ...(entry.author ? { author: entry.author } : {}),
+        };
+        return {
+          ok: true,
+          value: { fileName: partFileName(file), data: encodePartFile(file).toString('base64') },
+        };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryImport(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const data = asObject(payload)['data'];
+      if (typeof data !== 'string' || data.length > (MAX_PART_LIBRARY_FILE_BYTES * 4) / 3 + 4)
+        return invalidInput('data must be a base64 PNG or zip of at most 8 MB');
+      const decoded = decodePartFiles(Buffer.from(data, 'base64'));
+      if (typeof decoded === 'string')
+        return invalidInput(
+          decoded === 'too-large'
+            ? 'The file is too large'
+            : decoded === 'no-part-data'
+              ? 'This PNG has no part data'
+              : decoded === 'invalid-part'
+                ? 'The part data in this file is invalid'
+                : 'The file is not a part PNG or a zip of part PNGs',
+        );
+      try {
+        const added = decoded.files.map((file) =>
+          deps.partLibrary!.add({
+            part: file.part,
+            name: file.name,
+            origin: 'imported-file',
+            author: file.author,
+          }),
+        );
+        return { ok: true, value: { added, refused: decoded.refused } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
     botBannerSet(payload) {
       const scope = dmMemory(payload);
       if (!('botSlug' in scope)) return scope;
@@ -3738,12 +3839,31 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel?.type !== 'dm' || channel.botSlug === undefined) {
         return invalidInput('Tool approval is available only in a PersonaBot DM');
       }
-      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+      const request = deps.channels.message(channelId, messageId)?.toolApprovalRequest;
+      if (request === undefined) {
         return invalidInput('Unknown tool approval request');
       }
+      const assignment =
+        request.role === 'assignment'
+          ? deps.runtime?.getAssignment(channel.botSlug, request.sessionId)
+          : undefined;
+      const execution =
+        assignment === undefined
+          ? undefined
+          : assignment.activity === 'error'
+            ? 'needs-repair'
+            : assignment.activity === 'working'
+              ? ((deps.runtime?.assignmentApprovalWait === undefined
+                  ? assignment.executionWait
+                  : deps.runtime.assignmentApprovalWait(request.sessionId, request.callId)) ??
+                'running')
+              : 'settled';
       return {
         ok: true,
-        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+        value: {
+          status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired',
+          ...(execution === undefined ? {} : { execution }),
+        },
       };
     },
     async toolApprovalDecide(payload) {

@@ -58,6 +58,7 @@ export interface PersonaBotRegistryOptions {
   onImport?: (event: { phase: 'complete' | 'failed'; count?: number; durationMs: number }) => void;
   now?: () => Date;
   onDisplayNameChanged?: () => void;
+  onAppearanceImported?: (record: PersonaBotRecord) => void;
 
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
@@ -473,6 +474,10 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         syncDescriptor(result.record, true);
         return result;
       }
+      if (presented.appearance !== undefined)
+        try {
+          options.onAppearanceImported?.(presented);
+        } catch {}
       syncDescriptor(presented, true);
       return { ok: true, record: presented };
     } catch {

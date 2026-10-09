@@ -1,0 +1,125 @@
+{
+  "sourceRevision": "3dbcce83189294483844e0f396defe6085accac8",
+  "pixelAvatarVersion": "0.8.0",
+  "method": "Real DSH canonical Bot channel_send; official MCP viewport emulation; independent native IntersectionObserver and QA-only observation of actual Web Audio sources/output.",
+  "canonicalReply": {
+    "exactRequestedBody": true,
+    "characters": 2905,
+    "verifiedBotAuthor": true
+  },
+  "before": {
+    "atMs": 82892.69999998808,
+    "documentVisibility": "visible",
+    "viewport": {
+      "width": 1559,
+      "height": 865
+    },
+    "characterBox": {
+      "x": 777.984375,
+      "y": 769,
+      "width": 96,
+      "height": 96,
+      "top": 769,
+      "right": 873.984375,
+      "bottom": 865,
+      "left": 777.984375
+    },
+    "revealedCharacters": 204,
+    "observedSourceStarts": 95,
+    "audioContextState": "running",
+    "intersection": {
+      "visible": true,
+      "ratio": 1
+    }
+  },
+  "offscreenStart": {
+    "atMs": 91611.5,
+    "documentVisibility": "visible",
+    "viewport": {
+      "width": 1,
+      "height": 1
+    },
+    "characterBox": {
+      "x": 8,
+      "y": -95,
+      "width": 96,
+      "height": 96,
+      "top": -95,
+      "right": 104,
+      "bottom": 1,
+      "left": 8
+    },
+    "revealedCharacters": 316,
+    "observedSourceStarts": 148,
+    "audioContextState": "running",
+    "intersection": {
+      "visible": false,
+      "ratio": 0
+    }
+  },
+  "offscreenEnd": {
+    "atMs": 95600.90000000596,
+    "documentVisibility": "visible",
+    "viewport": {
+      "width": 1,
+      "height": 1
+    },
+    "characterBox": {
+      "x": 8,
+      "y": -95,
+      "width": 96,
+      "height": 96,
+      "top": -95,
+      "right": 104,
+      "bottom": 1,
+      "left": 8
+    },
+    "revealedCharacters": 316,
+    "observedSourceStarts": 148,
+    "audioContextState": "running",
+    "intersection": {
+      "visible": false,
+      "ratio": 0
+    }
+  },
+  "after": {
+    "atMs": 101539.40000000596,
+    "documentVisibility": "visible",
+    "viewport": {
+      "width": 1559,
+      "height": 865
+    },
+    "characterBox": {
+      "x": 96.1875,
+      "y": 769,
+      "width": 96,
+      "height": 96,
+      "top": 769,
+      "right": 192.1875,
+      "bottom": 865,
+      "left": 96.1875
+    },
+    "revealedCharacters": 408,
+    "observedSourceStarts": 192,
+    "audioContextState": "running",
+    "intersection": {
+      "visible": true,
+      "ratio": 1
+    }
+  },
+  "offscreenObservedMs": 3989.4000000059605,
+  "newSourceStartsOffscreen": 0,
+  "sameDocument": true,
+  "returnedWithPreservedPrefix": true,
+  "consoleErrors": [],
+  "originalSoundSettingRestored": true,
+  "recordingStopped": true,
+  "ownedBrowserClosed": true,
+  "complete": true,
+  "limits": [
+    "The actual offscreen viewport is deliberately 1x1; this qualifies native nonintersection handling, not usability at ordinary window dimensions.",
+    "Document remains visible throughout; no background visibility, calibrated fast gesture, performance budget or Human listening acceptance is claimed.",
+    "Continuous silent video and separately captured actual Web Audio output have different capture clocks/durations; no synchronized soundtrack or wall-clock audio completeness is claimed.",
+    "Earlier failed native-window resize and malformed emulation invocation are preserved privately and excluded from passing evidence."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "mode": "revoked",
+  "limit": 1,
+  "original": {
+    "sessionId": "botharness-a5046db2-a54f-43d5-95f5-2df64e869a6f",
+    "callId": "call_00_FwsudPpzP9GCu0gu8PNq2222",
+    "approvalId": "a9f3eaa2-55a5-4ea0-bf5a-a897de987561",
+    "turn": 1,
+    "decision": "unavailable",
+    "decisionAt": 1791489216865,
+    "resultAt": 1791489216866,
+    "isError": true
+  },
+  "unrelated": {
+    "sessionId": "botharness-b0ed73ed-dad1-4305-93d4-f1593a4c8728",
+    "callId": "call_00_H1zPPoEqVeeGhdyxgjl50564",
+    "messageId": "18e24337-775b-4447-bd2a-ba1dd2d9d6c0",
+    "at": "2026-10-08T19:53:23.208Z",
+    "model": {
+      "kind": "model",
+      "provider": "deepseek-official",
+      "model": "deepseek-flash"
+    }
+  },
+  "browserErrors": 0,
+  "needsRepair": true,
+  "competitor": {
+    "sessionId": "botharness-d0f61d45-03ce-452f-ab99-9501978bdec0",
+    "callId": "call_00_DFxDLuEg8L5ZsU8bEZgz7611",
+    "resultAt": 1791489260486
+  },
+  "waitingCapacity": true
+}

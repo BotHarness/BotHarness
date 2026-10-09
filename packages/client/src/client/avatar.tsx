@@ -20,6 +20,8 @@ import {
   pixelSymbolFor,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { IllustratedAvatar } from './illustrated-avatar.js';
+import { createAvatarAnchor, type AvatarAnchor } from './avatar-anchor.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
@@ -55,6 +57,7 @@ export interface PersonaBotAvatarProps {
   surface?: 'portrait' | 'companion' | undefined;
   still?: boolean | undefined;
   mouth?: PixelMouthState | undefined;
+  anchorRef?: ((anchor: AvatarAnchor | undefined) => void) | undefined;
 }
 
 export interface PersonaBotFacepileItem {
@@ -349,6 +352,7 @@ export function PersonaBotAvatar({
   surface = 'portrait',
   still = false,
   mouth = 'saved',
+  anchorRef,
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
@@ -363,9 +367,18 @@ export function PersonaBotAvatar({
   const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
   const active = !still && (state === 'thinking' || state === 'working');
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
+  const anchorMount = useMountedResource<HTMLSpanElement>(
+    (node) => {
+      if (!anchorRef || surface !== 'companion') return;
+      anchorRef(createAvatarAnchor(node));
+      return () => anchorRef(undefined);
+    },
+    [anchorRef, appearance, seededRecipe, src, size, state, surface],
+  );
 
   return (
     <span
+      ref={anchorMount}
       className={classes}
       style={{ width: size, height: size }}
       data-state={state}

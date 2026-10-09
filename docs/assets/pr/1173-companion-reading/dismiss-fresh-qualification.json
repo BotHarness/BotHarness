@@ -1,0 +1,36 @@
+{
+  "red": {
+    "runtimeCode": "4776990c",
+    "phases": [
+      {
+        "phase": "AFTER_RESTART_A",
+        "canonical": true,
+        "visible": true
+      },
+      {
+        "phase": "AFTER_DISMISS_B",
+        "canonical": true,
+        "visible": false
+      }
+    ]
+  },
+  "green": {
+    "runtimeCode": "e4926548",
+    "formalPixelAvatar": "0.5.0",
+    "phases": [
+      {
+        "phase": "AFTER_RESTART_A",
+        "canonical": true,
+        "visible": true
+      },
+      {
+        "phase": "AFTER_DISMISS_B",
+        "canonical": true,
+        "visible": true
+      }
+    ]
+  },
+  "procedure": "Real native reply A → existing close button focused and native Enter → real native reply B with character keyboard focus retained; no Tab, reload or fake event between dismissal and B",
+  "attribution": "The prior red run saved DOM assertions, not a matching screenshot/video; only the green video is continuous media. A separate native Tab probe released queued B without reconnecting, identifying empty-reader queueing.",
+  "limits": "Green cold baseline and exact canonical messages were checked; this is not broad reconnect, background, audio or performance acceptance."
+}
