@@ -7,6 +7,12 @@ import {
   AVATAR_PARTS,
   AVATAR_PARTS_V2,
   AVATAR_PIECE_COLORS,
+  AVATAR_PIECE_COLORS_V4,
+  AVATAR_HEADPIECES,
+  AVATAR_STRANDS,
+  withAvatarPieces,
+  withAvatarBuiltInHeadpiece,
+  builtInAvatarHeadpiece,
   AVATAR_PRESETS,
   AVATAR_RANGES,
   AVATAR_SPECIES,
@@ -60,6 +66,15 @@ interface FamilySpec {
   seeded(name: string, seed: 2 | undefined): AvatarRecipe;
 }
 
+const PIECE_COLORS = [
+  'bangsColor',
+  ...AVATAR_PIECE_COLORS,
+  'backHairColor',
+  'strandColor',
+] as const satisfies readonly string[];
+const V4_KEYS = new Set<string>(['strand', ...AVATAR_PIECE_COLORS_V4]);
+const MOVED = new Set<string>(AVATAR_HEADPIECES);
+
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
     parts: {
@@ -70,12 +85,12 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
       beard: ['none', ...AVATAR_EXTRA_PARTS.beard],
       petals: AVATAR_EXTRA_PARTS.petals,
       flowerBase: AVATAR_EXTRA_PARTS.flowerBase,
+      strand: ['none', ...AVATAR_STRANDS],
     },
-    colors: [...AVATAR_COLORS, ...AVATAR_PIECE_COLORS],
+    colors: [...AVATAR_COLORS, ...PIECE_COLORS],
     swatches: {
       ...AVATAR_SWATCHES,
-      leftSideHairColor: AVATAR_SWATCHES.hairColor,
-      rightSideHairColor: AVATAR_SWATCHES.hairColor,
+      ...Object.fromEntries(PIECE_COLORS.map((key) => [key, AVATAR_SWATCHES.hairColor])),
     },
     ranges: AVATAR_RANGES,
     presets: AVATAR_PRESETS,
@@ -87,6 +102,7 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
       'sideHair',
       'rightSideHair',
       'backHair',
+      'strand',
       'petals',
       'flowerBase',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop' && part !== 'hair'),
@@ -151,6 +167,10 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
     return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
   if (key === 'species')
     return withAvatarSpecies(recipe, value as IllustratedAvatarRecipe['species'] & string);
+  if (V4_KEYS.has(key)) {
+    const { [key]: _removed, ...rest } = withAvatarPieces(recipe) as unknown as Fields;
+    return (value === 'none' ? rest : { ...rest, [key]: value }) as unknown as AvatarRecipe;
+  }
   if (EXTRAS.has(key) && value === 'none') {
     const { [key]: _removed, ...rest } = recipe as unknown as Fields;
     return rest as unknown as AvatarRecipe;
@@ -184,7 +204,8 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const spec = FAMILIES[recipe.family];
   const pick = <T,>(values: readonly T[]) => values[Math.floor(Math.random() * values.length)]!;
   const next: Fields = { ...(recipe as unknown as Fields) };
-  const own = (key: string) => !SPLIT.has(key) || recipe.family !== 'illustrated';
+  const own = (key: string) =>
+    recipe.family !== 'illustrated' || (!SPLIT.has(key) && !V4_KEYS.has(key));
   for (const [part, values] of Object.entries(spec.parts)) if (own(part)) next[part] = pick(values);
   for (const color of spec.colors) if (own(color)) next[color] = pick(spec.swatches[color]!);
   for (const [key, [min, max]] of Object.entries(spec.ranges))
@@ -193,6 +214,7 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const species = pick(AVATAR_SPECIES);
   const random = withAvatarSpecies(next as unknown as IllustratedAvatarRecipe, species);
   for (const color of AVATAR_PIECE_COLORS) delete random[color];
+  for (const key of V4_KEYS) delete random[key as keyof typeof random];
   for (const extra of EXTRAS) delete random[extra as keyof typeof random];
   const beard = pick(['none', ...AVATAR_EXTRA_PARTS.beard] as const);
   return {
@@ -223,8 +245,8 @@ function categoriesFor(
       ? flower
       : key === 'beard'
         ? !flower
-        : key === 'headpiece'
-          ? library
+        : key === 'strand'
+          ? !flower
           : true,
   );
 }
@@ -607,7 +629,7 @@ export function AvatarAppearanceEditor({
           <OptionTile
             id={`${slot}:none`}
             recipe={withAvatarCustomPart(recipe, slot, undefined)}
-            selected={!worn}
+            selected={!worn && builtInAvatarHeadpiece(recipe) === undefined}
             label={t('profile.avatar.part.none')}
             onSelect={() => update(withAvatarCustomPart(recipe, slot, undefined))}
           />
@@ -820,7 +842,7 @@ export function AvatarAppearanceEditor({
                         onChange={(event) => set(key, event.currentTarget.value)}
                       />
                       {fields[key] !== undefined &&
-                      (AVATAR_PIECE_COLORS as readonly string[]).includes(key) ? (
+                      (PIECE_COLORS as readonly string[]).includes(key) ? (
                         <button
                           type="button"
                           className="bh-avatar-color-reset"
@@ -843,7 +865,33 @@ export function AvatarAppearanceEditor({
                   id="bh-avatar-panel"
                   aria-labelledby="bh-avatar-tab-headpiece"
                 >
-                  {drawing?.slot === 'headpiece' ? partEditor() : partActions('headpiece', draft)}
+                  {drawing?.slot === 'headpiece' ? (
+                    partEditor()
+                  ) : (
+                    <>
+                      {library ? (
+                        partActions('headpiece', draft)
+                      ) : (
+                        <OptionTile
+                          id="headpiece:none"
+                          recipe={withAvatarBuiltInHeadpiece(draft, undefined)}
+                          selected={builtInAvatarHeadpiece(draft) === undefined}
+                          label={t('profile.avatar.part.none')}
+                          onSelect={() => update(withAvatarBuiltInHeadpiece(draft, undefined))}
+                        />
+                      )}
+                      {AVATAR_HEADPIECES.map((value) => (
+                        <OptionTile
+                          key={value}
+                          id={`headpiece:${value}`}
+                          recipe={withAvatarBuiltInHeadpiece(draft, value)}
+                          selected={builtInAvatarHeadpiece(draft) === value}
+                          label={t(`profile.avatar.option.headpiece.${value}` as Key)}
+                          onSelect={() => update(withAvatarBuiltInHeadpiece(draft, value))}
+                        />
+                      ))}
+                    </>
+                  )}
                 </div>
               ) : category === 'presets' ? (
                 <div
@@ -904,7 +952,16 @@ export function AvatarAppearanceEditor({
                     : null}
                   {(drawing && pieceSlot && drawing.slot === pieceSlot
                     ? []
-                    : (spec.parts[category] ?? [])
+                    : (spec.parts[category] ?? []).filter(
+                        (value) =>
+                          !(
+                            category === 'accessory' &&
+                            draft.family === 'illustrated' &&
+                            draft.assetVersion === 4 &&
+                            MOVED.has(value) &&
+                            fields[category] !== value
+                          ),
+                      )
                   ).map((value) => (
                     <OptionTile
                       key={value}
