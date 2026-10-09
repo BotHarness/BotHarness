@@ -22,6 +22,10 @@
 - 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
 - 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用或开始微信扫码配对，并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。内联配置会保留已有微信账号，避免替换原有配对。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
 
+### Fixed
+
+- 已静止的 Assignment 等待工具审批时释放运行名额，让其他事项继续；审批决定收到后，原调用先等待名额再继续，卡片分别显示两种等待。等待会话有独立上限，有后代的 root 保守占用名额，撤权或重启均不重放原调用（[#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)）。
+
 ## [1.2.0] - 2026-10-08
 
 Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个应用即可在飞书、Slack、Discord 和微信收发消息；群 Channel 可以连接外部会话；Bot 可以导出为 zip 并在别处导入；Bot 资料页新增横幅、标签和简介，设置项移到 Channel 侧栏；Bot 市场改为资料卡；Bot 模式可以帮你安装 Git；首次进入 Bot 模式会带你完成一次真实对话。

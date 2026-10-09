@@ -22,6 +22,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 
+### Fixed
+
+- A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
+
 ## [1.2.0] - 2026-10-08
 
 Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.

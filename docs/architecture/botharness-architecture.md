@@ -450,6 +450,8 @@ Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical 
 
 Assignment Runtime 的并发上限覆盖整个 Host 的所有 PersonaBot（默认 3），同时约束新建、按 Session 恢复空闲事项和按 Continuity Key 复用。恢复前先同步占用原有 Assignment Directory 的 working 名额，再交给 DSH；运行中的事项接收更新不增加名额。满额时返回 `assignment-capacity`、当前数量、上限和可重试标记，不启动执行、不清除待答问题、不改变模型或权限快照。事项停止确认前仍占名额；释放名额后，Orchestrator 可重试同一 Session，不引入等待队列（#811）。
 
+#1037 有界切片只在无后代、无执行中工具且无已批准待执行调用的 Assignment 等待 Human 审批时释放 live 运行名额。持久 activity 仍为 working，process-local executionWait 区分 waiting-human 与 waiting-capacity；最多 32 个等待中的 Assignment Session 使用独立上限。Human 决定提交后，原生 outcome 或下一模型 Step 必须先取得当前运行名额，实际工具执行前再次检查归属、Grant、原 Source Event 与准确操作。新建和空闲恢复仍在满额时立即拒绝；中止、停止与冷恢复均不重放原调用。同一 Orchestrator 的权限 continuation 与群聊隐私仍单独保持 gate。见 [ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#live-approval-waits-and-running-permits)。
+
 Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原生 Settings schema 的 Volatile field 由 Profile Config Editor 持久化；UI Plugin 的 Host Fiber 将 live reader 绑定到 application-defined Assignment Runtime，并在 dispose 时释放绑定。Client 只展示 Host 确认的保存值；Runtime 在每次新建或恢复空闲事项的准入时读取当前值。保存后立即影响后续准入，重启后保留；降低上限不中止已有执行，直到使用量低于新上限才允许启动新工作（#825）。
 
 待处理 Workspace Grant 请求通过同一持久 Human-action 查询进入独立 Activity attention。只有经过校验的 Grant 关联 Human 回复、Inbox 忽略或来源 DM 移除才清除计数；普通授权文字不会清除。重启从已提交 action 重建计数，不伪造执行状态。
