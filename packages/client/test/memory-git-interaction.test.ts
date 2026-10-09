@@ -469,32 +469,90 @@ describe('Memory Git graph sidebar', () => {
     );
   });
 
-  it('sends a chosen historical commit and new branch to the same Channel', async () => {
+  it('titles the commit view with its short sha and subject and offers no branch button', async () => {
     const actions = {
-      memoryGitCommitDiff: vi
-        .fn()
-        .mockResolvedValue({ sha: SHA, files: [{ path: 'history.md', status: 'A' }], diff: '' }),
-      send: vi.fn().mockResolvedValue(true),
+      memoryGitCommitDiff: vi.fn().mockResolvedValue({
+        sha: SHA,
+        subject: 'Remember the launch date',
+        files: [{ path: 'history.md', status: 'A' }],
+        diff: '',
+      }),
     } as unknown as BridgeActions;
-    const onClose = vi.fn();
     await act(async () => {
       root.render(
         createElement(MemoryCommitView, {
           actions,
           channelId: 'dm-qa',
           sha: SHA,
-          onClose,
+          onClose: vi.fn(),
           t: zhTranslate,
         }),
       );
     });
+    const title = container.querySelector<HTMLElement>('.bh-memory-commit-title');
+    expect(title?.textContent).toBe('aaaaaaaRemember the launch date');
+    expect(title?.title).toBe(`${SHA}\nRemember the launch date`);
+    expect(container.textContent).not.toContain('从这里新建并切换分支');
+    expect(container.querySelector('.bh-memory-continue-form')).toBeNull();
+  });
+
+  it('branches out from a graph commit through its context menu', async () => {
+    const graph: MemoryGitGraph = {
+      head: SHA,
+      currentBranch: 'main',
+      branches: ['main'],
+      dirty: false,
+      commits: [
+        {
+          sha: SHA,
+          parents: [],
+          subject: 'Older memory',
+          authoredAt: '2026-09-25T00:00:00Z',
+          branches: ['main'],
+          status: 'accepted',
+        },
+      ],
+      hasMore: false,
+    };
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({ head: SHA, files: [], provisional: false }),
+      memoryGitGraph: vi.fn().mockResolvedValue(graph),
+      send: vi.fn().mockResolvedValue(true),
+    } as unknown as BridgeActions;
     await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '从该记忆节点新建并切换分支')
-        ?.click();
+      root.render(
+        createElement(MemoryEntry, {
+          scope: 'personabot',
+          channelId: 'dm-qa',
+          botSlug: 'qa',
+          actions,
+          t: zhTranslate,
+        }),
+      );
     });
+    const row = container.querySelector<HTMLButtonElement>('.bh-memory-graph-row');
+    await act(async () => {
+      row?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+        }),
+      );
+    });
+    const item = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ).find((button) => button.textContent === '从这里新建并切换分支');
+    expect(item).not.toBeUndefined();
+    await act(async () => item?.click());
     const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
     expect(input?.value).toBe('memory-aaaaaaa');
+    expect(
+      container
+        .querySelector('.bh-memory-continue-form')
+        ?.previousElementSibling?.classList.contains('bh-memory-graph-row'),
+    ).toBe(true);
     await act(async () => {
       container
         .querySelector<HTMLFormElement>('.bh-memory-continue-form')
@@ -502,8 +560,7 @@ describe('Memory Git graph sidebar', () => {
     });
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining(SHA));
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
-    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history.md'));
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(container.querySelector('.bh-memory-continue-form')).toBeNull();
   });
 
   it('groups commit changes into independently collapsible files with graph badges', async () => {
@@ -950,6 +1007,7 @@ describe('Memory Git graph sidebar', () => {
       container.querySelectorAll<HTMLButtonElement>('.bh-memory-graph-row')[0]?.click();
     });
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain('Memory at a');
+    expect(container.querySelector<HTMLElement>('.bh-topbar')?.dataset['memoryDiff']).toBe('true');
     expect(chat?.style.display).toBe('none');
     expect(container.querySelector<HTMLElement>('.bh-memory-chat-composer')?.style.display).toBe(
       'none',
@@ -967,6 +1025,9 @@ describe('Memory Git graph sidebar', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
     expect(chat?.style.display).not.toBe('none');
+    expect(
+      container.querySelector<HTMLElement>('.bh-topbar')?.dataset['memoryDiff'],
+    ).toBeUndefined();
     expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Unsent QA draft');
     expect(chat?.scrollTop).toBe(73);
 
