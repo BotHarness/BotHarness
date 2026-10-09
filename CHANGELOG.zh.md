@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-像素头像新增精灵、矮人、兽人和会说话的花，以及胡子、中世纪服装和头饰；可以自己画头饰和头发并存入部件库；新建的 PersonaBot 会从全部物种中随机生成初始形象。
+像素头像新增精灵、矮人、兽人和会说话的花，以及胡子、中世纪服装和头饰；可以自己画头饰和头发并存入部件库；新建的 PersonaBot 会从全部物种中随机生成初始形象；兼容 Provider 可在绑定窗口内创建 Lark 应用或展示微信配对二维码。
 
 ### Breaking Changes
 
@@ -20,6 +20,7 @@
 - 可以为像素头像自己画头饰：铅笔、橡皮、填充、沿脸部中线镜像，前层盖在头发上、后层在头发后面，支持撤销重做，并在真实头像上显示 1× 预览。颜色可以跟随头像的发色、肤色、眼睛或衣服颜色（五档明暗），也可以是固定色。保存的部件进入 Profile 里的部件库，任何 PersonaBot 都能戴上；戴上的副本会在窗口伙伴里随头部转动和说话，并随导出的 Bot 一起带走；修改库里的部件会另存为新部件，不会改变已经戴着旧部件的头像（[#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)）。
 - 像素头像新增精灵、矮人、兽人和会说话的花。胡子始终露出说话的嘴，新增盔甲、法袍、束腰外衣和斗篷，戴上头盔或兜帽会遮住下面的头发。花有豆豆眼、五种花瓣样式，以及茎叶或花盆。当前物种或头饰不显示的选择会保留并给出提示，换回后恢复（[#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212)、[#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)）。
 - 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
+- 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用或开始微信扫码配对，并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。内联配置会保留已有微信账号，避免替换原有配对。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
 
 ## [1.2.0] - 2026-10-08
 

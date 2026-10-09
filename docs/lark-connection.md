@@ -84,11 +84,13 @@ Enable permissions by purpose:
 
 - `im:message.group_at_msg:readonly`: receive group messages mentioning the bot; needed for the initial intake test.
 - `im:message:send_as_bot`: send and reply as the application bot; needed for the initial reply test.
-- `im:message:readonly`: read messages and message resources; needed for original-message and attachment reading.
+- `im:message:readonly`: read messages and message resources; also required for protected replies, which re-read the original message to verify its sender and conversation before sending.
 - `im:message.group_msg`: obtain all group messages; needed for ordinary-message intake, group history and topic following. Request this sensitive permission when needed.
 - `im:resource`: upload images and files; needed when sending attachments.
 
 Your organization determines availability and approval requirements. Even with all-group-message permission, BotHarness only takes ordinary messages from groups whose **Rules** allow them; mentions and DMs are admitted on their own. See the official [message receive event](https://open.larksuite.com/document/server-docs/im-v1/message/events/receive) and [message history API](https://open.larksuite.com/document/server-docs/im-v1/message/get-2).
+
+Receiving an event and reading the original message are separate capabilities. If intake and model execution succeed but original-message verification returns `99991672`, check that application-identity `im:message:readonly` is enabled and published. DM/group-mention event scopes plus send permission alone do not qualify protected replies. Keep original-message verification enabled; see [Get message details](https://open.larksuite.com/document/server-docs/im-v1/message/get).
 
 ### Compare the actual console configuration
 
@@ -276,7 +278,7 @@ These additional captures use the integrated source preview in a fresh isolated 
 | Mention does not enter Inbox                         | Application bot in the group; application permissions, long-connection `im.message.receive_v1` subscription, published version and approval; identity enabled, conversation not muted or blocked |
 | Ordinary or unmentioned topic messages do not arrive | `im:message.group_msg`, genuine event delivery verification, group intake condition and explicit topic following                                                                                 |
 | History read returns 230027                          | Effective published application group-message permission; Human login permission cannot substitute for it                                                                                        |
-| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity and `im:message:send_as_bot`                                                                                                      |
+| Received but no reply                                | Working model, Inbox / wake state, this Bot's enabled identity; published `im:message:send_as_bot` and `im:message:readonly` for original-message verification                                   |
 | No message in local DM                               | Conversations reach the Bot Inbox by default; only an existing sync (see **External connectors**) shows them in a Channel                                                                        |
 
 When requesting help, include the platform, reproduction steps, a public-safe error code and checks already performed. Do not include App Secrets, access tokens or unrelated group messages.

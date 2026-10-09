@@ -2920,6 +2920,8 @@ canvas.bh-banner-art { image-rendering: pixelated; }
 .bh-memory-limits { margin-top: 8px; }
 .bh-external-panel-modal .bh-im-pairing { padding-block: 0; font-size: 13px; }
 
+.bh-app-setup-qr { display: block; width: 320px; max-width: 100%; height: auto; align-self: center; }
+
  .bh-im-field {
   display: flex;
   flex-direction: column;
