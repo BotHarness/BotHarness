@@ -62,6 +62,7 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import { timelineWorkingRows, TimelineWorkingRowsView } from './timeline-working-rows.js';
 import { groupComposerActivity } from './group-composer-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
@@ -675,6 +676,13 @@ function ConversationView({
                 ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
                 : t('main.activity.bots', { count: composerFacepile.length }),
           };
+  const workingRows = timelineWorkingRows(
+    conversation.status === 'ready' && !conversation.timeline.hasNewer
+      ? composerActivity
+      : undefined,
+    new Set(conversation.drafts.map((item) => item.botSlug)),
+  );
+  const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
   const activeMemoryView =
     selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
@@ -912,6 +920,7 @@ function ConversationView({
       conversation.timeline.olderError,
       conversation.timeline.newerError,
       messages,
+      workingRowsKey,
     ],
   );
 
@@ -1484,6 +1493,7 @@ function ConversationView({
                     </div>
                   );
                 })}
+                <TimelineWorkingRowsView rows={workingRows} t={t} />
                 {conversation.timeline.hasNewer ? (
                   <div className="bh-timeline-newer-sentinel">
                     {conversation.timeline.loadingNewer ? (

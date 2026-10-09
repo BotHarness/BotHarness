@@ -3421,6 +3421,45 @@ button.bh-profile-heat-cell:focus-visible {
   background: transparent;
 }
 .bh-message-group-avatar-link { cursor: pointer; }
+/* Client-only working rows under the latest message: the composer status
+   stays the live region, so these rows are hidden from assistive tech. */
+.bh-timeline-working {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bh-timeline-working-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-timeline-working-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-timeline-working-name { color: var(--dsw-alias-label-secondary); }
+.bh-timeline-working-ellipsis i {
+  font-style: normal;
+  animation: bh-timeline-working-dot 1.2s ease-in-out infinite;
+}
+.bh-timeline-working-ellipsis i:nth-child(2) { animation-delay: 0.2s; }
+.bh-timeline-working-ellipsis i:nth-child(3) { animation-delay: 0.4s; }
+html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animation: none; }
+@keyframes bh-timeline-working-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+.bh-timeline-working-more {
+  padding-left: 36px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
 .bh-message-group-avatar-link:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
