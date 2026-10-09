@@ -23,9 +23,8 @@ afterEach(async () => {
   for (const core of cores) await stop(core);
 });
 
-async function fixture(sharedConversation = false) {
-  const conversationFor = (account: Account) =>
-    sharedConversation ? 'qualified-group' : accounts[account].conversation;
+async function fixture() {
+  const conversationFor = (account: Account) => accounts[account].conversation;
   const home = createTempRoot('botharness-qq-identities-');
   const agents: BotAgentAdapter = {
     async runOrchestrator() {},
@@ -112,12 +111,6 @@ async function fixture(sharedConversation = false) {
       return core;
     },
     replies,
-    receiverAccounts() {
-      return [...consumers.keys()].sort();
-    },
-    hasEchoReceiver(account: Account) {
-      return typeof consumers.get(account)?.onEcho === 'function';
-    },
     async bind(account: Account) {
       const value = accounts[account];
       const binding = await core.externalMessaging.identity(value.owner, {
