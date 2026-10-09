@@ -43,6 +43,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Changed
 
+- The onboarding tutorial is now a floating driver.js guide over the welcome message instead of a permanent bar at the top of Bot mode: it opens automatically the first time the welcome message appears, closing it pauses, the guide offers **Skip tutorial**, and **Bot settings → General** continues or restarts it; completed Profiles no longer see any onboarding bar ([#1295](https://github.com/BotHarness/BotHarness/issues/1295), [ADR-0155](docs/adr/0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md)).
+
 - The Memory commit view's header now shows just the short hash and commit message, and creating a branch from a past memory moved to a right-click menu on that commit in the Memory evolution graph ([#1288](https://github.com/BotHarness/DeepSeekBot/issues/1288)).
 
 - When a PersonaBot messages another Bot because of a Group or a Bot DM, the "sent a direct message" line, now showing both Bots' avatars and names, appears in that conversation instead of the sender's private DM, and the sender's Bot Inbox keeps a handled record of it; Bots replying to each other inside their Bot DM no longer add a line to the Human DM. These lines no longer count as unread, get read receipts or replace the Channel preview ([#1276](https://github.com/BotHarness/DeepSeekBot/issues/1276), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).

@@ -1,5 +1,6 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 import { Button, Checkbox } from '@deepseek-ai/dsh-client-ui-primitives';
+import type { TutorialAction } from '../../../core/src/onboarding/types.js';
 import type { BridgeActions } from './actions.js';
 import type { ModelCatalogEntryView, ModelRouteView } from './bridge.js';
 import { errorMessage } from './bridge.js';
@@ -9,7 +10,7 @@ import { Modal } from './modal.js';
 import { OnboardingMemory } from './onboarding-memory.js';
 import { OnboardingAppBinding } from './onboarding-binding.js';
 import { openModelsSettings } from './bot-settings-open.js';
-import type { BotHarnessTranslate } from './locale.js';
+import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 import { onboardingFor, requestBotCreation } from './onboarding.js';
 import { store } from './store.js';
@@ -213,8 +214,59 @@ export function OnboardingWelcome({
       active = false;
     };
   }, [actions, channelId, state.modelOpen]);
+  const autoStarted = useRef(false);
+  const autoStartMount = useMountedResource<HTMLSpanElement>(() => {
+    if (autoStarted.current || state.busy || state.modelOpen) return;
+    const receipt = state.receipt;
+    if (
+      receipt === undefined ||
+      receipt.completed ||
+      receipt.tutorial !== 'not-started' ||
+      receipt.channelId !== channelId
+    )
+      return;
+    autoStarted.current = true;
+    void controller.refresh(undefined, 'start');
+  }, [channelId, controller, state.busy, state.modelOpen, state.receipt]);
+  const tourMount = useMountedResource<HTMLSpanElement>(
+    (node) => {
+      if (
+        !state.guideOpen ||
+        state.receipt?.tutorial !== 'active' ||
+        state.modelOpen ||
+        state.sendOpen
+      )
+        return;
+      const target = node.closest('[data-onboarding-welcome]');
+      if (target === null) return;
+      return highlightInternalControl(
+        target,
+        t('onboarding.tourTitle'),
+        t('onboarding.tourHint'),
+        t('common.close'),
+        () => {
+          controller.pauseGuide();
+        },
+        {
+          label: t('onboarding.skip'),
+          onSkip: () => {
+            void controller.refresh(undefined, 'skip');
+          },
+        },
+      );
+    },
+    [
+      state.guideOpen,
+      state.receipt?.tutorial,
+      state.receipt?.completed,
+      state.modelOpen,
+      state.sendOpen,
+    ],
+  );
   return (
     <div ref={mount} className="bh-onboarding-welcome" data-onboarding-welcome>
+      <span ref={autoStartMount} hidden />
+      <span ref={tourMount} hidden />
       <div className="bh-note">{t('onboarding.productMessage')}</div>
       <div className="bh-onboarding-welcome-heading">
         <strong>{t('onboarding.welcome')}</strong>
@@ -276,6 +328,11 @@ export function OnboardingWelcome({
         />
       </SidebarCardList>
       <div className="bh-onboarding-actions">
+        {state.pending?.channelId === channelId ? (
+          <Button variant="outline" onClick={() => controller.reviewPending()}>
+            {t('onboarding.unsent')}
+          </Button>
+        ) : null}
         <Button variant="outline" className="bh-onboarding-create" onClick={requestBotCreation}>
           {t('roster.menu.createBot')}
         </Button>
@@ -291,7 +348,7 @@ export function OnboardingWelcome({
   );
 }
 
-export function OnboardingSurface({
+export function OnboardingOverlay({
   actions,
   companion,
   t,
@@ -302,7 +359,7 @@ export function OnboardingSurface({
 }): ReactElement {
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const mount = useMountedResource<HTMLDivElement>(() => {
+  const mount = useMountedResource<HTMLSpanElement>(() => {
     let active = true;
     let key = '';
     void controller.enter(companion);
@@ -328,105 +385,16 @@ export function OnboardingSurface({
       clearInterval(timer);
     };
   }, [actions, companion]);
-  const tourMount = useMountedResource<HTMLSpanElement>(() => {
-    if (
-      !state.guideOpen ||
-      state.receipt?.tutorial !== 'active' ||
-      state.modelOpen ||
-      state.sendOpen
-    )
-      return;
-    const welcome = document.querySelector('[data-onboarding-welcome]');
-    if (!welcome) return;
-    return highlightInternalControl(
-      welcome,
-      t('onboarding.tourTitle'),
-      t('onboarding.tourHint'),
-      t('common.close'),
-      () => {
-        controller.pauseGuide();
-      },
-    );
-  }, [
-    state.guideOpen,
-    state.receipt?.tutorial,
-    state.receipt?.completed,
-    state.modelOpen,
-    state.sendOpen,
-  ]);
-  const receipt = state.receipt;
   return (
-    <div
-      ref={mount}
-      className="bh-root bh-onboarding"
-      data-onboarding-state={receipt?.completed ? 'complete' : (receipt?.tutorial ?? 'preparing')}
-    >
-      <span ref={tourMount} hidden />
-      {state.error ? (
-        <div role="alert">
-          {state.error}
+    <>
+      <span ref={mount} hidden aria-hidden="true" />
+      {state.error && !state.modelOpen && !state.sendOpen ? (
+        <div role="alert" className="bh-root bh-onboarding-notice">
+          <span className="bh-onboarding-notice-text">{state.error}</span>
           <Button variant="ghost" onClick={() => void controller.enter(companion)}>
             {t('onboarding.retryPrepare')}
           </Button>
         </div>
-      ) : null}
-      {receipt ? (
-        <div className="bh-onboarding-actions">
-          {receipt.completed ? (
-            <span role="status">{t('onboarding.completed')}</span>
-          ) : (
-            <span>{t('onboarding.goal')}</span>
-          )}
-          {!receipt.completed && receipt.tutorial === 'not-started' ? (
-            <>
-              <Button variant="outline" onClick={() => void controller.refresh(undefined, 'start')}>
-                {t('onboarding.start')}
-              </Button>
-            </>
-          ) : null}
-          {!receipt.completed &&
-          (receipt.tutorial === 'paused' || (receipt.tutorial === 'active' && !state.guideOpen)) ? (
-            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'continue')}>
-              {t('onboarding.continue')}
-            </Button>
-          ) : null}
-          {!receipt.completed && receipt.tutorial !== 'skipped' ? (
-            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'skip')}>
-              {t('onboarding.skip')}
-            </Button>
-          ) : null}
-          {receipt.completed || receipt.tutorial !== 'not-started' ? (
-            <Button variant="ghost" onClick={() => void controller.refresh(undefined, 'restart')}>
-              {t('onboarding.restart')}
-            </Button>
-          ) : null}
-          {state.pending ? (
-            <Button variant="outline" onClick={() => controller.reviewPending()}>
-              {t('onboarding.unsent')}
-            </Button>
-          ) : null}
-          {!receipt.channelId
-            ? store
-                .getSnapshot()
-                .bots.filter((bot) => !bot.paused && !bot.deleted)
-                .map((bot) => (
-                  <Button
-                    key={bot.slug}
-                    variant="outline"
-                    onClick={() => void controller.refresh(bot.slug, undefined, undefined, true)}
-                  >
-                    {bot.displayName}
-                  </Button>
-                ))
-            : null}
-          {!receipt.channelId ? (
-            <Button variant="outline" onClick={requestBotCreation}>
-              {t('roster.menu.createBot')}
-            </Button>
-          ) : null}
-        </div>
-      ) : !state.error ? (
-        <span role="status">{t('onboarding.preparing')}</span>
       ) : null}
       {state.modelOpen && state.modelTarget ? (
         <OnboardingModelDialog
@@ -482,6 +450,50 @@ export function OnboardingSurface({
           </div>
         </Modal>
       ) : null}
+    </>
+  );
+}
+
+export function OnboardingSetting({
+  actions,
+  closeBotSettings,
+  t,
+}: {
+  actions: BridgeActions;
+  closeBotSettings(): void;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const controller = onboardingFor(actions);
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const receipt = state.receipt;
+  const action: TutorialAction =
+    receipt !== undefined && (receipt.completed || receipt.tutorial === 'skipped')
+      ? 'restart'
+      : receipt === undefined || receipt.tutorial === 'not-started'
+        ? 'start'
+        : 'continue';
+  const label: BotHarnessKey =
+    action === 'restart'
+      ? 'onboarding.restart'
+      : action === 'start'
+        ? 'onboarding.start'
+        : 'onboarding.continue';
+  return (
+    <div className="bh-settings-row">
+      <div className="bh-settings-row-text">
+        <div className="bh-settings-row-title">{t('onboarding.settings.title')}</div>
+        <div className="bh-settings-row-desc">{t('onboarding.settings.description')}</div>
+      </div>
+      <Button
+        variant="outline"
+        disabled={state.busy}
+        onClick={() => {
+          closeBotSettings();
+          void controller.refresh(undefined, action, undefined, true);
+        }}
+      >
+        {t(label)}
+      </Button>
     </div>
   );
 }

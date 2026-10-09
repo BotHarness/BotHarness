@@ -31,7 +31,7 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
-  /* @bh-onboarding-aliases:start — native separator for the tutorial strip. */
+  /* @bh-onboarding-aliases:start — native surfaces for the floating onboarding notice and card. */
   --bh-onboarding-border: var(--dsw-alias-border-l2);
   --bh-onboarding-surface: var(--dsw-alias-bg-base);
   --bh-onboarding-label: var(--dsw-alias-label-primary);
@@ -103,9 +103,9 @@ export const CSS =
   font: inherit;
 }
 
-.bh-onboarding { padding: 8px 16px; border-bottom: 1px solid var(--bh-onboarding-border); }
+.bh-onboarding-notice { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100vw - 32px)); padding: 8px 12px; border: 1px solid var(--bh-onboarding-border); border-radius: 12px; background: var(--bh-onboarding-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
+.bh-onboarding-notice-text { min-width: 0; overflow-wrap: anywhere; }
 .bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bh-onboarding-actions > span { flex: 1; }
 .bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; }
 .bh-onboarding-welcome-heading { display: grid; gap: 4px; }
 .bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
