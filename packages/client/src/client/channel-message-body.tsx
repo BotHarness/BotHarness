@@ -1,3 +1,6 @@
+import { UserQuestionCard } from './user-question-card.js';
+import { ToolApprovalCard } from './tool-approval-card.js';
+import { OnboardingWelcome } from './onboarding-view.js';
 import { BridgeImage } from './bridge-image.js';
 import { ExternalMessageText } from './external-message-text.js';
 import { MessageAttachment } from './message-attachment.js';
@@ -5,7 +8,6 @@ import { useMemo, useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
-  Input,
   MarkdownText,
   StateDot,
   type MarkdownLabels,
@@ -19,7 +21,6 @@ import type { ChannelHumanMember } from './store.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser } from './workspace-grants-entry.js';
-import { WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -59,14 +60,20 @@ function failureSummary(
 
 function SessionFailureNotice({
   message,
+  channelId,
+  actions,
   t,
   nativeChatT,
 }: {
   message: ChannelMessage;
+  channelId?: string | undefined;
+  actions?: BridgeActions | undefined;
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const failure = message.sessionFailure!;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const title = nativeChatT?.('message.turnError') ?? t('failure.title');
   const needsModels = ['AUTH', 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL', 'QUOTA'].includes(
     failure.code ?? '',
@@ -93,6 +100,23 @@ function SessionFailureNotice({
           {t('failure.openModels')}
         </Button>
       ) : null}
+      {failure.requestMessageId && actions && channelId ? (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setError(undefined);
+            void actions
+              .retryMessage(channelId, failure.requestMessageId!)
+              .catch((cause) => setError(errorMessage(cause)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          {t('onboarding.retryMessage')}
+        </Button>
+      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
       <details className="bh-session-failure-details">
         <summary>{t('failure.details')}</summary>
         <div>
@@ -109,341 +133,7 @@ function SessionFailureNotice({
   );
 }
 
-function ToolApprovalCard({
-  message,
-  actions,
-  decision,
-  t,
-}: {
-  message: ChannelMessage;
-  actions: BridgeActions;
-  decision?:
-    | 'allowed-once'
-    | 'allowed-always-exact'
-    | 'allowed-always-all'
-    | 'rejected'
-    | undefined;
-  t: BotHarnessTranslate;
-}): ReactElement {
-  const request = message.toolApprovalRequest!;
-  const [acceptedDecision, setAcceptedDecision] = useState<typeof decision>();
-  const effectiveDecision = decision ?? acceptedDecision;
-  const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
-  const [status, setStatus] = useState<'loading' | 'pending' | 'expired' | 'decided'>(
-    decision === undefined ? 'loading' : 'decided',
-  );
-  const [busy, setBusy] = useState(false);
-  const [confirmAll, setConfirmAll] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const approvalMount = useMountedResource<HTMLDivElement>(() => {
-    if (decision !== undefined) {
-      setStatus('decided');
-      return;
-    }
-    if (botSlug === undefined) return;
-    let active = true;
-    const refreshStatus = (): void => {
-      void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
-        (value) => {
-          if (active) {
-            setStatus((current) =>
-              current === 'expired' || current === 'decided' ? current : value,
-            );
-          }
-        },
-        () => {
-          if (active) setStatus('expired');
-        },
-      );
-    };
-    const onGrantChanged = (event: Event): void => {
-      if ((event as CustomEvent<{ slug: string }>).detail?.slug === botSlug) refreshStatus();
-    };
-    refreshStatus();
-    window.addEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-    return () => {
-      active = false;
-      window.removeEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-    };
-  }, [actions, botSlug, decision, message.id]);
-  const decide = (
-    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
-  ): void => {
-    if (botSlug === undefined || busy || status !== 'pending') return;
-    setBusy(true);
-    setError(undefined);
-    const channelId = 'dm-' + botSlug;
-    if (
-      store.getSnapshot().selection?.kind !== 'inbox' &&
-      store.getSnapshot().conversation.channel?.id !== channelId
-    ) {
-      setError(t('approval.channelChanged'));
-      setBusy(false);
-      return;
-    }
-    void actions
-      .decideToolApproval(channelId, message.id, outcome)
-      .then(
-        () => {
-          setAcceptedDecision(outcome);
-          setStatus('decided');
-        },
-        (cause: unknown) => {
-          return actions.toolApprovalStatus(channelId, message.id).then(
-            (latest) => {
-              setStatus(latest);
-              setError(latest === 'pending' ? errorMessage(cause) : undefined);
-            },
-            () => {
-              setStatus('expired');
-              setError(errorMessage(cause));
-            },
-          );
-        },
-      )
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div ref={approvalMount} className="bh-tool-approval-card">
-      <div className="bh-grant-request-title">{t('approval.requestTitle')}</div>
-      <div className="bh-note">
-        {request.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
-        {' · '}
-        {request.toolName}
-      </div>
-      <div className="bh-note">{t('approval.cwd', { path: request.cwd })}</div>
-      <pre className="bh-tool-approval-input">{request.input}</pre>
-      <div className="bh-note">
-        {t(
-          request.toolName === 'channel_attachment_open'
-            ? 'approval.originalRisk'
-            : 'approval.risk',
-        )}
-      </div>
-      {effectiveDecision !== undefined ? (
-        <div role="status" className="bh-note">
-          {effectiveDecision === 'rejected'
-            ? t('approval.rejected')
-            : effectiveDecision === 'allowed-once'
-              ? t('approval.approved')
-              : t('approval.ruleSaved')}
-        </div>
-      ) : status === 'pending' && !confirmAll ? (
-        <div className="bh-tool-approval-actions">
-          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-once')}>
-            {t('approval.allowOnce')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => decide('allowed-always-exact')}>
-            {t('approval.allowExact')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(true)}>
-            {t('approval.allowAll')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => decide('rejected')}>
-            {t('approval.reject')}
-          </Button>
-        </div>
-      ) : confirmAll && status === 'pending' ? null : (
-        <div role="status" className="bh-note">
-          {status === 'loading' ? t('approval.loading') : t('approval.expired')}
-        </div>
-      )}
-      {confirmAll && status === 'pending' ? (
-        <div className="bh-tool-approval-confirm" role="group" aria-label={t('approval.allowAll')}>
-          <div className="bh-note">{t('approval.allowAllRisk')}</div>
-          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-always-all')}>
-            {t('approval.confirmAll')}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(false)}>
-            {t('approval.cancel')}
-          </Button>
-        </div>
-      ) : null}
-      {error === undefined ? null : (
-        <div className="bh-error" role="alert">
-          {error}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function UserQuestionCard({
-  message,
-  actions,
-  resolution,
-  t,
-}: {
-  message: ChannelMessage;
-  actions: BridgeActions;
-  resolution?: 'answered' | 'cancelled' | undefined;
-  t: BotHarnessTranslate;
-}): ReactElement {
-  const request = message.userQuestionRequest!;
-  const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
-  const [status, setStatus] = useState<
-    'loading' | 'pending' | 'expired' | 'answered' | 'cancelled'
-  >(resolution ?? 'loading');
-  const [selected, setSelected] = useState<Record<string, string[]>>({});
-  const [custom, setCustom] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [statusError, setStatusError] = useState(false);
-  const [statusRetry, setStatusRetry] = useState(0);
-
-  const questionMount = useMountedResource<HTMLDivElement>(() => {
-    if (resolution !== undefined) {
-      setStatus(resolution);
-      return;
-    }
-    if (botSlug === undefined) return;
-    let active = true;
-    setStatusError(false);
-    void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
-      (value) => {
-        if (active) setStatus(value);
-      },
-      () => {
-        if (active) setStatusError(true);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [actions, botSlug, message.id, resolution, statusRetry]);
-
-  const choose = (id: string, label: string, multiSelect: boolean): void => {
-    setSelected((current) => {
-      const prior = current[id] ?? [];
-      const next = multiSelect
-        ? prior.includes(label)
-          ? prior.filter((entry) => entry !== label)
-          : [...prior, label]
-        : [label];
-      return { ...current, [id]: next };
-    });
-    if (!multiSelect) setCustom((current) => ({ ...current, [id]: '' }));
-  };
-  const submit = (): void => {
-    if (botSlug === undefined || busy || status !== 'pending') return;
-    const channelId = 'dm-' + botSlug;
-    if (
-      store.getSnapshot().selection?.kind !== 'inbox' &&
-      store.getSnapshot().conversation.channel?.id !== channelId
-    ) {
-      setError(t('question.channelChanged'));
-      return;
-    }
-    const answers = request.questions.map((question) => {
-      const text = (custom[question.id] ?? '').trim();
-      return {
-        id: question.id,
-        selected:
-          text.length > 0 && question.multiSelect !== true ? [] : (selected[question.id] ?? []),
-        ...(text.length > 0 ? { custom: text } : {}),
-      };
-    });
-    if (answers.some((answer) => answer.selected.length === 0 && answer.custom === undefined)) {
-      setError(t('question.required'));
-      return;
-    }
-    setBusy(true);
-    setError(undefined);
-    void actions
-      .answerUserQuestion(channelId, message.id, answers)
-      .then(
-        () => setStatus('answered'),
-        (cause: unknown) => {
-          setError(errorMessage(cause));
-          setStatus('loading');
-          setStatusRetry((current) => current + 1);
-        },
-      )
-      .finally(() => setBusy(false));
-  };
-
-  return (
-    <div ref={questionMount} className="bh-question-card">
-      <div className="bh-grant-request-title">{t('question.title')}</div>
-      <details className="bh-question-source">
-        <summary>{t('question.source')}</summary>
-        <code>{request.sessionId}</code>
-      </details>
-      {request.questions.map((question) => (
-        <div className="bh-question-item" key={question.id}>
-          {question.header === undefined ? null : <div className="bh-note">{question.header}</div>}
-          <div className="bh-question-prompt">{question.question}</div>
-          {question.detail === undefined ? null : <div className="bh-note">{question.detail}</div>}
-          {question.options?.map((option) => (
-            <Button
-              key={option.label}
-              variant={(selected[question.id] ?? []).includes(option.label) ? 'primary' : 'outline'}
-              disabled={status !== 'pending' || busy}
-              aria-pressed={(selected[question.id] ?? []).includes(option.label)}
-              onClick={() => choose(question.id, option.label, question.multiSelect === true)}
-            >
-              <span className="bh-question-option">
-                <span>{option.label}</span>
-                {option.description === undefined ? null : <small>{option.description}</small>}
-              </span>
-            </Button>
-          ))}
-          <label
-            className="bh-question-custom"
-            htmlFor={'bh-question-' + message.id + '-' + question.id}
-          >
-            {t('question.custom')}
-          </label>
-          <Input
-            id={'bh-question-' + message.id + '-' + question.id}
-            value={custom[question.id] ?? ''}
-            disabled={status !== 'pending' || busy}
-            maxLength={2000}
-            placeholder={t('question.customPlaceholder')}
-            onChange={(event) => {
-              const value = event.target.value;
-              setCustom((current) => ({ ...current, [question.id]: value }));
-              if (question.multiSelect !== true && value.trim().length > 0) {
-                setSelected((current) => ({ ...current, [question.id]: [] }));
-              }
-            }}
-          />
-        </div>
-      ))}
-      {status === 'pending' ? (
-        <Button variant="primary" disabled={busy} onClick={submit}>
-          {t('question.submit')}
-        </Button>
-      ) : (
-        <div className="bh-note" role="status">
-          {status === 'answered' ? (
-            t('question.answered')
-          ) : status === 'cancelled' ? (
-            t('question.cancelled')
-          ) : status === 'loading' ? (
-            statusError ? (
-              <>
-                {t('question.statusUnavailable')}
-                <Button variant="outline" onClick={() => setStatusRetry((current) => current + 1)}>
-                  {t('question.retry')}
-                </Button>
-              </>
-            ) : (
-              t('approval.loading')
-            )
-          ) : (
-            t('question.expired')
-          )}
-        </div>
-      )}
-      {error === undefined ? null : (
-        <div className="bh-error" role="alert">
-          {error}
-        </div>
-      )}
-    </div>
-  );
-}
+export { MessageDeveloperMode } from './message-developer-mode.js';
 
 export function GrantRequestCard({
   message,
@@ -638,8 +328,19 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.contentPurged) return <div className="bh-bubble-body">{t('purge.purged')}</div>;
+  if (message.onboardingWelcome !== undefined && actions !== undefined && channelId !== undefined)
+    return <OnboardingWelcome actions={actions} channelId={channelId} t={t} />;
   if (message.sessionFailure !== undefined)
-    return <SessionFailureNotice message={message} t={t} nativeChatT={nativeChatT} />;
+    return (
+      <SessionFailureNotice
+        message={message}
+        channelId={channelId}
+        actions={actions}
+        t={t}
+        nativeChatT={nativeChatT}
+      />
+    );
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {
     return (
       <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />
@@ -742,6 +443,7 @@ export function ChannelMessageBody({
             name={bot?.displayName ?? mention.label}
             src={bot?.avatar}
             appearance={bot?.appearance}
+            avatarSeed={bot?.avatarSeed}
             size={16}
             indicator={false}
             t={t}

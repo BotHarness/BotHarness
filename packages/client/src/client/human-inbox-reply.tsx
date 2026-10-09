@@ -10,7 +10,7 @@ import {
 } from './human-inbox-detail-controls.js';
 import { ChannelMessageBody } from './channel-message-body.js';
 import { PersonaBotAvatar } from './avatar.js';
-import { channelHumanName, currentMentionLabel } from './actor-names.js';
+import { channelHumanName, currentMentionLabel, humanLabel } from './actor-names.js';
 import type { ChannelHumanMember } from './store.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -166,7 +166,7 @@ export function HumanInboxReply({
       : value.kind === 'bridged'
         ? value.source
         : value.kind === 'human'
-          ? channelHumanName({ humanMembers: [...humanMembers] })
+          ? humanLabel(channelHumanName({ humanMembers: [...humanMembers] }), t)
           : t('humanInbox.reply.system');
   const author = (message: ChannelMessage): string => authorName(message.author);
   const target = context?.find((message) => message.id === messageId);
@@ -286,6 +286,12 @@ export function HumanInboxReply({
                           (bot) =>
                             message.author.kind === 'bot' && bot.slug === message.author.slug,
                         )?.appearance
+                      }
+                      avatarSeed={
+                        bots.find(
+                          (bot) =>
+                            message.author.kind === 'bot' && bot.slug === message.author.slug,
+                        )?.avatarSeed
                       }
                       size={28}
                       indicator={false}

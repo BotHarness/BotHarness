@@ -1,4 +1,6 @@
-import { createElement, type PropsWithChildren } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type PropsWithChildren } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +28,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconRefreshOutlineRegular: stub,
     IconSearchOutlineRegular: stub,
     IconSendOutlineRegular: stub,
+    IconPinFillRegular: stub,
+    IconPinOutlineRegular: stub,
     IconTrashOutlineRegular: stub,
     FileTypeIcon: stub,
     ImageLightbox: stub,
@@ -43,12 +47,14 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
+import { BotModePrefs } from '../src/client/bot-mode-prefs.js';
 import { BotMain, committedMessageIds, resolvedGrantRequestIds } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
+import { WindowCompanions } from '../src/client/window-companions.js';
 
 describe('Channel read position candidates', () => {
   it('does not resolve a Grant request from a pending or failed local echo', () => {
@@ -149,7 +155,7 @@ describe('Bot main Sessions pane', () => {
     }
   });
 
-  it('shows a Session entry beside a DM while keeping the Bot title in the channel header', () => {
+  it('shows separately focusable companion and Profile actions beside the DM title and Sessions', async () => {
     const bot = {
       slug: 'ada',
       displayName: 'Ada',
@@ -189,15 +195,44 @@ describe('Bot main Sessions pane', () => {
       error: undefined,
     });
 
-    const markup = renderToStaticMarkup(
-      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    const companion = new WindowCompanions({
+      context: async () => ({ profileId: 'dm-header-qa' }),
+      source: () => ({ addEventListener() {}, close() {} }),
+      update: async () => {},
+    });
+    await companion.start();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    await act(() =>
+      root.render(
+        createElement(BotMain, {
+          actions: {
+            modelPlanState: async () => undefined,
+            botSourcePolicies: async () => [],
+          } as unknown as BridgeActions,
+          channelSidebar: sidebarRegistry(),
+          companion,
+        }),
+      ),
     );
+    const markup = node.innerHTML;
+    expect(markup).toContain('class="bh-companion-pin"');
+    expect(markup).toContain('aria-label="' + zhTranslate('companion.show') + ' · Ada"');
+    expect(node.querySelector('button button')).toBeNull();
+    const pin = node.querySelector<HTMLButtonElement>('.bh-companion-pin')!;
+    await act(() => pin.click());
+    expect(companion.get('ada')).toBeDefined();
+    expect(pin.getAttribute('aria-pressed')).toBe('true');
+    await act(() => root.unmount());
+    node.remove();
 
     expect(markup).toContain('会话');
     expect(markup).toContain('收起 Channel sidebar');
     expect(markup).toContain('class="bh-channel-island"');
     expect(markup).toContain('aria-haspopup="dialog"');
-    expect(markup).toContain('aria-label="打开 Ada 的 PersonaBot Profile"');
+    expect(markup).toContain('aria-label="打开 Ada 的 Profile"');
     expect(markup).toContain('<span class="bh-title">Ada</span>');
     expect(markup).not.toContain('bh-channel-sidebar-title');
     expect(markup).toContain('class="bh-chat-top-fade"');
@@ -216,6 +251,7 @@ describe('Bot main Sessions pane', () => {
     store.select(beforeChannelSelection.selection);
     store.setConversation(beforeChannelSelection.conversation);
     store.setSessions(previous.sessions);
+    companion.dispose();
   });
 
   it('opens Group Profile from the group Channel header', () => {
@@ -597,5 +633,76 @@ describe('Bot main Sessions pane', () => {
     const unavailable = render();
     expect(unavailable).toContain('bh-bubble-reply-unavailable');
     expect(unavailable).not.toContain('class="bh-bubble-reply"');
+  });
+});
+
+describe('Bot main question developer details', () => {
+  it('reacts to the shared Bot settings preference without remounting the question', async () => {
+    const previous = store.getSnapshot();
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-10-08T00:00:00.000Z',
+      updatedAt: '2026-10-08T00:00:00.000Z',
+    };
+    const message: ChannelMessage = {
+      id: 'developer-question',
+      at: channel.createdAt,
+      author: { kind: 'bot', slug: 'ada' },
+      body: '',
+      userQuestionRequest: {
+        sessionId: 'orchestrator-private',
+        questions: [
+          {
+            id: 'start',
+            header: 'Start',
+            question: 'Where should we start?',
+            options: [{ label: 'News' }],
+          },
+        ],
+      },
+    };
+    const actions = {
+      userQuestionStatus: vi.fn().mockResolvedValue('pending'),
+      markRead: vi.fn().mockResolvedValue(undefined),
+    } as unknown as BridgeActions;
+    const prefs = new BotModePrefs();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    store.select({ kind: 'channel', channelId: channel.id });
+    store.setConversation({ status: 'ready', channel, messages: [message] });
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    try {
+      await act(async () =>
+        root.render(
+          createElement(BotMain, {
+            prefs,
+            actions,
+            channelSidebar: createChannelSidebarRegistry(),
+          }),
+        ),
+      );
+      expect(node.querySelector('.bh-question-source')).toBeNull();
+      const choice = node.querySelector<HTMLButtonElement>('.bh-question-item button')!;
+      await act(async () => choice.click());
+      await act(async () => prefs.setDeveloperMode(true));
+      expect(node.querySelector('.bh-question-source code')?.textContent).toBe(
+        'orchestrator-private',
+      );
+      expect(choice.getAttribute('aria-pressed')).toBe('true');
+      await act(async () => prefs.setDeveloperMode(false));
+      expect(node.querySelector('.bh-question-source')).toBeNull();
+      expect(choice.getAttribute('aria-pressed')).toBe('true');
+      expect(actions.userQuestionStatus).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => root.unmount());
+      node.remove();
+      store.select(previous.selection);
+      store.setConversation(previous.conversation);
+    }
   });
 });

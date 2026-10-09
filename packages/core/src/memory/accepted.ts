@@ -140,6 +140,13 @@ export interface MemoryWorkingDiff extends MemoryWorkingChange {
 }
 
 export interface MemoryAcceptance {
+  sourceReferences(sourceEventIds: readonly string[]): Array<{
+    sourceEventId: string;
+    botSlug: string;
+    sha: string;
+    memoryDir?: string;
+    available: boolean;
+  }>;
   continueFromCommit(input: { botSlug: string; sessionId: string; sha: string; branch: string }): {
     from: string;
     to: string;
@@ -1536,6 +1543,28 @@ export function createMemoryAcceptance(options: {
       } catch (error) {
         throw new MemoryAcceptError('memory-conflict', `Memory restore failed: ${String(error)}`);
       }
+    },
+    sourceReferences(sourceEventIds) {
+      if (!sourceEventIds.length) return [];
+      if (sourceEventIds.length > 100) throw new Error('Too many source references');
+      return database.read((db) =>
+        db
+          .prepare(`SELECT bot_slug, sha, cause_id FROM memory_accepted_commits
+            WHERE cause_kind = 'source-event' AND cause_id IN (${sourceEventIds.map(() => '?').join(',')})
+            ORDER BY bot_slug, sha`)
+          .all(...sourceEventIds)
+          .map((row) => {
+            const botSlug = String(row.bot_slug);
+            const memoryDir = registry.memoryDirFor(botSlug);
+            return {
+              sourceEventId: String(row.cause_id),
+              botSlug,
+              sha: String(row.sha),
+              ...(memoryDir ? { memoryDir } : {}),
+              available: memoryDir !== undefined && existsSync(memoryDir),
+            };
+          }),
+      );
     },
     history(botSlug, limit = 20) {
       const { root } = readRepository(botSlug);

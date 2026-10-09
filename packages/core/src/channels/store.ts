@@ -264,6 +264,8 @@ export interface ChannelStore {
 
   hasMessage(id: string, messageId: string): boolean;
   message(id: string, messageId: string): ChannelMessage | undefined;
+  observeOutput(id: string, messageId: string): ChannelOutputObservation | undefined;
+  outputCheckpoint(): number | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
 
   referencedAttachmentHashes(): ReadonlySet<string>;
@@ -373,6 +375,14 @@ export interface ChannelStore {
     count: number;
   }>;
   admissionActivity?(botSlug: string, sinceIso: string): Array<{ at: string; reason: string }>;
+}
+
+export interface ChannelOutputObservation {
+  position?: number;
+  channel: Pick<ChannelRecord, 'id' | 'type' | 'name' | 'botSlug' | 'members' | 'deletedAt'>;
+  message: Pick<ChannelMessage, 'id' | 'author' | 'body'>;
+  humanParticipant: boolean;
+  canRead: boolean;
 }
 
 function isMissing(error: unknown): boolean {
@@ -641,6 +651,24 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       const message = messages.find((candidate) => candidate.id === messageId);
       return message === undefined ? undefined : projectReply(message, messageIndex(messages));
     },
+    observeOutput(id, messageId) {
+      const channel = this.get(id);
+      const message = this.message(id, messageId);
+      if (!channel || channel.deletedAt !== undefined || !message) return undefined;
+      return {
+        channel,
+        message: { id: message.id, author: message.author, body: message.body },
+        humanParticipant: channel.type === 'group' || channel.botSlug !== undefined,
+        canRead:
+          this.readHumanTimeline(id, {
+            direction: 'around',
+            around: messageId,
+            olderLimit: 0,
+            newerLimit: 0,
+          }) !== undefined,
+      };
+    },
+    outputCheckpoint: () => undefined,
     list() {
       let entries: Dirent[];
       try {

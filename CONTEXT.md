@@ -59,8 +59,28 @@ A category of Avatar forms with compatible appearance choices that a Human can c
 _Avoid_: Soul, Bot type, mode, skin
 
 **Avatar Appearance**:
-A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
+A PersonaBot's saved visual choices: its Avatar Family, Avatar Species, compatible parts including Custom Parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
 _Avoid_: Soul, pose, mood, skin
+
+**Avatar Species**:
+A base within one Avatar Family's rig, such as human, elf, goblin or an anthropomorphic animal, that sets its head silhouette, ears, nose or muzzle and suggested colors, and decides which parts it accepts. It shares the family's motion and anchors; a different skeleton or visual language is a different Avatar Family.
+_Avoid_: race, Family, Bot type, skin
+
+**Custom Part**:
+A bounded pixel part a Human draws for one Avatar Appearance slot, whose cells reference the appearance's color choices or fixed colors. Applying it embeds a copy in the Avatar Appearance, so it travels with a shared PersonaBot; it is data, never markup or an executable renderer.
+_Avoid_: sticker, skin, upload, custom SVG
+
+**Part Library**:
+A Human's reusable collection of Custom Parts in the current DSH Profile, each marked by its origin: drawn here, from an imported PersonaBot, or from an imported part file. Importing either adds its parts; editing a library part never changes appearances that already embed a copy.
+_Avoid_: asset store, marketplace, catalog
+
+**Window Companion**:
+A Human-selected Binding that keeps one PersonaBot's Avatar present across pages within the Harness window and presents selected activity and messages. It retains the existing PersonaBot identity and is independent of Channel pinning and the active conversation.
+_Avoid_: desktop pet, Channel pin, separate bot
+
+**Companion Visibility**:
+The Human-selected Channel scope for a Window Companion's PersonaBot-authored messages: the Human–PersonaBot DM, Channels shared by both, or every Channel the PersonaBot has joined. It is separate from message-kind playback choices and does not change Channel membership or execution authority.
+_Avoid_: Channel pin, Channel membership, Agent Scope
 
 **Model Preset**:
 A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
@@ -437,6 +457,10 @@ _Avoid_: default folder, inbox, fixed bottom bucket
 **Bridge**:
 A configured connection from an external source, such as an IM conversation or later a webhook, to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor. For an IM conversation it is listed under External connectors (外部连接器); the PersonaBot's own external identity is a separate thing.
 _Avoid_: integration, adapter, connector (bare)
+
+**Conversation ingest**:
+A Channel-owned, one-way connection that places every message of one external conversation into that Channel as Source Events, with context-only member Admissions by default; its wake setting can switch to a batch or every message, and a member PersonaBot's own wake policy in that Channel wins. It is listed under External connectors as an external conversation (外部会话); it grants no reply or other authority to any PersonaBot. Until slice 9 converges them, a Bridge is the Bot-owned route and a Conversation ingest is the Channel-owned one.
+_Avoid_: sync, mirror, Bridge (for this record)
 
 **App**:
 The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Settings → IM apps lists every App and the Bot that uses it.

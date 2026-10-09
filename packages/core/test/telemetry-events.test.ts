@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_ILLUSTRATED_RECIPE } from '../src/bots/avatar-appearance.js';
+import { createCore } from '../src/plugin.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -161,17 +162,30 @@ describe('PersonaBot lifecycle telemetry', () => {
     expectNoContent(events, 'ada');
   });
 
-  it('captures bot_deleted only when a PersonaBot was removed', async () => {
+  it('captures bot_deleted once after confirmed terminal deletion without private content', async () => {
     const r = recorder();
-    const registry = registryWith(r.capture);
-    registry.create({ slug: 'ada', displayName: DISPLAY_NAME });
-    expect(registry.remove('ada')).toBe(true);
-    registry.remove('ada');
-    registry.remove('missing', { purge: true });
-    const events = (await r.events()).filter((event) => event.event !== 'bot_created');
-    expect(events.map((event) => event.event)).toEqual(['bot_deleted']);
-    expect(keys(events[0])).toEqual(BASE_KEYS);
-    expectNoContent(events, 'ada');
+    const core = createCore({ dshHome: tempDir('bh-telemetry-deletion-'), capture: r.capture });
+    try {
+      core.registry.create({ slug: 'ada', displayName: DISPLAY_NAME, persona: PERSONA });
+      expect(() => core.registry.remove('ada')).toThrow('confirmed PersonaBot deletion');
+      expect((await r.events()).filter((event) => event.event === 'bot_deleted')).toEqual([]);
+      const preview = core.deletions.preview('ada');
+      await expect(core.deletions.confirm('ada', 'stale', false)).rejects.toThrow('scope changed');
+      await core.deletions.confirm('ada', preview.token, false);
+      await core.deletions.retry('ada');
+      await expect(core.deletions.confirm('ada', preview.token, false)).rejects.toThrow(
+        'scope changed',
+      );
+      const events = (await r.events()).filter((event) => event.event !== 'bot_created');
+      expect(events.map((event) => event.event)).toEqual(['bot_deleted']);
+      expect(keys(events[0])).toEqual(BASE_KEYS);
+      expectNoContent(events, 'ada');
+    } finally {
+      core.schedules.close();
+      await core.runtime.close();
+      core.externalMessaging.close();
+      core.operationalDatabase.close();
+    }
   });
 
   it('captures avatar_edited for an uploaded image and an Avatar Appearance', async () => {

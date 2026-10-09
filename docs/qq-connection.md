@@ -39,4 +39,4 @@ QQ does not provide this consumer with a group-history API or a durable resume c
 - For an expired source, send a fresh @mention in QQ. An unknown send outcome needs inspection in the group before another message is requested.
 - Check that the Bot, binding and conversation are enabled and allowed. Pausing, blocking or unbinding invalidates pending authority.
 
-The [Provider integration guide](dev/guides/im-provider-integration.md) and [ADR-0144](adr/0144-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) describe the implementation boundary.
+The [Provider integration guide](dev/guides/im-provider-integration.md) and [ADR-0151](adr/0151-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) describe the implementation boundary.

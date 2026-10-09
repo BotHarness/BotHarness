@@ -58,7 +58,7 @@ function fixture() {
         return undefined;
       },
     },
-    registry: { memoryDirFor: () => memory },
+    registry: { memoryDirFor: () => memory, get: () => ({ slug: 'ada' }) },
     grants: {
       list: () => [
         { ...oldGrant, ...(oldActive ? {} : { revokedAt: '2026-01-03T00:00:00Z' }) },

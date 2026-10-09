@@ -48,6 +48,8 @@ import { sourceMediaUploadId } from './media-identity.js';
 import { decodeWeChatVoice, MAX_VOICE_INPUT_BYTES } from '../attachments/wechat-audio.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createInboundMessaging, type InboundMessaging, type ExternalSource } from './inbound.js';
+import { createMessagingTyping, type MessagingProcessing } from './typing.js';
+import { createMessagingFeedback, type SourceFeedback } from './feedback.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { TelemetryCapture } from '../telemetry/service.js';
@@ -179,6 +181,7 @@ export type MessagingApp = MessagingAccount & {
 };
 
 export interface MessagingSnapshot {
+  feedback?: { sourceEventId: string; bindingId: string; attempts: SourceFeedback }[];
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
     providerReady: boolean;
@@ -198,6 +201,7 @@ export interface MessagingSnapshot {
   pairings?: PairingRequest[];
   pairingReceivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   channelTargets?: { id: string; name: string }[];
+  appSetups?: (import('./provider.js').MessagingSetup & { providerId: string })[];
   accounts: MessagingApp[];
   grants: (MessagingGrant & {
     availability: 'available' | 'unavailable' | 'rebind-required';
@@ -216,6 +220,7 @@ export interface MessagingSnapshot {
 
 export interface OutboundMessaging {
   approvals: ApprovalMessaging;
+  beginProcessing(botSlug: string, sourceEventIds: readonly string[]): MessagingProcessing;
   pairing: BotPairing;
   inbound: InboundMessaging;
   defaults<Platform extends string = 'feishu'>(platform?: Platform): MessagingDefaults<Platform>;
@@ -247,6 +252,8 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  disableBot(botSlug: string): Promise<void>;
+  deletionDependencies(botSlug: string): { identities: string[]; grants: string[] };
   apps(): Promise<MessagingApp[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
@@ -294,6 +301,7 @@ export function createOutboundMessaging(options: {
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
+  onIngested?(channelId: string, messageId: string): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -556,10 +564,14 @@ export function createOutboundMessaging(options: {
     },
     sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
     isBotActive: options.isBotActive,
+    onAdmissionCommitted(botSlug, sourceEventId) {
+      feedback.notify(botSlug, sourceEventId, 'received');
+    },
     onAdmitted: options.onAdmitted ?? (() => undefined),
     ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.onShared ? { onShared: options.onShared } : {}),
+    ...(options.onIngested ? { onIngested: options.onIngested } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const sourceForReply = (botSlug: string, sourceEventId: string, value: MessagingGrant) => {
@@ -634,8 +646,87 @@ export function createOutboundMessaging(options: {
         ...(options.warn ? { warn: options.warn } : {}),
       })
     : undefined;
+  const typing = createMessagingTyping({
+    ...(options.warn ? { warn: options.warn } : {}),
+    candidate(botSlug, sourceEventId) {
+      if (!inbound.available(botSlug, sourceEventId)) return undefined;
+      const source = inbound.read(botSlug, sourceEventId);
+      if (source.platform !== 'weixin' || source.event.conversation.kind !== 'dm') return undefined;
+      const value = grant(botSlug, source.grantId);
+      if (!value.bindingId || value.botSlug !== botSlug) return undefined;
+      const identity = enabledBinding(value.bindingId);
+      if (!identity.typingEnabled) return undefined;
+      const entry = provider(value.providerId);
+      if (!entry.provider.beginTyping) return undefined;
+      return {
+        bindingId: identity.id,
+        grantId: value.id,
+        providerId: value.providerId,
+        provider: entry.provider,
+        token: entry.token,
+        accountRef: value.accountRef,
+        fingerprint: value.fingerprint,
+        route: source.event.reply,
+        signal: inbound.sourceSignal(botSlug, sourceEventId),
+        validate() {
+          active(botSlug);
+          current(value.providerId, entry.token);
+          const currentIdentity = enabledBinding(identity.id, identity.revision);
+          const latest = grant(botSlug, value.id);
+          return (
+            currentIdentity.typingEnabled === true &&
+            !latest.revokedAt &&
+            !latest.suspendedReason &&
+            latest.revision === value.revision &&
+            latest.fingerprint === value.fingerprint &&
+            latest.bindingId === identity.id &&
+            inbound.available(botSlug, sourceEventId)
+          );
+        },
+      };
+    },
+  });
+  const feedback = createMessagingFeedback({
+    database,
+    ...(options.warn ? { warn: options.warn } : {}),
+    candidate(botSlug, sourceEventId) {
+      if (!inbound.available(botSlug, sourceEventId)) return undefined;
+      const source = inbound.read(botSlug, sourceEventId);
+      if (source.platform !== 'feishu') return undefined;
+      const value = grant(botSlug, source.grantId);
+      if (value.botSlug !== botSlug) return undefined;
+      const identity = enabledBinding(value.bindingId);
+      const entry = provider(value.providerId);
+      return {
+        provider: entry.provider,
+        signal: inbound.sourceSignal(botSlug, sourceEventId),
+        input: {
+          accountRef: value.accountRef,
+          fingerprint: value.fingerprint,
+          route: source.event.reply,
+          beforeSend() {
+            try {
+              active(botSlug);
+              current(value.providerId, entry.token);
+              enabledBinding(value.bindingId, identity.revision);
+              const latest = grant(botSlug, value.id);
+              return (
+                !latest.revokedAt &&
+                !latest.suspendedReason &&
+                latest.revision === value.revision &&
+                inbound.available(botSlug, sourceEventId)
+              );
+            } catch {
+              return false;
+            }
+          },
+        },
+      };
+    },
+  });
   const service: OutboundMessaging = {
     approvals,
+    beginProcessing: (botSlug, sourceEventIds) => typing.begin(botSlug, sourceEventIds),
     inbound,
     pairing,
     defaults<Platform extends string = 'feishu'>(platform?: Platform) {
@@ -656,6 +747,17 @@ export function createOutboundMessaging(options: {
       ) as { id: string }[];
       if (prior.identityEnabled !== value.identityEnabled)
         await Promise.allSettled(identities.map(({ id }) => bounded(inbound.reconcileBinding(id))));
+      if (prior.typingEnabled !== value.typingEnabled) {
+        const inherited = database.read((db) =>
+          db
+            .prepare(
+              'SELECT id FROM messaging_bindings WHERE platform = ? AND typing_inherited = 1 AND revoked_at IS NULL',
+            )
+            .all(value.platform),
+        ) as { id: string }[];
+        const ids = new Set(inherited.map(({ id }) => id));
+        typing.invalidate((candidate) => ids.has(candidate.bindingId));
+      }
       options.onDefaultsChanged?.();
       options.warn?.(
         JSON.stringify({
@@ -684,7 +786,7 @@ export function createOutboundMessaging(options: {
             if (prior) throw new MessagingError('binding-conflict');
             const id = randomUUID();
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited, typing_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               id,
               botSlug,
@@ -695,6 +797,7 @@ export function createOutboundMessaging(options: {
               now(),
               account.name,
               messagingDefaultsPlatform.safeParse(account.platform).success ? 1 : 0,
+              account.platform === 'weixin' ? 1 : 0,
             );
             return readMessagingIdentity(db, id);
           },
@@ -709,6 +812,12 @@ export function createOutboundMessaging(options: {
         throw new MessagingError('identity-unavailable');
       if (value.revision !== input.expectedRevision) throw new MessagingError('identity-stale');
       if (input.kind === 'update' && (!input.name.trim() || input.name.length > 120))
+        throw new MessagingError('invalid-input');
+      if (
+        input.kind === 'update' &&
+        (input.typingEnabled !== undefined || input.inheritTyping !== undefined) &&
+        value.platform !== 'weixin'
+      )
         throw new MessagingError('invalid-input');
       const scopes = database.read((db) =>
         db
@@ -766,12 +875,25 @@ export function createOutboundMessaging(options: {
             .prepare(
               'SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL',
             )
-            .all(value.id);
+            .all(value.id) as { body: string }[];
           if (enabled && JSON.stringify(currentScopes) !== JSON.stringify(scopes))
             throw new MessagingError('identity-stale');
           const at = now();
+          if (latest.platform === 'weixin' && enabled && !latest.enabled) {
+            db.prepare('UPDATE messaging_bindings SET receive_after = ? WHERE id = ?').run(
+              at,
+              value.id,
+            );
+            for (const row of currentScopes) {
+              const g = JSON.parse(row.body) as MessagingGrant;
+              db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+                JSON.stringify({ ...g, receiveAfter: at }),
+                g.id,
+              );
+            }
+          }
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, new_conversations = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, typing_enabled = ?, typing_inherited = ?, new_conversations = ?, new_conversations_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -783,9 +905,36 @@ export function createOutboundMessaging(options: {
               : latest.enabledInheritance === 'inherit'
                 ? 1
                 : 0,
-            input.kind === 'update'
-              ? (input.newConversations ?? latest.newConversations)
-              : latest.newConversations,
+            (input.kind === 'update'
+              ? (input.typingEnabled ?? latest.typingEnabled)
+              : latest.typingEnabled) === false
+              ? 0
+              : 1,
+            input.kind === 'update' && input.inheritTyping !== undefined
+              ? input.inheritTyping
+                ? 1
+                : 0
+              : input.kind === 'update' && input.typingEnabled !== undefined
+                ? 0
+                : latest.typingInheritance === 'inherit'
+                  ? 1
+                  : 0,
+            input.kind === 'update' &&
+              input.newConversations !== undefined &&
+              input.newConversations !== 'inherit'
+              ? input.newConversations
+              : (
+                  db
+                    .prepare('SELECT new_conversations FROM messaging_bindings WHERE id = ?')
+                    .get(value.id) as { new_conversations: string }
+                ).new_conversations,
+            input.kind === 'update' && input.newConversations !== undefined
+              ? input.newConversations === 'inherit'
+                ? 1
+                : 0
+              : latest.newConversationsInheritance === 'custom'
+                ? 0
+                : 1,
             value.id,
           );
           if (input.kind === 'unbind') {
@@ -805,6 +954,7 @@ export function createOutboundMessaging(options: {
         },
         ['bindings', 'grants', 'bot-inbox'],
       );
+      typing.invalidate((candidate) => candidate.bindingId === value.id);
       await bounded(inbound.reconcileBinding(value.id));
       options.warn?.(
         JSON.stringify({
@@ -903,6 +1053,11 @@ export function createOutboundMessaging(options: {
           interrupted,
         ]);
         validate();
+        transaction((db) =>
+          db
+            .prepare('INSERT OR IGNORE INTO messaging_managed_files VALUES (?, ?, ?)')
+            .run(sourceEventId, ref.fileId!, 'original'),
+        );
         options.warn?.(
           JSON.stringify({
             event: 'messaging-attachment',
@@ -1011,6 +1166,11 @@ export function createOutboundMessaging(options: {
           },
         });
         validate();
+        transaction((db) =>
+          db
+            .prepare('INSERT OR IGNORE INTO messaging_managed_files VALUES (?, ?, ?)')
+            .run(sourceEventId, result.fileId!, 'voice.wav'),
+        );
         await check(grant(botSlug, source.grantId));
         validate();
         options.warn?.(
@@ -1042,7 +1202,7 @@ export function createOutboundMessaging(options: {
       if (!inbound.available(botSlug, sourceEventId))
         throw new MessagingError('source-unavailable');
       const source = inbound.read(botSlug, sourceEventId);
-      return service.send(
+      const result = await service.send(
         botSlug,
         source.grantId,
         'reply-' + sourceEventId,
@@ -1050,6 +1210,9 @@ export function createOutboundMessaging(options: {
         sourceEventId,
         file,
       );
+      if (result.state === 'provider-accepted')
+        feedback.notify(botSlug, sourceEventId, 'answered', result.id);
+      return result;
     },
     async reply(botSlug, sourceEventId, text) {
       let source: ExternalSource;
@@ -1063,8 +1226,18 @@ export function createOutboundMessaging(options: {
       const ingress = database.read((db) =>
         db.prepare('SELECT bot_slug FROM messaging_grants WHERE id = ?').get(source.grantId),
       ) as { bot_slug: string } | undefined;
-      if (ingress?.bot_slug === botSlug)
-        return service.send(botSlug, source.grantId, 'reply-' + sourceEventId, text, sourceEventId);
+      if (ingress?.bot_slug === botSlug) {
+        const result = await service.send(
+          botSlug,
+          source.grantId,
+          'reply-' + sourceEventId,
+          text,
+          sourceEventId,
+        );
+        if (result.state === 'provider-accepted')
+          feedback.notify(botSlug, sourceEventId, 'answered', result.id);
+        return result;
+      }
       const rows = database.read((db) =>
         db.prepare('SELECT body FROM messaging_grants WHERE bot_slug = ?').all(botSlug),
       ) as { body: string }[];
@@ -1112,6 +1285,7 @@ export function createOutboundMessaging(options: {
       if (closed) throw new MessagingError('provider-unavailable');
       const token = {};
       const previous = providers.get(value.id);
+      if (previous) typing.invalidate((candidate) => candidate.token === previous.token);
       if (previous !== undefined)
         for (const attempt of inFlight.values()) {
           if (attempt.token === previous.token) attempt.controller.abort();
@@ -1119,6 +1293,7 @@ export function createOutboundMessaging(options: {
       providers.set(value.id, { provider: value, token });
       const disposeInbound = inbound.register(value);
       return () => {
+        typing.invalidate((candidate) => candidate.token === token);
         disposeInbound();
         if (providers.get(value.id)?.token === token) providers.delete(value.id);
         for (const attempt of inFlight.values())
@@ -1188,6 +1363,35 @@ export function createOutboundMessaging(options: {
           .map(source),
       };
     },
+    deletionDependencies(botSlug) {
+      return database.read((db) => ({
+        identities: db
+          .prepare(
+            'SELECT id FROM messaging_bindings WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+        grants: db
+          .prepare(
+            'SELECT id FROM messaging_grants WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY id',
+          )
+          .all(botSlug)
+          .map((row) => String(row['id'])),
+      }));
+    },
+    async disableBot(botSlug) {
+      const dependencies = service.deletionDependencies(botSlug);
+      for (const id of dependencies.grants) service.revoke(botSlug, id);
+      database.transaction(
+        (db) => {
+          db.prepare(
+            'UPDATE messaging_bindings SET enabled = 0, enabled_inherited = 0, revision = revision + 1 WHERE bot_slug = ? AND revoked_at IS NULL',
+          ).run(botSlug);
+        },
+        ['bindings', 'grants', 'bot-inbox'],
+      );
+      await Promise.all(dependencies.identities.map((id) => bounded(inbound.reconcileBinding(id))));
+    },
     async apps() {
       const accounts = (
         await Promise.allSettled(
@@ -1223,6 +1427,14 @@ export function createOutboundMessaging(options: {
     },
     async snapshot(botSlug) {
       const accounts = await service.apps();
+      const appSetups = (
+        await Promise.allSettled(
+          [...providers.values()].map(async ({ provider }) => {
+            const setup = await bounded(provider.setup?.() ?? Promise.resolve(undefined));
+            return setup ? { ...setup, providerId: provider.id } : undefined;
+          }),
+        )
+      ).flatMap((result) => (result.status === 'fulfilled' && result.value ? [result.value] : []));
       const rows = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')
@@ -1267,6 +1479,20 @@ export function createOutboundMessaging(options: {
                   : ('unavailable' as const),
             grantCount: scopes.length,
             scopes: scopes.map((g) => g.targetName),
+            ...(latest.platform === 'weixin'
+              ? {
+                  typing: {
+                    supported: accounts.some(
+                      (account) =>
+                        account.providerId === latest.providerId &&
+                        account.ref === latest.accountRef &&
+                        account.fingerprint === latest.fingerprint &&
+                        account.typingSupported === true,
+                    ),
+                    ...typing.state(id),
+                  },
+                }
+              : {}),
           };
         }),
       );
@@ -1400,6 +1626,26 @@ export function createOutboundMessaging(options: {
       }
       return {
         accounts,
+        appSetups,
+        feedback: database.read((db) =>
+          (
+            db
+              .prepare(`SELECT s.source_event_id, s.payload_json, g.binding_id
+          FROM source_events s JOIN inbox_admissions a USING(source_event_id)
+          JOIN messaging_grants g ON g.id = json_extract(s.payload_json, '$.external.grantId')
+          WHERE a.bot_slug = ? AND json_type(s.payload_json, '$.feedback') = 'object'
+          ORDER BY s.created_at DESC, s.source_event_id DESC LIMIT 30`)
+              .all(botSlug) as {
+              source_event_id: string;
+              payload_json: string;
+              binding_id: string;
+            }[]
+          ).map((row) => ({
+            sourceEventId: row.source_event_id,
+            bindingId: row.binding_id,
+            attempts: (JSON.parse(row.payload_json) as { feedback: SourceFeedback }).feedback,
+          })),
+        ),
         identities,
         pairings: pairing.list(botSlug),
         approvals: approvals.snapshot(botSlug),
@@ -1487,7 +1733,7 @@ export function createOutboundMessaging(options: {
           };
           if (!reusable)
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited, typing_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               bindingId,
               input.botSlug,
@@ -1498,6 +1744,7 @@ export function createOutboundMessaging(options: {
               at,
               inspected.account.name,
               messagingDefaultsPlatform.safeParse(value.platform).success ? 1 : 0,
+              value.platform === 'weixin' ? 1 : 0,
             );
           if (!reusable && readMessagingIdentity(db, bindingId).enabled)
             createdBinding = value.platform;
@@ -1528,6 +1775,7 @@ export function createOutboundMessaging(options: {
         ['grants', 'bindings', 'outbox'],
       );
       inbound.revoke(grantId);
+      typing.invalidate((candidate) => candidate.grantId === grantId);
       for (const attempt of inFlight.values())
         if (attempt.fileGrantId === grantId) attempt.controller.abort();
     },
@@ -2033,6 +2281,8 @@ export function createOutboundMessaging(options: {
     close() {
       closed = true;
       approvals.close();
+      feedback.close();
+      typing.close();
       inbound.close();
       providers.clear();
       for (const attempt of inFlight.values()) attempt.controller.abort();

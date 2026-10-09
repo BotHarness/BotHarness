@@ -203,6 +203,12 @@ describe('@botharness/ui browser bundle', () => {
 
     expect(registered).toEqual([
       {
+        name: 'shell.overlay',
+        id: 'botharness-window-companion',
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
+      {
         name: 'sidebar.panellist',
         id: 'botharness',
         order: 10,

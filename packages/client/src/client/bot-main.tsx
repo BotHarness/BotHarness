@@ -1,7 +1,11 @@
+import { OnboardingMemoryNavigation } from './onboarding-memory.js';
+import { OnboardingSurface } from './onboarding-view.js';
 import { GroupChannelHeader } from './group-channel-header.js';
+import { CompanionPin } from './window-companions-view.js';
+import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
-import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -26,6 +30,7 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
 import {
   ChannelComposer,
   type ChannelComposerActivity,
@@ -33,10 +38,14 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
-import { channelHumanName } from './actor-names.js';
+import { channelHumanName, humanLabel } from './actor-names.js';
 import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
-import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import {
+  ChannelMessageBody,
+  MessageDeveloperMode,
+  type NativeChatFailureText,
+} from './channel-message-body.js';
 import { BridgeSourceAuthor } from './bridge-source-author.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
@@ -119,7 +128,7 @@ function authorLabel(
 ): string {
   switch (message.author.kind) {
     case 'human':
-      return humanName;
+      return humanLabel(humanName, t);
     case 'system':
       return t('main.author.system');
     case 'bot':
@@ -262,6 +271,7 @@ function MessageGroupView({
         name={authorBot?.displayName ?? author.slug}
         src={authorBot?.avatar}
         appearance={authorBot?.appearance}
+        avatarSeed={authorBot?.avatarSeed}
         size={28}
         indicator={false}
       />
@@ -482,6 +492,7 @@ function EmptyConversation({
           name={bot.displayName}
           src={bot.avatar}
           appearance={bot.appearance}
+          avatarSeed={bot.avatarSeed}
           size={56}
           indicator={false}
         />
@@ -499,6 +510,7 @@ function EmptyConversation({
 function ConversationView({
   state,
   actions,
+  companion,
   channelSidebar,
   profileCards = EMPTY_PROFILE_CARDS,
   nativeChatT,
@@ -506,6 +518,7 @@ function ConversationView({
 }: {
   state: ClientState;
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog;
   profileCards?: ProfileCardRegistry | undefined;
@@ -592,7 +605,10 @@ function ConversationView({
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
   const botDm = isBotDmChannel(channel);
-  const readOnlyDm = isHumanReadOnlyDmChannel(channel);
+  const readOnlyDm =
+    isHumanReadOnlyDmChannel(channel) ||
+    (channel?.type === 'dm' &&
+      state.bots.find((candidate) => candidate.slug === channel.botSlug)?.deleted === true);
   const profileBot =
     channel?.type === 'dm' && channel.botSlug !== undefined
       ? state.bots.find((candidate) => candidate.slug === channel.botSlug)
@@ -620,6 +636,7 @@ function ConversationView({
     name: member.displayName,
     src: member.avatar,
     appearance: member.appearance,
+    avatarSeed: member.avatarSeed,
     state: personaBotActivity(state, member),
     activity: member.activity,
     attention: member.attention,
@@ -639,6 +656,7 @@ function ConversationView({
               name: bot.displayName,
               src: bot.avatar,
               appearance: bot.appearance,
+              avatarSeed: bot.avatarSeed,
               state: botActivity,
               activity: bot.activity,
               attention: bot.attention,
@@ -1092,6 +1110,7 @@ function ConversationView({
                   channel={channel}
                   title={title}
                   members={channelFacepile}
+                  companion={companion}
                   expanded={profilePopoverOpen}
                   t={t}
                   onOpenActivity={() => setProfilePopoverOpen(true)}
@@ -1119,43 +1138,54 @@ function ConversationView({
                 ) : null}
               </span>
             ) : profileBot === undefined ? (
-              <button
-                type="button"
-                className="bh-channel-island"
-                aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
-                aria-controls="bh-channel-sidebar"
-                aria-expanded={sidebar.mode !== 'hidden'}
-                onClick={sidebar.toggle}
-              >
-                {bot !== undefined ? (
-                  <PersonaBotAvatar
-                    t={t}
-                    personaBotId={bot.slug}
+              <span className="bh-companion-chip">
+                <button
+                  type="button"
+                  className="bh-channel-island"
+                  aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
+                  aria-controls="bh-channel-sidebar"
+                  aria-expanded={sidebar.mode !== 'hidden'}
+                  onClick={sidebar.toggle}
+                >
+                  {bot !== undefined ? (
+                    <PersonaBotAvatar
+                      t={t}
+                      personaBotId={bot.slug}
+                      name={bot.displayName}
+                      src={bot.avatar}
+                      appearance={bot.appearance}
+                      avatarSeed={bot.avatarSeed}
+                      state={botActivity}
+                      size={22}
+                      indicator={false}
+                    />
+                  ) : channelFacepile.length > 0 ? (
+                    <PersonaBotFacepile items={channelFacepile} size={22} indicator={false} t={t} />
+                  ) : (
+                    <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
+                      #
+                    </span>
+                  )}
+                  <span className="bh-title">{title}</span>
+                  {bot === undefined || bot.roles.length === 0 ? null : (
+                    <span className="bh-role-badges">
+                      {bot.roles.map((role) => (
+                        <Tag key={role} tone="neutral">
+                          {role}
+                        </Tag>
+                      ))}
+                    </span>
+                  )}
+                </button>
+                {bot && companion ? (
+                  <CompanionPin
+                    companion={companion}
+                    botId={bot.slug}
                     name={bot.displayName}
-                    src={bot.avatar}
-                    appearance={bot.appearance}
-                    state={botActivity}
-                    size={22}
-                    indicator={false}
+                    t={t}
                   />
-                ) : channelFacepile.length > 0 ? (
-                  <PersonaBotFacepile items={channelFacepile} size={22} indicator={false} t={t} />
-                ) : (
-                  <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
-                    #
-                  </span>
-                )}
-                <span className="bh-title">{title}</span>
-                {bot === undefined || bot.roles.length === 0 ? null : (
-                  <span className="bh-role-badges">
-                    {bot.roles.map((role) => (
-                      <Tag key={role} tone="neutral">
-                        {role}
-                      </Tag>
-                    ))}
-                  </span>
-                )}
-              </button>
+                ) : null}
+              </span>
             ) : (
               <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
                 <button
@@ -1172,6 +1202,7 @@ function ConversationView({
                     name={profileBot.displayName}
                     src={profileBot.avatar}
                     appearance={profileBot.appearance}
+                    avatarSeed={profileBot.avatarSeed}
                     state={profileBotActivity}
                     size={22}
                     indicator={false}
@@ -1187,6 +1218,14 @@ function ConversationView({
                     </span>
                   )}
                 </button>
+                {companion ? (
+                  <CompanionPin
+                    companion={companion}
+                    botId={profileBot.slug}
+                    name={profileBot.displayName}
+                    t={t}
+                  />
+                ) : null}
                 {profilePopoverOpen ? (
                   <ProfilePopover
                     bot={profileBot}
@@ -1211,7 +1250,6 @@ function ConversationView({
           />
           {profileViewOpen && channel?.type === 'group' ? (
             <GroupProfileView
-              actions={actions}
               channel={channel}
               activity={
                 groupProfileActivity?.channelId === channel.id ? groupProfileActivity : undefined
@@ -1345,78 +1383,86 @@ function ConversationView({
                           />
                         </div>
                       ) : first.botDmAction === undefined ? (
-                        <MessageGroupView
-                          humanMembers={channel?.humanMembers ?? []}
-                          group={group}
-                          channelId={channelId}
-                          actions={actions}
-                          nativeChatT={nativeChatT}
-                          resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
-                          toolApprovalDecisions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.toolApprovalDecision !== undefined)
-                                .map((item) => [
-                                  item.toolApprovalDecision!.requestMessageId,
-                                  item.toolApprovalDecision!.outcome,
-                                ]),
-                            )
-                          }
-                          userQuestionResolutions={
-                            new Map(
-                              displayMessages
-                                .filter((item) => item.userQuestionResolution !== undefined)
-                                .map((item) => [
-                                  item.userQuestionResolution!.requestMessageId,
-                                  item.userQuestionResolution!.state,
-                                ]),
-                            )
-                          }
-                          focusMessageId={conversation.focusMessageId}
-                          currentDmBotSlug={
-                            channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
-                          }
-                          bots={state.bots}
-                          onContextMenu={(message, x, y) => {
-                            setMessageMenu({ message, x, y });
+                        <OnboardingMemoryNavigation.Provider
+                          value={{
+                            file: (path) => openMemoryView({ kind: 'file', path }),
+                            commit: (sha) => openMemoryView({ kind: 'commit', sha }),
+                            working: (change) => openMemoryView({ kind: 'working', change }),
                           }}
-                          onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
-                          onJumpReply={(messageId) => {
-                            if (channelId !== undefined)
-                              void actions.openAround(channelId, messageId);
-                          }}
-                          onRestoreFailed={(message) => {
-                            if (channelId === undefined) return;
-                            if (
-                              draft.length > 0 ||
-                              uploadItems.length > 0 ||
-                              conversation.sending
-                            ) {
-                              setRestoreBlocked(true);
-                              return;
+                        >
+                          <MessageGroupView
+                            humanMembers={channel?.humanMembers ?? []}
+                            group={group}
+                            channelId={channelId}
+                            actions={actions}
+                            nativeChatT={nativeChatT}
+                            resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
+                            toolApprovalDecisions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.toolApprovalDecision !== undefined)
+                                  .map((item) => [
+                                    item.toolApprovalDecision!.requestMessageId,
+                                    item.toolApprovalDecision!.outcome,
+                                  ]),
+                              )
                             }
-                            if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                            setDraft(message.body);
-                            setMentionTokens(message.mentions ?? []);
-                            setChannelRefTokens(message.channelRefs ?? []);
-                            setUploadItems(
-                              (message.attachments ?? []).map((ref) => ({
-                                id: crypto.randomUUID(),
-                                file: new File([], ref.name, { type: ref.mime }),
-                                ref,
-                                status: 'ready' as const,
-                              })),
-                            );
-                            setReplyTarget(
-                              message.replyTo === undefined
-                                ? undefined
-                                : messages.find((candidate) => candidate.id === message.replyTo),
-                            );
-                            setRestoreBlocked(false);
-                            setRestoreFocusSignal((value) => value + 1);
-                          }}
-                          t={t}
-                        />
+                            userQuestionResolutions={
+                              new Map(
+                                displayMessages
+                                  .filter((item) => item.userQuestionResolution !== undefined)
+                                  .map((item) => [
+                                    item.userQuestionResolution!.requestMessageId,
+                                    item.userQuestionResolution!.state,
+                                  ]),
+                              )
+                            }
+                            focusMessageId={conversation.focusMessageId}
+                            currentDmBotSlug={
+                              channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
+                            }
+                            bots={state.bots}
+                            onContextMenu={(message, x, y) => {
+                              setMessageMenu({ message, x, y });
+                            }}
+                            onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
+                            onJumpReply={(messageId) => {
+                              if (channelId !== undefined)
+                                void actions.openAround(channelId, messageId);
+                            }}
+                            onRestoreFailed={(message) => {
+                              if (channelId === undefined) return;
+                              if (
+                                draft.length > 0 ||
+                                uploadItems.length > 0 ||
+                                conversation.sending
+                              ) {
+                                setRestoreBlocked(true);
+                                return;
+                              }
+                              if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                              setDraft(message.body);
+                              setMentionTokens(message.mentions ?? []);
+                              setChannelRefTokens(message.channelRefs ?? []);
+                              setUploadItems(
+                                (message.attachments ?? []).map((ref) => ({
+                                  id: crypto.randomUUID(),
+                                  file: new File([], ref.name, { type: ref.mime }),
+                                  ref,
+                                  status: 'ready' as const,
+                                })),
+                              );
+                              setReplyTarget(
+                                message.replyTo === undefined
+                                  ? undefined
+                                  : messages.find((candidate) => candidate.id === message.replyTo),
+                              );
+                              setRestoreBlocked(false);
+                              setRestoreFocusSignal((value) => value + 1);
+                            }}
+                            t={t}
+                          />
+                        </OnboardingMemoryNavigation.Provider>
                       ) : (
                         <button
                           type="button"
@@ -1495,7 +1541,9 @@ function ConversationView({
                         : channel?.type === 'dm' && channel.botSlug !== undefined
                           ? state.bots.filter(
                               (candidate) =>
-                                candidate.slug !== channel.botSlug && candidate.paused !== true,
+                                candidate.slug !== channel.botSlug &&
+                                candidate.paused !== true &&
+                                !candidate.deleted,
                             )
                           : []
                     }
@@ -1589,8 +1637,9 @@ function ConversationView({
   );
 }
 
-export function BotMain({
+function BotMainContent({
   actions,
+  companion,
   nativeSessions,
   channelSidebar,
   profileCards,
@@ -1598,6 +1647,7 @@ export function BotMain({
   t = zhTranslate,
 }: {
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
@@ -1617,6 +1667,7 @@ export function BotMain({
       key={`${scopeKey}:${state.conversation.channel?.id ?? ''}`}
       state={state}
       actions={actions}
+      companion={companion}
       channelSidebar={channelSidebar}
       profileCards={profileCards}
       nativeChatT={nativeChatT}
@@ -1625,8 +1676,30 @@ export function BotMain({
   );
 }
 
+const subscribeWithoutPrefs = (): (() => void) => () => {};
+
+export function BotMain({
+  prefs,
+  ...props
+}: Parameters<typeof BotMainContent>[0] & {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
+}): ReactElement {
+  const developerMode = useSyncExternalStore(
+    prefs?.source.subscribe ?? subscribeWithoutPrefs,
+    () => prefs?.source.getSnapshot().developerMode ?? false,
+    () => false,
+  );
+  return (
+    <MessageDeveloperMode.Provider value={developerMode}>
+      <BotMainContent {...props} />
+    </MessageDeveloperMode.Provider>
+  );
+}
+
 export function BotPanel({
+  prefs,
   actions,
+  companion,
   nativeSessions,
   channelSidebar,
   profileCards,
@@ -1635,7 +1708,9 @@ export function BotPanel({
   telemetryNotice,
   t,
 }: {
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
   actions: BridgeActions;
+  companion?: WindowCompanions | undefined;
   channelSidebar: ChannelSidebarRegistry;
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
@@ -1653,6 +1728,7 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
+      <OnboardingSurface actions={actions} companion={companion} t={t} />
       {releaseNotes === undefined ? null : (
         <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
       )}
@@ -1660,7 +1736,9 @@ export function BotPanel({
         <TelemetryNotice controller={telemetryNotice} releaseNotes={releaseNotes} t={t} />
       )}
       <BotMain
+        prefs={prefs}
         actions={actions}
+        companion={companion}
         nativeSessions={nativeSessions}
         channelSidebar={channelSidebar}
         profileCards={profileCards}

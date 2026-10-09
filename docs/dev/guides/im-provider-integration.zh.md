@@ -12,7 +12,7 @@
 
 官方 QQ 应用候选复用既有 exclusive Consumer、canonical Source Event／Inbox 和 checked 回复路径。五项仅回复能力使应用能够独立于主动发送能力绑定。认证 `/users/@me` 提供原生身份；真实群应用可能省略示例中的 bot 标志，但明确矛盾的值仍拒绝。群／成员标识保持应用范围。
 
-首片只收入文字 `GROUP_AT_MESSAGE_CREATE`。准确来源证明有界且仅存在于进程内，受五分钟窗口和五次回复尝试限制，不宣称持久历史游标或群来源重读。先准备官方 SDK token，再检查来源、lease、账号、取消和 consumer 授权门禁，随后无异步间隔地发送。明确原生拒绝与 unknown 分开保存，不主动发送兜底、不自动重试。回执 ID 表示原生接收。见 [ADR-0144](../../adr/0144-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) 与 [QQ 配置指南](../../qq-connection.zh.md)。真实群／模型资格在 #1152 单独记录，与 fixture 回归区分。
+首片只收入文字 `GROUP_AT_MESSAGE_CREATE`。准确来源证明有界且仅存在于进程内，受五分钟窗口和五次回复尝试限制，不宣称持久历史游标或群来源重读。先准备官方 SDK token，再检查来源、lease、账号、取消和 consumer 授权门禁，随后无异步间隔地发送。明确原生拒绝与 unknown 分开保存，不主动发送兜底、不自动重试。回执 ID 表示原生接收。见 [ADR-0151](../../adr/0151-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) 与 [QQ 配置指南](../../qq-connection.zh.md)。真实群／模型资格在 #1152 单独记录，与 fixture 回归区分。
 
 ### 共享所有权
 
@@ -207,3 +207,15 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 通过公开 Service 契约传递最终应用回调，在原生发送前检查 Provider Registration、账号指纹、启用 Binding／当前 Grant 和取消状态，并与账号切换串行化。只缓存真实扫码者上下文，绑定指纹及原生顺序，不进入公开状态。本地 30 天只限制存储，不承诺服务器有效期；缺失／本地过期在发送前拒绝，原生拒绝明确失败并提示新扫码者消息恢复，网络结果不明保持 unknown，不自动重试。
 
 实际返回的原生 `message_id` 以无损十进制 `serverMessageId` 保存，与标为 `client-acknowledgement` 的生成 ID 分开；二者都不是送达／已读证明。源码和压缩包资格验证须覆盖无新微信触发的唯一报告、Human 独立收件、canonical 后续消息、本地 DM 未变及拒绝／恢复。参见 [ADR-0139](../../adr/0139-wechat-external-reports-use-private-owner-context.md) 和[配图指南](../../wechat-connection.zh.md#12-发送纯外部主动文字报告)。
+
+## 微信原生输入状态生命周期候选（#911）
+
+通过现有 Service Provider 协商 `typingVersion: 1`、`beginTypingChecked` 与账号能力 `typing-lifecycle-checked`。Canonical 扫码者私聊来源只传递可信公开路由；独占 Consumer 解析私有续接和原生 `getConfig` 票据。不能公开票据，也不为输入状态创建 standalone Provider Session。
+
+实际相关 Orchestrator／Assignment 处理（含已接受 steer）由 Runtime 取得进程内 handle。同一私聊的共享 handle 保持一个原生生命周期，最后一个处理者结束才清理；排队 follow-up 的接受不等于执行。初次发送和每次续期检查自己的当前 Binding／Grant／Registration 与来源 lease；关闭、撤销、替换会使活跃工作失效。授权丢失后仍用原始票据，在独立有界取消期限内清理。五秒续期间隔、十分钟上限限制活跃状态；原生请求失败不阻止消息处理。
+
+只持久化身份偏好；接口接受的活跃状态不是 durable 消息、送达／已读回执或客户端显示证明。请求中、已接受、不可用及清理未确认的诊断应消除私有字段，并区分证据含义。用 Human 操作的微信观察及约定的视觉证据核验真实显示和完成／停止／失败后清理，包括打包产品。Windows 候选 `.911.7` 的验证中，Human 要求以截图代替录像；通过官方限定 Sandbox ACL 修复后，真实原生 Orchestrator 与 Assignment 等待命令均成功。Human 已确认私聊、Assignment 及后续消息处理时显示输入、关闭偏好后不显示、最终回复收到、停止／失败后清理、Binding 关闭、Grant 撤销／恢复、Provider disposal，以及 Host 中断／重启与后续恢复。自动覆盖不能替代原生观察。视觉采集及 Windows 测试限制参见 [ADR-0145](../../adr/0145-wechat-typing-follows-owned-processing-leases.md)、[候选指南](../../wechat-connection.zh.md#13-bot-工作时请求微信原生输入状态)及 [Windows 记录](../../qa/wechat-911-windows-handoff.md)。`.911.8` 的 Windows 原生补验与 Human QA 已在 [#911](https://github.com/BotHarness/BotHarness/issues/911) 完成。全局默认与继承由独立 [#912](https://github.com/BotHarness/BotHarness/issues/912) 跟踪；部署仍单独授权。
+
+## 微信默认值与继承（#912）
+
+Messaging 拥有微信不可变默认版本与独立的身份／输入状态继承标记。Generation 69 保留原覆盖，新绑定继承。扫码账号私聊编辑器不显示并拒绝未支持的群 @／Thread 策略；频道连接器保留独立路由。恢复收件沿用新消息时间边界，输入状态变化只取消继承的运行中租约。无需升级 Provider 或新增消息权威。参见 [ADR-0119](../../adr/0119-external-platform-defaults-retain-explicit-inheritance.md) 与[候选审阅路径](../../wechat-connection.zh.md#14-继承默认值或保留-bot-自定义)。真实微信新消息验收仍待完成。

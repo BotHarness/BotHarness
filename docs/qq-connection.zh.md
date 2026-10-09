@@ -39,4 +39,4 @@ QQ 没有向这个 consumer 提供群历史接口或持久恢复游标，断线�
 - 来源过期时，在 QQ 发送新的 @ 提及。发送结果不确定时，先到原群核对，再请求另一条消息。
 - 检查 Bot、绑定和会话是否启用并允许。暂停、屏蔽和解绑会撤销尚未发送的权限。
 
-[Provider 接入指南](dev/guides/im-provider-integration.md) 与 [ADR-0144](adr/0144-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) 记录实现边界。
+[Provider 接入指南](dev/guides/im-provider-integration.md) 与 [ADR-0151](adr/0151-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) 记录实现边界。

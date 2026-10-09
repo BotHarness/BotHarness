@@ -1,4 +1,10 @@
+import { isPixelBannerRecipe, type PixelBannerRecipe } from '@botharness/pixel-banner';
+
 import { parseChallenge, type AltchaChallenge } from './altcha.js';
+
+export type MarketplaceBanner = { recipe: PixelBannerRecipe } | { image: string };
+
+const BANNER_IMAGE_ORIGIN = 'https://raw.githubusercontent.com/';
 
 export interface MarketplaceEntry {
   id: string;
@@ -8,6 +14,7 @@ export interface MarketplaceEntry {
   displayName: string | null;
   roles: string[];
   description: string | null;
+  banner: MarketplaceBanner | null;
   topics: string[];
   stars: number;
   pushedAt: string;
@@ -64,6 +71,16 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function parseBanner(value: unknown): MarketplaceBanner | null {
+  const source = record(value);
+  if (source === undefined) return null;
+  if (isPixelBannerRecipe(source['recipe'])) {
+    return { recipe: { scene: source['recipe'].scene, seed: source['recipe'].seed } };
+  }
+  const image = source['image'];
+  return typeof image === 'string' && image.startsWith(BANNER_IMAGE_ORIGIN) ? { image } : null;
+}
+
 function parseEntry(value: unknown): MarketplaceEntry | undefined {
   const source = record(value);
   if (source === undefined) return undefined;
@@ -85,7 +102,8 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
   if (description !== null && typeof description !== 'string') return undefined;
   if (typeof stars !== 'number' || !Array.isArray(topics)) return undefined;
   const displayName = source['displayName'];
-  const roles = source['roles'];
+  const roles = Array.isArray(source['tags']) ? source['tags'] : source['roles'];
+  const bio = source['bio'];
   return {
     id: source['id'] as string,
     owner: source['owner'] as string,
@@ -95,7 +113,8 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
     roles: Array.isArray(roles)
       ? roles.filter((role): role is string => typeof role === 'string')
       : [],
-    description,
+    description: typeof bio === 'string' && bio.length > 0 ? bio : description,
+    banner: parseBanner(source['banner']),
     topics: topics.filter((topic): topic is string => typeof topic === 'string'),
     stars,
     pushedAt: source['pushedAt'] as string,

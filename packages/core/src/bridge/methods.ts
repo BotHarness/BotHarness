@@ -1,4 +1,12 @@
+import type { BotOnboarding, OnboardingSnapshot, TutorialAction } from '../onboarding/service.js';
 import type { HttpsFallback } from '../memory/clone.js';
+import {
+  ContentPurgeError,
+  type ContentPurge,
+  type ChannelHistoryItem,
+  type PurgeSource,
+  type PurgePreview,
+} from '../purge/contracts.js';
 import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
@@ -13,6 +21,10 @@ import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import {
+  conversationIngestInput,
+  type ConversationIngestSnapshot,
+} from '../messaging/conversation-ingest.js';
 import {
   externalMemberWake,
   messagingDefaultsInput,
@@ -42,6 +54,11 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
+import {
+  MAX_DESCRIPTOR_BIO_LENGTH,
+  MAX_DESCRIPTOR_TAG_LENGTH,
+  MAX_DESCRIPTOR_TAGS,
+} from '../marketplace/descriptor.js';
 import type {
   ReleaseInfo,
   ReleaseInstall,
@@ -57,7 +74,7 @@ import {
 import { createMessageAttachmentFiles } from '../attachments/message-files.js';
 import { attachmentIntent } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
@@ -70,7 +87,19 @@ import {
   type ChannelRecord,
   type ChannelReference,
 } from '../channels/channel.js';
-import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
+import { botAvatarUrl } from '../bots/avatar-http.js';
+import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
+import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
+import { customPartId, isPixelCustomPart } from '../bots/avatar-appearance.js';
+import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
+import {
+  MAX_PART_LIBRARY_FILES,
+  MAX_PART_LIBRARY_FILE_BYTES,
+  decodePartFiles,
+  encodePartFile,
+  encodePartLibrary,
+  partFileName,
+} from '../bots/part-file.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -86,6 +115,11 @@ import type {
 } from '../bots/persona-bot.js';
 import { isPersonaBotAvatar } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import type {
+  PersonaBotDeletions,
+  PersonaBotDeletionPreview,
+  PersonaBotDeletion,
+} from '../bots/deletion.js';
 import { isValidSlug } from '../bots/slug.js';
 import {
   MAX_ROSTER_BATCH_SIZE,
@@ -191,6 +225,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     appearance?: AvatarAppearance | RetainedAvatarAppearance;
+    avatarSeed?: 2;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -212,7 +247,10 @@ export interface PersonaBotSummary {
   description?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  banner?: BotBannerSummary;
+  avatarSeed?: 2;
   paused?: boolean;
+  deleted?: boolean;
   standingLimits: StandingLimits;
   aggregateState: AggregatedState;
   workspaces: string[];
@@ -267,6 +305,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  before?: string;
+  createdDay?: string;
 
   today: string;
   events: ProfileActivityReasonDay[];
@@ -297,6 +337,7 @@ export interface OwnedSessionBot {
   displayName: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
+  avatarSeed?: 2;
   role: SessionRootRole;
 }
 
@@ -309,6 +350,10 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  onboarding(payload: unknown): Promise<BridgeResult<OnboardingSnapshot>>;
+  modelPlanInherit(payload: unknown): BridgeResult<{ revision: number }>;
+  onboardingModel(payload: unknown): Promise<BridgeResult<{ revision: number }>>;
+  channelRetry(payload: unknown): Promise<BridgeResult<{ accepted: true }>>;
   approvalRoute(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   approvalTest(
     payload: unknown,
@@ -322,6 +367,8 @@ export interface BridgeMethods {
   >;
   pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelIngests(payload: unknown): Promise<BridgeResult<ConversationIngestSnapshot>>;
+  channelIngest(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -357,6 +404,12 @@ export interface BridgeMethods {
     payload: unknown,
   ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  deletionPreview(payload: unknown): BridgeResult<{ preview: PersonaBotDeletionPreview }>;
+  deletionConfirm(payload: unknown): Promise<BridgeResult<{ deletion: PersonaBotDeletion }>>;
+  deletionRetry(payload: unknown): Promise<BridgeResult<{ deletion: PersonaBotDeletion }>>;
+  deletionMemoryFolder(
+    payload: unknown,
+  ): BridgeResult<{ target: { path: string; relativePath: string; kind: 'directory' } }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   humanIdentity(payload: unknown): BridgeResult<LocalHumanIdentity>;
@@ -374,6 +427,14 @@ export interface BridgeMethods {
   channelGroupWakePolicies(payload: unknown): BridgeResult<{ members: GroupMemberWakePolicy[] }>;
   channelGroupWakeSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
+  channelHistory(payload: unknown): BridgeResult<{ channels: ChannelHistoryItem[] }>;
+  channelHistorySources(
+    payload: unknown,
+  ): BridgeResult<{ sources: PurgeSource[]; before?: string }>;
+  channelPurgePreview(payload: unknown): BridgeResult<PurgePreview>;
+  channelPurgeConfirm(
+    payload: unknown,
+  ): BridgeResult<{ accepted: number; cleanupPending?: number }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
@@ -408,9 +469,14 @@ export interface BridgeMethods {
   assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
-  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
-  userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  userQuestionStatus(
+    payload: unknown,
+  ): BridgeResult<{ status: 'pending' | 'submitted' | 'answered' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
@@ -455,7 +521,15 @@ export interface BridgeMethods {
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   standingLimitsSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  botBannerSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  partLibraryList(): BridgeResult<{ parts: PartLibraryEntry[] }>;
+  partLibraryAdd(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
+  partLibraryExport(payload: unknown): BridgeResult<{ fileName: string; data: string }>;
+  partLibraryImport(payload: unknown): BridgeResult<{
+    added: PartLibraryEntry[];
+    refused: { name: string; reason: string }[];
+  }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -482,10 +556,19 @@ export interface BridgeMethods {
 export interface BridgeMethodsDeps {
   warn?: (message: string) => void;
   registry: PersonaBotRegistry;
+  deletions?: PersonaBotDeletions;
+  contentPurge?: ContentPurge;
   attachments?: AttachmentStore;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
+  onboarding?: BotOnboarding;
+  partLibrary?: PartLibrary;
+  onboardingNews?: (slug?: string) => Promise<boolean>;
+  defaultModel?: {
+    currentSelection(): ModelRoute;
+    saveSelection(route: ModelRoute): Promise<void>;
+  };
   states: BotStateTracker;
   runningSessionIds?: () => ReadonlySet<string>;
   channels: ChannelStore;
@@ -761,19 +844,6 @@ function createFailure(
   }
 }
 
-const avatarUrlCache = new Map<string, string>();
-
-function botAvatarUrl(slug: string, avatar: string): string {
-  const key = `${slug}\u0000${avatar}`;
-  const cached = avatarUrlCache.get(key);
-  if (cached !== undefined) return cached;
-  const version = createHash('sha256').update(avatar).digest('hex').slice(0, 16);
-  const url = `${BOT_AVATAR_PATH}?slug=${encodeURIComponent(slug)}&v=${version}`;
-  if (avatarUrlCache.size > 256) avatarUrlCache.clear();
-  avatarUrlCache.set(key, url);
-  return url;
-}
-
 function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBotSummary {
   return {
     slug: record.slug,
@@ -792,6 +862,10 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
             ? botAvatarUrl(record.slug, record.avatar)
             : record.avatar,
         }),
+    ...(record.banner === undefined
+      ? {}
+      : { banner: botBannerSummary(record.slug, record.banner) }),
+    ...(record.avatarSeed === undefined ? {} : { avatarSeed: record.avatarSeed }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
@@ -888,7 +962,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     }
   };
 
-  const dmMemory = (payload: unknown): { botSlug: string } | BridgeResult<never> => {
+  const dmMemory = (
+    payload: unknown,
+    historical = false,
+  ): { botSlug: string } | BridgeResult<never> => {
     const channelId = asNonBlank(asObject(payload), 'channelId');
     if (channelId === undefined) return invalidInput('channelId is required');
     const channel = deps.channels.get(channelId);
@@ -896,7 +973,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     if (channel.type !== 'dm' || channel.botSlug === undefined) {
       return invalidInput('Memory is available only in a PersonaBot DM');
     }
-    if (deps.registry.get(channel.botSlug) === undefined) return unknownBot(channel.botSlug);
+    if (
+      (historical
+        ? deps.registry.getHistorical(channel.botSlug)
+        : deps.registry.get(channel.botSlug)) === undefined
+    )
+      return unknownBot(channel.botSlug);
     return { botSlug: channel.botSlug };
   };
   const memoryCall = <T>(operation: () => T): BridgeResult<T> => {
@@ -959,6 +1041,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .safeParse(payload);
       if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
       return messagingCall((service) => service.channelBridges(input.data.channelId));
+    },
+    channelIngests(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall(async (service) => service.inbound.ingests(input.data.channelId));
+    },
+    channelIngest(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: conversationIngestInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success)
+        return Promise.resolve(invalidInput('Invalid external conversation command'));
+      return messagingCall(async (service) => {
+        await service.inbound.ingest(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
     },
     channelBridge(payload) {
       const input = z
@@ -1118,8 +1220,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 name: z.string().trim().min(1).max(120),
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
+                typingEnabled: z.boolean().optional(),
+                inheritTyping: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
-                newConversations: z.enum(['auto', 'ask']).optional(),
+                newConversations: z.enum(['auto', 'ask', 'inherit']).optional(),
               })
               .strict(),
             z
@@ -1277,6 +1381,110 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       });
     },
+    async onboarding(payload) {
+      if (deps.onboarding === undefined) return unavailable();
+      const source = asObject(payload);
+      const action = source['action'];
+      if (
+        action !== undefined &&
+        !['start', 'pause', 'skip', 'continue', 'restart'].includes(String(action))
+      )
+        return invalidInput('Invalid tutorial action');
+      try {
+        const value = await deps.onboarding.enter(
+          asSlug(payload),
+          action as TutorialAction | undefined,
+        );
+        const newsAvailable =
+          (await deps
+            .onboardingNews?.(asSlug(payload) ?? value.defaultBotSlug)
+            .catch(() => false)) ?? false;
+        return { ok: true, value: { ...value, newsAvailable } };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof Error ? error.message : 'onboarding-unavailable',
+            message: error instanceof Error ? error.message : 'Onboarding unavailable',
+          },
+        };
+      }
+    },
+    modelPlanInherit(payload) {
+      const slug = asSlug(payload);
+      const revision = asObject(payload)['expectedRevision'];
+      if (slug === undefined || !Number.isSafeInteger(revision))
+        return invalidInput('Bot and expected revision required');
+      const result = deps.registry.inheritModel(slug, revision as number);
+      if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+      return { ok: true, value: { revision: result.record.modelPlanRevision ?? 0 } };
+    },
+    async onboardingModel(payload) {
+      if (deps.modelCatalog === undefined || deps.defaultModel === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const route = source['route'];
+      const revision = source['expectedRevision'];
+      if (
+        !isModelRoute(route) ||
+        typeof source['globalDefault'] !== 'boolean' ||
+        !Number.isSafeInteger(revision)
+      )
+        return invalidInput('Model, scope and expected revision required');
+      const bot = slug === undefined ? undefined : deps.registry.get(slug);
+      if (slug !== undefined && bot === undefined) return unknownBot(slug);
+      if ((bot?.modelPlan?.revision ?? bot?.modelPlanRevision ?? 0) !== revision)
+        return invalidInput('Bot model changed; reopen before saving');
+      try {
+        await deps.modelCatalog.validate(route);
+        if (source['globalDefault']) {
+          await deps.defaultModel.saveSelection(route);
+          const saved = deps.defaultModel.currentSelection();
+          if (
+            saved.provider !== route.provider ||
+            saved.model !== route.model ||
+            saved.reasoningEffort !== route.reasoningEffort
+          )
+            return invalidInput('Profile default model was not saved; open native model settings');
+          if (slug === undefined) return { ok: true, value: { revision: 0 } };
+          return this.modelPlanInherit({ slug, expectedRevision: revision });
+        }
+        if (slug === undefined) return invalidInput('Choose a Bot for an individual model');
+        const result = deps.registry.setModelPlan(
+          slug,
+          {
+            orchestrator: route,
+            assignmentDefault: route,
+            assignmentModels: [
+              {
+                provider: route.provider,
+                model: route.model,
+                allowedEfforts: [route.reasoningEffort ?? ''],
+                defaultEffort: route.reasoningEffort ?? '',
+              },
+            ],
+          },
+          revision as number,
+        );
+        if (!result.ok) return invalidInput('Bot model changed; reopen before saving');
+        return { ok: true, value: { revision: result.record.modelPlan!.revision } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Model unavailable');
+      }
+    },
+    async channelRetry(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (!channelId || !messageId || !deps.runtime?.retryDmMessage)
+        return invalidInput('Original message is required');
+      try {
+        await deps.runtime.retryDmMessage(channelId, messageId);
+        return { ok: true, value: { accepted: true } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Retry unavailable');
+      }
+    },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {
@@ -1418,12 +1626,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (bot === undefined) return unknownBot(slug);
       if (deps.modelReadiness !== undefined) {
         try {
-          return { ok: true, value: await deps.modelReadiness.inspect(slug) };
+          const state = await deps.modelReadiness.inspect(slug);
+          const current = deps.registry.get(slug);
+          return {
+            ok: true,
+            value: {
+              ...state,
+              revision: current?.modelPlan?.revision ?? current?.modelPlanRevision ?? 0,
+            },
+          };
         } catch (failure) {
           return invalidInput(failure instanceof Error ? failure.message : String(failure));
         }
       }
-      return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
+      return {
+        ok: true,
+        value: {
+          revision: bot.modelPlan?.revision ?? bot.modelPlanRevision ?? 0,
+          ...(bot.modelPlan === undefined ? {} : { plan: bot.modelPlan }),
+        },
+      };
     },
     async modelPlanCustomize(payload) {
       if (deps.modelCatalog === undefined) return unavailable();
@@ -1489,6 +1711,57 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
+    deletionPreview(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { preview: deps.deletions.preview(slug) } };
+      } catch (error) {
+        return invalidInput(
+          error instanceof Error ? error.message : 'Deletion preview unavailable',
+        );
+      }
+    },
+    async deletionConfirm(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      if (
+        slug === undefined ||
+        typeof source['token'] !== 'string' ||
+        typeof source['eraseMemory'] !== 'boolean'
+      )
+        return invalidInput('Explicit deletion scope is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        const result = deps.deletions.confirm(slug, source['token'], source['eraseMemory']);
+        deps.computerAccess?.changed(slug);
+        deps.browserAccess?.changed(slug);
+        return { ok: true, value: { deletion: await result } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Deletion unavailable');
+      }
+    },
+    async deletionRetry(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { deletion: await deps.deletions.retry(slug) } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Deletion retry unavailable');
+      }
+    },
+    deletionMemoryFolder(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.deletions === undefined) return unavailable();
+      try {
+        return { ok: true, value: { target: deps.deletions.folder(slug) } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : 'Memory folder unavailable');
+      }
+    },
     async modelPlanSet(payload) {
       if (deps.modelCatalog === undefined) return unavailable();
       const source = asObject(payload);
@@ -1532,7 +1805,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     list(payload) {
       const query = asQuery(payload)?.trim().toLowerCase();
       const bots = deps.registry
-        .list()
+        .listHistorical()
         .filter((record) => {
           if (query === undefined || query.length === 0) return true;
           const roles = record.roles ?? (record.tag === undefined ? [] : [record.tag]);
@@ -1541,7 +1814,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             roles.some((role) => role.toLowerCase().includes(query))
           );
         })
-        .map((record) => summarize(record, deps.states.snapshot(record.slug)));
+        .map((record) => ({
+          ...summarize(record, deps.states.snapshot(record.slug)),
+          ...(deps.registry.get(record.slug) === undefined ? { deleted: true, paused: true } : {}),
+        }));
       return { ok: true, value: { bots } };
     },
     channelActivityToday() {
@@ -1592,6 +1868,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug: bot.slug,
           displayName: bot.displayName,
           ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+          ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
           ...(bot.avatar === undefined
             ? {}
             : {
@@ -1835,6 +2112,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       ) {
         return invalidInput('invalid update payload');
       }
+      if (
+        (roles.value !== undefined &&
+          (roles.value.length > MAX_DESCRIPTOR_TAGS ||
+            roles.value.some((tag) => [...tag.trim()].length > MAX_DESCRIPTOR_TAG_LENGTH))) ||
+        (description.value !== undefined &&
+          [...description.value.trim()].length > MAX_DESCRIPTOR_BIO_LENGTH)
+      ) {
+        return invalidInput('tags or bio exceed the profile limits');
+      }
       const patch: PersonaBotPatch = {
         ...(displayName.value === undefined ? {} : { displayName: displayName.value }),
         ...(roles.value === undefined ? {} : { roles: roles.value }),
@@ -1922,6 +2208,138 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return result.reason === 'not-found'
           ? unknownBot(scope.botSlug)
           : invalidInput('invalid Avatar Appearance');
+      return { ok: true, value: detailOf(result.record) };
+    },
+    partLibraryList() {
+      if (!deps.partLibrary) return unavailable();
+      try {
+        return { ok: true, value: { parts: deps.partLibrary.list() } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryAdd(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const part = input['part'];
+      const name = input['name'] ?? '';
+      const parent = input['parent'];
+      if (!isPixelCustomPart(part)) return invalidInput('part must be a valid Custom Part');
+      if (typeof name !== 'string' || name.length > MAX_PART_NAME)
+        return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
+      if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
+        return invalidInput('parent must be a Custom Part id');
+      try {
+        const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+        return { ok: true, value: { entry } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryExport(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const id = input['id'];
+      const worn = input['part'];
+      try {
+        if (worn !== undefined) {
+          if (!isPixelCustomPart(worn)) return invalidInput('part must be a valid Custom Part');
+          const saved = deps.partLibrary.get(customPartId(worn));
+          const file = {
+            part: worn,
+            name: saved?.name ?? '',
+            ...(saved?.author ? { author: saved.author } : {}),
+          };
+          return {
+            ok: true,
+            value: { fileName: partFileName(file), data: encodePartFile(file).toString('base64') },
+          };
+        }
+        if (id === undefined) {
+          const listed = deps.partLibrary.list();
+          if (listed.length > MAX_PART_LIBRARY_FILES)
+            return invalidInput(
+              `The library has more than ${MAX_PART_LIBRARY_FILES} parts; export parts one at a time`,
+            );
+          const files = listed.map((entry) => ({
+            part: entry.part,
+            name: entry.name,
+            ...(entry.author ? { author: entry.author } : {}),
+          }));
+          return {
+            ok: true,
+            value: {
+              fileName: 'part-library.zip',
+              data: encodePartLibrary(files).toString('base64'),
+            },
+          };
+        }
+        const entry = typeof id === 'string' ? deps.partLibrary.get(id) : undefined;
+        if (!entry) return invalidInput('id must name a Part Library part');
+        const file = {
+          part: entry.part,
+          name: entry.name,
+          ...(entry.author ? { author: entry.author } : {}),
+        };
+        return {
+          ok: true,
+          value: { fileName: partFileName(file), data: encodePartFile(file).toString('base64') },
+        };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryImport(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const data = asObject(payload)['data'];
+      if (typeof data !== 'string' || data.length > (MAX_PART_LIBRARY_FILE_BYTES * 4) / 3 + 4)
+        return invalidInput('data must be a base64 PNG or zip of at most 8 MB');
+      const decoded = decodePartFiles(Buffer.from(data, 'base64'));
+      if (typeof decoded === 'string')
+        return invalidInput(
+          decoded === 'too-large'
+            ? 'The file is too large'
+            : decoded === 'no-part-data'
+              ? 'This PNG has no part data'
+              : decoded === 'invalid-part'
+                ? 'The part data in this file is invalid'
+                : 'The file is not a part PNG or a zip of part PNGs',
+        );
+      try {
+        const added = decoded.files.map((file) =>
+          deps.partLibrary!.add({
+            part: file.part,
+            name: file.name,
+            origin: 'imported-file',
+            author: file.author,
+          }),
+        );
+        return { ok: true, value: { added, refused: decoded.refused } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    botBannerSet(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const record = deps.registry.get(scope.botSlug);
+      if (record === undefined) return unknownBot(scope.botSlug);
+      const banner = asObject(payload)['banner'];
+      const next = banner === null ? seededBotBanner(record.displayName || record.slug) : banner;
+      if (!isBotBanner(next)) {
+        return invalidInput(
+          'banner must be null, { recipe: { scene, seed } } or { image } as a 3:1 PNG data URL',
+        );
+      }
+      const result = deps.registry.setBanner(scope.botSlug, next);
+      if (!result.ok)
+        return result.reason === 'not-found'
+          ? unknownBot(scope.botSlug)
+          : invalidInput('invalid banner');
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {
@@ -2171,17 +2589,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
               ...(deps.externalMessaging
                 ? {
-                    externals: messagingDefaultsPlatform.options.map((platform) => ({
-                      platform,
-                      ...externalMemberWake(
-                        channel,
-                        botSlug,
-                        deps.sourcePolicy
-                          ?.list(botSlug)
-                          .find((p) => p.sourceClass === 'group-ordinary'),
-                        deps.externalMessaging!.defaults(platform),
-                      ),
-                    })),
+                    externals: messagingDefaultsPlatform.options
+                      .filter((platform) => platform !== 'weixin')
+                      .map((platform) => ({
+                        platform,
+                        ...externalMemberWake(
+                          channel,
+                          botSlug,
+                          deps.sourcePolicy
+                            ?.list(botSlug)
+                            .find((p) => p.sourceClass === 'group-ordinary'),
+                          deps.externalMessaging!.defaults(platform),
+                        ),
+                      })),
                     external: {
                       platform: 'feishu' as const,
                       ...externalMemberWake(
@@ -2249,11 +2669,105 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelHistory() {
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return { ok: true, value: { channels: deps.contentPurge.history() } };
+      } catch {
+        return unavailable();
+      }
+    },
+    channelHistorySources(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          before: z.string().regex(/^\d+$/u).optional(),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid history scope');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.sources(input.data.channelId, input.data.before),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError ? error.message : 'Channel history is unavailable',
+          },
+        };
+      }
+    },
+    channelPurgePreview(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          sourceEventIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid purge scope');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.preview(input.data.channelId, input.data.sourceEventIds),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError ? error.message : 'Purge preview is unavailable',
+          },
+        };
+      }
+    },
+    channelPurgeConfirm(payload) {
+      const input = z
+        .object({
+          channelId: z.string().min(1).max(200),
+          sourceEventIds: z.array(z.string().min(1).max(200)).min(1).max(100),
+          token: z.string().min(1).max(512),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('Invalid purge confirmation');
+      try {
+        if (!deps.contentPurge) return unavailable();
+        return {
+          ok: true,
+          value: deps.contentPurge.confirm(
+            input.data.channelId,
+            input.data.sourceEventIds,
+            input.data.token,
+          ),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: error instanceof ContentPurgeError ? error.code : 'purge-unavailable',
+            message:
+              error instanceof ContentPurgeError
+                ? error.message
+                : 'Purge could not complete; inspect recovery diagnostics',
+          },
+        };
+      }
+    },
     channelGroupDelete(payload) {
       const channelId = asNonBlank(asObject(payload), 'channelId');
       if (channelId === undefined) return invalidInput('channelId is required');
       try {
         deps.channels.deleteGroup(channelId);
+        deps.externalMessaging?.inbound.endChannel(channelId);
         return { ok: true, value: { deleted: true } };
       } catch (error) {
         return invalidInput(String(error));
@@ -2630,7 +3144,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (
         channel.type === 'dm' &&
         channel.botSlug !== undefined &&
-        deps.registry.get(channel.botSlug)?.paused === true
+        ((deps.registry.getHistorical(channel.botSlug) !== undefined &&
+          deps.registry.get(channel.botSlug) === undefined) ||
+          deps.registry.get(channel.botSlug)?.paused === true)
       ) {
         return dmAdmissionFailure(channelId, channel.botSlug, 'archived-bot');
       }
@@ -2691,7 +3207,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const source = asObject(payload);
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const limit = source['limit'];
       const cursor = source['cursor'];
       const state = source['state'];
@@ -3107,7 +3623,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     assignments(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       return {
         ok: true,
         value: { assignments: deps.runtime?.listAssignments(slug) ?? [] },
@@ -3119,7 +3635,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const sessionId = asNonBlank(source, 'sessionId');
       if (slug === undefined) return invalidInput('slug is required');
       if (sessionId === undefined) return invalidInput('sessionId is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const assignment = deps.runtime?.getAssignment(slug, sessionId);
       if (assignment === undefined) return unknownAssignment(sessionId);
       return { ok: true, value: { assignment } };
@@ -3323,12 +3839,31 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel?.type !== 'dm' || channel.botSlug === undefined) {
         return invalidInput('Tool approval is available only in a PersonaBot DM');
       }
-      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+      const request = deps.channels.message(channelId, messageId)?.toolApprovalRequest;
+      if (request === undefined) {
         return invalidInput('Unknown tool approval request');
       }
+      const assignment =
+        request.role === 'assignment'
+          ? deps.runtime?.getAssignment(channel.botSlug, request.sessionId)
+          : undefined;
+      const execution =
+        assignment === undefined
+          ? undefined
+          : assignment.activity === 'error'
+            ? 'needs-repair'
+            : assignment.activity === 'working'
+              ? ((deps.runtime?.assignmentApprovalWait === undefined
+                  ? assignment.executionWait
+                  : deps.runtime.assignmentApprovalWait(request.sessionId, request.callId)) ??
+                'running')
+              : 'settled';
       return {
         ok: true,
-        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+        value: {
+          status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired',
+          ...(execution === undefined ? {} : { execution }),
+        },
       };
     },
     async toolApprovalDecide(payload) {
@@ -3397,7 +3932,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     sessions(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.registry.getHistorical(slug) === undefined) return unknownBot(slug);
       const assignments = new Map(
         (deps.runtime?.listAssignments(slug) ?? []).map((assignment) => [
           assignment.sessionId,
@@ -3434,6 +3969,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             botSlug: bot.slug,
             displayName: bot.displayName,
             ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
+            ...(bot.avatarSeed === undefined ? {} : { avatarSeed: bot.avatarSeed }),
             ...(bot.avatar === undefined
               ? {}
               : {
@@ -3634,7 +4170,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               const bot = deps.registry.get(row.slug);
               return {
                 ...row,
-                displayName: bot?.displayName ?? row.slug,
+                displayName: deps.registry.getHistorical(row.slug)?.displayName ?? row.slug,
                 current: bot !== undefined,
               };
             }),
@@ -3650,7 +4186,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
     },
     profileUsage(payload) {
-      const scope = dmMemory(payload);
+      const scope = dmMemory(payload, true);
       if (!('botSlug' in scope)) return scope;
       const parsed = usageFilterSchema.safeParse(asObject(payload)['filter']);
       if (!parsed.success || parsed.data.end > (localDay(new Date().toISOString()) ?? ''))
@@ -3667,11 +4203,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const scope = dmMemory(payload);
       if (!('botSlug' in scope)) return scope;
       const slug = scope.botSlug;
-      const weeks = 26;
-      const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-      const events = deps.channels.admissionActivity?.(slug, since) ?? [];
-      const commits = deps.memory?.activity?.(slug, since) ?? [];
-      const usageRows = deps.usage?.activity(slug, since) ?? [];
+      const source = asObject(payload);
+      const before = source['before'];
+      const requestedWeeks = source['weeks'];
+      if (
+        before !== undefined &&
+        (typeof before !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(before))
+      )
+        return invalidInput('before must be a YYYY-MM-DD day');
+      if (
+        requestedWeeks !== undefined &&
+        (typeof requestedWeeks !== 'number' ||
+          !Number.isInteger(requestedWeeks) ||
+          requestedWeeks < 1 ||
+          requestedWeeks > 104)
+      )
+        return invalidInput('weeks must be an integer from 1 to 104');
+      const weeks = requestedWeeks ?? 26;
+      const end = before === undefined ? undefined : localMidnight(before);
+      const since = new Date(
+        (end?.getTime() ?? Date.now()) - weeks * 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const beforeEnd = <T extends { at: string }>(entries: readonly T[]): T[] =>
+        end === undefined ? [...entries] : entries.filter((entry) => new Date(entry.at) < end);
+      const events = beforeEnd(deps.channels.admissionActivity?.(slug, since) ?? []);
+      const commits = beforeEnd(deps.memory?.activity?.(slug, since) ?? []);
+      const usageRows = (deps.usage?.activity(slug, since) ?? []).filter(
+        (row) => before === undefined || row.day < before,
+      );
+      const createdDay = localDay(deps.registry.getHistorical(slug)?.createdAt ?? '');
       const tokensByDay = new Map<string, ProfileActivityTokensDay>();
       const tokenTotals: ProfileTokenBuckets = {
         inputTokens: 0,
@@ -3703,6 +4263,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug,
           weeks,
           since,
+          ...(before === undefined ? {} : { before }),
+          ...(createdDay === undefined ? {} : { createdDay }),
           today: localDay(new Date().toISOString()) ?? '',
           events: bucketByReason(events),
           memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
@@ -3835,6 +4397,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: { accepted: deps.developerMode !== undefined } };
     },
   };
+}
+
+function localMidnight(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year!, month! - 1, date!);
 }
 
 function localDay(at: string): string | undefined {

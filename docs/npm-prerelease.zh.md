@@ -69,6 +69,14 @@ node scripts/npm-prerelease.mjs verify --artifacts /path/to/fresh-artifacts
 
 使用新的输出目录。Provider 需以禁用脚本的方式安装 lockfile 依赖；暂存会重建托管的 Host／Client 入口。
 
+## 准备阶段提示工作区不干净时
+
+准备结果的 `release-plan.json` 会记录 `sourceDirty`、`sourceChangeCount`，以及最多 50 条 Git 状态与变更路径；日志使用固定代码 `release-source-dirty` 输出同一份有界诊断。发布 workflow 和 publisher 复用此检查，拒绝时列出修改、删除、重命名和未跟踪文件，超过上限的条目显示省略数量。路径相对于仓库，不包含文件内容。
+
+在原工作区运行 `git status --short --untracked-files=all`，逐项核对对应变更。自动生成文件可能是原因，但文件名本身不能证明它可以丢弃。保留未知改动；检查不会执行 reset、clean、暂存或恢复文件。按正常流程修正和审核源码，再生成新的准备结果；不要修改已审核的 plan，也不要重建已开始发布的不可变版本来绕过拒绝。
+
+旧的干净 plan 仍可使用。旧的脏 plan 若未记录路径，仍会拒绝并提示检查原工作区；无法重建当时未记录的历史文件清单。
+
 ## 发布中断
 
 npm 多包发布不是原子的。首次发布前检查全部已有版本及直接运行依赖。已有版本只有在完整性与
