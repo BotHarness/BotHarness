@@ -39,7 +39,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconNewChatOutlineRegular: () => null,
 }));
 
-it('projects the owning Avatar screen point into an offset overlay and remeasures it after resize', async () => {
+it('keeps the Avatar tether aligned through resize and the first reduced-motion release commit', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
@@ -115,6 +115,29 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
       /^M 264 404 /u,
     );
+    await act(() => {
+      document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    });
+    const character = node.querySelector<HTMLButtonElement>('.bh-companion-character')!;
+    character.setPointerCapture = vi.fn();
+    character.releasePointerCapture = vi.fn();
+    const pointer = (type: string, x: number, y: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      character.dispatchEvent(event);
+    };
+    await act(() => pointer('pointerdown', 264, 450));
+    await act(() => pointer('pointermove', 164, 150));
+    await act(frame);
+    expect(node.querySelector<HTMLElement>('.bh-companion')?.style.bottom).toBe('300px');
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 164 104 /u,
+    );
+    await act(() => pointer('pointerup', 164, 150));
+    expect(node.querySelector<HTMLElement>('.bh-companion')?.style.bottom).toBe('0px');
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 164 404 /u,
+    );
     const visibility = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     await act(() => document.dispatchEvent(new Event('visibilitychange')));
     expect(frames.size).toBe(0);
@@ -125,6 +148,7 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     node.remove();
     measurement.mockRestore();
     vi.unstubAllGlobals();
+    delete document.documentElement.dataset['botharnessMotion'];
   }
 });
 
