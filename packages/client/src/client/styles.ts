@@ -6349,6 +6349,35 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   gap: 4px;
 }
 .bh-bot-dm-action-avatar { display: inline-flex; pointer-events: none; }
+.bh-memory-commit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 6px;
+  max-width: min(100%, 560px);
+  margin: 6px auto;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bh-memory-commit-line:hover { color: var(--dsw-alias-label-primary); }
+.bh-memory-commit-line:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.bh-memory-commit-subject {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-memory-commit-sha { font-family: var(--dsw-font-family-mono, monospace); font-size: 11px; }
+.bh-memory-commit-files { color: var(--dsw-alias-label-tertiary); }
 .bh-bot-dm-action-bot .bh-persona-avatar { border-radius: 28%; overflow: hidden; }
 .bh-bot-dm-action-name { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .bh-bot-dm-readonly {

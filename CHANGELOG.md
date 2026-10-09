@@ -9,6 +9,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Breaking Changes
 
+- Memory commit records add Profile schema Generation 76 (a per-Bot commit cursor and a one-record-per-commit index). Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277)).
+
 - Bot Self-Records add Profile schema Generation 75, which rebuilds the Source Event and Inbox Admission tables to accept the new kinds. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1276](https://github.com/BotHarness/DeepSeekBot/issues/1276)).
 
 - The Part Library adds Profile schema Generation 73. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
@@ -16,6 +18,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - QQ reception intervals add Profile schema Generation 74 and reuse the existing receive boundary; back up before upgrading and repair forward after upgrade ([#1153](https://github.com/BotHarness/BotHarness/issues/1153)).
 
 ### Added
+
+- Each Memory commit a PersonaBot makes during a turn now appears as a line in the conversation that caused it, with the commit subject, short hash and changed files; clicking it opens the commit in that Bot's Memory history. The Bot's Inbox keeps the same commit as handled history ([#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
 
 - Bot settings has an **IM apps** section listing every app on Lark, Slack, Discord, QQ and WeChat with the Bot that uses it, and a link to DSH settings for credentials ([#1263](https://github.com/BotHarness/DeepSeekBot/issues/1263), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
 - From **IM apps**, an unbound app can be bound to a Bot, a bound app unbound after confirmation, and a Lark or WeChat app created for a chosen Bot when the Provider supports setup ([#1264](https://github.com/BotHarness/DeepSeekBot/issues/1264)).

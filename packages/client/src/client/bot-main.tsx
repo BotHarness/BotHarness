@@ -63,6 +63,7 @@ import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
 import { BotDmActionLabel } from './bot-dm-action-line.js';
+import { MemoryCommitLine } from './memory-commit-line.js';
 import {
   timelineWorkingRows,
   timelineWorkingRowsCover,
@@ -700,8 +701,13 @@ function ConversationView({
     timelineWorkingRowsCover(composerActivity, workingRows, streamingBotSlugs);
   const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
+  const memoryCommitIntent = state.memoryCommitIntent;
   const activeMemoryView =
-    selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
+    selectedMemoryView?.channelId === channelId
+      ? selectedMemoryView
+      : memoryCommitIntent !== undefined && memoryCommitIntent.channelId === channelId
+        ? { channelId, kind: 'commit' as const, sha: memoryCommitIntent.sha }
+        : undefined;
   const selectedMemoryCommitSha =
     activeMemoryView?.kind === 'commit' ? activeMemoryView.sha : undefined;
   const openMemoryView = (
@@ -713,9 +719,11 @@ function ConversationView({
     if (activeMemoryView === undefined)
       chatScrollBeforeDiff.current = scrollRef.current?.scrollTop ?? 0;
     setProfileViewOpen(false);
+    if (memoryCommitIntent !== undefined) store.setMemoryCommitIntent(undefined);
     if (channelId !== undefined) setSelectedMemoryView({ channelId, ...view });
   };
   const closeMemoryView = (): void => {
+    if (memoryCommitIntent !== undefined) store.setMemoryCommitIntent(undefined);
     setSelectedMemoryView(undefined);
     window.requestAnimationFrame(() => {
       if (scrollRef.current !== null) scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
@@ -1423,6 +1431,27 @@ function ConversationView({
                             t={t}
                           />
                         </div>
+                      ) : first.memoryCommit !== undefined ? (
+                        <MemoryCommitLine
+                          messageId={first.id}
+                          commit={first.memoryCommit}
+                          bots={state.bots}
+                          t={t}
+                          onOpen={() => {
+                            const commit = first.memoryCommit!;
+                            if (channel?.type === 'dm' && channel.botSlug === commit.botSlug) {
+                              openMemoryView({ kind: 'commit', sha: commit.sha });
+                              return;
+                            }
+                            const dm = state.channels.find(
+                              (candidate) =>
+                                candidate.type === 'dm' && candidate.botSlug === commit.botSlug,
+                            );
+                            if (dm !== undefined)
+                              store.setMemoryCommitIntent({ channelId: dm.id, sha: commit.sha });
+                            void actions.openBot(commit.botSlug);
+                          }}
+                        />
                       ) : first.botDmAction === undefined ? (
                         <OnboardingMemoryNavigation.Provider
                           value={{
