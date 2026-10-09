@@ -122,13 +122,12 @@ export const zh = {
   'onboarding.reminderUnknownBody':
     '我想在 10 分钟后收到一次“测试定时任务”的提醒，发送到当前私聊。但浏览器无法识别我的时区，请先问我使用哪个时区，再创建真实的一次性任务。',
   'onboarding.freeform': '也可以直接在下方输入你的问题。',
-  'onboarding.goal': '完成一次真实对话，就完成了开始体验。',
-  'onboarding.preparing': '正在准备你的 Bot…',
   'onboarding.start': '开始教程',
   'onboarding.skip': '跳过教程',
   'onboarding.continue': '继续教程',
   'onboarding.restart': '重新开始教程',
-  'onboarding.completed': '已完成第一次对话',
+  'onboarding.settings.title': '新手教程',
+  'onboarding.settings.description': '重新体验首次对话的教程；不会影响 Bot 身份、记忆和已有对话。',
   'onboarding.binding.notNow': '暂时不绑定',
   'onboarding.binding.description':
     '绑定后可以从外部应用联系这个 Bot。暂时不绑定也不影响已完成的对话。',
@@ -2756,13 +2755,13 @@ export const en = {
   'onboarding.reminderUnknownBody':
     'I want a one-time reminder in 10 minutes to “test scheduled tasks” in this DM. My browser could not identify my time zone. Ask which time zone to use before creating a real one-time schedule.',
   'onboarding.freeform': 'You can also type your own question below.',
-  'onboarding.goal': 'One real conversation completes your first experience.',
-  'onboarding.preparing': 'Preparing your Bot…',
   'onboarding.start': 'Start tutorial',
   'onboarding.skip': 'Skip tutorial',
   'onboarding.continue': 'Continue tutorial',
   'onboarding.restart': 'Restart tutorial',
-  'onboarding.completed': 'First conversation completed',
+  'onboarding.settings.title': 'Onboarding tutorial',
+  'onboarding.settings.description':
+    'Replay the first-conversation tutorial for this Profile; Bot identity, memory and existing conversations are not affected.',
   'onboarding.binding.notNow': 'Not now',
   'onboarding.binding.description':
     'Connect with this Bot from an external app. Binding is optional and does not affect your completed conversation.',

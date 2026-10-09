@@ -404,6 +404,10 @@ export function apply(ctx: ClientContext): void {
             call,
             store,
             onSaved: () => actions.refreshRoster(),
+            actions,
+            closeBotSettings: () => {
+              botSettings.close();
+            },
           }),
         },
         GeneralSection,

@@ -6,14 +6,16 @@ export function highlightInternalControl(
   description: string,
   closeLabel: string,
   onClosed?: () => void,
+  skip?: { label: string; onSkip(): void } | undefined,
 ): () => void {
   const doc = element.ownerDocument;
   const previous = doc.activeElement;
+  const buttons = skip === undefined ? (['close'] as const) : (['next', 'close'] as const);
   const tour = driver({
     animate: !doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
     smoothScroll: false,
     allowKeyboardControl: false,
-    showButtons: ['close'],
+    showButtons: [...buttons],
     popoverClass: 'bh-internal-tour',
     overlayColor: 'var(--dsw-alias-bg-mask-1)',
     overlayOpacity: 1,
@@ -66,7 +68,20 @@ export function highlightInternalControl(
   const highlight = (target: Element) =>
     tour.highlight({
       element: target,
-      popover: { title, description, showButtons: ['close'] },
+      popover: {
+        title,
+        description,
+        showButtons: [...buttons],
+        ...(skip === undefined
+          ? {}
+          : {
+              nextBtnText: skip.label,
+              onNextClick: () => {
+                skip.onSkip();
+                tour.destroy();
+              },
+            }),
+      },
     });
   const observer = new MutationObserver(() => {
     const dialogs = [...doc.querySelectorAll('[role="dialog"]')].filter(
