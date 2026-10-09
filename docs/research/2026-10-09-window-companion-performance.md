@@ -1,6 +1,22 @@
 # Window Companion: five-companion performance checkpoint
 
-[Issue #1167](https://github.com/BotHarness/DeepSeekBot/issues/1167), part of [specification #1135](https://github.com/BotHarness/DeepSeekBot/issues/1135). Recorded 2026-10-09 UTC. **Partial qualification: no performance budget or overall performance acceptance is claimed.**
+[Issue #1167](https://github.com/BotHarness/DeepSeekBot/issues/1167), part of [specification #1135](https://github.com/BotHarness/DeepSeekBot/issues/1135). Recorded 2026-10-09 UTC. **Partial qualification: the Human confirmed the scoped budgets below; overall performance acceptance remains open.**
+
+## Confirmed budget
+
+The Human confirmed these limits on 2026-10-09 UTC, including a stricter roaming limit than the initial proposal. Scope: the recorded current computer, five companions, 960 × 640. This does not establish low-end-device or sustained-load support.
+
+| Scenario                                                         | Required limit                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------- |
+| Steady idle presentation-interval p95                            | ≤16.7ms                                           |
+| Steady roaming presentation-interval p95                         | ≤16.7ms                                           |
+| Concurrent messages / expanded reading presentation-interval p95 | ≤33.3ms                                           |
+| Steady frame wall duration / presentation interval               | No event >50ms                                    |
+| Ten pin/removal cycles after GC                                  | Heap growth ≤512KiB; owned resource counts return |
+| Reconnect                                                        | ≤6s                                               |
+| Browser-process restart: companions restored                     | ≤4s                                               |
+
+Startup long frames are recorded separately. Existing walking samples exceed the confirmed limit, including the preliminary current-version samples below. Budget agreement is not performance acceptance: controlled optimization/comparison, missing lifecycle scenarios and final qualification remain required. [Recorded Human decision and progress](https://github.com/BotHarness/DeepSeekBot/issues/1167#issuecomment-6083959251).
 
 This checkpoint records three foreground repetitions each of idle, roaming and drag/release, paired post-GC heap snapshots around ten pin/unpin cycles, and a later same-version/Profile walking pilot. It extends the earlier lifecycle-only observations to the later composed spring, anchor, approval, question and candidate-mouth implementation. It introduces no runtime change, pin cap or +N fold.
 
@@ -237,7 +253,7 @@ All three raw trace metadata records agree on HeadlessChrome154, Chinese locale,
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | ![Formal 0.10.1: first browser-process restart without replay](../assets/pr/1167-companion-performance/formal-browser-cold-1-no-replay.png) | ![Formal 0.10.1: third browser-process restart without replay](../assets/pr/1167-companion-performance/formal-browser-cold-3-no-replay.png) |
 
-These images record actual mounted/live state, not an isolated visual before/after comparison or proof that every character is unobscured. This candidate-only three-run study has no matched parent browser-cold sample. Host cold start, genuine background return, sustained/low-end support, owning-seam regression attribution and Human budget agreement remain open.
+These images record actual mounted/live state, not an isolated visual before/after comparison or proof that every character is unobscured. This candidate-only three-run study has no matched parent browser-cold sample. Host cold start, genuine background return, sustained/low-end support and owning-seam regression attribution remain open. The later scoped budget agreement does not qualify these samples as overall acceptance.
 
 ## Current formal 0.10.0: incomplete revision-order study
 
@@ -315,6 +331,6 @@ Both final collectors and the retaining-path inspector closed their owned browse
 | Bounded reconnect return, cold-start no-replay cost            | Paired Companion-feed loss/Client reload and three candidate formal0.10.1 browser-process restarts recorded; matched parent browser restart and Host/OS cold start remain unqualified       |
 | Larger/sustained loads and supported-device envelope           | Not established by these short five-companion runs                                                                                                                                          |
 | GPU cost and SVG attribution                                   | Fifteen one-second windows per scene recorded for the owned GPU process at formal0.10.1; backend/adapter mapping, active speech/concurrency and SVG-specific attribution remain unqualified |
-| Human agreement on measured budgets                            | Pending; no threshold is accepted by this report                                                                                                                                            |
+| Human agreement on measured budgets                            | Confirmed above; walking p95 ≤16.7ms. Existing walking samples do not meet this limit; overall performance acceptance remains open                                                          |
 
 #1167 remains open. Follow-up measurements or a measured owning-module correction belong to their own reviewable change; this checkpoint does not authorize merging feature drafts or publishing the candidate Avatar package.
