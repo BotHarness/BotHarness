@@ -75,6 +75,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Documentation
 
+- Documented current QQ group proactive-posting rules, notification permission events and first-party SDK/plugin implementations, distinguishing an app/group permission refusal from obsolete global-shutdown claims; runtime behavior is unchanged ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154), [research](docs/research/2026-10-09-qq-proactive-posting.md)).
+
 - Documented native Windows candidate installation and approval verification, including physical AppData paths, isolated Profile package-manager pins, actual Shell exit evidence and process timestamp guards, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md). The bilingual [Lark guide](docs/lark-connection.md) records real Human Allow once/Reject qualification on exact candidate sources; this documentation update does not change runtime behavior ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md), [中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)).

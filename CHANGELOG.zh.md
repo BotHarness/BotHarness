@@ -75,6 +75,8 @@
 
 ### Documentation
 
+- 记录当前 QQ 群主动发送规则、通知权限事件及官方 SDK／插件实现，区分具体应用／群的权限拒绝与过期的全局停用说法；运行行为不变（[#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)、[调研](docs/research/2026-10-09-qq-proactive-posting.md)）。
+
 - 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括 AppData 物理路径、隔离 Profile 的包管理器版本锁定、真实 Shell 退出证据及进程时间戳保护。双语 [Lark 指南](docs/lark-connection.md)记录准确候选源码经 Human 点击允许一次／拒绝的真实核验；此次文档更新不改变运行行为（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 - 记录开发来源 Discord 共享 Channel 在一个绑定成员、Message Content OFF 下的资格验证，包含原 thread 模型回复、重叠去重及暂停／重启／恢复证据（[#1054](https://github.com/BotHarness/BotHarness/issues/1054)，[英文验证](docs/dev/verification/discord-1054-shared-channel.md)、[中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)）。
