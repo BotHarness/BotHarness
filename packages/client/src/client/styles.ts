@@ -3680,25 +3680,39 @@ html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animatio
 
 /* Files stay part of the same message grouping as their text. */
 .bh-bubble-content { min-width: 0; }
-.bh-message-attachment { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bh-message-attachment { position: relative; min-width: 0; }
 .bh-message-file-more { flex: none; color: inherit; }
-button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
-.bh-message-file:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
+.bh-message-attachments { display: grid; gap: 8px; margin-top: 8px; }
 .bh-bridge-media-content { white-space: pre-wrap; }
-.bh-bridge-image { max-width: min(100%, 360px); }
+.bh-bridge-image { max-width: min(100%, 320px); }
 .bh-bridge-image-button { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 12px; }
 .bh-bridge-image-button:focus-visible { outline: 2px solid var(--bh-bridge-media-focus); outline-offset: 2px; }
 .bh-bridge-image-state { display: flex; align-items: center; gap: 8px; min-height: 96px; color: var(--bh-bridge-media-muted); }
 .bh-bridge-image-expanded { display: block; max-width: 100%; max-height: 75vh; margin: auto; object-fit: contain; }
-.bh-message-image-link { display: block; max-width: min(100%, 360px); }
+.bh-message-image-link { display: block; width: fit-content; max-width: 320px; min-width: 0; }
+.bh-message-image-row { display: flex; align-items: flex-start; gap: 4px; width: fit-content; max-width: 100%; min-width: 0; }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
-.bh-message-file { display: inline-flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 42px; padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; text-decoration: none; }
-.bh-bubble-me .bh-message-file { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+/* File and audio pills share one card rhythm: icon, stacked name/size, divider, action. */
+.bh-message-file, .bh-message-audio { display: flex; align-items: center; gap: 10px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 52px; padding: 8px 8px 8px 12px; border: 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; }
+.bh-message-file-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-decoration: none; }
+button.bh-message-file-main { cursor: pointer; }
+.bh-message-file-main:focus-visible, .bh-message-file-download:focus-visible, .bh-message-audio-play:focus-visible, .bh-message-audio-spectrum:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-file-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; }
-.bh-message-file-copy { display: flex; align-items: baseline; flex: 1; gap: 4px; min-width: 0; }
-.bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
-.bh-message-file-size { flex: none; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; white-space: nowrap; }
+.bh-message-file-copy { display: flex; flex-direction: column; flex: 1; gap: 2px; min-width: 0; }
+.bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 500; line-height: 18px; }
+.bh-message-file-size { color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; line-height: 14px; white-space: nowrap; }
+.bh-message-file-divider { flex: none; align-self: stretch; width: 1px; margin-block: 2px; background: var(--dsw-alias-border-l2); }
+.bh-message-file-download { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; color: inherit; text-decoration: none; }
+a.bh-message-file-download:hover, button.bh-message-file-download:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.bh-message-audio-play { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.bh-message-audio-play:hover:not(:disabled) { background: color-mix(in srgb, currentColor 8%, transparent); }
+.bh-message-audio-play:disabled { opacity: 0.5; cursor: default; }
+.bh-message-audio-meta { display: flex; align-items: center; gap: 4px; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; line-height: 14px; white-space: nowrap; }
+.bh-message-audio-spectrum { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; height: 28px; margin-top: 4px; padding: 0; border-radius: 4px; cursor: pointer; touch-action: none; }
+.bh-message-audio-spectrum[aria-disabled='true'] { cursor: default; }
+.bh-message-audio-bar { flex: 1 1 0; min-width: 2px; max-width: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 28%, transparent); }
+.bh-message-audio-bar[data-played] { background: var(--dsw-alias-state-business-primary); }
+.bh-message-audio-element { display: none; }
 .bh-bubble-body {
   white-space: pre-wrap;
   word-break: break-word;

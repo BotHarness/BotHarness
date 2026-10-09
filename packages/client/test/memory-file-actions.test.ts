@@ -9,7 +9,16 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   return {
     FileTypeIcon: stub,
     writeClipboard: vi.fn(async () => true),
+    fileSizeText: (bytes: number) =>
+      bytes >= 1048576
+        ? `${(bytes / 1048576).toFixed(1)}MB`
+        : bytes >= 1024
+          ? `${(bytes / 1024).toFixed(1)}KB`
+          : `${bytes}B`,
     IconEllipsisOutlineRegular: stub,
+    IconDownloadOutlineRegular: stub,
+    IconPlayOutlineRegular: stub,
+    IconPauseOutlineRegular: stub,
     IconChevronDownOutlineRegular: stub,
     IconFolderCloseRegular: stub,
     IconFolderOpenRegular: stub,
@@ -324,7 +333,7 @@ describe('message attachment menus', () => {
         ),
       ),
     );
-    const file = container.querySelector('button.bh-message-file')!;
+    const file = container.querySelector('button.bh-message-file-main')!;
     await act(async () =>
       file.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })),
     );
@@ -359,7 +368,43 @@ describe('message attachment menus', () => {
     );
     await click(file);
     expect(container.querySelector('[role="menu"]')).not.toBeNull();
-    expect(container.querySelector('button[aria-label="文件操作: notes.txt"]')).not.toBeNull();
+    expect(file.getAttribute('aria-haspopup')).toBe('menu');
+    const download = container.querySelector('a.bh-message-file-download')!;
+    expect(download.getAttribute('aria-label')).toBe('下载到此设备: notes.txt');
+    expect(download.getAttribute('href')).toContain('channelId=group-owner');
+    expect(download.getAttribute('download')).toBe('notes.txt');
+    expect(container.querySelector('.bh-message-file-more')).toBeNull();
+  });
+
+  it('renders audio attachments with a custom player instead of native controls', async () => {
+    await act(async () =>
+      root.render(
+        createElement(MessageAttachment, {
+          attachment: {
+            fileId: 'file:00000000-0000-4000-8000-000000000000',
+            name: 'voice.mp3',
+            mime: 'audio/mpeg',
+            size: 1536,
+          },
+          channelId: 'group-owner',
+          messageId: 'message-owner',
+          t: zhTranslate,
+        }),
+      ),
+    );
+    const player = container.querySelector('.bh-message-audio')!;
+    expect(player.querySelector('button.bh-message-audio-play')?.getAttribute('aria-label')).toBe(
+      '播放音频: voice.mp3',
+    );
+    const spectrum = player.querySelector('.bh-message-audio-spectrum')!;
+    expect(spectrum.getAttribute('role')).toBe('slider');
+    expect(spectrum.getAttribute('aria-label')).toBe('拖动以快进或后退: voice.mp3');
+    expect(player.querySelectorAll('.bh-message-audio-bar')).toHaveLength(48);
+    expect(player.textContent).toContain('1.5KB');
+    const download = player.querySelector('a.bh-message-file-download')!;
+    expect(download.getAttribute('download')).toBe('voice.mp3');
+    expect(container.querySelector('audio[controls]')).toBeNull();
+    expect(container.querySelector('audio')?.getAttribute('preload')).toBe('metadata');
   });
 
   it('keeps image preview independent of its accessible actions and uses message-owned URLs', async () => {

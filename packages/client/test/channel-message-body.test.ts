@@ -16,6 +16,17 @@ import { store, type ChannelMessage } from '../src/client/store.js';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   FileTypeIcon: ({ path }: { path: string }) =>
     createElement('span', { 'data-file-type-icon': path }),
+  fileSizeText: (bytes: number) =>
+    bytes >= 1048576
+      ? `${(bytes / 1048576).toFixed(1)}MB`
+      : bytes >= 1024
+        ? `${(bytes / 1024).toFixed(1)}KB`
+        : `${bytes}B`,
+  IconDownloadOutlineRegular: () => null,
+  IconPlayOutlineRegular: () => null,
+  IconPauseOutlineRegular: () => null,
+  IconEllipsisOutlineRegular: () => null,
+  Tooltip: ({ children }: { children: ReactNode }) => children,
   MarkdownText: vi.fn(() => null),
   Modal: () => null,
   StateDot: () => createElement('span', { 'data-state-dot': 'error' }),
