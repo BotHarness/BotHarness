@@ -3689,15 +3689,14 @@ html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animatio
 .bh-bridge-image-button:focus-visible { outline: 2px solid var(--bh-bridge-media-focus); outline-offset: 2px; }
 .bh-bridge-image-state { display: flex; align-items: center; gap: 8px; min-height: 96px; color: var(--bh-bridge-media-muted); }
 .bh-bridge-image-expanded { display: block; max-width: 100%; max-height: 75vh; margin: auto; object-fit: contain; }
-.bh-message-image-link { display: block; max-width: min(100%, 320px); }
-.bh-message-image-row { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.bh-message-image-link { display: block; width: fit-content; max-width: min(100%, 320px); }
+.bh-message-image-row { display: flex; align-items: flex-start; gap: 4px; width: fit-content; max-width: 100%; min-width: 0; }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
 /* File and audio pills share one card rhythm: icon, stacked name/size, divider, action. */
-.bh-message-file, .bh-message-audio { display: flex; align-items: center; gap: 10px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 52px; padding: 8px 8px 8px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; }
-.bh-bubble-me .bh-message-file, .bh-bubble-me .bh-message-audio { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.bh-message-file, .bh-message-audio { display: flex; align-items: center; gap: 10px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 52px; padding: 8px 8px 8px 12px; border: 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; }
 .bh-message-file-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-decoration: none; }
 button.bh-message-file-main { cursor: pointer; }
-.bh-message-file-main:focus-visible, .bh-message-file-download:focus-visible, .bh-message-audio-play:focus-visible, .bh-message-audio-seek:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.bh-message-file-main:focus-visible, .bh-message-file-download:focus-visible, .bh-message-audio-play:focus-visible, .bh-message-audio-spectrum:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-file-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; }
 .bh-message-file-copy { display: flex; flex-direction: column; flex: 1; gap: 2px; min-width: 0; }
 .bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 500; line-height: 18px; }
@@ -3709,8 +3708,10 @@ a.bh-message-file-download:hover, button.bh-message-file-download:hover { backgr
 .bh-message-audio-play:hover:not(:disabled) { background: color-mix(in srgb, currentColor 8%, transparent); }
 .bh-message-audio-play:disabled { opacity: 0.5; cursor: default; }
 .bh-message-audio-meta { display: flex; align-items: center; gap: 4px; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; line-height: 14px; white-space: nowrap; }
-.bh-message-audio-seek { width: 100%; min-width: 0; margin: 2px 0 0; padding: 0; accent-color: var(--dsw-alias-state-business-primary); cursor: pointer; }
-.bh-message-audio-seek:disabled { cursor: default; }
+.bh-message-audio-spectrum { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; height: 28px; margin-top: 4px; padding: 0; border-radius: 4px; cursor: pointer; touch-action: none; }
+.bh-message-audio-spectrum[aria-disabled='true'] { cursor: default; }
+.bh-message-audio-bar { flex: 1 1 0; min-width: 2px; max-width: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 28%, transparent); }
+.bh-message-audio-bar[data-played] { background: var(--dsw-alias-state-business-primary); }
 .bh-message-audio-element { display: none; }
 .bh-bubble-body {
   white-space: pre-wrap;

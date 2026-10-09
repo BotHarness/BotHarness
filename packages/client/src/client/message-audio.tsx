@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactElement } from 'react';
+import { useId, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   IconDownloadOutlineRegular,
   IconPauseOutlineRegular,
@@ -10,11 +10,28 @@ import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 
 const PLAY_EVENT = 'bh-message-audio-play';
+const SPECTRUM_BARS = 48;
 
 export function formatAudioTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const total = Math.floor(seconds);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function spectrumBars(name: string, size: number): number[] {
+  let seed = 2166136261;
+  const key = `${name}:${size}`;
+  for (let index = 0; index < key.length; index += 1) {
+    seed ^= key.charCodeAt(index);
+    seed = Math.imul(seed, 16777619);
+  }
+  const bars: number[] = [];
+  let state = seed >>> 0;
+  for (let index = 0; index < SPECTRUM_BARS; index += 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    bars.push(0.2 + ((state % 100) / 100) * 0.8);
+  }
+  return bars;
 }
 
 export function MessageAudio({
@@ -30,9 +47,11 @@ export function MessageAudio({
 }): ReactElement {
   const instanceId = useId();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const spectrumRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState<number>();
+  const bars = useMemo(() => spectrumBars(name, size), [name, size]);
 
   const pauseMount = useMountedResource<HTMLDivElement>(
     (node) => {
@@ -64,6 +83,22 @@ export function MessageAudio({
     setCurrent(value);
   };
 
+  const ready = url !== undefined && duration !== undefined && duration > 0;
+  const seekFromClientX = (clientX: number): void => {
+    const strip = spectrumRef.current;
+    if (strip === null || !ready) return;
+    const rect = strip.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    seek(ratio * (duration ?? 0));
+  };
+  const stepSeek = (delta: number): void => {
+    if (!ready) return;
+    seek(Math.min(duration ?? 0, Math.max(0, current + delta)));
+  };
+
+  const progress = ready ? current / (duration ?? 1) : 0;
+
   return (
     <div className="bh-message-audio" ref={pauseMount}>
       <button
@@ -88,17 +123,50 @@ export function MessageAudio({
           <span aria-hidden="true">·</span>
           <span>{fileSizeText(size)}</span>
         </span>
-        <input
-          type="range"
-          className="bh-message-audio-seek"
-          min={0}
-          max={duration ?? 0}
-          step={0.1}
-          value={Math.min(current, duration ?? current)}
-          disabled={url === undefined || duration === undefined}
+        <div
+          ref={spectrumRef}
+          className="bh-message-audio-spectrum"
+          role="slider"
+          tabIndex={ready ? 0 : -1}
           aria-label={`${t('message.audio.seek')}: ${name}`}
-          onChange={(event) => seek(event.currentTarget.valueAsNumber)}
-        />
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration ?? 0)}
+          aria-valuenow={Math.round(current)}
+          aria-valuetext={`${formatAudioTime(current)} / ${duration === undefined ? '--:--' : formatAudioTime(duration)}`}
+          aria-disabled={!ready}
+          onPointerDown={(event) => {
+            if (!ready) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            seekFromClientX(event.clientX);
+          }}
+          onPointerMove={(event) => {
+            if (event.buttons === 1) seekFromClientX(event.clientX);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              stepSeek(-5);
+            } else if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              stepSeek(5);
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              seek(0);
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              if (duration !== undefined) seek(duration);
+            }
+          }}
+        >
+          {bars.map((height, index) => (
+            <span
+              key={index}
+              className="bh-message-audio-bar"
+              {...(index / bars.length <= progress ? { 'data-played': true } : {})}
+              style={{ height: `${Math.round(height * 100)}%` }}
+            />
+          ))}
+        </div>
       </span>
       {url === undefined ? null : (
         <>

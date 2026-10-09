@@ -396,7 +396,10 @@ describe('message attachment menus', () => {
     expect(player.querySelector('button.bh-message-audio-play')?.getAttribute('aria-label')).toBe(
       '播放音频: voice.mp3',
     );
-    expect(player.querySelector('input.bh-message-audio-seek')).not.toBeNull();
+    const spectrum = player.querySelector('.bh-message-audio-spectrum')!;
+    expect(spectrum.getAttribute('role')).toBe('slider');
+    expect(spectrum.getAttribute('aria-label')).toBe('拖动以快进或后退: voice.mp3');
+    expect(player.querySelectorAll('.bh-message-audio-bar')).toHaveLength(48);
     expect(player.textContent).toContain('1.5KB');
     const download = player.querySelector('a.bh-message-file-download')!;
     expect(download.getAttribute('download')).toBe('voice.mp3');
