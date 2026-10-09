@@ -2416,7 +2416,8 @@ export function createOutboundMessaging(options: {
                     });
                   })()
               : report
-                ? entry.provider.postConversation !== undefined
+                ? entry.provider.postConversation !== undefined &&
+                  (acceptedGrant.origin === 'implicit' || entry.provider.post === undefined)
                   ? entry.provider.postConversation({
                       accountRef: acceptedGrant.accountRef,
                       fingerprint: acceptedGrant.fingerprint,

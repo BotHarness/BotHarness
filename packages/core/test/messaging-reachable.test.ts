@@ -288,3 +288,61 @@ it('an older Provider explains unavailable reachability and preserves checked sa
   expect(result.state).toBe('provider-accepted');
   expect(posts).toEqual(['Saved fallback']);
 });
+
+it('adding native group discovery preserves checked posting to an existing restricted saved group', async () => {
+  const { core, binding, transport, posts } = await fixture();
+  transport.receiptVersion = 1;
+  transport.describeBot = async () => ({
+    version: 1,
+    botId: 'qa',
+    channel: 'feishu',
+    connected: true,
+    account: { fingerprint: binding.fingerprint },
+    capabilities: [
+      'proactive-text-checked',
+      'proactive-receipt-checked',
+      'reachable-conversations-checked',
+    ],
+  });
+  transport.listReachableConversations = async () => ({
+    version: 1,
+    conversations: [],
+    hasMore: false,
+  });
+  transport.listTargets = async () => [
+    { targetId: 'saved', kind: 'group', route: { chatId: 'oc_restricted' } },
+  ];
+  let nativeEffects = 0;
+  transport.postConversationChecked = async () => {
+    nativeEffects++;
+    throw Object.assign(new Error('Restricted native group'), { code: 'target-rejected' });
+  };
+  transport.sendChecked = async (_app, target, text) => {
+    expect(target).toBe('saved');
+    posts.push(text);
+    return {
+      sent: true,
+      receipt: { version: 1, messageId: 'om_saved', conversationId: 'oc_restricted' },
+    };
+  };
+  core.externalMessaging.register(createDshImProvider(transport)!);
+  const targets = await core.externalMessaging.targets('dsh-im/feishu', 'qa');
+  const grant = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'qa',
+    targetRef: 'saved',
+    fingerprint: binding.fingerprint,
+    targetDigest: targets[0]!.digest,
+  });
+  const result = await core.externalMessaging.post(
+    'ada',
+    grant.id,
+    'saved-with-new-provider',
+    'Existing saved report',
+  );
+  expect(result.state).toBe('provider-accepted');
+  expect(result.receipt?.messageId).toBe('om_saved');
+  expect(posts).toEqual(['Existing saved report']);
+  expect(nativeEffects).toBe(0);
+});
