@@ -3544,6 +3544,9 @@ html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animatio
 .bh-message-group-me .bh-bubble-author {
   margin: 0 2px 0 0;
 }
+.bh-message-group-me .bh-message-identity {
+  flex-direction: row-reverse;
+}
 .bh-bubble-wrap {
   position: relative;
   display: flex;

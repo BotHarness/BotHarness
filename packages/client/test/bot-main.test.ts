@@ -480,6 +480,60 @@ describe('Bot main Sessions pane', () => {
     store.select(previous.selection);
     store.setConversation(previous.conversation);
   });
+  it('keeps the own identity row inside the mirrored group while name still precedes time in DOM order', () => {
+    const previous = store.getSnapshot();
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:01:00.000Z',
+    };
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle' as const,
+      workspaces: [],
+      createdAt: channel.createdAt,
+    };
+    try {
+      store.setRoster([bot], [channel]);
+      store.select({ kind: 'bot', slug: 'ada' });
+      store.setConversation({
+        status: 'ready',
+        channel,
+        sending: false,
+        messages: [
+          {
+            id: 'human-1',
+            at: '2026-09-21T00:01:00.000Z',
+            author: { kind: 'human' },
+            body: 'hello',
+          },
+        ],
+      });
+      const markup = renderToStaticMarkup(
+        createElement(BotMain, {
+          actions: {} as BridgeActions,
+          channelSidebar: sidebarRegistry(),
+        }),
+      );
+      expect(markup).toContain('bh-message-group-me');
+      const identity = markup.indexOf('bh-message-identity');
+      expect(identity).toBeGreaterThan(-1);
+      const author = markup.indexOf('bh-bubble-author', identity);
+      const time = markup.indexOf('bh-bubble-time', identity);
+      expect(author).toBeGreaterThan(-1);
+      expect(time).toBeGreaterThan(author);
+    } finally {
+      store.setRoster(previous.bots, previous.channels);
+      store.select(previous.selection);
+      store.setConversation(previous.conversation);
+    }
+  });
   it('keeps external provenance in an author dialog control outside the unchanged bubble', () => {
     const previous = store.getSnapshot();
     const channel = {
