@@ -487,8 +487,12 @@ The durable relationship saying why a Source Event is eligible for one PersonaBo
 _Avoid_: inbox item body, delivery job, message copy
 
 **Bot Self-Record**:
-A Source Event about a PersonaBot's own Memory commit or BotHarness-tool action, shown as a muted line in the Channel where the Human expects it and admitted to that PersonaBot's Bot Inbox already handled, so the Bot can find it later without it ever becoming attention or a wake (ADR-0154).
-_Avoid_: activity log, tool trace, notification
+A Source Event about a PersonaBot's own Memory commit or BotHarness-tool action. It appears as a Channel Notice in the Channel of the Source Event that caused it, and is admitted to that PersonaBot's Bot Inbox already handled, so the Bot can find what it did and why without it ever becoming attention or a wake (ADR-0154).
+_Avoid_: activity log, tool trace
+
+**Channel Notice**:
+A system-presented line in a Channel's history that records an effect, such as a Memory commit or a Bot's action, rather than something a participant said. It has no read or unread state and never wakes or notifies anyone (ADR-0154).
+_Avoid_: message, notification, system message (bare)
 
 **Inbox Trigger**:
 A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. The PersonaBot shapes its own rules and the Human may inspect, override, or freeze them; templates may supply initial values, a Bridge never owns attention or wake behavior, and safety gates are never part of a rule.

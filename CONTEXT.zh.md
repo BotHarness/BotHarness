@@ -485,8 +485,12 @@ _避免使用_：queue、mailbox、backlog
 _避免使用_：inbox item body、delivery job、message copy
 
 **Bot Self-Record**（Bot 自我记录）：
-关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：在 Human 预期的 Channel 里显示为一条淡色事件行，同时以已处理状态进入该 PersonaBot 的 Bot Inbox，Bot 之后可以查到，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
-_避免使用_：activity log、tool trace、notification
+关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：作为 Channel Notice 出现在引起它的 Source Event 所在的 Channel，同时以已处理状态进入该 PersonaBot 的 Bot Inbox。Bot 之后可以查到自己做过什么、为什么做，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
+_避免使用_：activity log、tool trace
+
+**Channel Notice**（频道事件行）：
+Channel 历史里由系统呈现的一行，记录发生了什么（例如一次 Memory commit 或某个 Bot 的动作），而不是某位参与者说的话。它没有已读或未读，也不会叫醒或通知任何人（ADR-0154）。
+_避免使用_：message、notification、system message（单独使用）
 
 **Inbox Trigger**：
 由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。PersonaBot 自己塑造这些规则，Human 可以查看、覆盖或冻结；template 可以提供初值，Bridge 绝不拥有 attention 或 wake behavior，安全闸门永远不属于规则。

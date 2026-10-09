@@ -3,77 +3,124 @@ Status: Proposed
 Date: 2026-10-09
 ---
 
-# Bot Self-Records keep Memory commits and Bot actions in the timeline and Bot Inbox
+# Bot Self-Records keep Memory commits and Bot actions where their cause happened
 
-A PersonaBot forgets what it did once its tool calls are compacted or a new Orchestrator Session starts. Today it can recover that only partly: Channels hold its conversations, and `git log` holds its Memory history, but nothing durable says "I committed this", "I messaged Nova because of that Group" or "I changed this schedule". The Human, meanwhile, sees Memory change only in the Memory sidebar, and a `bot_dm_send` caused by a Group request shows up in the sender's private DM rather than in the Group that asked for it. We decided that **each real Memory commit and each Bot action made through a BotHarness-defined tool becomes one Bot Self-Record: one Source Event, placed as a muted line in the Channel where the Human expects it and admitted to the PersonaBot's own Bot Inbox already handled, so it is history the Bot can search but never attention that wakes it.** A new Inbox history tool lets the Bot read those records across Sessions.
+A PersonaBot forgets what it did once its tool calls are compacted or a new Orchestrator Session starts. Channels hold its conversations and `git log` holds its Memory, but nothing durable says "I committed this because of what Ana said in the Group", "I messaged Nova because of that Group", or "I created a schedule because Nova asked in our DM". When several Bots collaborate, the Human also cannot see, in the conversation that started it, what each Bot did as a result.
 
-The Human set the direction on 2026-10-09 (#1272). This ADR records the shape.
+We decided that **each real Memory commit and each Bot action made through a BotHarness-defined tool becomes one Bot Self-Record.** A self-record is one Source Event with two views:
+
+- It is a **Channel Notice** in the Channel of the Source Event that caused it.
+- It is a **record** in the acting Bot's own Bot Inbox, admitted already handled.
+
+The Bot can later search what it did and why, across Sessions, and the Human sees each consequence next to its cause. A self-record is never conversation, never unread, and never wakes anyone.
+
+The Human set the direction on 2026-10-09 (#1272) and refined it the same day: records follow their cause, Channel Notices are a separate kind of history line, and Inbox history is searched with FTS5.
 
 ## Decision
 
-### One Source Event, two views
+### Cause: the Source Event that started the work
 
-- A **Bot Self-Record** is a Source Event about the PersonaBot itself, not a message to anyone. Under ADR-0037, its content lives once. The same transaction adds a Channel placement for the visible line and an Inbox Admission for the owning Bot.
-- The admission carries a record reason (`memory-commit` or `bot-action`) and is inserted with `attempt_state = 'handled'` and no wake fields. It is born handled. It is never pending, never deferred, never collected into a turn harvest, never steered into a running turn, and never counted as Bot attention. This is the first admission that starts handled, so every selector that gathers work must keep filtering on pending or retryable states. Tests prove that no turn starts.
-- ADR-0065 says that "the sending Bot does not admit its own output". That still holds for attention. A self-record admission is history, not attention, and it never wakes the Bot that produced it.
-- Self-record lines are presentation-only for the Human. Human Inbox unread, mention and informational items, delivery receipts, Channel activity counts (ADR-0098) and notification policies exclude them. This also fixes today's gap: `botDmAction` notices already skip the activity chart, but they still count as Human Inbox unread.
+- Every self-record names its **cause**: the Source Event the acting Bot was handling. This is the cause the Host already uses for `botCausation`.
+  - **Orchestrator turns:** the cause is the turn's wake Source Event.
+  - **BotHarness tools:** a tool that acts on several harvested events may name one of the turn's own Source Events as its cause. The Host rejects any other id.
+- The **Cause Channel** is that Source Event's Channel: a Group, a Human–PersonaBot DM, or a Bot-to-Bot DM.
+  - The notice goes there when the Channel still exists and the Bot is still a member.
+  - When the cause has no Channel or the Channel can't be used, the notice goes to the Bot's Human DM. That covers a schedule firing, an Assignment report, an external Bridge message, a Memory edit made outside any turn, a deleted Channel, and a Bot that has left the Group.
+- **Chains across Bots.** Suppose Ana writes in the Group, Mira DMs Nova, and Nova creates a schedule.
+  - Mira's notice "Mira sent a message to Nova" goes to the Group.
+  - Nova's notice "Nova created a scheduled task" goes to the Mira–Nova Bot DM, because that is Nova's cause. The Human can open that DM read-only.
+  - Nova's notice also links to the Group through the root of its `botCausation`. Each Bot's record therefore stays in its own context, while the chain stays navigable from the Group.
 
-### A. Memory commit lines (Bot's Human DM only)
+### Channel Notice: a history line, not a message
 
-- Memory Service keeps a per-Bot **commit cursor** in the operational database, next to the ADR-0092 checkpoint. At every point where it already scans (Host startup, before a turn, before steering), and also at turn completion and after a trusted Memory tool operation, it lists commits that are reachable from the checked-out branch's HEAD and not from the cursor, oldest first (`git rev-list --reverse HEAD ^cursor`). It skips any sha it has already recorded for that Bot (a unique key on `(bot, sha)`), writes one self-record per new commit, and advances the cursor in the same transaction.
-- The first observation sets a silent baseline. Existing history never floods the DM.
-- Recorded fields are bounded and contain no file bodies: sha, subject (truncated), Git author name (not email), author time, and up to 20 changed paths with +/- line counts plus a count of the remaining paths. The line names the commit and its Git author. Like ADR-0092, it does not claim whether the Human or the Bot made the commit.
-- The line is placed only in the Bot's Human DM, as a system-authored `memoryCommit` message: a centred muted line with a vendored Lucide `git-commit-vertical` icon (ADR-0032). Clicking it opens that commit in the Channel sidebar's Memory history. Group Channels never get Memory lines.
-- History edits are handled without duplicates:
-  - **Amend** creates a new sha and adds one line. The old line stays, because that commit really existed.
+- A Channel Notice is a typed, system-presented line in a Channel's history, such as `memoryCommit` or `botAction` (today's `botDmAction` is the first). It is not something anyone said, so it has no read or unread state.
+- Human Inbox unread, mention and informational items, delivery receipts, Channel activity counts (ADR-0098), the Channel's last-message preview and notification policies all exclude it. One shared predicate defines this exclusion. This also fixes today's gap: `botDmAction` is excluded from the activity chart but still counts as Human Inbox unread.
+- A notice gets no Inbox Admission for other Channel members, so it never wakes them. It remains part of the Channel history they can read through `channel_read`.
+- Clicking a notice opens its object: the commit in Memory history, the target message of a Bot DM, or the schedule.
+
+### Inbox record: history that is born handled
+
+- The acting Bot gets an Inbox Admission with a record reason (`memory-commit` or `bot-action`). It is inserted with `attempt_state = 'handled'` and no wake fields.
+  - It is never pending or deferred.
+  - It is never harvested into a turn or steered into a running one.
+  - It never counts as Bot attention.
+- This is the first admission that starts handled, so every selector that gathers work must keep filtering on pending or retryable states. Tests prove that no turn starts.
+- ADR-0065's rule that "the sending Bot does not admit its own output" still holds for attention. A record is history, not attention.
+- Under ADR-0037, the record and the notice share one Source Event and one copy of content, written in one transaction.
+
+### A. Memory commits
+
+- **Finding new commits.** Memory Service keeps a per-Bot commit cursor next to the ADR-0092 checkpoint.
+  - It scans at the existing points (Host startup, before a turn, before steering), at turn completion, and after a trusted Memory tool operation.
+  - Each scan lists commits that are reachable from the checked-out HEAD and not from the cursor, oldest first. It skips any sha already recorded for that Bot (unique key `(bot, sha)`), writes one self-record per new commit, and advances the cursor in the same transaction.
+  - The first observation is a silent baseline.
+- **Cause.**
+  - A commit observed at a turn's completion, or by a Memory tool during the turn, takes that turn's cause. Memory usually changes because of what someone said in that Channel, so the line appears right after that conversation, in the Group, the Human DM or the Bot DM.
+  - A commit observed before a turn, or at startup, has no turn cause. Its line goes to the Bot's Human DM.
+  - Like ADR-0092, the line does not claim whether the Human or the Bot made the commit. It shows the Git author.
+- **Content.** Fields are bounded and contain no file bodies: sha, truncated subject, Git author name (not email), author time, and up to 20 changed paths with +/- counts plus a count of the rest. The line uses a vendored Lucide `git-commit-vertical` icon (ADR-0032).
+- **History edits are handled without duplicates.**
+  - **Amend** creates a new sha and adds one line. The old line stays, because that commit existed.
   - **Revert** is a new commit and adds one line.
-  - **Reset** or checkout to an ancestor finds no new commits; the cursor moves back silently.
+  - **Reset** to an ancestor adds nothing; the cursor moves back silently.
   - **Reset** to an unrelated line records only commits not already recorded.
-  - **Branch switch** (`memory_switch_branch`, or an external checkout) moves the cursor to the new HEAD without recording that branch's existing commits. The switch itself is a Bot action record when the Bot made it (C).
-- **Startup catch-up.** Commits made while the Host was stopped are written in commit order, capped at 20 lines per scan. If there are more, the oldest ones are folded into a single "+N earlier commits" line placed before the first individual line.
+  - **Branch switch** moves the cursor to the new HEAD without recording that branch's existing commits.
+- **Startup catch-up** writes commits in order, capped at 20 lines, with one "+N earlier commits" line before them.
 - Uncommitted working-tree changes never create a line.
 
-### B. Relationship to ADR-0092: coexist, not replace
+### B. Relationship to ADR-0092: coexist
 
-The ADR-0092 `memory-change` Admission stays as it is. It is the nudge that wakes nothing but enters the next turn, saying "your Memory changed, look at it". It covers what commit records deliberately leave out: uncommitted edits, index changes and branch moves.
+The `memory-change` Admission stays as the nudge that enters the next turn. It covers what commit records leave out: uncommitted edits, index changes and branch moves. Both come from the same scan transaction. When the net change includes new commits, the nudge only says how many commit records were added.
 
-The per-commit self-records are the durable history. Both come from the same scan transaction. When a net change includes new commits, the `memory-change` summary names how many commit records were added, so the turn does not repeat their details. Replacing the nudge with per-commit records was rejected: the Bot would stop hearing about uncommitted Human edits, and history records would have to become attention.
+### C. Bot actions: BotHarness-defined tools only
 
-### C. Bot action records: BotHarness-defined tools only
-
-- `bot_dm_send` keeps writing its `botDmAction` notice, but placement follows its cause:
-  - If the turn's `botCausation.parentSourceEventId` belongs to a Group Channel and the sender is still a member, the notice goes into **that Group**, reading "Mira sent a message to Nova".
-  - Otherwise it goes into the sender's Human DM, as ADR-0065 decided.
-
-  The notice gets no admissions for other Group members, so it never wakes them, but it stays part of that Group's history.
-
-- The same Source Event receives the sender's born-handled `bot-action` admission.
-- Later tools use the same rails without a new decision: `bot_schedule_create`, `bot_schedule_update` and `bot_schedule_delete` (a line in the Bot's Human DM, e.g. "Created a scheduled task"), and `memory_switch_branch` and `memory_continue_from_commit`. Each needs only its own bounded action payload.
-- Native DSH tool calls never become self-records. DMs still show no thinking or tool traces (`concepts.mdx`), and only BotHarness-owned actions with Host-checked effects qualify.
+- **`bot_dm_send`.** Its `botDmAction` notice moves from "always the sender's Human DM" (ADR-0065) to the Cause Channel, and the sender gets a record.
+- **Later tools** use the same rails without a new decision. Each needs only a bounded action payload and a notice label:
+  - `bot_schedule_create`, `bot_schedule_update` and `bot_schedule_delete`
+  - `memory_switch_branch` and `memory_continue_from_commit`
+  - Group management actions
+- **Native DSH tool calls never become self-records.** DMs still show no thinking or tool traces (`concepts.mdx`). Only BotHarness-owned actions with Host-checked effects qualify, and a notice states the effect, not the call's arguments or results.
 
 ### D. Reading Inbox history
 
-- A new Orchestrator tool, `inbox_history`, lists and searches the calling Bot's own admissions, handled ones included. It can filter by kind (memory commit, Bot action, schedule, DM, mention, and so on), time range and text. Results are newest first, cursor-paged and capped at 50 per page.
-- Each result returns bounded fields: Source Event id, time, kind, state, Channel id, and a summary of at most 300 characters. Full Channel content still goes through `channel_read`.
-- Listing and searching never change Attention Decisions. They are history reads, not Observation of pending work, so a pending item found in history is still handled by the ordinary turn.
-- The Orchestrator prompt names the three sources and when to use each:
+- **Tool.** A new Orchestrator tool, `inbox_history`, lists and searches the calling Bot's own admissions, handled ones and records included.
+- **Filters.** Kind (memory commit, Bot action, schedule, DM, mention and so on), Channel, cause, and time range.
+- **Text search** uses an SQLite FTS5 index over each admitted Source Event's searchable text. That text is the message body, or a self-record's notice text and commit subject and paths.
+  - The index is a derived projection in the operational database. It is maintained in the same transaction as the Source Event and rebuildable from it.
+  - Purge and retraction remove an event's index rows with its body (ADR-0037), and access stays scoped to the calling Bot's admissions.
+- **Results** are ordered newest first, or by FTS5 rank when searching. They are cursor-paged, at most 50 per page, and each returns bounded fields: Source Event id, time, kind, state, Channel, cause, and a snippet of at most 300 characters. Full Channel content still goes through `channel_read`.
+- **History reads never change Attention Decisions.** They are not Observation of pending work.
+- **The Orchestrator prompt** names the three sources:
   - **Channels:** what was said with people and other Bots.
-  - **Bot Inbox:** a diary of its own actions and changes, through `inbox_history`.
-  - **Memory Repository:** the distilled long-term version, through Git.
+  - **Bot Inbox:** a diary of what it did and why, through `inbox_history`.
+  - **Memory Repository:** distilled long-term memory, through Git.
 
 ## Considered Options
 
-- **Separate Channel line and Inbox entry for each commit:** rejected. Two Source Events for one fact break ADR-0037's single content authority and can drift.
-- **No admission; the history tool queries Source Events by kind:** rejected. The Bot Inbox is the Bot's view of what concerns it, and Bot action notices placed in a Group would be indistinguishable from Group traffic. An admission also gives the Human's Bot Inbox view one consistent history.
-- **Replace the ADR-0092 `memory-change` Admission with per-commit records:** rejected, as described in B.
-- **Show Memory lines in Groups too:** rejected by the Human. Memory is private to the Bot and its Human.
-- **Record every tool call, native ones included:** rejected. It leaks traces that DMs deliberately hide and turns history into noise.
+- **Memory lines only in the Bot's Human DM:** superseded by the Human. Memory usually changes because of a specific conversation, and the record belongs next to it.
+- **A notice in every Channel the turn harvested:** rejected. One action would appear several times. A tool can name a more precise cause instead.
+- **Separate Source Events for the line and the Inbox entry:** rejected. Two copies of one fact break ADR-0037's single content authority.
+- **No admission; the tool queries Source Events by kind:** rejected. The Bot Inbox is the Bot's view of what concerns it, and Group notices would be indistinguishable from Group traffic.
+- **`LIKE` search or a vector index:** rejected. FTS5 ships with Node's SQLite, ranks results, and stays a rebuildable projection.
+- **Record every tool call, native ones included:** rejected. It leaks traces that DMs hide and turns history into noise.
 
 ## Consequences
 
-- Schema: a new `source_kind` (`self-record`), the admission reasons `memory-commit` and `bot-action`, a per-Bot commit cursor, and a unique `(bot, sha)` record key. This is a Profile schema Generation bump with a Release Ledger backup note.
-- `isChannelMessage` must accept a system-authored `memoryCommit` line alongside `memberDeparture` and `onboardingWelcome`. The client parser in `bridge.ts` must add the field explicitly. Human attention, receipt and activity queries share one self-record exclusion predicate.
-- An external Human commit made while the Bot is idle appears at the next scan: opening the Bot DM, Memory sidebar refresh, the next turn or restart. A filesystem watch on refs is deferred until that lag proves to matter.
-- Profile backup carries the lines because it snapshots the database. Bot zip export carries Memory and its Git history but no Channel history, so on import the commits are present but the DM lines are not. A fresh baseline prevents re-recording imported history.
-- This revises ADR-0065 (Bot DM notice placement) and ADR-0092 (adds per-commit history beside the nudge), and extends ADR-0070's Bot Inbox with history that starts handled.
-- Delivery is split into child issues: A+B Memory commit lines and records, C `bot_dm_send` placement and record, D `inbox_history` and prompt guidance.
+- **Schema:**
+  - a `self-record` source kind
+  - the `memory-commit` and `bot-action` admission reasons
+  - a typed Channel Notice field family
+  - a per-Bot commit cursor and a `(bot, sha)` key
+  - the FTS5 table and its triggers
+
+  Together these are one Profile schema Generation bump, with a backup note in the Release Ledger.
+
+- **Message model.** `isChannelMessage` and the client parser must accept system-presented notices. Human attention, receipts, previews and activity share one notice-exclusion predicate.
+- **Commits made outside any turn** appear in the Human DM at the next scan. A filesystem watch on refs is deferred.
+- **Backups and export.** Profile backup carries notices and records. Bot zip export carries Memory but no Channel history, so on import the commits stay and the notices do not. A fresh baseline prevents re-recording.
+- **Other ADRs.** This revises ADR-0065 (notice placement) and ADR-0092 (adds per-commit history beside the nudge), and extends ADR-0070's Bot Inbox with handled records.
+- **Delivery** is split into child issues:
+  - Cause and Channel Notice foundation, with `bot_dm_send` as the first tracer
+  - A+B Memory commits
+  - D `inbox_history` with FTS5 and prompt guidance
+  - Later Bot actions
