@@ -5287,6 +5287,35 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
   object-fit: cover;
 }
 .bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
+/* Static member stack for a Group without an uploaded avatar: idle
+   portraits on the Group tile. Two faces overlap on a diagonal with a ring in
+   the tile fill; three or four sit in a 2x2 grid without overlap. Faces
+   ignore the pointer so their per-Bot titles never surface as state. */
+.bh-group-avatar-stack {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--dsw-alias-button-elevated-fill);
+}
+.bh-group-avatar-stack > .bh-persona-avatar {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 28%;
+  pointer-events: none;
+}
+.bh-group-avatar-stack[data-count='1'] > .bh-persona-avatar { top: 50%; left: 50%; translate: -50% -50%; }
+.bh-group-avatar-stack[data-count='2'] > .bh-persona-avatar { border: 1.5px solid var(--dsw-alias-button-elevated-fill); }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(1) { top: 8%; left: 8%; }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(2) { right: 8%; bottom: 8%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(1),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(1) { top: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(2),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(2) { top: 5%; right: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(3) { bottom: 5%; left: 50%; translate: -50% 0; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(3) { bottom: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(4) { right: 5%; bottom: 5%; }
 .bh-group-profile-avatar {
   display: inline-flex;
   align-items: center;
