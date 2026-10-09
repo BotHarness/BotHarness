@@ -12,18 +12,18 @@ afterEach(async () => {
   }
 });
 
-async function fixture() {
+async function fixture(platform: 'feishu' | 'discord' | 'slack' = 'feishu') {
   const fingerprint = 'a'.repeat(64);
   const posts: string[] = [];
   const transport: DshImOutboundService = {
     contractVersion: 1,
     reachableConversationVersion: 1,
-    listBots: async () => [{ botId: 'qa', channel: 'feishu' }],
+    listBots: async () => [{ botId: 'qa', channel: platform }],
     listTargets: async () => [],
     describeBot: async () => ({
       version: 1,
       botId: 'qa',
-      channel: 'feishu',
+      channel: platform,
       connected: true,
       account: { fingerprint },
       capabilities: ['proactive-text-checked', 'reachable-conversations-checked'],
@@ -46,7 +46,7 @@ async function fixture() {
   const core = createCore({ dshHome: home });
   cores.push(core);
   expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
-  const provider = createDshImProvider(transport)!;
+  const provider = createDshImProvider(transport, platform)!;
   core.externalMessaging.register(provider);
   const binding = await core.externalMessaging.identity('ada', {
     kind: 'bind',
@@ -57,74 +57,77 @@ async function fixture() {
   return { core, binding, transport, posts, home };
 }
 
-it('a bound app posts to a reachable group without saved targets or an inbound Source Event', async () => {
-  const { core, binding, transport, posts } = await fixture();
-  const page = await core.externalMessaging.reachable('ada', binding.id);
-  expect(page.conversations).toEqual([{ id: 'oc_new', kind: 'group', name: 'New QA group' }]);
-  const result = await core.externalMessaging.postConversation(
-    'ada',
-    binding.id,
-    'oc_new',
-    'first-request',
-    'First report',
-  );
-  expect(result.state).toBe('provider-accepted');
-  expect(result.sourceEventId).toBeUndefined();
-  expect(result.receipt?.messageId).toBe('om_first');
-  const snapshot = await core.externalMessaging.snapshot('ada');
-  expect(snapshot.grants).toHaveLength(1);
-  expect(snapshot.grants[0]?.origin).toBe('implicit');
-  expect(snapshot.grants[0]?.receiveScope?.conversationId).toBe('oc_new');
-  await core.externalMessaging.postConversation(
-    'ada',
-    binding.id,
-    'oc_new',
-    'first-request',
-    'First report',
-  );
-  expect(posts).toEqual(['First report']);
-  await core.externalMessaging.setPostLimit('ada', binding.id, binding.revision, 1);
-  const denied = await core.externalMessaging.postConversation(
-    'ada',
-    binding.id,
-    'oc_new',
-    'limited-request',
-    'Second report',
-  );
-  expect(denied.state).toBe('failed');
-  expect(denied.reason).toBe('post-rate-limited');
-  expect(posts).toEqual(['First report']);
-  const updated = (await core.externalMessaging.snapshot('ada')).identities!.find(
-    (value) => value.id === binding.id,
-  )!;
-  await core.externalMessaging.setPostLimit('ada', binding.id, updated.revision, null);
-  expect(
-    (
-      await core.externalMessaging.postConversation(
-        'ada',
-        binding.id,
-        'oc_new',
-        'unlimited-request',
-        'Third report',
-      )
-    ).state,
-  ).toBe('provider-accepted');
-  expect(posts).toEqual(['First report', 'Third report']);
-  transport.postConversationChecked = async () => {
-    throw Object.assign(new Error('Private provider read error'), {
-      code: 'send-preflight-unavailable',
-    });
-  };
-  const preflight = await core.externalMessaging.postConversation(
-    'ada',
-    binding.id,
-    'oc_new',
-    'preflight-request',
-    'Read must finish before sending',
-  );
-  expect(preflight.state).toBe('failed');
-  expect(preflight.reason).toBe('send-preflight-unavailable');
-});
+it.each(['feishu', 'discord', 'slack'] as const)(
+  '%s bound app posts to a reachable group without saved targets or an inbound Source Event',
+  async (platform) => {
+    const { core, binding, transport, posts } = await fixture(platform);
+    const page = await core.externalMessaging.reachable('ada', binding.id);
+    expect(page.conversations).toEqual([{ id: 'oc_new', kind: 'group', name: 'New QA group' }]);
+    const result = await core.externalMessaging.postConversation(
+      'ada',
+      binding.id,
+      'oc_new',
+      'first-request',
+      'First report',
+    );
+    expect(result.state).toBe('provider-accepted');
+    expect(result.sourceEventId).toBeUndefined();
+    expect(result.receipt?.messageId).toBe('om_first');
+    const snapshot = await core.externalMessaging.snapshot('ada');
+    expect(snapshot.grants).toHaveLength(1);
+    expect(snapshot.grants[0]?.origin).toBe('implicit');
+    expect(snapshot.grants[0]?.receiveScope?.conversationId).toBe('oc_new');
+    await core.externalMessaging.postConversation(
+      'ada',
+      binding.id,
+      'oc_new',
+      'first-request',
+      'First report',
+    );
+    expect(posts).toEqual(['First report']);
+    await core.externalMessaging.setPostLimit('ada', binding.id, binding.revision, 1);
+    const denied = await core.externalMessaging.postConversation(
+      'ada',
+      binding.id,
+      'oc_new',
+      'limited-request',
+      'Second report',
+    );
+    expect(denied.state).toBe('failed');
+    expect(denied.reason).toBe('post-rate-limited');
+    expect(posts).toEqual(['First report']);
+    const updated = (await core.externalMessaging.snapshot('ada')).identities!.find(
+      (value) => value.id === binding.id,
+    )!;
+    await core.externalMessaging.setPostLimit('ada', binding.id, updated.revision, null);
+    expect(
+      (
+        await core.externalMessaging.postConversation(
+          'ada',
+          binding.id,
+          'oc_new',
+          'unlimited-request',
+          'Third report',
+        )
+      ).state,
+    ).toBe('provider-accepted');
+    expect(posts).toEqual(['First report', 'Third report']);
+    transport.postConversationChecked = async () => {
+      throw Object.assign(new Error('Private provider read error'), {
+        code: 'send-preflight-unavailable',
+      });
+    };
+    const preflight = await core.externalMessaging.postConversation(
+      'ada',
+      binding.id,
+      'oc_new',
+      'preflight-request',
+      'Read must finish before sending',
+    );
+    expect(preflight.state).toBe('failed');
+    expect(preflight.reason).toBe('send-preflight-unavailable');
+  },
+);
 
 it.each(['block', 'unbind'] as const)(
   'a %s during native preflight fences the unstarted post as grant-revoked',

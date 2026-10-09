@@ -1141,7 +1141,7 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(platform === 'feishu' &&
+    ...((platform === 'feishu' || platform === 'discord' || platform === 'slack') &&
     host.reachableConversationVersion === 1 &&
     typeof host.listReachableConversations === 'function' &&
     typeof host.postConversationChecked === 'function'
