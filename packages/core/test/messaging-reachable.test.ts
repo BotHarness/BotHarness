@@ -411,7 +411,7 @@ it('a received-group block during saved-target preparation fences its separate s
     'blocked-saved',
     'Must not send',
   );
-  expect(result.state).toBe('failed');
-  expect(result.reason).toBe('conversation-blocked');
+  expect(result.state).toBe('grant-revoked');
+  expect(result.reason).toBe('grant-revoked');
   expect(effects).toBe(0);
 });

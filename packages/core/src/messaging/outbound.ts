@@ -2336,7 +2336,12 @@ export function createOutboundMessaging(options: {
             database.read((db) => checkPostLimit(db, acceptedGrant.bindingId, true));
             return !controller.signal.aborted;
           } catch (error) {
-            postFenceReason = error instanceof MessagingError ? error.code : 'provider-unavailable';
+            postFenceReason =
+              error instanceof MessagingError
+                ? error.code === 'conversation-blocked'
+                  ? 'grant-revoked'
+                  : error.code
+                : 'provider-unavailable';
             return false;
           }
         };
