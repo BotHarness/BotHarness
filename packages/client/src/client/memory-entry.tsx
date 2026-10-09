@@ -1,4 +1,11 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactElement } from 'react';
+import {
+  Fragment,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactElement,
+} from 'react';
 import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot, MemoryWorkingChange } from './bridge.js';
@@ -636,43 +643,6 @@ function MemoryEntryForScope({
                 {t('memory.branchRequested')} {branchRequest}
               </div>
             )}
-            {continueForm === undefined ? null : (
-              <form
-                className="bh-memory-continue-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void requestContinue();
-                }}
-              >
-                <label htmlFor="bh-memory-new-branch">
-                  {t('memory.newBranch')} · <code>{continueForm.sha.slice(0, 7)}</code>
-                </label>
-                <Input
-                  id="bh-memory-new-branch"
-                  autoFocus
-                  value={continueForm.branch}
-                  onChange={(event) =>
-                    setContinueForm({ ...continueForm, branch: event.currentTarget.value })
-                  }
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  type="submit"
-                  disabled={busy || continueForm.branch.trim() === ''}
-                >
-                  {t('memory.createAndSwitch')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={() => setContinueForm(undefined)}
-                >
-                  {t('common.cancel')}
-                </Button>
-              </form>
-            )}
             {commitMenu === undefined ? null : (
               <span className="bh-menu-anchor" style={{ left: commitMenu.x, top: commitMenu.y }}>
                 <Menu
@@ -702,104 +672,142 @@ function MemoryEntryForScope({
                 const row = lanes[index]!;
                 const width = row.width * MEMORY_GRAPH_LANE_WIDTH;
                 return (
-                  <button
-                    type="button"
-                    role="listitem"
-                    key={commit.sha}
-                    className={
-                      commit.sha === selectedMemoryCommitSha
-                        ? 'bh-memory-graph-row bh-memory-row-selected'
-                        : 'bh-memory-graph-row'
-                    }
-                    aria-pressed={commit.sha === selectedMemoryCommitSha}
-                    onClick={() => onMemoryCommitSelect?.(commit.sha)}
-                    onContextMenu={(event) => openCommitMenu(commit.sha, event)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
-                        openCommitMenu(commit.sha, event);
-                    }}
-                    title={commit.sha}
-                  >
-                    <svg
-                      className="bh-memory-graph-svg"
-                      width={width}
-                      height={MEMORY_GRAPH_ROW_HEIGHT}
-                      viewBox={'0 0 ' + width + ' ' + MEMORY_GRAPH_ROW_HEIGHT}
-                      aria-hidden="true"
+                  <Fragment key={commit.sha}>
+                    <button
+                      type="button"
+                      role="listitem"
+                      className={
+                        commit.sha === selectedMemoryCommitSha
+                          ? 'bh-memory-graph-row bh-memory-row-selected'
+                          : 'bh-memory-graph-row'
+                      }
+                      aria-pressed={commit.sha === selectedMemoryCommitSha}
+                      onClick={() => onMemoryCommitSelect?.(commit.sha)}
+                      onContextMenu={(event) => openCommitMenu(commit.sha, event)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
+                          openCommitMenu(commit.sha, event);
+                      }}
+                      title={commit.sha}
                     >
-                      {row.through.map((lane) => (
-                        <path
-                          key={'through-' + lane}
-                          data-lane={lane % 4}
-                          d={
-                            'M ' +
-                            memoryGraphLaneX(lane) +
-                            ' -0.5 V ' +
-                            (MEMORY_GRAPH_ROW_HEIGHT + 0.5)
-                          }
-                        />
-                      ))}
-                      {row.fromAbove ? (
-                        <path
-                          data-lane={row.lane % 4}
-                          d={'M ' + memoryGraphLaneX(row.lane) + ' -0.5 V ' + MEMORY_GRAPH_NODE_Y}
-                        />
-                      ) : null}
-                      {row.joins.map((lane) => (
-                        <path
-                          key={'join-' + lane}
-                          data-lane={lane % 4}
-                          d={memoryGraphRailPath(lane, row.lane, 'incoming')}
-                        />
-                      ))}
-                      {row.toParents.map((lane, parentIndex) => (
-                        <path
-                          key={'parent-' + parentIndex}
-                          data-lane={lane % 4}
-                          d={memoryGraphRailPath(row.lane, lane, 'outgoing')}
-                        />
-                      ))}
-                      <circle
-                        cx={memoryGraphLaneX(row.lane)}
-                        cy={MEMORY_GRAPH_NODE_Y}
-                        r={commit.sha === graph.head ? 4 : 3.5}
-                        data-lane={row.lane % 4}
-                        data-head={commit.sha === graph.head || undefined}
-                      />
-                    </svg>
-                    <span className="bh-memory-graph-text">
-                      <span className="bh-memory-graph-top">
-                        <span className="bh-memory-graph-subject">{commit.subject}</span>
-                        {commit.branches.map((branch) => (
-                          <span
-                            key={branch}
-                            className="bh-memory-ref"
-                            data-current={branch === graph.currentBranch || undefined}
-                            title={branch}
-                          >
-                            {branch}
-                          </span>
+                      <svg
+                        className="bh-memory-graph-svg"
+                        width={width}
+                        height={MEMORY_GRAPH_ROW_HEIGHT}
+                        viewBox={'0 0 ' + width + ' ' + MEMORY_GRAPH_ROW_HEIGHT}
+                        aria-hidden="true"
+                      >
+                        {row.through.map((lane) => (
+                          <path
+                            key={'through-' + lane}
+                            data-lane={lane % 4}
+                            d={
+                              'M ' +
+                              memoryGraphLaneX(lane) +
+                              ' -0.5 V ' +
+                              (MEMORY_GRAPH_ROW_HEIGHT + 0.5)
+                            }
+                          />
                         ))}
-                      </span>
-                      <span className="bh-memory-graph-detail">
-                        <span className="bh-memory-graph-hash">{commit.sha.slice(0, 7)}</span>
-                        {commit.sha === graph.head ? (
-                          <span className="bh-memory-graph-head-label">HEAD</span>
+                        {row.fromAbove ? (
+                          <path
+                            data-lane={row.lane % 4}
+                            d={'M ' + memoryGraphLaneX(row.lane) + ' -0.5 V ' + MEMORY_GRAPH_NODE_Y}
+                          />
                         ) : null}
-                        <span
-                          className={
-                            'bh-memory-commit-status bh-memory-commit-status-' + commit.status
-                          }
-                        >
-                          {commit.status === 'accepted'
-                            ? t('memory.gitStatus.accepted')
-                            : commit.status === 'needs-repair'
-                              ? t('memory.gitStatus.needs-repair')
-                              : t('memory.gitStatus.pending')}
+                        {row.joins.map((lane) => (
+                          <path
+                            key={'join-' + lane}
+                            data-lane={lane % 4}
+                            d={memoryGraphRailPath(lane, row.lane, 'incoming')}
+                          />
+                        ))}
+                        {row.toParents.map((lane, parentIndex) => (
+                          <path
+                            key={'parent-' + parentIndex}
+                            data-lane={lane % 4}
+                            d={memoryGraphRailPath(row.lane, lane, 'outgoing')}
+                          />
+                        ))}
+                        <circle
+                          cx={memoryGraphLaneX(row.lane)}
+                          cy={MEMORY_GRAPH_NODE_Y}
+                          r={commit.sha === graph.head ? 4 : 3.5}
+                          data-lane={row.lane % 4}
+                          data-head={commit.sha === graph.head || undefined}
+                        />
+                      </svg>
+                      <span className="bh-memory-graph-text">
+                        <span className="bh-memory-graph-top">
+                          <span className="bh-memory-graph-subject">{commit.subject}</span>
+                          {commit.branches.map((branch) => (
+                            <span
+                              key={branch}
+                              className="bh-memory-ref"
+                              data-current={branch === graph.currentBranch || undefined}
+                              title={branch}
+                            >
+                              {branch}
+                            </span>
+                          ))}
+                        </span>
+                        <span className="bh-memory-graph-detail">
+                          <span className="bh-memory-graph-hash">{commit.sha.slice(0, 7)}</span>
+                          {commit.sha === graph.head ? (
+                            <span className="bh-memory-graph-head-label">HEAD</span>
+                          ) : null}
+                          <span
+                            className={
+                              'bh-memory-commit-status bh-memory-commit-status-' + commit.status
+                            }
+                          >
+                            {commit.status === 'accepted'
+                              ? t('memory.gitStatus.accepted')
+                              : commit.status === 'needs-repair'
+                                ? t('memory.gitStatus.needs-repair')
+                                : t('memory.gitStatus.pending')}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                    {continueForm?.sha !== commit.sha ? null : (
+                      <form
+                        className="bh-memory-continue-form"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void requestContinue();
+                        }}
+                      >
+                        <label htmlFor="bh-memory-new-branch">
+                          {t('memory.newBranch')} · <code>{continueForm.sha.slice(0, 7)}</code>
+                        </label>
+                        <Input
+                          id="bh-memory-new-branch"
+                          autoFocus
+                          value={continueForm.branch}
+                          onChange={(event) =>
+                            setContinueForm({ ...continueForm, branch: event.currentTarget.value })
+                          }
+                        />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          type="submit"
+                          disabled={busy || continueForm.branch.trim() === ''}
+                        >
+                          {t('memory.createAndSwitch')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setContinueForm(undefined)}
+                        >
+                          {t('common.cancel')}
+                        </Button>
+                      </form>
+                    )}
+                  </Fragment>
                 );
               })}
             </div>

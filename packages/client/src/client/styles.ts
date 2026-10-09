@@ -6265,11 +6265,13 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-commit-header div { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .bh-memory-commit-header strong { min-width: 0; overflow-wrap: anywhere; }
 .bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-memory-commit-header:has(.bh-memory-commit-title) { flex-wrap: wrap; row-gap: 6px; }
 .bh-memory-commit-header .bh-memory-commit-title {
+  flex: 1 0 100%;
   flex-direction: row;
   align-items: baseline;
   gap: 8px;
-  max-width: calc(50% - 150px);
+  padding: 0 4px;
   white-space: nowrap;
 }
 .bh-memory-commit-title code { flex: none; font-family: var(--bh-memory-font-code); font-size: 12px; color: var(--dsw-alias-label-secondary); }

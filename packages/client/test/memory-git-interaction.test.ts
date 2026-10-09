@@ -548,6 +548,11 @@ describe('Memory Git graph sidebar', () => {
     await act(async () => item?.click());
     const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
     expect(input?.value).toBe('memory-aaaaaaa');
+    expect(
+      container
+        .querySelector('.bh-memory-continue-form')
+        ?.previousElementSibling?.classList.contains('bh-memory-graph-row'),
+    ).toBe(true);
     await act(async () => {
       container
         .querySelector<HTMLFormElement>('.bh-memory-continue-form')
