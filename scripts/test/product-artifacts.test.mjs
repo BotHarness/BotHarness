@@ -180,7 +180,7 @@ describe('release composition', () => {
     expect(() => verifyProductComposition(entries)).toThrow('conflicts');
   });
   it('keeps product provenance independent when the development Provider selection changes', () => {
-    expect(productImProvider.upstream.source).toBe('36da305c9586335a47d4bab6ee4f0025247a9d8f');
+    expect(productImProvider.upstream.source).toBe('bddd7d93e1c1b969ce137721c2494f6d72bfa8bc');
     expect(productImProvider.upstream.dsh).toBe('0.2.0-rc.1');
   });
 
@@ -193,7 +193,7 @@ describe('release composition', () => {
     expect(release.dependencies).toEqual({
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
-      '@botharness/im-provider': '4.32.0-botharness.15',
+      '@botharness/im-provider': '4.32.0-botharness.17',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(release.bin).toEqual({ 'botharness-profile': './dist/profile-cli.mjs' });

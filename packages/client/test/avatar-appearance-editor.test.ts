@@ -20,6 +20,8 @@ import {
   seededAvatarRecipeV2,
   canonicalCustomPart,
   customPartId,
+  hairPieceStart,
+  replacePartStart,
   type PixelCustomPart,
 } from '../../core/src/bots/avatar-appearance.js';
 import type { PartLibraryEntry } from '../../core/src/bots/part-library.js';
@@ -546,6 +548,257 @@ describe('Profile Avatar Appearance editing', () => {
         'dm-ada',
         expect.objectContaining({ assetVersion: 3, headpiece: canonicalCustomPart(part) }),
       );
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('draws a hair piece from the built-in style, wears it and switches back', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const add = vi.fn(
+      async (part: PixelCustomPart, name: string, parent?: string): Promise<PartLibraryEntry> => ({
+        id: customPartId(part),
+        part: canonicalCustomPart(part),
+        name,
+        origins: ['drawn'],
+        ...(parent ? { parent } : {}),
+        addedAt: '2026-10-08T00:00:00.000Z',
+      }),
+    );
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const press = async (x: number, y: number) =>
+      act(() => {
+        $(`[data-part-cell="${x},${y}"]`)!.dispatchEvent(
+          new Event('pointerdown', { bubbles: true, cancelable: true }),
+        );
+        $('[data-part-canvas]')!.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      });
+    const start = hairPieceStart(seededAvatarRecipe('Ada'), 'bangs');
+    const [x, y] = start.front[0]!;
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            library: { load: vi.fn(async () => []), add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="bangs"]');
+      await click('[data-part-draw="bangs"]');
+      expect($('[data-part-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.flattenNote'),
+      );
+      expect($('[data-part-layer="back"]')).toBeNull();
+      expect($(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink')).toBe('hairColor:0');
+      expect(container.querySelectorAll('[data-part-cell]')).toHaveLength(32 * 32);
+      await click('[data-part-mirror]');
+      await click('[data-part-tool="eraser"]');
+      await press(x, y);
+      await click('[data-part-save]');
+      const [part, , parent] = add.mock.calls[0]!;
+      expect(part.slot).toBe('bangs');
+      expect(parent).toBeUndefined();
+      expect(part.front).toHaveLength(start.front.length - 1);
+      const id = customPartId(part);
+      expect($(`[data-avatar-option="bangs:${id}"]`)?.getAttribute('aria-pressed')).toBe('true');
+      expect(
+        $('[data-avatar-option^="bangs:"][aria-pressed="true"]')?.dataset['avatarOption'],
+      ).toBe(`bangs:${id}`);
+
+      await click('[data-part-draw="bangs"]');
+      expect($('[data-part-note]')).toBeNull();
+      await click('[data-part-cancel]');
+      expect(add).toHaveBeenCalledTimes(1);
+
+      await click('[data-part-remove="bangs"]');
+      expect($(`[data-avatar-option="bangs:${id}"]`)?.getAttribute('aria-pressed')).toBe('false');
+      await click(`[data-avatar-option="bangs:${id}"]`);
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith(
+        'dm-ada',
+        expect.objectContaining({ assetVersion: 3, bangsPart: canonicalCustomPart(part) }),
+      );
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('draws an outfit from the built-in style and switches back', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const add = vi.fn(async (part: PixelCustomPart, name: string): Promise<PartLibraryEntry> => ({
+      id: customPartId(part),
+      part: canonicalCustomPart(part),
+      name,
+      origins: ['drawn'],
+      addedAt: '',
+    }));
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    const start = replacePartStart(seededAvatarRecipe('Ada'), 'outfit');
+    const [x, y, color, tone] = start.front[0]!;
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            library: { load: vi.fn(async () => []), add },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="outfit"]');
+      await click('[data-part-draw="outfit"]');
+      expect($('[data-part-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.flattenPartNote'),
+      );
+      expect($('[data-part-layer="back"]')).toBeNull();
+      expect($(`[data-part-cell="${x},${y}"]`)?.getAttribute('data-part-ink')).toBe(
+        `${color}:${tone}`,
+      );
+      await click('[data-part-save]');
+      const [part] = add.mock.calls[0]!;
+      expect(part.slot).toBe('outfit');
+      expect(part.front).toHaveLength(start.front.length);
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith(
+        'dm-ada',
+        expect.objectContaining({ assetVersion: 3, outfitPart: canonicalCustomPart(part) }),
+      );
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('imports part files, filters by origin and exports parts and the library', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const crown: PixelCustomPart = {
+      slot: 'headpiece',
+      front: [[13, 2, '#efb93f', 0]],
+      back: [],
+    };
+    const ears: PixelCustomPart = { slot: 'headpiece', front: [[9, 1, 'hairColor', 0]], back: [] };
+    const entry = (
+      part: PixelCustomPart,
+      name: string,
+      origin: PartLibraryEntry['origins'][number],
+    ) => ({
+      id: customPartId(part),
+      part: canonicalCustomPart(part),
+      name,
+      origins: [origin],
+      addedAt: '',
+    });
+    const importParts = vi.fn(async () => ({
+      added: [entry(ears, 'Ears', 'imported-file')],
+      refused: 1,
+    }));
+    const exportParts = vi.fn(async (id?: string) => ({
+      fileName: id ? 'crown.png' : 'part-library.zip',
+      data: btoa('x'),
+    }));
+    const created: string[] = [];
+    Object.assign(URL, {
+      createObjectURL: () => {
+        created.push('blob');
+        return 'blob:part';
+      },
+      revokeObjectURL: () => {},
+    });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const $ = (selector: string) => container.querySelector<HTMLElement>(selector);
+    const click = async (selector: string) => act(() => $(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            library: {
+              load: vi.fn(async () => [entry(crown, 'Crown', 'drawn')]),
+              add: vi.fn(async () => undefined),
+              importParts,
+              exportParts,
+            },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="headpiece"]');
+      const input = $('[data-part-import] input') as HTMLInputElement;
+      const file = new File([new Uint8Array([1, 2, 3])], 'ears.png', { type: 'image/png' });
+      Object.defineProperty(file, 'arrayBuffer', {
+        value: async () => new Uint8Array([1, 2, 3]).buffer,
+      });
+      Object.defineProperty(input, 'files', { value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(importParts).toHaveBeenCalledWith(btoa(String.fromCharCode(1, 2, 3)));
+      expect($('[data-part-library-note]')?.textContent).toBe(
+        zhTranslate('profile.avatar.part.importedRefused', { count: 1, refused: 1 }),
+      );
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(3);
+      const filter = $('[data-part-origin-filter]') as HTMLSelectElement;
+      await act(() => {
+        filter.value = 'imported-file';
+        filter.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(container.querySelectorAll('[data-avatar-option^="headpiece:"]')).toHaveLength(2);
+      expect($(`[data-avatar-option="headpiece:${customPartId(ears)}"]`)).not.toBeNull();
+      await click('[data-part-export-library]');
+      expect(exportParts).toHaveBeenLastCalledWith(undefined, undefined);
+      await click(`[data-avatar-option="headpiece:${customPartId(ears)}"]`);
+      await click('[data-part-export="headpiece"]');
+      expect(exportParts).toHaveBeenLastCalledWith(customPartId(ears), canonicalCustomPart(ears));
+      expect(created).toHaveLength(2);
     } finally {
       await act(() => root.unmount());
       container.remove();

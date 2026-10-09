@@ -1,4 +1,11 @@
-import { useId, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import {
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+} from 'react';
 import {
   Menu,
   IconEllipsisOutlineRegular,
@@ -12,11 +19,12 @@ import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { CompanionBot } from '../../../core/src/companions/feed.js';
 import type { CompanionViewState, WindowCompanion } from './window-companion.js';
-import { CompanionMotion } from './companion-motion.js';
-import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
+import { CompanionMotion, type CompanionPoint } from './companion-motion.js';
+import { CompanionBubbles, type BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
 import { companionBabble, type CompanionSound } from './companion-sound.js';
+import type { AvatarAnchor } from './avatar-anchor.js';
 
 function avatarLimitation(
   bot: CompanionBot | undefined,
@@ -101,8 +109,16 @@ export function WindowCompanionView({
       }),
   );
   const [point, setPoint] = useState(motion.point);
+  const displayedPoint = useRef(point);
+  displayedPoint.current = point;
+  const anchor = useRef<AvatarAnchor | undefined>(undefined);
+  const viewport = useRef({ left: 0, bottom: window.innerHeight, height: window.innerHeight });
+  const anchorRef = useCallback((value: AvatarAnchor | undefined) => {
+    anchor.current = value;
+  }, []);
+  const [localBubbles] = useState(() => new CompanionBubbles());
+  const bubbleOwner = bubbles ?? localBubbles;
   const [bubble, setBubble] = useState<BubblePlacement | undefined>(undefined);
-  const bubbleOffset = bubble?.offset ?? 0;
   const root = useRef<HTMLDivElement | null>(null);
   const character = useRef<HTMLButtonElement | null>(null);
   const pointer = useRef<
@@ -201,11 +217,57 @@ export function WindowCompanionView({
         else if (!state.cards.length) sound?.stopSpeech(state.selection.botId);
       };
       const unsubscribeAudio = companion.subscribe(syncAudio);
+      const placeBubble = (next: CompanionPoint, sampled: ReturnType<AvatarAnchor['read']>) => {
+        const state = latest.current;
+        if (state.selection) {
+          if (statusVisible(state) || state.cards.length) {
+            const placement = bubbleOwner.place(
+              state.selection.botId,
+              next.x,
+              next.y,
+              next.width,
+              viewport.current.height,
+              state.reading
+                ? state.cards.length
+                : Math.min(state.cards.length, state.capacity.layers),
+              state.reading,
+              sampled
+                ? {
+                    x: next.x + sampled.x - viewport.current.left - displayedPoint.current.x,
+                    y: next.y + viewport.current.bottom - sampled.y - displayedPoint.current.y,
+                  }
+                : undefined,
+            );
+            setBubble((previous) =>
+              previous?.bottom === placement.bottom &&
+              previous?.originX === placement.originX &&
+              previous?.originY === placement.originY &&
+              previous?.left === placement?.left &&
+              previous?.cardHeight === placement?.cardHeight
+                ? previous
+                : placement,
+            );
+          } else {
+            bubbleOwner.remove(state.selection.botId);
+            setBubble(undefined);
+          }
+        }
+      };
       const measure = () => {
-        const width = node.getBoundingClientRect().width;
+        const box = node.getBoundingClientRect();
+        const width = box.width;
+        viewport.current = {
+          left: box.left,
+          bottom: box.bottom,
+          height: box.height || window.innerHeight,
+        };
         const next = measured
-          ? motion.resize(width, window.innerHeight)
-          : motion.measure(width, window.innerHeight, latest.current.selection?.position ?? 0.75);
+          ? motion.resize(width, viewport.current.height)
+          : motion.measure(
+              width,
+              viewport.current.height,
+              latest.current.selection?.position ?? 0.75,
+            );
         measured = true;
         const drag = pointer.current;
         if (drag) {
@@ -215,6 +277,7 @@ export function WindowCompanionView({
           drag.originY = next.y;
         }
         setPoint(next);
+        placeBubble(next, anchor.current?.read());
       };
       const tick = (now: number) => {
         frame = 0;
@@ -245,32 +308,10 @@ export function WindowCompanionView({
             !reduced,
           );
           const previousPoint = motion.point;
+          const sampled =
+            statusVisible(state) || state.cards.length ? anchor.current?.read() : undefined;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
-          if (state.selection) {
-            if (statusVisible(state) || state.cards.length) {
-              const placement = bubbles?.place(
-                state.selection.botId,
-                next.x,
-                next.y,
-                next.width,
-                window.innerHeight,
-                state.reading
-                  ? state.cards.length
-                  : Math.min(state.cards.length, state.capacity.layers),
-                state.reading,
-              );
-              setBubble((previous) =>
-                previous?.offset === placement?.offset &&
-                previous?.left === placement?.left &&
-                previous?.cardHeight === placement?.cardHeight
-                  ? previous
-                  : placement,
-              );
-            } else {
-              bubbles?.remove(state.selection.botId);
-              setBubble(undefined);
-            }
-          }
+          placeBubble(next, sampled);
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
           if (next !== previousPoint) setPoint(next);
@@ -327,11 +368,11 @@ export function WindowCompanionView({
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
-        if (latest.current.selection) bubbles?.remove(latest.current.selection.botId);
+        if (latest.current.selection) bubbleOwner.remove(latest.current.selection.botId);
         root.current = null;
       };
     },
-    [companion, view.selection?.botId, bubbles, sound],
+    [companion, view.selection?.botId, bubbleOwner, sound],
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
@@ -371,8 +412,26 @@ export function WindowCompanionView({
   const bubbleLeft = bubble
     ? bubble.left - point.x
     : Math.max(-point.x + 8, Math.min(-108, point.width - point.x - 328));
+  const bubbleBottom = (bubble?.bottom ?? point.y + 134) - point.y;
+  const connector =
+    bubble && (statusVisible(view) || view.cards.length)
+      ? {
+          x: Math.max(
+            bubble.left + 12,
+            Math.min(bubble.originX, bubble.left + Math.min(308, point.width - 28)),
+          ),
+          y: viewport.current.height - bubble.bottom - (statusVisible(view) ? 0 : 40),
+        }
+      : undefined;
   return (
     <div ref={mount} className="bh-root bh-companion-stage">
+      {connector && bubble ? (
+        <svg className="bh-companion-tether" aria-hidden="true">
+          <path
+            d={`M ${bubble.originX} ${viewport.current.height - bubble.originY} V ${connector.y + 8} H ${connector.x} V ${connector.y}`}
+          />
+        </svg>
+      ) : null}
       <section
         className="bh-companion"
         aria-label={t('companion.label', { name: bot.name })}
@@ -406,7 +465,7 @@ export function WindowCompanionView({
         {statusVisible(view) ? (
           <div
             className="bh-companion-activity"
-            style={{ left: bubbleLeft, bottom: 134 + bubbleOffset }}
+            style={{ left: bubbleLeft, bottom: bubbleBottom }}
             role="status"
           >
             {view.sync !== 'live'
@@ -423,12 +482,12 @@ export function WindowCompanionView({
             aria-label={t('companion.messages')}
             style={{
               left: bubbleLeft,
-              bottom: 174 + bubbleOffset,
+              bottom: bubbleBottom + 40,
               height: view.reading
                 ? (bubble?.cardHeight ??
                   Math.min(
                     cards.length * 112,
-                    Math.max(112, window.innerHeight - point.y - 174 - bubbleOffset - 16),
+                    Math.max(112, viewport.current.height - point.y - bubbleBottom - 40 - 16),
                   ))
                 : 112,
             }}
@@ -679,6 +738,7 @@ export function WindowCompanionView({
             state={state}
             activity={activity?.activity}
             surface="companion"
+            anchorRef={anchorRef}
             mouth={view.mouth}
             indicator={false}
             still={bot.paused}

@@ -201,6 +201,7 @@ export interface MessagingSnapshot {
   pairings?: PairingRequest[];
   pairingReceivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   channelTargets?: { id: string; name: string }[];
+  appSetups?: (import('./provider.js').MessagingSetup & { providerId: string })[];
   accounts: MessagingApp[];
   grants: (MessagingGrant & {
     availability: 'available' | 'unavailable' | 'rebind-required';
@@ -1426,6 +1427,14 @@ export function createOutboundMessaging(options: {
     },
     async snapshot(botSlug) {
       const accounts = await service.apps();
+      const appSetups = (
+        await Promise.allSettled(
+          [...providers.values()].map(async ({ provider }) => {
+            const setup = await bounded(provider.setup?.() ?? Promise.resolve(undefined));
+            return setup ? { ...setup, providerId: provider.id } : undefined;
+          }),
+        )
+      ).flatMap((result) => (result.status === 'fulfilled' && result.value ? [result.value] : []));
       const rows = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')
@@ -1617,6 +1626,7 @@ export function createOutboundMessaging(options: {
       }
       return {
         accounts,
+        appSetups,
         feedback: database.read((db) =>
           (
             db
