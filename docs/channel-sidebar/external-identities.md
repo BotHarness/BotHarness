@@ -6,6 +6,8 @@ Open **Bot DM → Channel sidebar → External identities**. It lists the extern
 
 The same goes for Slack and Discord: DM the app or @mention it in a channel it belongs to. Personal WeChat only receives DMs from the person who scanned it; other contacts and WeChat groups stay out of the Inbox.
 
+The first [official QQ Bot application path](/docs/qq-connection) receives text @mentions in groups and replies in the original group. Its ready state refers to group mentions. QQ private messages, ordinary traffic and media need separate capabilities; passive replies have the platform's five-minute window.
+
 ![The External identities entry with one row per bound app](/guides/channel-sidebar/18-external-identities-zh.webp)
 
 ## Connection tutorials

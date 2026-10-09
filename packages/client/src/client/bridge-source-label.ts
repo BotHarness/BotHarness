@@ -5,6 +5,7 @@ export function externalPlatformLabel(platform: string, t: BotHarnessTranslate):
   if (platform === 'slack') return 'Slack';
   if (platform === 'discord') return 'Discord';
   if (platform === 'weixin') return t('im.platform.weixin');
+  if (platform === 'qq') return 'QQ';
   return platform;
 }
 

@@ -52,6 +52,8 @@ apps/docs/src/content/docs/docs/installation.mdx
 apps/docs/src/content/docs-zh/docs/installation.mdx
 apps/docs/src/content/docs/docs/slack-connection.mdx
 apps/docs/src/content/docs-zh/docs/slack-connection.mdx
+apps/docs/src/content/docs/docs/qq-connection.mdx
+apps/docs/src/content/docs-zh/docs/qq-connection.mdx
 apps/docs/src/content/docs/docs/wechat-connection.mdx
 apps/docs/src/content/docs-zh/docs/wechat-connection.mdx
 apps/docs/src/content/docs/docs/model-setup.mdx
