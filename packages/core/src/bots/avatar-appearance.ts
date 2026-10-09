@@ -53,6 +53,7 @@ export {
   type AvatarStrand,
   type AvatarPieceColorV4,
   hairPieceStart,
+  headpieceStart,
   replacePartStart,
   REPLACE_PART_SLOTS,
   isReplacePartSlot,

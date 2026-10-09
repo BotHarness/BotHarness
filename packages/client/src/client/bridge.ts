@@ -1984,13 +1984,53 @@ export async function exportLibraryParts(
 export async function importLibraryParts(
   call: BridgeCall,
   data: string,
-): Promise<{ added: PartLibraryEntry[]; refused: number }> {
+): Promise<{ added: PartLibraryEntry[]; refused: number; image?: PartImageInfo }> {
   const value = asRecord(await unwrap(call, 'partLibraryImport', { data }));
   const added = value?.['added'];
   const refused = value?.['refused'];
   if (!Array.isArray(added) || !Array.isArray(refused))
     throw new Error('invalid partLibraryImport response');
-  return { added: added.filter(isPartLibraryEntry), refused: refused.length };
+  const image = asRecord(value?.['image']);
+  const info =
+    image &&
+    typeof image['width'] === 'number' &&
+    typeof image['height'] === 'number' &&
+    typeof image['colors'] === 'number' &&
+    Array.isArray(image['slots']) &&
+    image['slots'].every((slot) => typeof slot === 'string')
+      ? {
+          width: image['width'],
+          height: image['height'],
+          colors: image['colors'],
+          slots: image['slots'] as string[],
+        }
+      : undefined;
+  return {
+    added: added.filter(isPartLibraryEntry),
+    refused: refused.length,
+    ...(info ? { image: info } : {}),
+  };
+}
+
+export interface PartImageInfo {
+  width: number;
+  height: number;
+  colors: number;
+  slots: string[];
+}
+
+export async function importLibraryImage(
+  call: BridgeCall,
+  data: string,
+  slot: string,
+  colors: number,
+  name: string,
+): Promise<PartLibraryEntry> {
+  const entry = asRecord(
+    await unwrap(call, 'partLibraryImportImage', { data, slot, colors, name }),
+  )?.['entry'];
+  if (!isPartLibraryEntry(entry)) throw new Error('invalid partLibraryImportImage response');
+  return entry;
 }
 
 export async function addLibraryPart(

@@ -217,6 +217,7 @@ describe('bridge typert service', () => {
       'partLibraryAdd',
       'partLibraryExport',
       'partLibraryImport',
+      'partLibraryImportImage',
       'botBannerSet',
       'marketplaceList',
       'marketplaceSubmit',
