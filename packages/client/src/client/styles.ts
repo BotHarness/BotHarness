@@ -5520,7 +5520,6 @@ button.bh-bot-nav > svg {
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   /* @bh-bot-settings-aliases:end */
-  container-type: inline-size;
   flex-direction: row;
   gap: 0;
   width: min(800px, 100%);
@@ -5622,24 +5621,12 @@ button.bh-bot-nav > svg {
   padding: 0 24px 24px;
   overflow-y: auto;
 }
-.bh-bot-settings-picker.bh-bot-settings-picker {
-  display: none;
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-header {
+  align-items: center;
+  padding: 16px 14px 8px 16px;
 }
-@container (max-width: 600px) {
-  .bh-bot-settings-nav,
-  .bh-bot-settings-title {
-    display: none;
-  }
-  .bh-bot-settings-picker.bh-bot-settings-picker {
-    display: inline-flex;
-  }
-  .bh-bot-settings-header {
-    align-items: center;
-    padding: 16px 14px 8px 16px;
-  }
-  .bh-bot-settings-options {
-    padding: 0 16px 16px;
-  }
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-options {
+  padding: 0 16px 16px;
 }
 .bh-settings-row {
   display: flex;

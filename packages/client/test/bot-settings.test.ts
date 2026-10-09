@@ -257,16 +257,41 @@ it('notifies subscribers only on change', () => {
   expect(settings.getSnapshot()).toEqual({ open: false, sectionId: 'models' });
 });
 
-it('offers a section dropdown for narrow frames that switches sections', () => {
+function frameWidth(narrow: boolean): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: narrow && query.includes('max-width'),
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+it('renders only the rail in wide frames', () => {
+  frameWidth(false);
+  const settings = new BotSettings();
+  mount(settings);
+  act(() => {
+    settings.open();
+  });
+  expect(document.querySelector('nav')).not.toBeNull();
+  expect(document.querySelector('.bh-bot-settings-picker')).toBeNull();
+  expect(document.querySelector('[data-modal-autofocus]')?.textContent).toBe('通用');
+  vi.unstubAllGlobals();
+});
+
+it('renders only a section dropdown in narrow frames and switches sections from it', () => {
+  frameWidth(true);
   const settings = new BotSettings();
   mount(settings);
   act(() => {
     settings.open('models');
   });
+  expect(document.querySelector('nav')).toBeNull();
+  expect(document.querySelector('h2')).toBeNull();
   const picker = document.querySelector<HTMLButtonElement>('.bh-bot-settings-picker');
   expect(picker?.textContent).toBe('模型与运行');
+  expect(picker?.hasAttribute('data-modal-autofocus')).toBe(true);
   expect(picker?.getAttribute('aria-haspopup')).toBe('menu');
-  expect(picker?.getAttribute('aria-label')).toBe('Bot 设置分区: 模型与运行');
+  expect(picker?.getAttribute('aria-label')).toBe('Bot 设置分区：模型与运行');
   expect(document.querySelector('[data-menu="sections"]')?.getAttribute('data-selected')).toBe(
     'models',
   );
@@ -285,6 +310,7 @@ it('offers a section dropdown for narrow frames that switches sections', () => {
     about?.click();
   });
   expect(shownSection()).toBe('about');
-  expect(current()).toBe('关于');
+  expect(document.querySelector('.bh-bot-settings-picker')?.textContent).toBe('关于');
   expect(document.querySelector('[role="menuitem"]')).toBeNull();
+  vi.unstubAllGlobals();
 });
