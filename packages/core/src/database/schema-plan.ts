@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { defineSchemaPlan, type SchemaMigration } from './schema.js';
+import { INBOX_HISTORY_INDEX_SQL } from './inbox-history-index.js';
 
 const SESSION_OWNERSHIP_MIGRATION: SchemaMigration = {
   generation: 2,
@@ -1976,6 +1977,15 @@ const MEMORY_COMMIT_RECORD_MIGRATION: SchemaMigration = {
   },
 };
 
+const INBOX_HISTORY_MIGRATION: SchemaMigration = {
+  generation: 77,
+  module: 'messaging',
+  description: 'Index canonical Source Events for own-Bot Inbox history with FTS5 trigram',
+  migrate(database) {
+    database.exec(INBOX_HISTORY_INDEX_SQL);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -2052,4 +2062,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   RECEPTION_HISTORY_MIGRATION,
   BOT_SELF_RECORD_MIGRATION,
   MEMORY_COMMIT_RECORD_MIGRATION,
+  INBOX_HISTORY_MIGRATION,
 ]);
