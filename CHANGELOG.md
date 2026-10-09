@@ -52,6 +52,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Reading a Window Companion bubble with the keyboard or resizing the window no longer scrolls the outer stage and leaves the character above the floor; the bubble itself still scrolls ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+
 - Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause. Releasing immediately ends the drag, so a late pointer move cannot grab the character again; the release click remains suppressed. Visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).
