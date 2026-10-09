@@ -484,6 +484,10 @@ _避免使用_：queue、mailbox、backlog
 一种持久关系，用来说明一条 Source Event 为何有资格进入某个 PersonaBot 的 attention，并记录该 Bot 的 read、defer 或 ignore facts。它引用 Source Event，绝不复制其内容。
 _避免使用_：inbox item body、delivery job、message copy
 
+**Bot Self-Record**（Bot 自我记录）：
+关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：在 Human 预期的 Channel 里显示为一条淡色事件行，同时以已处理状态进入该 PersonaBot 的 Bot Inbox，Bot 之后可以查到，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
+_避免使用_：activity log、tool trace、notification
+
 **Inbox Trigger**：
 由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。PersonaBot 自己塑造这些规则，Human 可以查看、覆盖或冻结；template 可以提供初值，Bridge 绝不拥有 attention 或 wake behavior，安全闸门永远不属于规则。
 _避免使用_：bridge、wake policy、model trigger、scheduler
