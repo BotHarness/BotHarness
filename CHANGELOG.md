@@ -9,6 +9,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Breaking Changes
 
+- Application post limits add Profile schema Generation 77. Back up before upgrading; use a compatible binary or restore the pre-upgrade backup to reopen an upgraded Profile ([#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115)).
+
 - Memory commit records add Profile schema Generation 76 (a per-Bot commit cursor and a one-record-per-commit index). Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277)).
 
 - Bot Self-Records add Profile schema Generation 75, which rebuilds the Source Event and Inbox Admission tables to accept the new kinds. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1276](https://github.com/BotHarness/DeepSeekBot/issues/1276)).
@@ -18,6 +20,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - QQ reception intervals add Profile schema Generation 74 and reuse the existing receive boundary; back up before upgrading and repair forward after upgrade ([#1153](https://github.com/BotHarness/BotHarness/issues/1153)).
 
 ### Added
+
+- With a compatible Provider, the Bot and its Profile can list reachable Lark, Discord and Slack groups and post without a saved target or prior mention, creating a conversation entry on first post; each app has a configurable rolling hourly limit, saved reports honor current conversation blocks through the final send check, and uncertain results are never replayed ([#1115](https://github.com/BotHarness/DeepSeekBot/issues/1115), [ADR-0155](docs/adr/0155-reachable-posts-reuse-messaging-authority-and-outbox.md)).
 
 - Each Memory commit a PersonaBot makes during a turn now appears as a line in the conversation that caused it, with the commit subject, short hash and changed files; clicking it opens the commit in that Bot's Memory history. The Bot's Inbox keeps the same commit as handled history ([#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
 

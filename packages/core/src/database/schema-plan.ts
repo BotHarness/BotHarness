@@ -1976,6 +1976,17 @@ const MEMORY_COMMIT_RECORD_MIGRATION: SchemaMigration = {
   },
 };
 
+const PROACTIVE_POST_LIMIT_MIGRATION: SchemaMigration = {
+  generation: 77,
+  module: 'messaging',
+  description: 'Persist per-app proactive post limits',
+  migrate(database) {
+    database.exec(
+      'ALTER TABLE messaging_bindings ADD COLUMN post_limit INTEGER DEFAULT 60 CHECK (post_limit IS NULL OR post_limit >= 1);',
+    );
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -2052,4 +2063,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   RECEPTION_HISTORY_MIGRATION,
   BOT_SELF_RECORD_MIGRATION,
   MEMORY_COMMIT_RECORD_MIGRATION,
+  PROACTIVE_POST_LIMIT_MIGRATION,
 ]);

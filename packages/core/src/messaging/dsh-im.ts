@@ -52,6 +52,17 @@ export interface DshImOutboundService {
   replyFenceVersion?: 1;
   receiptVersion?: 1;
   postFenceVersion?: 1;
+  reachableConversationVersion?: 1;
+  listReachableConversations?(
+    botId: string,
+    options: { expectedFingerprint: string; signal: AbortSignal; cursor?: string },
+  ): Promise<import('./provider.js').MessagingReachablePage>;
+  postConversationChecked?(
+    botId: string,
+    conversationId: string,
+    text: string,
+    options: { expectedFingerprint: string; signal: AbortSignal; beforeSend: () => boolean },
+  ): Promise<{ sent: true; receipt: MessagingReceipt }>;
   typingVersion?: 1;
   beginTypingChecked?(
     botId: string,
@@ -320,6 +331,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'private-context-unavailable',
     'private-context-rejected',
     'send-permission-denied',
+    'send-preflight-unavailable',
+    'target-rejected',
     'reaction-permission-denied',
     'reaction-provider-rejected',
   ].includes(code);
@@ -1122,6 +1135,87 @@ export function createDshImProvider(
               if (result.sent !== true)
                 throw new MessagingProviderError('provider-result-unknown', 'unknown');
               return { accepted: true as const };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
+    ...((platform === 'feishu' || platform === 'discord' || platform === 'slack') &&
+    host.reachableConversationVersion === 1 &&
+    typeof host.listReachableConversations === 'function' &&
+    typeof host.postConversationChecked === 'function'
+      ? {
+          async reachable(input: Parameters<NonNullable<MessagingProvider['reachable']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (!info.capabilities.includes('reachable-conversations-checked'))
+              throw new MessagingError('capability-unavailable');
+            const page = await host.listReachableConversations!(input.accountRef, {
+              expectedFingerprint: input.fingerprint,
+              signal: input.signal,
+              ...(input.cursor ? { cursor: input.cursor } : {}),
+            });
+            if (
+              page?.version !== 1 ||
+              !Array.isArray(page.conversations) ||
+              page.conversations.length > 100 ||
+              typeof page.hasMore !== 'boolean' ||
+              (page.hasMore &&
+                (typeof page.cursor !== 'string' || !page.cursor || page.cursor.length > 2048))
+            )
+              throw new MessagingError('provider-incompatible');
+            return {
+              version: 1 as const,
+              conversations: page.conversations.map((value) => {
+                if (
+                  typeof value?.id !== 'string' ||
+                  !value.id ||
+                  value.id.length > 512 ||
+                  value.kind !== 'group' ||
+                  typeof value.name !== 'string' ||
+                  value.name.length > 512
+                )
+                  throw new MessagingError('provider-incompatible');
+                return { id: value.id, kind: value.kind, name: value.name };
+              }),
+              hasMore: page.hasMore,
+              ...(page.hasMore ? { cursor: page.cursor! } : {}),
+            };
+          },
+          async postConversation(
+            input: Parameters<NonNullable<MessagingProvider['postConversation']>>[0],
+          ) {
+            try {
+              const result = await host.postConversationChecked!(
+                input.accountRef,
+                input.conversationId,
+                input.text,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                  beforeSend: input.beforeSend,
+                },
+              );
+              if (
+                result?.sent !== true ||
+                result.receipt?.version !== 1 ||
+                result.receipt.conversationId !== input.conversationId ||
+                typeof result.receipt.messageId !== 'string' ||
+                !result.receipt.messageId ||
+                result.receipt.messageId.length > 512
+              )
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return {
+                accepted: true as const,
+                receipt: {
+                  version: 1 as const,
+                  messageId: result.receipt.messageId,
+                  conversationId: input.conversationId,
+                },
+              };
             } catch (error) {
               throw providerFailure(error);
             }

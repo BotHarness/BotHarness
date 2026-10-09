@@ -3,6 +3,25 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'proactive.title': '主动发送',
+  'proactive.send': '主动发送',
+  'proactive.description': '选择这个应用当前可发言的群。发送前会重新检查群权限和本地授权。',
+  'proactive.group': '选择群聊',
+  'proactive.chooseGroup': '请选择群聊',
+  'proactive.empty': '没有可发言的群',
+  'proactive.more': '加载更多群',
+  'proactive.message': '消息内容',
+  'proactive.limit': '每小时主动发送上限',
+  'proactive.limitHint': '默认 60 条；留空可关闭限额。未知结果也会占用名额。',
+  'proactive.saveLimit': '保存限额',
+  'proactive.legacy': '当前 Provider 不支持群列表，请关闭此窗口，使用「保存的发送目标（高级）」。',
+  'proactive.loadError': '群列表暂不可用，请检查应用权限和连接。',
+  'proactive.sendError': '未取得发送结果，请保留本次请求并核对 Outbox。',
+  'proactive.limitError': '未保存限额，请刷新应用后重试。',
+  'proactive.unknown': '结果未知，请核对原群；不要再次发送这条消息。',
+  'proactive.accepted': '平台已接受，原群消息回执已保存。',
+  'proactive.rateLimited': '已达到应用的每小时主动发送上限，本次未发送。',
+  'proactive.failed': '本次未发送，结果已保留在 Outbox。',
   'backup.title': '完整环境备份与恢复',
   'backup.description': '保存整个本地环境的 Bot 身份、记忆、聊天历史和设置。',
   'backup.open': '管理备份',
@@ -2632,6 +2651,29 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'proactive.title': 'Proactive post',
+  'proactive.send': 'Post to group',
+  'proactive.description':
+    'Choose a group this app can currently speak in. Platform permission and local authorization are checked again before sending.',
+  'proactive.group': 'Choose group',
+  'proactive.chooseGroup': 'Select a group',
+  'proactive.empty': 'No reachable groups',
+  'proactive.more': 'Load more groups',
+  'proactive.message': 'Message',
+  'proactive.limit': 'Proactive posts per hour',
+  'proactive.limitHint':
+    'Default: 60. Leave blank to disable the limit. Unknown outcomes also consume a slot.',
+  'proactive.saveLimit': 'Save limit',
+  'proactive.legacy':
+    'This Provider cannot list groups. Close this window and use Saved send target (advanced).',
+  'proactive.loadError': 'Groups are unavailable. Check app permission and connection.',
+  'proactive.sendError': 'No outcome was received. Keep this request and check Outbox.',
+  'proactive.limitError': 'The limit was not saved. Refresh the app and try again.',
+  'proactive.unknown': 'Unknown outcome. Check the original group; do not send this message again.',
+  'proactive.accepted': 'Platform accepted; the original group receipt is retained.',
+  'proactive.rateLimited':
+    'This app has reached its hourly proactive post limit. Nothing was sent.',
+  'proactive.failed': 'Nothing was sent; the result is retained in Outbox.',
   'backup.title': 'Complete environment backup and restore',
   'backup.description':
     'Preserve this local environment’s Bot identities, Memory, conversation history and settings.',
