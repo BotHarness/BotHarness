@@ -6324,10 +6324,10 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   display: block;
   max-width: min(100%, 520px);
   margin: 6px auto;
-  padding: 7px 14px;
+  padding: 4px 10px;
   border: 0;
-  border-radius: 999px;
-  background: var(--dsw-alias-button-elevated-fill);
+  border-radius: 8px;
+  background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
   font-size: 12px;
@@ -6335,6 +6335,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 }
 .bh-bot-dm-action:hover {
   color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-button-elevated-fill);
 }
 .bh-bot-dm-action-label {
   display: inline-flex;
@@ -6351,30 +6352,30 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-bot-dm-action-avatar { display: inline-flex; pointer-events: none; }
 .bh-memory-commit-line {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 4px 6px;
-  max-width: min(100%, 560px);
+  gap: 6px;
+  max-width: 100%;
   margin: 6px auto;
-  padding: 7px 14px;
+  padding: 4px 10px;
   border: 0;
-  border-radius: 999px;
-  background: var(--dsw-alias-button-elevated-fill);
+  border-radius: 8px;
+  background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
 }
-.bh-memory-commit-line:hover { color: var(--dsw-alias-label-primary); }
+.bh-memory-commit-line > * { flex: none; }
+.bh-memory-commit-line:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-button-elevated-fill); }
 .bh-memory-commit-line:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
-.bh-memory-commit-subject {
-  min-width: 0;
-  max-width: 260px;
+.bh-memory-commit-line > .bh-memory-commit-subject {
+  flex: 0 1 auto;
+  min-width: 48px;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .bh-memory-commit-sha { font-family: var(--dsw-font-family-mono, monospace); font-size: 11px; }
 .bh-memory-commit-files { color: var(--dsw-alias-label-tertiary); }

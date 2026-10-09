@@ -207,8 +207,11 @@ describe('Channel Notices in a Group', () => {
     subject: 'Remember the launch date',
     authorName: 'Mira',
     authoredAt: AT,
-    files: [{ path: 'launch.md', added: 1, deleted: 0 }],
-    moreFiles: 2,
+    files: [
+      { path: 'MEMORY.md', added: 1, deleted: 0 },
+      { path: 'launch.md', added: 5, deleted: 2 },
+    ],
+    moreFiles: 1,
   };
   const mira: ChannelSummary = {
     id: 'dm-mira',
@@ -264,9 +267,9 @@ describe('Channel Notices in a Group', () => {
     await show(group, proxyActions({ openBot }));
     const line = container.querySelector<HTMLButtonElement>('.bh-memory-commit-line');
     expect(line?.textContent).toBe(
-      'Mira更新了记忆Remember the launch dateaaaaaaalaunch.md +1 另 2 个文件',
+      'Mira更新了记忆Remember the launch dateaaaaaaalaunch.md +5 −2 · 另有 2 个文件',
     );
-    expect(line?.title).toBe('Git 作者：Mira');
+    expect(line?.title).toBe(`${commit.sha} · Git 作者：Mira`);
     expect(line?.querySelector('svg')).not.toBeNull();
     await act(async () => line?.click());
     expect(store.getSnapshot().memoryCommitIntent).toEqual({
