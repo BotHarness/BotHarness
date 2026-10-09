@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 
 import {
   loadTelemetryStatus,
@@ -12,9 +12,7 @@ import {
 import type { BotHarnessKey } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 
-export type TelemetrySettingsProps = PropsRuntime<'botharness.settings.item'> &
-  PropsLocale<'botharness'> &
-  InjectFace<{ call: BridgeCall }>;
+export type TelemetrySettingsProps = PropsLocale<'botharness'> & InjectFace<{ call: BridgeCall }>;
 
 const LOCK_NOTES: Record<TelemetryLock, BotHarnessKey> = {
   config: 'telemetry.row.lockedConfig',

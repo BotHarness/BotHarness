@@ -62,6 +62,7 @@ import type {
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
+  MessagingApp,
   MessagingSnapshot,
   MessagingGrant,
   OutboxIntent,
@@ -3766,6 +3767,38 @@ export async function reviewPairing(
     throw new BridgeCallError('invalid-response', 'Invalid pairing review');
   return pairing as unknown as PairingRequest;
 }
+export type { MessagingApp } from '../../../core/src/messaging/outbound.js';
+
+export async function loadMessagingApps(
+  call: BridgeCall,
+): Promise<{ apps: MessagingApp[]; setups: NonNullable<MessagingSnapshot['appSetups']> }> {
+  const record = asRecord(await unwrap(call, 'messagingApps', {}));
+  const apps = record?.['apps'];
+  const setups = record?.['setups'];
+  if (
+    !Array.isArray(apps) ||
+    !Array.isArray(setups) ||
+    !setups.every((value) => typeof asRecord(value)?.['providerId'] === 'string') ||
+    !apps.every((value) => {
+      const app = asRecord(value);
+      return (
+        typeof app?.['providerId'] === 'string' &&
+        typeof app['ref'] === 'string' &&
+        typeof app['platform'] === 'string' &&
+        typeof app['name'] === 'string' &&
+        typeof app['fingerprint'] === 'string' &&
+        typeof app['connected'] === 'boolean' &&
+        (app['boundBotSlug'] === undefined || typeof app['boundBotSlug'] === 'string')
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid messaging apps');
+  return {
+    apps: apps as MessagingApp[],
+    setups: setups as NonNullable<MessagingSnapshot['appSetups']>,
+  };
+}
+
 export async function loadMessagingSnapshot(
   call: BridgeCall,
   slug: string,

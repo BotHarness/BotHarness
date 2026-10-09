@@ -62,6 +62,11 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import {
+  timelineWorkingRows,
+  timelineWorkingRowsCover,
+  TimelineWorkingRowsView,
+} from './timeline-working-rows.js';
 import { groupComposerActivity } from './group-composer-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
@@ -571,6 +576,7 @@ function ConversationView({
   const lastRevision = useRef<number | undefined>(undefined);
   const readMarkTimer = useRef<number | undefined>(undefined);
   const [unseen, setUnseen] = useState(0);
+  const [atLatest, setAtLatest] = useState(true);
   const [messageMenu, setMessageMenu] = useState<MessageMenuRequest | undefined>();
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
   const [profileViewOpen, setProfileViewOpen] = useState(
@@ -675,6 +681,18 @@ function ConversationView({
                 ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
                 : t('main.activity.bots', { count: composerFacepile.length }),
           };
+  const workingRows = timelineWorkingRows(
+    conversation.status === 'ready' && !conversation.timeline.hasNewer
+      ? composerActivity
+      : undefined,
+    new Set(conversation.drafts.map((item) => item.botSlug)),
+  );
+  const composerActivityConcealed =
+    atLatest &&
+    conversation.status === 'ready' &&
+    !conversation.timeline.hasNewer &&
+    timelineWorkingRowsCover(composerActivity, workingRows);
+  const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
   const activeMemoryView =
     selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
@@ -845,8 +863,10 @@ function ConversationView({
       scrollRef.current = element;
       if (conversation.timeline.olderError !== undefined) prependAnchor.current = null;
       if (conversation.status === 'ready') {
-        if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer)
+        if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer) {
           followingLatest.current = false;
+          setAtLatest(false);
+        }
         const anchor = prependAnchor.current;
         if (anchor !== null && messages[0]?.id !== anchor.firstId) {
           const retained = Array.from(
@@ -912,6 +932,7 @@ function ConversationView({
       conversation.timeline.olderError,
       conversation.timeline.newerError,
       messages,
+      workingRowsKey,
     ],
   );
 
@@ -920,6 +941,7 @@ function ConversationView({
     if (element === null) return;
     const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
     followingLatest.current = atBottom && !conversation.timeline.hasNewer;
+    setAtLatest(followingLatest.current);
     if (followingLatest.current) setUnseen(0);
     scheduleReadMark();
     if (element.scrollTop <= 48) loadOlderAtTop();
@@ -928,6 +950,7 @@ function ConversationView({
 
   const jumpToLatest = (): void => {
     followingLatest.current = true;
+    setAtLatest(true);
     setUnseen(0);
     if (conversation.timeline.hasNewer && channelId !== undefined) {
       void actions.openLatest(channelId).catch((error: unknown) => {
@@ -1024,6 +1047,7 @@ function ConversationView({
       viewport !== null &&
       !conversation.timeline.hasNewer &&
       viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 80;
+    setAtLatest(followingLatest.current);
     if (followingLatest.current) setUnseen(0);
     const submittedFor = currentChannel.current;
     const submittedUploads = uploadItems;
@@ -1099,7 +1123,10 @@ function ConversationView({
     <div ref={conversationMount} className="bh-root bh-main">
       <span ref={allBotPreviewMount} hidden />
       <div className="bh-chat-layout">
-        <section className="bh-chat-pane">
+        <section
+          className="bh-chat-pane"
+          data-activity-concealed={composerActivityConcealed ? 'true' : undefined}
+        >
           <div ref={profileMount} className="bh-topbar">
             {channel === undefined ? null : (
               <HumanChannelNameMenu key={channel.id} channel={channel} actions={actions} t={t} />
@@ -1309,6 +1336,14 @@ function ConversationView({
                 className="bh-chat-body"
                 ref={timelineMount}
                 onScroll={onTimelineScroll}
+                onTransitionEnd={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    event.propertyName === 'padding-bottom' &&
+                    followingLatest.current
+                  )
+                    event.currentTarget.scrollTop = event.currentTarget.scrollHeight;
+                }}
                 style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
               >
                 {conversation.timeline.hasOlder ? (
@@ -1484,6 +1519,7 @@ function ConversationView({
                     </div>
                   );
                 })}
+                <TimelineWorkingRowsView rows={workingRows} t={t} />
                 {conversation.timeline.hasNewer ? (
                   <div className="bh-timeline-newer-sentinel">
                     {conversation.timeline.loadingNewer ? (
@@ -1562,6 +1598,7 @@ function ConversationView({
                       setUploadItems((current) => current.filter((item) => item.id !== id));
                     }}
                     activity={composerActivity}
+                    activityConcealed={composerActivityConcealed}
                     onActivityOverlayResize={resizeActivityOverlay}
                     reply={
                       replyTarget === undefined

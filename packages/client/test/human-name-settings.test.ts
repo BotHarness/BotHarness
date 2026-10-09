@@ -7,13 +7,8 @@ import type { BridgeCall } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { describe, expect, it, vi } from 'vitest';
 import { installBotNavIcon } from '../src/client/bot-icon-nav.js';
-import { openBotSettings } from '../src/client/bot-settings-open.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: 'button', Input: 'input' }));
-
-const unusedHook = (): never => {
-  throw new Error('This setting does not use native Session hooks');
-};
 
 describe('Human name settings navigation', () => {
   it('uses the existing roster stream in Bot mode and owns only one while native mode is open', async () => {
@@ -43,11 +38,6 @@ describe('Human name settings navigation', () => {
         root.render(
           createElement(HumanNameSettings, {
             store,
-            useSessions: unusedHook,
-            useSessionStatus: unusedHook,
-            useSessionRetainInfo: unusedHook,
-            useWorkspaces: unusedHook,
-            usePanelInfo: unusedHook,
             t: zhTranslate,
             call: async (): ReturnType<BridgeCall> => ({
               ok: true,
@@ -97,26 +87,5 @@ describe('Human name settings navigation', () => {
         button.remove();
         vi.unstubAllGlobals();
       });
-  });
-
-  it('reopens Bot settings after its own navigation icon is installed', () => {
-    const button = document.createElement('button');
-    button.innerHTML = '<svg></svg><span>Bot 设置</span>';
-    document.body.append(button);
-    let selected = 0;
-    button.addEventListener('click', () => (selected += 1));
-    const dispose = installBotNavIcon({
-      root: document,
-      labels: () => ['Bot 设置'],
-      markup: () => '<svg></svg>',
-    });
-    try {
-      openBotSettings(() => ['Bot 设置'], document);
-      openBotSettings(() => ['Bot 设置'], document);
-      expect(selected).toBe(2);
-    } finally {
-      dispose();
-      button.remove();
-    }
   });
 });

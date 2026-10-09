@@ -265,6 +265,7 @@ export interface OutboundMessaging {
   disableBot(botSlug: string): Promise<void>;
   deletionDependencies(botSlug: string): { identities: string[]; grants: string[] };
   apps(): Promise<MessagingApp[]>;
+  setups(): Promise<(import('./provider.js').MessagingSetup & { providerId: string })[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   reachable(botSlug: string, bindingId: string, cursor?: string): Promise<MessagingReachablePage>;
@@ -1603,9 +1604,8 @@ export function createOutboundMessaging(options: {
         return bound ? { ...account, boundBotSlug: bound.bot_slug, bindingId: bound.id } : account;
       });
     },
-    async snapshot(botSlug) {
-      const accounts = await service.apps();
-      const appSetups = (
+    async setups() {
+      return (
         await Promise.allSettled(
           [...providers.values()].map(async ({ provider }) => {
             const setup = await bounded(provider.setup?.() ?? Promise.resolve(undefined));
@@ -1613,6 +1613,10 @@ export function createOutboundMessaging(options: {
           }),
         )
       ).flatMap((result) => (result.status === 'fulfilled' && result.value ? [result.value] : []));
+    },
+    async snapshot(botSlug) {
+      const accounts = await service.apps();
+      const appSetups = await service.setups();
       const rows = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')

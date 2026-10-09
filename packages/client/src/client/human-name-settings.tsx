@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 import {
   loadHumanIdentity,
   setHumanDefaultName,
@@ -10,8 +10,7 @@ import {
 import type { ClientStore } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 
-export type HumanNameSettingsProps = PropsRuntime<'botharness.settings.item'> &
-  PropsLocale<'botharness'> &
+export type HumanNameSettingsProps = PropsLocale<'botharness'> &
   InjectFace<{
     call: BridgeCall;
     store: ClientStore;

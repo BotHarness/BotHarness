@@ -40,7 +40,12 @@ import type { HumanAssignmentContext } from '../runtime/assignment-human-context
 import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
 import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
-import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
+import type {
+  MessagingApp,
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
 import type { PersonaBotDeletionPreview, PersonaBotDeletion } from '../bots/deletion.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
@@ -62,6 +67,7 @@ import type {
   BridgeMethods,
   BridgeResult,
   ChannelListItem,
+  MessagingAppsView,
   PersonaBotDetail,
   PersonaBotSummary,
   OwnedSessionSummary,
@@ -242,6 +248,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
     input: MessagingIdentityInput,
   ): Promise<{ identity: MessagingIdentity }> {
     return unwrapAsync(this.methods.messagingIdentity({ slug, input }));
+  }
+  messagingApps(): Promise<MessagingAppsView> {
+    return unwrapAsync(this.methods.messagingApps());
   }
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
     return unwrapAsync(this.methods.messagingSnapshot({ slug }));
@@ -1175,6 +1184,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'approvalTest',
   'approvalRetry',
   'pairingReview',
+  'messagingApps',
   'messagingSnapshot',
   'messagingTargets',
   'messagingReachable',
