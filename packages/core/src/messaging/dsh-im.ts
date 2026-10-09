@@ -1141,7 +1141,8 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(host.reachableConversationVersion === 1 &&
+    ...(platform === 'feishu' &&
+    host.reachableConversationVersion === 1 &&
     typeof host.listReachableConversations === 'function' &&
     typeof host.postConversationChecked === 'function'
       ? {

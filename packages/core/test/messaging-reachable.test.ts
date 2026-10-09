@@ -12,7 +12,7 @@ afterEach(async () => {
   }
 });
 
-it('a bound app posts to a reachable group without saved targets or an inbound Source Event', async () => {
+async function fixture() {
   const fingerprint = 'a'.repeat(64);
   const posts: string[] = [];
   const transport: DshImOutboundService = {
@@ -42,7 +42,8 @@ it('a bound app posts to a reachable group without saved targets or an inbound S
       return { sent: true, receipt: { version: 1, messageId: 'om_first', conversationId } };
     },
   };
-  const core = createCore({ dshHome: createTempRoot('reachable-') });
+  const home = createTempRoot('reachable-');
+  const core = createCore({ dshHome: home });
   cores.push(core);
   expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const provider = createDshImProvider(transport)!;
@@ -53,6 +54,11 @@ it('a bound app posts to a reachable group without saved targets or an inbound S
     accountRef: 'qa',
     fingerprint,
   });
+  return { core, binding, transport, posts, home };
+}
+
+it('a bound app posts to a reachable group without saved targets or an inbound Source Event', async () => {
+  const { core, binding, transport, posts } = await fixture();
   const page = await core.externalMessaging.reachable('ada', binding.id);
   expect(page.conversations).toEqual([{ id: 'oc_new', kind: 'group', name: 'New QA group' }]);
   const result = await core.externalMessaging.postConversation(
@@ -118,4 +124,167 @@ it('a bound app posts to a reachable group without saved targets or an inbound S
   );
   expect(preflight.state).toBe('failed');
   expect(preflight.reason).toBe('send-preflight-unavailable');
+});
+
+it.each(['block', 'unbind'] as const)(
+  'a %s during native preflight fences the unstarted post as grant-revoked',
+  async (kind) => {
+    const { core, binding, transport, posts } = await fixture();
+    let enter!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      enter = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    transport.postConversationChecked = async (_app, conversationId, text, options) => {
+      enter();
+      await gate;
+      if (options.beforeSend() !== true)
+        throw Object.assign(new Error('Native final fence refused'), {
+          code: 'send-permission-denied',
+        });
+      posts.push(text);
+      return { sent: true, receipt: { version: 1, messageId: 'om_late', conversationId } };
+    };
+    const pending = core.externalMessaging.postConversation(
+      'ada',
+      binding.id,
+      'oc_new',
+      'revoked-request',
+      'Must not send',
+    );
+    await entered;
+    if (kind === 'block') {
+      const grant = (await core.externalMessaging.snapshot('ada')).grants[0]!;
+      await core.externalMessaging.conversation('ada', {
+        kind: 'block',
+        grantId: grant.id,
+        expectedRevision: grant.revision,
+      });
+    } else {
+      await core.externalMessaging.identity('ada', {
+        kind: 'unbind',
+        id: binding.id,
+        expectedRevision: binding.revision,
+      });
+    }
+    release();
+    const result = await pending;
+    expect(result.state).toBe('grant-revoked');
+    expect(result.reason).toBe('grant-revoked');
+    expect(posts).toEqual([]);
+  },
+);
+
+it('a reachable group already represented by a saved entry uses native conversation posting without a duplicate entry', async () => {
+  const { core, binding, transport, posts } = await fixture();
+  transport.listTargets = async () => [
+    { targetId: 'saved', kind: 'group', name: 'Saved QA group', route: { chatId: 'oc_new' } },
+  ];
+  const targets = await core.externalMessaging.targets('dsh-im/feishu', 'qa');
+  const grant = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'qa',
+    targetRef: 'saved',
+    fingerprint: binding.fingerprint,
+    targetDigest: targets[0]!.digest,
+  });
+  const result = await core.externalMessaging.postConversation(
+    'ada',
+    binding.id,
+    'oc_new',
+    'existing-request',
+    'Same native group',
+  );
+  expect(result.state).toBe('provider-accepted');
+  expect(result.grantId).toBe(grant.id);
+  expect((await core.externalMessaging.snapshot('ada')).grants).toHaveLength(1);
+  expect(posts).toEqual(['Same native group']);
+});
+
+it('an unknown native post keeps its stable request identity across restart and is never replayed', async () => {
+  const { core, binding, transport, home } = await fixture();
+  let effects = 0;
+  transport.postConversationChecked = async (_app, _conversationId, _text, options) => {
+    expect(options.beforeSend()).toBe(true);
+    effects++;
+    return {
+      sent: true,
+      receipt: { version: 1, messageId: 'om_unqualified', conversationId: 'oc_other' },
+    };
+  };
+  const first = await core.externalMessaging.postConversation(
+    'ada',
+    binding.id,
+    'oc_new',
+    'unknown-request',
+    'Do not replay',
+  );
+  expect(first.state).toBe('unknown-outcome');
+  core.externalMessaging.close();
+  await core.runtime.close();
+  core.operationalDatabase.close();
+  cores.splice(cores.indexOf(core), 1);
+  const resumed = createCore({ dshHome: home });
+  cores.push(resumed);
+  resumed.externalMessaging.register(createDshImProvider(transport)!);
+  const duplicate = await resumed.externalMessaging.postConversation(
+    'ada',
+    binding.id,
+    'oc_new',
+    'unknown-request',
+    'Do not replay',
+  );
+  expect(duplicate.id).toBe(first.id);
+  expect(duplicate.state).toBe('unknown-outcome');
+  expect(effects).toBe(1);
+});
+
+it('an older Provider explains unavailable reachability and preserves checked saved-target posting', async () => {
+  const { core, binding, transport, posts } = await fixture();
+  delete transport.reachableConversationVersion;
+  transport.receiptVersion = 1;
+  transport.describeBot = async () => ({
+    version: 1,
+    botId: 'qa',
+    channel: 'feishu',
+    connected: true,
+    account: { fingerprint: binding.fingerprint },
+    capabilities: ['proactive-text-checked', 'proactive-receipt-checked'],
+  });
+  transport.listTargets = async () => [
+    { targetId: 'saved', kind: 'group', route: { chatId: 'oc_new' } },
+  ];
+  transport.sendChecked = async (_app, target, text) => {
+    expect(target).toBe('saved');
+    posts.push(text);
+    return {
+      sent: true,
+      receipt: { version: 1, messageId: 'om_legacy', conversationId: 'oc_new' },
+    };
+  };
+  core.externalMessaging.register(createDshImProvider(transport)!);
+  await expect(core.externalMessaging.reachable('ada', binding.id)).rejects.toMatchObject({
+    code: 'capability-unavailable',
+  });
+  const targets = await core.externalMessaging.targets('dsh-im/feishu', 'qa');
+  const grant = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'qa',
+    targetRef: 'saved',
+    fingerprint: binding.fingerprint,
+    targetDigest: targets[0]!.digest,
+  });
+  const result = await core.externalMessaging.post(
+    'ada',
+    grant.id,
+    'legacy-request',
+    'Saved fallback',
+  );
+  expect(result.state).toBe('provider-accepted');
+  expect(posts).toEqual(['Saved fallback']);
 });
