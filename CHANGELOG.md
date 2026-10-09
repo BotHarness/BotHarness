@@ -43,6 +43,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
 
+### Documentation
+
+- Documented how a PersonaBot's Memory commits and its own BotHarness-tool actions will be kept as Channel Notices in the conversation that caused them and as searchable Bot Inbox history that never wakes it; runtime behavior is unchanged ([ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md), [#1272](https://github.com/BotHarness/DeepSeekBot/issues/1272)).
+
 ## [1.2.0] - 2026-10-08
 
 Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.
