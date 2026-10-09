@@ -11,6 +11,9 @@ export function comboboxPrimitives() {
     Input: (props: InputHTMLAttributes<HTMLInputElement>) =>
       createElement('span', null, createElement('input', props)),
     IconChevronDownOutlineRegular: () => null,
+    IconPlusOutlineRegular: () => null,
+    IconRefreshOutlineRegular: () => null,
+    IconRightUpOutlineRegular: () => null,
     MenuSurface: forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> & { compact?: boolean }>(
       ({ compact: _compact, ...props }, ref) => createElement('div', { ...props, ref }),
     ),

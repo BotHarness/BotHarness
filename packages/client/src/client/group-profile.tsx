@@ -6,9 +6,6 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { bridgeSourceLabel } from './bridge-source-label.js';
-import { GroupWakePolicyTable } from './group-wake-policy-table.js';
-import { ChannelBridgeList } from './channel-bridge-list.js';
-import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
 
 import {
@@ -63,7 +60,7 @@ function authorName(
   }
 }
 
-function GroupMessagesCard({ activity, t }: GroupProfileCardViewProps): ReactElement {
+function GroupMessagesCard({ activity, compact, t }: GroupProfileCardViewProps): ReactElement {
   const days = activity?.days ?? [];
   const total = days.reduce((sum, day) => sum + day.count, 0);
   return (
@@ -75,6 +72,7 @@ function GroupMessagesCard({ activity, t }: GroupProfileCardViewProps): ReactEle
         counts={countByDay(days)}
         label={t('groupProfile.messages')}
         today={activity?.today}
+        compact={compact}
         t={t}
       />
     </div>
@@ -237,7 +235,6 @@ export function GroupProfilePopover({
 }
 
 export function GroupProfileView({
-  actions,
   channel,
   activity,
   cards,
@@ -247,10 +244,6 @@ export function GroupProfileView({
   onTogglePin,
   onClose,
 }: GroupProfileProps & {
-  actions: Pick<
-    BridgeActions,
-    'channelBridges' | 'channelBridge' | 'groupWakePolicies' | 'setGroupWakePolicy'
-  >;
   onTogglePin(id: string): void;
   onClose(): void;
 }): ReactElement {
@@ -294,21 +287,6 @@ export function GroupProfileView({
           })}
         </div>
       </section>
-      <GroupWakePolicyTable
-        key={`wake:${channel.id}`}
-        channel={channel}
-        botNames={botNames}
-        actions={actions}
-        t={t}
-      />
-      <ChannelBridgeList
-        key={channel.id}
-        channelId={channel.id}
-        channelName={channel.name}
-        botNames={botNames}
-        actions={actions}
-        t={t}
-      />
     </div>
   );
 }

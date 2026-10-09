@@ -1,4 +1,17 @@
+import type { PixelBannerRecipe } from '@botharness/pixel-banner';
+import { onboardingFor } from './onboarding.js';
+import type { ProviderAppSetup } from './provider-app-setup.js';
+import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type {
+  ChannelHistoryItem,
+  PurgeSource,
+  PurgePreview,
+} from '../../../core/src/purge/contracts.js';
+import type {
+  PersonaBotDeletionPreview,
+  PersonaBotDeletion,
+} from '../../../core/src/bots/deletion.js';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import {
   gitInstalling,
@@ -26,6 +39,10 @@ import type {
   ChannelBridgeSnapshot,
 } from '../../../core/src/messaging/channel-bridge.js';
 import type {
+  ConversationIngestInput,
+  ConversationIngestSnapshot,
+} from '../../../core/src/messaging/conversation-ingest.js';
+import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
@@ -50,6 +67,8 @@ import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadChannelBridges,
   manageChannelBridge,
+  loadChannelIngests,
+  manageChannelIngest,
   loadMessagingSnapshot,
   manageMessagingIdentity,
   manageMessagingConversation,
@@ -73,7 +92,15 @@ import {
   setGroupAvatar as setGroupAvatarViaBridge,
   setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
+  setBotBanner as setBotBannerViaBridge,
+  updateBotProfile as updateBotProfileViaBridge,
   setBotAppearance as setBotAppearanceViaBridge,
+  loadPartLibrary as loadPartLibraryViaBridge,
+  addLibraryPart as addLibraryPartViaBridge,
+  exportLibraryParts as exportLibraryPartsViaBridge,
+  importLibraryParts as importLibraryPartsViaBridge,
+  importLibraryImage as importLibraryImageViaBridge,
+  type PartImageInfo,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -101,6 +128,8 @@ import {
   revokeWorkspaceGrant,
   setWorkspaceGrantWrite,
   loadToolApprovalStatus,
+  loadToolApprovalExecutionState,
+  type ToolApprovalExecutionState,
   decideToolApproval,
   loadUserQuestionStatus,
   answerUserQuestion,
@@ -200,6 +229,7 @@ import {
   type MemoryRecoveryCheckpoint,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type ProfileActivityWindow,
   type GroupProfileActivity,
   type BotSourcePolicyView,
   type BotScheduleView,
@@ -255,8 +285,20 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  onboarding(slug?: string, action?: TutorialAction): Promise<OnboardingSnapshot>;
+  onboardingModel(
+    slug: string | undefined,
+    expectedRevision: number,
+    route: ModelRouteView,
+    globalDefault: boolean,
+  ): Promise<{ revision: number }>;
+  inheritModel(slug: string, expectedRevision: number): Promise<{ revision: number }>;
+  retryMessage(channelId: string, messageId: string): Promise<void>;
+
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
+  channelIngests(channelId: string): Promise<ConversationIngestSnapshot>;
+  channelIngest(channelId: string, input: ConversationIngestInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -272,6 +314,7 @@ export interface BridgeActions {
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
+  appSetup?: ProviderAppSetup;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -329,6 +372,11 @@ export interface BridgeActions {
   authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
+  deletionPreview(slug: string): Promise<PersonaBotDeletionPreview>;
+  deletionConfirm(slug: string, token: string, eraseMemory: boolean): Promise<PersonaBotDeletion>;
+  deletionRetry(slug: string): Promise<PersonaBotDeletion>;
+  deletionFolderApplications(slug: string): Promise<HostFileOptions>;
+  deletionFolderOpen(slug: string, choice?: HostFileOpen): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   refreshGit(signal?: AbortSignal): Promise<void>;
   installGit(): Promise<void>;
@@ -425,7 +473,7 @@ export interface BridgeActions {
   memoryDiff(channelId: string, sha: string): Promise<string>;
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
-  profileActivity(channelId: string): Promise<ProfileActivity>;
+  profileActivity(channelId: string, window?: ProfileActivityWindow): Promise<ProfileActivity>;
   overviewMemory(
     after?: string,
   ): Promise<import('../../../core/src/memory/overview.js').OverviewMemory>;
@@ -491,12 +539,19 @@ export interface BridgeActions {
   listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
   revokeToolApprovalRule(slug: string, id: string): Promise<void>;
   toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  toolApprovalExecutionState?(
+    channelId: string,
+    messageId: string,
+  ): Promise<ToolApprovalExecutionState | undefined>;
   decideToolApproval(
     channelId: string,
     messageId: string,
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<void>;
-  userQuestionStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  userQuestionStatus(
+    channelId: string,
+    messageId: string,
+  ): Promise<'pending' | 'submitted' | 'answered' | 'expired'>;
   answerUserQuestion(
     channelId: string,
     messageId: string,
@@ -529,10 +584,44 @@ export interface BridgeActions {
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotBanner(
+    channelId: string,
+    banner: { recipe: PixelBannerRecipe } | { image: string } | null,
+  ): Promise<boolean>;
+  updateBotProfile(
+    slug: string,
+    patch: { roles?: string[]; description?: string },
+  ): Promise<boolean>;
   setBotAppearance(
     channelId: string,
     recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
+  exportLibraryParts(
+    id?: string,
+    part?: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+  ): Promise<{ fileName: string; data: string } | undefined>;
+  importLibraryParts(data: string): Promise<
+    | {
+        added: import('../../../core/src/bots/part-library.js').PartLibraryEntry[];
+        refused: number;
+        image?: PartImageInfo;
+      }
+    | { error: string }
+  >;
+  importLibraryImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | { error: string }>;
+  loadPartLibrary(): Promise<
+    import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
+  >;
+  addLibraryPart(
+    part: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+    name: string,
+    parent?: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | undefined>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -549,6 +638,17 @@ export interface BridgeActions {
     },
   ): Promise<boolean>;
   deleteGroupChannel(channelId: string): Promise<boolean>;
+  channelHistory(): Promise<ChannelHistoryItem[]>;
+  channelHistorySources(
+    channelId: string,
+    before?: string,
+  ): Promise<{ sources: PurgeSource[]; before?: string }>;
+  channelPurgePreview(channelId: string, sourceEventIds: string[]): Promise<PurgePreview>;
+  channelPurgeConfirm(
+    channelId: string,
+    sourceEventIds: string[],
+    token: string,
+  ): Promise<{ accepted: number; cleanupPending?: number }>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -946,12 +1046,18 @@ export function createActions(
 
   const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
-    const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
+    const requestedFrom = currentSelection();
+    let channel = snapshot.channels.find((candidate) => candidate.id === channelId);
+    if (channel === undefined && messageId !== undefined) {
+      const channels = await loadChannels(call);
+      if (currentSelection() !== requestedFrom) return;
+      clientStore.setRoster(clientStore.getSnapshot().bots, channels);
+      channel = channels.find((candidate) => candidate.id === channelId);
+    }
     if (channel === undefined) {
       if (messageId !== undefined) throw new Error('Source Channel is no longer available');
       return;
     }
-    const requestedFrom = currentSelection();
     const sourcePage =
       messageId === undefined
         ? undefined
@@ -1018,7 +1124,7 @@ export function createActions(
     channelId: string,
     messageId: string,
     submit: () => Promise<void>,
-    loadStatus: () => Promise<'pending' | 'expired'>,
+    loadStatus: () => Promise<'pending' | 'submitted' | 'answered' | 'expired'>,
   ): Promise<void> => {
     let resolved = false;
     try {
@@ -1027,7 +1133,8 @@ export function createActions(
     } finally {
       if (!resolved) {
         try {
-          resolved = (await loadStatus()) === 'expired';
+          const status = await loadStatus();
+          resolved = status === 'expired' || status === 'answered';
         } catch {}
       }
       if (resolved)
@@ -1061,7 +1168,22 @@ export function createActions(
     return bot;
   };
 
+  const invoke = async <T>(endpoint: string, payload: Record<string, unknown>): Promise<T> => {
+    const result = await call(endpoint, payload);
+    if (!result.ok)
+      throw new BridgeCallError(result.error.code, result.error.message, result.error.details);
+    return result.value as T;
+  };
   const actions: BridgeActions = {
+    onboarding: (slug, action) => invoke('onboarding', { slug, action }),
+    onboardingModel: (slug, expectedRevision, route, globalDefault) =>
+      invoke('onboardingModel', { slug, expectedRevision, route, globalDefault }),
+    inheritModel: (slug, expectedRevision) =>
+      invoke('modelPlanInherit', { slug, expectedRevision }),
+    async retryMessage(channelId, messageId) {
+      await invoke('channelRetry', { channelId, messageId });
+      await actions.refreshChannelMessages(channelId);
+    },
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
@@ -1113,6 +1235,8 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
+    toolApprovalExecutionState: (channelId, messageId) =>
+      loadToolApprovalExecutionState(call, channelId, messageId),
     decideToolApproval: (channelId, messageId, outcome) =>
       settleNativeInboxAction(
         'tool-approval',
@@ -1147,6 +1271,53 @@ export function createActions(
         return;
       }
       await refreshRoster(signal);
+    },
+    async deletionPreview(slug) {
+      const result = await call('deletionPreview', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      return (result.value as { preview: PersonaBotDeletionPreview }).preview;
+    },
+    async deletionConfirm(slug, token, eraseMemory) {
+      const result = await call('deletionConfirm', { slug, token, eraseMemory });
+      if (!result.ok) throw new Error(result.error.message);
+      await refreshRoster();
+      return (result.value as { deletion: PersonaBotDeletion }).deletion;
+    },
+    async deletionRetry(slug) {
+      const result = await call('deletionRetry', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      await refreshRoster();
+      return (result.value as { deletion: PersonaBotDeletion }).deletion;
+    },
+    async deletionFolderApplications(slug) {
+      const result = await call('deletionMemoryFolder', { slug });
+      if (!result.ok) throw new Error(result.error.message);
+      const target = (result.value as { target: HostFileTarget }).target;
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async deletionFolderOpen(slug, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const result = await call('deletionMemoryFolder', { slug });
+        if (!result.ok) throw new Error(result.error.message);
+        const target = (result.value as { target: HostFileTarget }).target;
+        const native = folderAccess?.nativeFiles;
+        if (native === undefined) throw new Error('DSH Host opening is unavailable');
+        if (choice === undefined) {
+          const handlers = await native.applications(target);
+          const manager = handlers.applications.find((app) =>
+            ['finder', 'explorer', 'filemanager'].includes(app.id),
+          );
+          if (manager === undefined) throw new Error('No installed Host file manager is available');
+          choice = { application: manager.id };
+        }
+        await native.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
     },
     refreshRoster,
     refreshGit,
@@ -1782,7 +1953,7 @@ export function createActions(
     memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
-    profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    profileActivity: (channelId, window) => loadProfileActivity(call, channelId, window),
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     marketplaceList: (query) => loadMarketplacePage(call, query),
@@ -1804,6 +1975,8 @@ export function createActions(
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     channelBridges: (channelId) => loadChannelBridges(call, channelId),
     channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
+    channelIngests: (channelId) => loadChannelIngests(call, channelId),
+    channelIngest: (channelId, input) => manageChannelIngest(call, channelId, input),
     approvalRoute: (slug, pairingId, expectedRevision) =>
       setApprovalRoute(call, slug, pairingId, expectedRevision),
     approvalTest: (slug) => testApprovalRoute(call, slug),
@@ -1865,6 +2038,19 @@ export function createActions(
         snapshot.conversation.sending
       )
         return false;
+      if (
+        channel.type === 'dm' &&
+        channel.botSlug !== undefined &&
+        !attachments?.length &&
+        !replyTo &&
+        !mentions?.length &&
+        !channelRefs?.length &&
+        !memorySwitchTarget &&
+        !grantRequestResolution
+      ) {
+        const prepared = onboardingFor(actions).prepareSend(channel.id, channel.botSlug, text);
+        if (!(typeof prepared === 'boolean' ? prepared : await prepared)) return false;
+      }
       const replyTarget = snapshot.conversation.messages.find((message) => message.id === replyTo);
       if (snapshot.conversation.timeline.hasNewer) {
         try {
@@ -1884,7 +2070,11 @@ export function createActions(
           return false;
         }
       }
+      snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id !== channel.id || snapshot.conversation.sending)
+        return false;
       const localId = nextLocalEchoId();
+      onboardingFor(actions).markSubmitted(channel.id, text);
       clientStore.setConversation({
         sending: true,
         error: undefined,
@@ -2107,6 +2297,51 @@ export function createActions(
         return false;
       }
     },
+    async loadPartLibrary() {
+      try {
+        return await loadPartLibraryViaBridge(call);
+      } catch {
+        return undefined;
+      }
+    },
+    async exportLibraryParts(id, part) {
+      try {
+        return await exportLibraryPartsViaBridge(call, id, part);
+      } catch {
+        return undefined;
+      }
+    },
+    async importLibraryParts(data) {
+      try {
+        return await importLibraryPartsViaBridge(call, data);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    async importLibraryImage(data, slot, colors, name) {
+      try {
+        return await importLibraryImageViaBridge(call, data, slot, colors, name);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    async addLibraryPart(part, name, parent) {
+      try {
+        return await addLibraryPartViaBridge(call, part, name, parent);
+      } catch {
+        return undefined;
+      }
+    },
+    async updateBotProfile(slug, patch) {
+      try {
+        const bot = await updateBotProfileViaBridge(call, slug, patch);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: PersonaBot profile update failed', error);
+        return false;
+      }
+    },
     async setBotAvatar(channelId, avatar) {
       try {
         const bot = await setBotAvatarViaBridge(call, channelId, avatar);
@@ -2114,6 +2349,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: PersonaBot avatar update failed', error);
+        return false;
+      }
+    },
+    async setBotBanner(channelId, banner) {
+      try {
+        const bot = await setBotBannerViaBridge(call, channelId, banner);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: Bot banner update failed', error);
         return false;
       }
     },
@@ -2191,6 +2436,29 @@ export function createActions(
         console.warn('botharness: Group wake policy update failed', error);
         return false;
       }
+    },
+    async channelHistory() {
+      const result = await call('channelHistory', {});
+      if (!result.ok) throw new Error(result.error.message);
+      return (result.value as { channels: ChannelHistoryItem[] }).channels;
+    },
+    async channelHistorySources(channelId, before) {
+      const result = await call('channelHistorySources', {
+        channelId,
+        ...(before === undefined ? {} : { before }),
+      });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as { sources: PurgeSource[]; before?: string };
+    },
+    async channelPurgePreview(channelId, sourceEventIds) {
+      const result = await call('channelPurgePreview', { channelId, sourceEventIds });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as PurgePreview;
+    },
+    async channelPurgeConfirm(channelId, sourceEventIds, token) {
+      const result = await call('channelPurgeConfirm', { channelId, sourceEventIds, token });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value as { accepted: number; cleanupPending?: number };
     },
     async deleteGroupChannel(channelId) {
       try {

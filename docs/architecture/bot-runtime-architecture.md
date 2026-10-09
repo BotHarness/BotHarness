@@ -11,6 +11,20 @@ Channel != PersonaBot != Session != Agent
 Chat UI != Session
 ```
 
+## 原生 Human 等待：已验证边界
+
+固定 DSH `0.2.0-rc.1` 上的 [#1036 有界实验](../research/1036-native-wait-experiment.md)
+证明独立 Assignment 等待审批时，Orchestrator 能真实处理并回复无关 Inbox 消息；
+Assignment 运行许可没有释放。Orchestrator 自己的原生审批／正式提问仍持有当前 Step，
+Admission 和 steering 接受不等于模型处理，原操作决定并返回后才开始处理无关输入。
+原 Session／call 归属及当前 Grant 检查保持权威，变更／撤销范围拒绝原调用。
+[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#native-human-wait-qualification-2026-10-09)
+记录此资格边界，不改变 ADR-0035 的单一 Orchestrator root 约束。
+[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 阻塞缺失的受支持机制；
+#1037／#1038 生产 continuation 仍保持 gate。
+
+[#1037 容量候选](../research/1037-assignment-approval-capacity.md) 在 RC1 上验证更窄的独立 Assignment 路径：保留原生审批等待，只释放已静止 root 的 application 运行名额，在返回 outcome 或执行工具／模型 Step 前重新取得名额；有后代的 root 保守占用名额。这没有新增同一 Orchestrator 的挂起机制，也不解除整体 continuation 或隐私 gate。
+
 ## 三张图
 
 在架构图和数据模型中始终显式分开以下三张图。

@@ -3,15 +3,17 @@ import { dirname, join } from 'node:path';
 
 import {
   BOT_DESCRIPTOR_PATH,
+  MAX_DESCRIPTOR_BIO_LENGTH,
   MAX_DESCRIPTOR_BYTES,
   MAX_DESCRIPTOR_NAME_LENGTH,
-  MAX_DESCRIPTOR_ROLE_LENGTH,
-  MAX_DESCRIPTOR_ROLES,
+  MAX_DESCRIPTOR_TAG_LENGTH,
+  MAX_DESCRIPTOR_TAGS,
   parseBotDescriptor,
   type BotDescriptorAvatar,
 } from '../marketplace/descriptor.js';
 import { createMemoryGit } from '../memory/git.js';
-import { canonicalRecipe, isAvatarRecipe, seededAvatarRecipe } from './avatar-appearance.js';
+import { canonicalRecipe, isAvatarRecipe, seededAvatarFor } from './avatar-appearance.js';
+import { BOT_BANNER_FILE, botBannerPng, seededBotBanner } from './bot-banner.js';
 import type { PersonaBotRecord } from './persona-bot.js';
 import { readSharedPresentation } from './shared-presentation.js';
 
@@ -28,14 +30,14 @@ function clip(value: string, max: number): string {
   return [...value.trim()].slice(0, max).join('').trim();
 }
 
-function descriptorRoles(record: PersonaBotRecord): string[] {
+function descriptorTags(record: PersonaBotRecord): string[] {
   const source = record.roles ?? (record.tag === undefined ? [] : [record.tag]);
-  const roles: string[] = [];
-  for (const role of source) {
-    const clipped = clip(role, MAX_DESCRIPTOR_ROLE_LENGTH);
-    if (clipped.length > 0 && !roles.includes(clipped)) roles.push(clipped);
+  const tags: string[] = [];
+  for (const tag of source) {
+    const clipped = clip(tag, MAX_DESCRIPTOR_TAG_LENGTH);
+    if (clipped.length > 0 && !tags.includes(clipped)) tags.push(clipped);
   }
-  return roles.slice(0, MAX_DESCRIPTOR_ROLES);
+  return tags.slice(0, MAX_DESCRIPTOR_TAGS);
 }
 
 function imageAvatar(dataUrl: string): { path: string; bytes: Buffer } | undefined {
@@ -87,12 +89,17 @@ export function syncBotDescriptor(
   const descriptor: Record<string, unknown> = { ...existing };
   delete descriptor['name'];
   delete descriptor['roles'];
+  delete descriptor['tags'];
+  delete descriptor['bio'];
   delete descriptor['avatar'];
+  delete descriptor['banner'];
 
   const name = clip(record.displayName, MAX_DESCRIPTOR_NAME_LENGTH);
   if (name.length > 0) descriptor['name'] = name;
-  const roles = descriptorRoles(record);
-  if (roles.length > 0) descriptor['roles'] = roles;
+  const tags = descriptorTags(record);
+  if (tags.length > 0) descriptor['tags'] = tags;
+  const bio = clip(record.description ?? '', MAX_DESCRIPTOR_BIO_LENGTH);
+  if (bio.length > 0) descriptor['bio'] = bio;
 
   let image: { path: string; bytes: Buffer } | undefined;
   let avatar: BotDescriptorAvatar | undefined;
@@ -105,10 +112,13 @@ export function syncBotDescriptor(
     image = imageAvatar(record.avatar);
     if (image !== undefined) avatar = { image: image.path };
   } else {
-    const seeded: unknown = seededAvatarRecipe(record.displayName || record.slug);
+    const seeded: unknown = seededAvatarFor(record.displayName || record.slug, record.avatarSeed);
     if (isAvatarRecipe(seeded)) avatar = { recipe: { ...canonicalRecipe(seeded) } };
   }
   if (avatar !== undefined) descriptor['avatar'] = avatar;
+  const banner = record.banner ?? seededBotBanner(record.displayName || record.slug);
+  descriptor['banner'] =
+    'recipe' in banner ? { recipe: banner.recipe } : { image: BOT_BANNER_FILE };
 
   const text = `${JSON.stringify(descriptor, null, 2)}\n`;
   if (
@@ -138,6 +148,16 @@ export function syncBotDescriptor(
       writeFileSync(target, image.bytes);
       changed = true;
     }
+  }
+  const bannerBytes = botBannerPng(banner);
+  const bannerTarget = join(memoryDir, BOT_BANNER_FILE);
+  let currentBanner: Buffer | undefined;
+  try {
+    currentBanner = readFileSync(bannerTarget);
+  } catch {}
+  if (currentBanner === undefined || !currentBanner.equals(bannerBytes)) {
+    writeFileSync(bannerTarget, bannerBytes);
+    changed = true;
   }
   if (!keepAvatar) {
     for (const managed of MANAGED_AVATARS) {
@@ -184,5 +204,35 @@ export function backfillBotDescriptors(
     warn?.(
       `bot-descriptor-backfill initiator=host-startup written=${written} failed=${failed} durationMs=${Math.round(performance.now() - startedAt)}`,
     );
+  }
+}
+
+export function backfillBotBanners(
+  registry: {
+    list(): PersonaBotRecord[];
+    setBanner(slug: string, banner: unknown): { ok: boolean };
+  },
+  warn?: (message: string) => void,
+): void {
+  let written = 0;
+  let failed = 0;
+  let records: PersonaBotRecord[];
+  try {
+    records = registry.list();
+  } catch {
+    return;
+  }
+  for (const record of records) {
+    if (record.banner !== undefined) continue;
+    try {
+      if (registry.setBanner(record.slug, seededBotBanner(record.displayName || record.slug)).ok)
+        written += 1;
+      else failed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  if (written > 0 || failed > 0) {
+    warn?.(`bot-banner-backfill initiator=host-startup written=${written} failed=${failed}`);
   }
 }

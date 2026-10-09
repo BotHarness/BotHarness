@@ -1,4 +1,6 @@
-import { createElement, type ReactNode } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -61,6 +63,7 @@ import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
+import { WindowCompanions } from '../src/client/window-companions.js';
 
 const AT = '2026-09-19T00:00:00.000Z';
 
@@ -106,6 +109,19 @@ const NO_INSTALL = { installable: false, install: { phase: 'idle' as const } };
 
 function stubActions(): BridgeActions {
   return {
+    channelHistory: vi.fn(),
+    channelHistorySources: vi.fn(),
+    channelPurgePreview: vi.fn(),
+    channelPurgeConfirm: vi.fn(),
+    onboarding: vi.fn(),
+    onboardingModel: vi.fn(),
+    inheritModel: vi.fn(),
+    retryMessage: vi.fn(),
+    deletionPreview: vi.fn(),
+    deletionConfirm: vi.fn(),
+    deletionRetry: vi.fn(),
+    deletionFolderApplications: vi.fn(),
+    deletionFolderOpen: vi.fn(),
     allBotPreview: vi.fn(async () => {
       throw new Error('unexpected All Bots preview');
     }),
@@ -131,6 +147,8 @@ function stubActions(): BridgeActions {
     }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
+    channelIngests: vi.fn(async (channelId) => ({ channelId, ingests: [], candidates: [] })),
+    channelIngest: vi.fn(async () => undefined),
     channelBridge: vi.fn(async () => undefined),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,
@@ -277,7 +295,14 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    setBotBanner: vi.fn(async () => true),
+    updateBotProfile: vi.fn(async () => true),
     setBotAppearance: vi.fn(async () => true),
+    loadPartLibrary: vi.fn(async () => []),
+    addLibraryPart: vi.fn(async () => undefined),
+    exportLibraryParts: vi.fn(async () => undefined),
+    importLibraryParts: vi.fn(async () => ({ added: [], refused: 0 })),
+    importLibraryImage: vi.fn(async () => ({ error: 'unavailable' })),
     profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({
       slug: '',
@@ -517,6 +542,62 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
+  it('selects and removes a companion through the real DM context menu without changing Channel pins', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    store.setRoster([BOT], [DM_CHANNEL]);
+    const actions = stubActions();
+    const source = vi.fn(() => ({ addEventListener() {}, close() {} }));
+    const companion = new WindowCompanions({
+      context: async () => ({ profileId: 'sidebar-qa' }),
+      source,
+      update: async () => {},
+    });
+    await companion.start();
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    try {
+      await act(() =>
+        root.render(
+          createElement(BotSidebar, {
+            wide: true,
+            actions,
+            companion,
+            useBotModePrefs: ((selector: (snapshot: BotModePrefsSnapshot) => unknown) =>
+              selector(prefs)) as never,
+            setSortMode,
+            setSectionSortMode,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const open = () =>
+        node
+          .querySelector('[data-channel-id="dm-atlas"]')!
+          .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await act(open);
+      expect(
+        menuWithItem('companion').items.find((item) => item['id'] === 'companion')?.['label'],
+      ).toBe(zhTranslate('companion.show'));
+      await act(() => menuWithItem('companion').onSelect!('companion'));
+      expect(companion.get('atlas')?.getSnapshot().selection?.botId).toBe('atlas');
+      expect(actions.setChannelPinned).not.toHaveBeenCalled();
+      expect(source).toHaveBeenCalledOnce();
+      captured.menus.length = 0;
+      await act(open);
+      expect(
+        menuWithItem('companion').items.find((item) => item['id'] === 'companion')?.['label'],
+      ).toBe(zhTranslate('companion.remove'));
+      await act(() => menuWithItem('companion').onSelect!('companion'));
+      expect(companion.get('atlas')).toBeUndefined();
+      expect(actions.setChannelPinned).not.toHaveBeenCalled();
+    } finally {
+      await act(() => root.unmount());
+      node.remove();
+      companion.dispose();
+    }
+  });
+
   it('keeps Activity Center out of the Channel roster in both layouts', () => {
     store.select({ kind: 'inbox' });
     expect(renderSidebar()).not.toContain('bh-human-inbox-entry');
@@ -549,7 +630,7 @@ describe('bot sidebar rows', () => {
         menu.items.some((item) => item['id'] === 'channel') &&
         !menu.items.some((item) => item['id'] === 'section'),
     );
-    expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 PersonaBot', '创建频道']);
+    expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 Bot', '创建频道']);
   });
 
   it('renders Group conversations with the same two-line anatomy as DMs', () => {
@@ -849,7 +930,7 @@ describe('bot sidebar rows', () => {
     const menu = menuWithItem('bot');
 
     expect(menu.items.map((item) => item['label'])).toEqual([
-      '创建 PersonaBot',
+      '创建 Bot',
       '创建频道',
       '创建频道分组',
       'Bot 市场',
@@ -865,13 +946,13 @@ describe('bot sidebar rows', () => {
       ['bot:git', '从 GitHub 导入'],
       ['bot:zip', '从 zip 导入'],
     ]);
-    expect(markup).toContain('还没有 PersonaBot');
-    expect(markup).toContain('创建第一个 PersonaBot');
+    expect(markup).toContain('还没有 Bot');
+    expect(markup).toContain('创建第一个 Bot');
     expect(markup).toContain('散装渠道');
     expect(markup).toContain('placeholder="搜索 Bot 或频道"');
   });
 
-  it('blocks PersonaBot creation and explains why while Host Git is unusable', () => {
+  it('blocks Bot creation and explains why while Host Git is unusable', () => {
     store.setGit({ available: false, reason: 'too-old', version: '2.20.1', ...NO_INSTALL });
     const markup = renderSidebar();
     const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
@@ -880,7 +961,7 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('需要 Git 才能创建 Bot');
     expect(markup).toContain('Git 2.20.1 版本太旧，需要 2.28 或更新版本。');
     expect(markup).toContain('href="https://botharness.ai/zh/docs/installation/#git"');
-    expect(markup).toMatch(/<button disabled="">创建第一个 PersonaBot<\/button>/);
+    expect(markup).toMatch(/<button disabled="">创建第一个 Bot<\/button>/);
     expect(submenu.map((item) => [item['id'], item['disabled']])).toEqual([
       ['bot:empty', true],
       ['bot:git', true],
@@ -1006,12 +1087,13 @@ describe('bot sidebar rows', () => {
       'manual',
       'roster-separator',
       'hidden',
+      'channel-history',
     ]);
     expect(menu.items[0]?.['type']).toBe('label');
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
     expect(
       menu.items.filter((item) => item['label'] !== undefined).map((item) => item['label']),
-    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊']);
+    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊', '已结束会话的历史']);
     expect(menu.selectedId).toBe('manual');
   });
 

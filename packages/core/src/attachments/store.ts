@@ -6,10 +6,11 @@ import {
   openSync,
   readSync,
   readdirSync,
+  realpathSync,
   unlinkSync,
 } from 'node:fs';
 import { readdir, stat, unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { ATTACHMENT_HASH_PATTERN, type ChannelAttachmentRef } from './ref.js';
 import { createRealAttachments } from './real-files.js';
 
@@ -54,6 +55,10 @@ export interface AttachmentStore {
   sweepStaged(olderThan: Date): Promise<number>;
 
   sweepUnreferenced(olderThan: Date, readReferences: () => ReadonlySet<string>): number;
+  purgeReviewed(
+    identity: string,
+    readReferences: () => ReadonlySet<string>,
+  ): 'removed' | 'shared' | 'pending';
 }
 
 export function safeAttachmentName(raw?: string): string {
@@ -187,6 +192,7 @@ export function createAttachmentStore(options: {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
     throw new Error('Attachment maxBytes must be a positive integer');
   const real = createRealAttachments(rootDir, maxBytes);
+  const purged = new Set<string>();
   return {
     rootDir,
     maxBytes,
@@ -210,9 +216,35 @@ export function createAttachmentStore(options: {
     },
     async download(identity, name, signal) {
       signal?.throwIfAborted();
+      if (purged.has(identity))
+        throw new ChannelAttachmentError('Attachment content was purged', 'not-found');
       if (identity.startsWith('file:')) return real.download(identity, signal);
       const ref = inspect(rootDir, identity, name);
       return { ref, body: streamVerified(rootDir, ref, signal) };
+    },
+    purgeReviewed(identity, readReferences) {
+      if (identity.startsWith('file:')) return real.purge(identity, readReferences);
+      const path = pathFor(rootDir, identity);
+      if (readReferences().has(identity)) return 'shared';
+      purged.add(identity);
+      if (lstatSync(path, { throwIfNoEntry: false }) === undefined) return 'removed';
+      for (const part of [
+        join(rootDir, 'objects'),
+        join(rootDir, 'objects', identity.slice(7, 9)),
+        path,
+      ]) {
+        const local = relative(realpathSync(rootDir), realpathSync(part));
+        if (lstatSync(part).isSymbolicLink() || local === '..' || local.startsWith('..' + sep))
+          throw new ChannelAttachmentError('Attachment escaped its profile', 'not-found');
+      }
+      if (!lstatSync(path).isFile())
+        throw new ChannelAttachmentError('Attachment is unavailable', 'not-found');
+      if (readReferences().has(identity)) {
+        purged.delete(identity);
+        return 'shared';
+      }
+      unlinkSync(path);
+      return 'removed';
     },
     sweepUnreferenced(olderThan, readReferences) {
       const referenced = readReferences();

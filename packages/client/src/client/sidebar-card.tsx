@@ -25,7 +25,8 @@ export function SidebarCardList({
 }
 
 export interface SidebarCardRowProps {
-  icon: string;
+  icon?: string | undefined;
+  selection?: { checked: boolean; multiple?: boolean } | undefined;
   iconLabel?: string | undefined;
   title: ReactNode;
   titleClassName?: string | undefined;
@@ -48,6 +49,7 @@ export interface SidebarCardRowProps {
 export function SidebarCardRow({
   icon,
   iconLabel,
+  selection,
   title,
   titleClassName,
   hint,
@@ -67,14 +69,16 @@ export function SidebarCardRow({
 }: SidebarCardRowProps): ReactElement {
   const body = (
     <>
-      <span
-        className="bh-card-icon"
-        role={iconLabel === undefined ? undefined : 'img'}
-        aria-label={iconLabel}
-        title={iconLabel}
-      >
-        <ChannelSidebarIcon name={icon} size={16} />
-      </span>
+      {icon === undefined ? null : (
+        <span
+          className="bh-card-icon"
+          role={iconLabel === undefined ? undefined : 'img'}
+          aria-label={iconLabel}
+          title={iconLabel}
+        >
+          <ChannelSidebarIcon name={icon} size={16} />
+        </span>
+      )}
       <span className="bh-card-body">
         <span
           className={
@@ -94,10 +98,22 @@ export function SidebarCardRow({
       className="bh-card-row"
       data-muted={muted === true ? 'true' : undefined}
       data-state={state}
+      data-selected={selection?.checked === true ? 'true' : undefined}
       data-anchor={anchor}
     >
       <div className="bh-card-line">
-        {onClick === undefined ? (
+        {selection?.multiple === true ? (
+          <label className={className} title={hint}>
+            <input
+              className="bh-card-checkbox"
+              type="checkbox"
+              checked={selection.checked}
+              disabled={disabled}
+              onChange={onClick}
+            />
+            {body}
+          </label>
+        ) : onClick === undefined ? (
           <div className={className} title={hint}>
             {body}
           </div>
@@ -107,6 +123,7 @@ export function SidebarCardRow({
             className={className}
             title={hint}
             disabled={disabled}
+            aria-pressed={selection?.checked}
             aria-haspopup={dialog === true ? 'dialog' : undefined}
             aria-expanded={expanded}
             aria-controls={controls}

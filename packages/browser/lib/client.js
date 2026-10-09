@@ -1165,8 +1165,8 @@ window.__ModuleLoader__.load({
 				children
 			});
 		}
-		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state, anchor }) {
-			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+		function SidebarCardRow({ icon, iconLabel, selection, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state, anchor }) {
+			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [icon === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 				className: "bh-card-icon",
 				role: iconLabel === void 0 ? void 0 : "img",
 				"aria-label": iconLabel,
@@ -1197,10 +1197,21 @@ window.__ModuleLoader__.load({
 				className: "bh-card-row",
 				"data-muted": muted === true ? "true" : void 0,
 				"data-state": state,
+				"data-selected": selection?.checked === true ? "true" : void 0,
 				"data-anchor": anchor,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: "bh-card-line",
-					children: [onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					children: [selection?.multiple === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+						className,
+						title: hint,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+							className: "bh-card-checkbox",
+							type: "checkbox",
+							checked: selection.checked,
+							disabled,
+							onChange: onClick
+						}), body]
+					}) : onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className,
 						title: hint,
 						children: body
@@ -1209,6 +1220,7 @@ window.__ModuleLoader__.load({
 						className,
 						title: hint,
 						disabled,
+						"aria-pressed": selection?.checked,
 						"aria-haspopup": dialog === true ? "dialog" : void 0,
 						"aria-expanded": expanded,
 						"aria-controls": controls,
@@ -1426,11 +1438,13 @@ window.__ModuleLoader__.load({
 .bh-combobox-scroll { max-height: 260px; overflow-y: auto; padding: 4px; box-sizing: border-box; }
 .bh-combobox-hint { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
 .bh-combobox-empty { padding: 6px 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.bh-combobox-scroll > .bh-combobox-action { justify-content: flex-start; align-items: center; gap: 6px; border-top: 1px solid var(--dsw-alias-border-l2); border-radius: 0; margin-top: 4px; }
 `;
-		function Combobox({ value, options, onSelect, label, toggleLabel, disabled = false, invalid = false, errorId, placeholder, emptyLabel, fallbackValue, createLabel, searchable = true, className }) {
+		function Combobox({ value, options, onSelect, label, toggleLabel, disabled = false, invalid = false, errorId, placeholder, emptyLabel, fallbackValue, createLabel, searchable = true, className, action }) {
 			const root = (0, react.useRef)(null);
 			const panel = (0, react.useRef)(null);
 			const listId = (0, react.useId)();
+			const actionValue = `${listId}-action`;
 			const [open, setOpen] = (0, react.useState)(false);
 			const [query, setQuery] = (0, react.useState)(void 0);
 			const [active, setActive] = (0, react.useState)(void 0);
@@ -1443,10 +1457,15 @@ window.__ModuleLoader__.load({
 				option.value,
 				option.hint ?? ""
 			].some((text) => text.toLowerCase().includes(needle)));
-			const shown = createLabel !== void 0 && trimmed !== "" && !options.some((option) => option.value === trimmed) ? [...matches, {
+			const choices = createLabel !== void 0 && trimmed !== "" && !options.some((option) => option.value === trimmed) ? [...matches, {
 				value: trimmed,
 				label: createLabel(trimmed)
 			}] : matches;
+			const shown = action === void 0 ? choices : [...choices, {
+				value: actionValue,
+				label: action.label,
+				disabled: action.disabled
+			}];
 			const enabled = shown.filter((option) => option.disabled !== true);
 			const highlighted = shown.findIndex((option) => option.value === active && option.disabled !== true);
 			const position = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
@@ -1464,7 +1483,8 @@ window.__ModuleLoader__.load({
 			};
 			const select = (next) => {
 				dismiss();
-				onSelect(next);
+				if (action !== void 0 && next === actionValue) action.onSelect();
+				else onSelect(next);
 			};
 			const typedChoice = () => {
 				if (query === void 0) return current === "" ? void 0 : current;
@@ -1560,14 +1580,16 @@ window.__ModuleLoader__.load({
 						},
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							className: "bh-combobox-scroll",
-							children: [shown.length === 0 && emptyLabel !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							children: [choices.length === 0 && emptyLabel !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								className: "bh-combobox-empty",
 								children: emptyLabel
 							}) : null, shown.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 								id: `${listId}-${index}`,
 								type: "button",
 								role: "option",
-								"aria-selected": option.value === current,
+								"aria-selected": option.value !== actionValue && option.value === current,
+								className: option.value === actionValue ? "bh-combobox-action" : void 0,
+								"data-action": option.value === actionValue || void 0,
 								"data-value": option.value,
 								"data-active": index === highlighted || void 0,
 								disabled: option.disabled,
@@ -1577,10 +1599,14 @@ window.__ModuleLoader__.load({
 									if (option.disabled !== true) setActive(option.value);
 								},
 								onClick: () => select(option.value),
-								children: [option.label, option.hint === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-									className: "bh-combobox-hint",
-									children: option.hint
-								})]
+								children: [
+									option.value === actionValue ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPlusOutlineRegular, { size: 16 }) : null,
+									option.label,
+									option.hint === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: "bh-combobox-hint",
+										children: option.hint
+									})
+								]
 							}, option.value))]
 						})
 					}), document.body) : null

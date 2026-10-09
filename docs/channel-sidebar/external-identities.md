@@ -10,21 +10,24 @@ The first [official QQ Bot application path](/docs/qq-connection) receives text 
 
 ![The External identities entry with one row per bound app](/guides/channel-sidebar/18-external-identities-zh.webp)
 
+## Connection tutorials
+
+Open **+ Bind app** for direct links to the website tutorials for [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection) and [WeChat](/docs/wechat-connection). **More platforms** opens this overview, including Discord. Each link has an upper-right arrow and opens in a new tab so the binding dialog stays available. Application creation, permissions and publication instructions live in those tutorials; the sidebar has no separate Lark setup card.
+
 ## Read the rows
 
-| Row                                     | What it shows and does                                                                                                                                               |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One row per bound app                   | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
-| **+ Bind app**                          | Bind a connected app to this Bot.                                                                                                                                    |
-| **Connect Lark / Feishu** (Setup guide) | Opens the three-step Lark / Feishu setup guide: connect the app, bind it, send a test message. **Locate** highlights the matching control.                           |
-| **IM administrator pairing**            | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
-| **Lark approval notifications**         | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
+| Row                             | What it shows and does                                                                                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One row per bound app           | Local display name, a status chip (**Available**, **Paused**, **Unavailable** or **Rebind required**) and “platform · N conversation(s)”. The Switch pauses the app. |
+| **+ Bind app**                  | Bind a connected app to this Bot.                                                                                                                                    |
+| **IM administrator pairing**    | Shows “N pending” and “N paired”. Opens the pairing review dialog; see [Connect a Bot to Lark / Feishu](/docs/lark-connection).                                      |
+| **Lark approval notifications** | Shows the destination, or **Automatic notifications off**. Opens the approval notification dialog.                                                                   |
 
 ## Bind an app
 
 1. First connect the app under **Settings → IM Bots**, following the guide for your platform.
 2. Click **+ Bind app**.
-3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Every connected app this Bot doesn't already have is listed: apps another Bot uses are greyed out and say which Bot, and disconnected apps say **not connected**. **Manage app credentials** opens **Settings → IM bots**.
+3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Apps this Bot already has are omitted; apps another Bot owns stay visible, greyed out and labelled **bound to another Bot: name**, and disconnected apps say **not connected**. **Add new app** appears beside the **App** label and always at the bottom of the dropdown, including when the list is empty or a search has no matches. It opens **Settings → IM Bots**: connect or scan there, then close Settings to return to this dialog. The list refreshes automatically when the dialog opens and when you return from Settings. The refresh icon to the right of the picker has a **Refresh apps** tooltip and reloads the list manually; if refreshing fails, retry before binding.
 4. Click **Bind app**. The dialog then shows the real receiving state:
    - **Ready**: DMs and @mentions to the app now reach this Bot’s Inbox.
    - **Connecting**: the app is still opening its receiver. Wait a moment.
@@ -57,6 +60,8 @@ The first DM or @mention that reaches the Inbox records its conversation. Click 
 
 - **Admit automatically** (default): the message goes straight to the Inbox.
 - **Ask me first**: the conversation waits under **Waiting**. Only its name, first and last seen time and message count are kept, never the message text. After **Allow**, the next message is admitted.
+
+Each app starts on **Follow platform default**, which uses the **New conversations** column in the platform's global IM defaults (Lark, Slack and Discord each have one; **Admit automatically** unless you change it). Pick **Admit automatically** or **Ask me first** in the app dialog to override it for that app only.
 
 To keep a busy app from flooding the Inbox, at most 20 new conversations per app join automatically each hour, and an app holds at most 500 active conversations. Past either limit, new conversations wait under **Waiting** and the row says which limit was hit. **Waiting** keeps the 200 most recent conversations per app.
 

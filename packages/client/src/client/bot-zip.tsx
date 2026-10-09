@@ -9,6 +9,7 @@ import type { BridgeActions } from './actions.js';
 import { BridgeCallError, type BotZipFileListing } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
+import { useMountedResource } from './mounted-resource.js';
 import { personaBotCreateError } from './persona-bot-create.js';
 import type { BotSummary } from './store.js';
 
@@ -382,7 +383,7 @@ function BotZipExportModal({
   onClose,
 }: {
   bot: BotSummary;
-  actions: BridgeActions;
+  actions: Pick<BridgeActions, 'botZipFiles' | 'exportBotZip'>;
   load: BotZipExportLoad;
   selected: ReadonlySet<string>;
   onSelect: (selected: ReadonlySet<string>) => void;
@@ -477,15 +478,12 @@ function BotZipExportModal({
   );
 }
 
-export function BotZipExportSection({
-  bot,
-  actions,
-  t,
-}: {
-  bot: BotSummary;
-  actions: BridgeActions;
-  t: BotHarnessTranslate;
-}): ReactElement {
+export function useBotZipExport(
+  bot: BotSummary,
+  actions: Pick<BridgeActions, 'botZipFiles' | 'exportBotZip'>,
+  t: BotHarnessTranslate,
+  onClosed?: () => void,
+): { open(): void; dialog: ReactElement | null } {
   const requests = useRef(0);
   const [load, setLoad] = useState<BotZipExportLoad>();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -512,21 +510,13 @@ export function BotZipExportSection({
   const close = (): void => {
     requests.current += 1;
     setLoad(undefined);
+    onClosed?.();
   };
 
-  return (
-    <section
-      className="bh-profile-section bh-profile-policy-section bh-bot-zip-export"
-      aria-label={t('botZip.export.title')}
-    >
-      <h2 className="bh-profile-section-title">{t('botZip.export.title')}</h2>
-      <p className="bh-settings-row-desc">{t('botZip.export.description')}</p>
-      <div className="bh-standing-limits-actions">
-        <Button size="sm" variant="outline" onClick={open}>
-          {t('botZip.export.button')}
-        </Button>
-      </div>
-      {load === undefined ? null : (
+  return {
+    open,
+    dialog:
+      load === undefined ? null : (
         <BotZipExportModal
           key={load.request}
           bot={bot}
@@ -537,7 +527,49 @@ export function BotZipExportSection({
           t={t}
           onClose={close}
         />
-      )}
-    </section>
+      ),
+  };
+}
+
+export function BotZipShareButton({
+  bot,
+  actions,
+  t,
+}: {
+  bot: BotSummary;
+  actions: Pick<BridgeActions, 'botZipFiles' | 'exportBotZip'>;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const share = useBotZipExport(bot, actions, t);
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={share.open}>
+        {t('profile.share')}
+      </Button>
+      {share.dialog}
+    </>
+  );
+}
+
+export function BotZipShareDialog({
+  bot,
+  actions,
+  t,
+  onClose,
+}: {
+  bot: BotSummary;
+  actions: Pick<BridgeActions, 'botZipFiles' | 'exportBotZip'>;
+  t: BotHarnessTranslate;
+  onClose(): void;
+}): ReactElement {
+  const share = useBotZipExport(bot, actions, t, onClose);
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    share.open();
+  }, [bot.slug]);
+  return (
+    <>
+      <span ref={mount} hidden />
+      {share.dialog}
+    </>
   );
 }

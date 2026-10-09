@@ -20,7 +20,7 @@ The entry capture precedes pairing and has no independently recorded exact Clien
 
 Open the PersonaBot DM and, in the **Channel sidebar** on the right, expand **External identities**. Click **+ Bind app** and bind the connected WeChat account. Its row shows the name, its status and an enable switch. Once the row shows **Ready**, DMs from the person who scanned this WeChat Bot go straight to this Bot's Inbox, and the Bot replies in the same DM; other contacts and WeChat groups stay out. You don't authorize the conversation.
 
-![Real paired WeChat identity in the PersonaBot Profile](/guides/wechat/identity-bound.jpg)
+![Real paired WeChat identity in the Bot Profile](/guides/wechat/identity-bound.jpg)
 
 _Screenshot shows the earlier Profile layout; binding now lives in the sidebar's External identities entry._
 
@@ -80,7 +80,7 @@ If preview or reading is refused, retain the source and inspect the refusal. Ret
 
 ## 7. Read a native voice transcript and reply
 
-The #905 source-preview candidate uses local product `0.0.0-test.905.1` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Source Event IDs stay in the collapsed details.
+The #905 source-preview candidate uses local product `0.0.0-test.905.1` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Event IDs stay in the collapsed details.
 
 ![The real 5.2-second WeChat voice transcript in the source Modal, light theme](/guides/wechat/voice-source-light.jpg)
 
@@ -134,7 +134,7 @@ In WeChat, use **Quote** on a message in the paired-owner private conversation, 
 
 WeChat can provide embedded quoted text, a display summary, an item ID, a server message ID, or partial-quote metadata. A summary is not promoted to the original body; item IDs stay separate from server message IDs. When WeChat omits the body, BotHarness resolves a genuine server message ID only from readable canonical records in the same currently authorized account/private conversation. An unknown, unretained or inaccessible reference stays unavailable; this does not prove that the original was deleted. Quoted attachments are not automatically fetched. A quote never creates a Thread.
 
-Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Source Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
+Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
 
 Reads return at most 20 records per page and obey a JSON budget (1,000–24,000 characters, default 12,000). Follow `nextCursor` with the same source, scope and counts. The cursor fixes the initial record boundary, so later arrivals are excluded; it expires after 30 minutes or a Host restart. A changed Grant/identity or revoked authorization refuses continuation. If a single record exceeds the budget, `requiredCharacters` indicates the budget needed. Reading context creates no new Inbox delivery, wake, subscription, local DM or external send. The source panel shows the Bot's read audit and latest page.
 
@@ -206,7 +206,7 @@ The #910 final UI candidate is locally packed product `0.0.0-test.910.1` / manag
 
 ![Human-provided native WeChat screenshot showing both reports and the follow-up](/guides/wechat/native-proactive-reports.png)
 
-![The follow-up's canonical source, native message ID and Source Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
+![The follow-up's canonical source, native message ID and Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
 
 ![The same canonical follow-up source in dark theme](/guides/wechat/proactive-followup-source-dark.jpg)
 
@@ -221,6 +221,67 @@ The recording shows real Profile input, send, Outbox settlement and receipt insp
 </video>
 
 [Download the proactive-send recording](/guides/wechat/proactive-send-demo.mp4)
+
+## 13. Request native typing while the Bot works
+
+The #911 preview candidate connects native typing to the canonical Bot processing lifecycle. In Windows packaged candidate `.911.7`, the Human confirmed native typing during private-message, related Assignment and follow-up processing, and no indicator during actual work with the preference off. Genuine native pwsh waits and final replies were verified. The Human confirmed cleanup after failure, native Session cancellation, Binding disablement, Grant revocation, Provider disposal and a Windows Host interruption/restart. Fresh-message recovery passed after revocation and restart. The subsequent `.911.8` candidate passed fresh Windows native completion, related Assignment (stdout `911-V8-ASSIGN`, exit 0) and stop cleanup, independently confirmed by the Human. See the [Windows verification record](qa/wechat-911-windows-handoff.md) for evidence and limits; #1102 has been merged and #911 is accepted and closed; public release and deployment remain separate.
+
+Open **PersonaBot DM → Channel sidebar → External identities → Edit** for the bound WeChat identity. **Native WeChat typing status** defaults to on; turn it off to suppress requests for that identity. The preference survives restart. A Provider lacking the checked capability is shown as unavailable, even when the preference is on. Global defaults and Profile inheritance belong to #912.
+
+Only actual processing of a currently authorized paired-owner DM requests typing. Related Orchestrator and Assignment work share the lifecycle; unrelated local Channel work does not borrow the WeChat identity. Queued follow-ups wait for acceptance. Requests renew no more frequently than every five seconds and end after ten minutes at most, even if work continues.
+
+```mermaid
+flowchart LR
+    A[Authorized owner DM] --> B[Canonical Inbox processing]
+    B --> C[Own identity and current Grant]
+    C --> D[Provider-private typing ticket]
+    D --> E[Bounded native request and renewal]
+    E --> F[Completion, stop, failure or authority loss]
+    F --> G[Native cancellation]
+```
+
+**Request accepted** reports API acceptance, not visible client typing, delivery or reading. **Typing request did not succeed** means processing can continue without typing. **Typing cleanup is unconfirmed** means cancellation could not be confirmed; do not describe it as successful cleanup or promise an undocumented server expiry. Turning the identity off or revoking its authorization cancels active leases; restart begins idle and never restores a saved indicator.
+
+For real verification, send a unique controlled request in the paired WeChat DM, observe the native typing indicator during actual work, and capture its disappearance after completion and a stopped/failed run. The Human operates WeChat and records those observations; Host logs alone cannot satisfy this check. Native tickets, pairing codes and unrelated chats stay out of evidence. See [#911](https://github.com/BotHarness/BotHarness/issues/911) for the qualification record.
+
+## 14. Inherit defaults or keep a Bot-specific choice
+
+In **Bot settings → External platform defaults → WeChat / 微信**, save the default
+identity enablement and native typing preference. Current WeChat intake is the QR-paired
+owner DM and wakes the Bot directly. There are no group @, Thread or new-contact
+controls. Channel connectors keep their existing destination, switch and member policies.
+
+Open the bound identity's **Edit** dialog to choose **Inherit global defaults** or
+**Custom** independently for identity enablement and typing. Select inheritance and
+save to restore the current default. For custom identity enablement, use the identity
+row's switch; for custom typing, choose Custom and use its switch in the dialog.
+New bindings inherit; existing bindings keep earlier choices as Custom, including
+an earlier off preference. Effective values and origins survive a same-Profile restart.
+
+```mermaid
+flowchart LR
+    A[WeChat global defaults] --> B{Preference origin}
+    C[Bot-specific override] --> B
+    B --> D[Effective identity and typing preferences]
+    D --> E[Existing account, Grant and owner-DM checks]
+    E --> F[Fresh authorized processing]
+```
+
+A defaults change neither binds an app nor authorizes a new target. Pause stops inherited
+identity intake; resume accepts fresh events without backfilling the paused period.
+Changing inherited typing off cancels active requests; custom typing keeps its choice.
+Accepted sources and replies retain their original author, time, native message ID,
+Event ID and trusted route. A stale save asks for refresh and keeps the draft.
+
+The #912 candidate's automated checks cover upgrade preservation, independent overrides,
+restoration, restart, stale revisions, active typing cleanup and owner-DM fencing. Windows
+Chrome save/reopen, native inherited typing off/on, reception pause and same-Profile
+preference persistence have been checked. The Human also confirmed fresh native processing,
+reply and typing cleanup after restart, with no paused-message backfill;
+see the [Windows verification record and screenshots](https://github.com/BotHarness/DeepSeekBot/blob/main/docs/qa/wechat-912-defaults-windows.md).
+This is a candidate review path, not a released build.
+
+![WeChat global reception and typing defaults](https://raw.githubusercontent.com/BotHarness/DeepSeekBot/main/docs/evidence/issue-912/defaults-after-zh-dark.jpg)
 
 ## Pause or reconnect
 

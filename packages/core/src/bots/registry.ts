@@ -24,8 +24,10 @@ import {
   type RemovePersonaBotOptions,
   type UpdatePersonaBotResult,
 } from './persona-bot.js';
-import { readSharedPresentation } from './shared-presentation.js';
+import { isBotBanner, seededBotBanner } from './bot-banner.js';
+import { readSharedBanner, readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
+import { recordMemoryOwnership } from './deletion.js';
 import type { HttpsFallback, MemoryCloneResult } from '../memory/clone.js';
 import { restoreBotHistory, writeBotFiles } from './bot-zip.js';
 import type { ZipEntry } from './zip-archive.js';
@@ -56,6 +58,7 @@ export interface PersonaBotRegistryOptions {
   onImport?: (event: { phase: 'complete' | 'failed'; count?: number; durationMs: number }) => void;
   now?: () => Date;
   onDisplayNameChanged?: () => void;
+  onAppearanceImported?: (record: PersonaBotRecord) => void;
 
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
@@ -81,17 +84,21 @@ export interface PersonaBotRegistry {
     },
   ): Promise<CreatePersonaBotResult>;
   get(slug: string): PersonaBotRecord | undefined;
+  getHistorical(slug: string): PersonaBotRecord | undefined;
+  listHistorical(): PersonaBotRecord[];
   list(): PersonaBotRecord[];
   findByWorkspace(workspace: string): PersonaBotRecord | undefined;
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
   update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
   setAppearance(slug: string, recipe: unknown): UpdatePersonaBotResult;
+  setBanner(slug: string, banner: unknown): UpdatePersonaBotResult;
   setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
   setStandingLimits(slug: string, limits: StandingLimits): UpdatePersonaBotResult;
+  inheritModel(slug: string, expectedRevision: number): UpdatePersonaBotResult;
   applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
   migrateLegacyModel(
     slug: string,
@@ -164,7 +171,10 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       'description',
       'avatar',
       'appearance',
+      'banner',
+      'avatarSeed',
       'model',
+      'modelPlanRevision',
       'preset',
       'memoryDir',
       'paused',
@@ -215,6 +225,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       !isUsableAvatarAppearance(parsed.appearance, (parsed as { avatar?: unknown }).avatar)
     )
       delete (parsed as { appearance?: unknown }).appearance;
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'banner' in parsed &&
+      !isBotBanner(parsed.banner)
+    )
+      delete (parsed as { banner?: unknown }).banner;
     if (!isPersonaBotRecord(parsed, slug)) throw new Error('Invalid PersonaBot Registry record');
     return recordSnapshot(parsed);
   };
@@ -236,14 +253,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       ['bot-registry'],
     );
   };
-  const erase = (slug: string): void => {
-    port.transaction(
-      (database) => {
-        database.prepare('DELETE FROM persona_bots WHERE slug = ?').run(slug);
-      },
-      ['bot-registry'],
+  const deleted = (slug: string): boolean =>
+    port.read(
+      (database) =>
+        database.prepare('SELECT slug FROM persona_bot_deletions WHERE slug = ?').get(slug) !==
+        undefined,
     );
-  };
+  const active = (slug: string): PersonaBotRecord | undefined =>
+    deleted(slug) ? undefined : read(slug);
   const list = (): PersonaBotRecord[] =>
     port.read((database) =>
       database
@@ -313,6 +330,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const memoryDirOf = (record: PersonaBotRecord): string =>
     record.memoryDir ?? defaultMemoryDir(record.slug);
 
+  if (options.database.mode === 'ready') {
+    for (const record of list()) {
+      if (record.memoryDir === undefined && !deleted(record.slug))
+        recordMemoryOwnership(port, record.slug, memoryDirOf(record));
+    }
+  }
+
   const applyOptionalText = (
     record: PersonaBotRecord,
     key: 'tag' | 'description' | 'avatar' | 'model' | 'preset',
@@ -366,11 +390,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       ...(roles.length > 0 ? { roles } : {}),
       ...(description ? { description } : {}),
       ...(avatar ? { avatar } : {}),
+      banner: seededBotBanner(displayName.length > 0 ? displayName : input.slug),
+      avatarSeed: 2,
       ...(model ? { model } : {}),
       ...(preset ? { preset } : {}),
       ...(memoryDir ? { memoryDir } : {}),
     };
     const targetMemoryDir = memoryDirOf(record);
+    const newMemoryDirectory = !existsSync(targetMemoryDir);
     const newBotDirectory = !existsSync(botDir(record.slug));
     mkdirSync(targetMemoryDir, { recursive: true });
     const seeded = seedStandingFiles(targetMemoryDir, {
@@ -390,6 +417,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       };
     }
     write(record);
+    if (newMemoryDirectory || memoryDir === undefined)
+      recordMemoryOwnership(port, record.slug, targetMemoryDir);
     if (sync) syncDescriptor(record);
     return { ok: true, record };
   };
@@ -428,7 +457,12 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       created = result.ok;
       if (!result.ok) return result;
       capture('bot_created');
-      const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
+      const shared = readSharedPresentation(defaultMemoryDir(input.slug));
+      const banner = readSharedBanner(defaultMemoryDir(input.slug));
+      const presentation =
+        shared === undefined && banner === undefined
+          ? undefined
+          : { ...shared, ...(banner === undefined ? {} : { banner }) };
       if (presentation === undefined) {
         syncDescriptor(result.record, true);
         return result;
@@ -440,6 +474,10 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         syncDescriptor(result.record, true);
         return result;
       }
+      if (presented.appearance !== undefined)
+        try {
+          options.onAppearanceImported?.(presented);
+        } catch {}
       syncDescriptor(presented, true);
       return { ok: true, record: presented };
     } catch {
@@ -486,35 +524,22 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         }
       });
     },
-    get(slug) {
-      return read(slug);
-    },
-    list,
+    get: active,
+    getHistorical: read,
+    listHistorical: list,
+    list: () => list().filter((record) => !deleted(record.slug)),
     findByWorkspace(workspace) {
       const target = normalizeWorkspacePath(workspace);
       if (target.length === 0) return undefined;
-      return list().find((record) =>
-        record.workspaces.some((candidate) => normalizeWorkspacePath(candidate) === target),
-      );
+      return list()
+        .filter((record) => !deleted(record.slug))
+        .find((record) =>
+          record.workspaces.some((candidate) => normalizeWorkspacePath(candidate) === target),
+        );
     },
-    remove(slug, removeOptions) {
-      if (!isValidSlug(slug)) return false;
-      const record = read(slug);
-      const exists = record !== undefined || existsSync(botDir(slug));
-      if (removeOptions?.purge === true) {
-        const removeFiles = () => {
-          if (exists) rmSync(botDir(slug), { recursive: true, force: true });
-        };
-        if (options.onPurge === undefined) removeFiles();
-        else options.onPurge(slug, removeFiles);
-        erase(slug);
-        if (record !== undefined) capture('bot_deleted');
-        return exists;
-      }
-      if (!exists) return false;
-      erase(slug);
-      if (record !== undefined) capture('bot_deleted');
-      return true;
+    remove(slug) {
+      if (!isValidSlug(slug) || read(slug) === undefined) return false;
+      throw new Error('Use confirmed PersonaBot deletion; direct Registry removal is unavailable');
     },
     memoryDirFor(slug) {
       const record = read(slug);
@@ -522,11 +547,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return memoryDirOf(record);
     },
     update(slug, patch) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const previousName = record.displayName;
       const previousAvatar = record.avatar;
-      const previousProfile = JSON.stringify([record.roles, record.tag, record.avatar]);
+      const previousProfile = JSON.stringify([
+        record.roles,
+        record.tag,
+        record.description,
+        record.avatar,
+      ]);
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
@@ -562,13 +592,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (patch.avatar !== undefined && record.avatar !== previousAvatar) capture('avatar_edited');
       if (
         record.displayName !== previousName ||
-        JSON.stringify([record.roles, record.tag, record.avatar]) !== previousProfile
+        JSON.stringify([record.roles, record.tag, record.description, record.avatar]) !==
+          previousProfile
       )
         syncDescriptor(record);
       return { ok: true, record };
     },
     setAppearance(slug, recipe) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const derived = deriveAvatarAppearance(recipe);
       if (derived === undefined) return { ok: false, reason: 'invalid-input' };
@@ -578,8 +609,18 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       capture('avatar_edited');
       return { ok: true, record: updated };
     },
+    setBanner(slug, banner) {
+      const record = active(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (!isBotBanner(banner)) return { ok: false, reason: 'invalid-input' };
+      const updated = { ...record, banner };
+      write(updated);
+      syncDescriptor(updated);
+      capture('banner_edited');
+      return { ok: true, record: updated };
+    },
     setPaused(slug, paused) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const archiving = paused && record.paused !== true;
       if (paused) record.paused = true;
@@ -589,7 +630,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setComputerAccess(slug, enabled) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (enabled) record.computerAccess = true;
       else delete record.computerAccess;
@@ -597,7 +638,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setBrowserAccess(slug, enabled) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (enabled) record.browserAccess = true;
       else delete record.browserAccess;
@@ -605,7 +646,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setBrowserProfile(slug, profile) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const trimmed = profile.trim();
       if (trimmed === '') delete record.browserProfile;
@@ -614,7 +655,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setStandingLimits(slug, limits) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (!isStandingLimits(limits)) return { ok: false, reason: 'invalid-input' };
       if (
@@ -626,11 +667,23 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       write(record);
       return { ok: true, record };
     },
+    inheritModel(slug, expectedRevision) {
+      const record = active(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const revision = record.modelPlan?.revision ?? record.modelPlanRevision ?? 0;
+      if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
+      if (record.modelPlan === undefined && record.model === undefined) return { ok: true, record };
+      record.modelPlanRevision = revision + 1;
+      delete record.modelPlan;
+      delete record.model;
+      write(record);
+      return { ok: true, record };
+    },
     applyModelPreset(slug, preset) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const plan: PersonaBotModelPlan = {
-        revision: (record.modelPlan?.revision ?? 0) + 1,
+        revision: (record.modelPlan?.revision ?? record.modelPlanRevision ?? 0) + 1,
         sourcePresetId: preset.id,
         sourcePresetName: preset.name,
         orchestrator: { ...preset.orchestrator },
@@ -651,7 +704,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     migrateLegacyModel(slug, expectedModel, route) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan !== undefined) return { ok: true, record };
       if (record.model !== expectedModel) return { ok: false, reason: 'invalid-input' };
@@ -668,7 +721,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     customizeModelPlan(slug, orchestrator, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan === undefined) return { ok: false, reason: 'invalid-input' };
       if (record.modelPlan.revision !== expectedRevision)
@@ -685,7 +738,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setAssignmentModels(slug, assignmentDefault, assignmentModels, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan === undefined || record.modelPlan.revision !== expectedRevision)
         return { ok: false, reason: 'invalid-input' };
@@ -705,9 +758,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return { ok: true, record };
     },
     setModelPlan(slug, routes, expectedRevision) {
-      const record = read(slug);
+      const record = active(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
-      const revision = record.modelPlan?.revision ?? 0;
+      const revision = record.modelPlan?.revision ?? record.modelPlanRevision ?? 0;
       if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
       record.modelPlan = {
         revision: revision + 1,

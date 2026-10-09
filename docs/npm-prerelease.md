@@ -79,6 +79,14 @@ node scripts/npm-prerelease.mjs verify --artifacts /path/to/fresh-artifacts
 Use a fresh output directory. The Provider needs its lockfile dependencies installed with
 scripts disabled; staging rebuilds the managed Host/Client entrypoints.
 
+## When preparation reports a dirty source checkout
+
+Preparation records `sourceDirty`, `sourceChangeCount` and up to 50 Git status/path entries in `release-plan.json`. It also prints the bounded diagnostic under the stable code `release-source-dirty`. The release workflow and publisher use the same check, so a refusal names modified, deleted, renamed and untracked paths instead of only saying the checkout is dirty; additional entries are counted as omitted. Paths are repository-relative and file contents are never included.
+
+Inspect those paths in the original checkout with `git status --short --untracked-files=all` and review the corresponding changes. A generated file may be the cause, but its filename alone is not proof that it is disposable. Preserve unknown changes; the check does not reset, clean, stage or restore files. Correct and review the source through the normal workflow, then prepare a fresh plan. Do not edit a reviewed plan or rebuild an already started immutable release to bypass refusal.
+
+Older plans remain usable when clean. A dirty older plan without captured paths is still refused and directs you to inspect its original checkout; it cannot reconstruct an unrecorded historical file list.
+
 ## Interrupted releases
 
 npm publication is not atomic across packages. Preflight checks every existing version and
