@@ -143,7 +143,7 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 - Bot onboarding no longer pauses another window's tutorial when an observing window leaves or sets a model; completed onboarding can be explicitly replayed, and saving a Bot-specific model or restoring inheritance immediately refreshes the open model card ([#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)).
 
-- Window Companions keep falling after a fast throw clips the character outside the visible content; visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+- Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause; visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 - **Bind app** keeps apps owned by another Bot visible with an explicit owner label, adds tutorial jump arrows and **Add new app** beside the App label and in every dropdown state, and restores the dialog after IM setup with automatic refresh and a tooltip refresh icon for retry ([#1176](https://github.com/BotHarness/DeepSeekBot/issues/1176), [External identities guide](docs/channel-sidebar/external-identities.md)).
 
 - npm release preparation now names the changed source paths when a clean-checkout check refuses publication, with bounded diagnostics that preserve unreviewed files ([#877](https://github.com/BotHarness/DeepSeekBot/issues/877)).

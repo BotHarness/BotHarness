@@ -287,12 +287,12 @@ export function WindowCompanionView({
       };
       const tick = (now: number) => {
         frame = 0;
-        const milliseconds = Math.min(100, Math.max(0, now - previous));
+        const milliseconds = Math.max(0, now - previous);
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
         if (!document.hidden && stageVisible) {
-          if (visible) elapsed += milliseconds;
+          if (visible) elapsed += Math.min(100, milliseconds);
           if (elapsed >= 50) {
             const before = companion.getSnapshot().cards;
             companion.advance(elapsed, reduced);
