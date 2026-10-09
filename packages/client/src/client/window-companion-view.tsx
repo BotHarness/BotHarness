@@ -143,6 +143,7 @@ export function WindowCompanionView({
   const hovering = useRef(false);
   const exit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clickReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const suppressClick = useRef(false);
   const [menu, setMenu] = useState(false);
   const menuClass = `bh-companion-menu-${useId()}`;
   const menuTrigger = useRef<HTMLElement | null>(null);
@@ -703,7 +704,7 @@ export function WindowCompanionView({
           }}
           aria-label={t('companion.drag', { name: bot.name })}
           onClick={() => {
-            if (!pointer.current?.moved) openDm(bot.slug);
+            if (!suppressClick.current) openDm(bot.slug);
           }}
           onKeyDown={(event) => {
             if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
@@ -720,6 +721,7 @@ export function WindowCompanionView({
           onPointerDown={(event) => {
             if (event.button !== 0 || pointer.current) return;
             if (clickReset.current !== undefined) clearTimeout(clickReset.current);
+            suppressClick.current = false;
             event.currentTarget.setPointerCapture(event.pointerId);
             pointer.current = {
               id: event.pointerId,
@@ -749,6 +751,8 @@ export function WindowCompanionView({
           onPointerUp={(event) => {
             const drag = pointer.current;
             if (!drag || drag.id !== event.pointerId) return;
+            pointer.current = undefined;
+            suppressClick.current = drag.moved;
             event.currentTarget.releasePointerCapture(event.pointerId);
             if (drag.moved) {
               releaseMotion();
@@ -756,10 +760,9 @@ export function WindowCompanionView({
               event.preventDefault();
               clickReset.current = setTimeout(() => {
                 clickReset.current = undefined;
-                pointer.current = undefined;
+                suppressClick.current = false;
               }, 0);
             } else {
-              pointer.current = undefined;
               releaseMotion(true);
             }
           }}

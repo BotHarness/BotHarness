@@ -35,7 +35,7 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
-- Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause; visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+- Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause. Releasing immediately ends the drag, so a late pointer move cannot grab the character again; the release click remains suppressed. Visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
 

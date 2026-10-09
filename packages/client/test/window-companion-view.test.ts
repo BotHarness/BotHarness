@@ -519,13 +519,14 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
 });
 
 it.each([
-  [100, 0],
-  [200, 0],
-  [500, 0],
-  [16, 1000],
+  [100, 0, false],
+  [200, 0, false],
+  [500, 0, false],
+  [16, 1000, false],
+  [16, 0, true],
 ])(
-  'returns a fast upward throw with %i ms frames and %i ms before release',
-  async (interval, beforeRelease) => {
+  'returns a fast upward throw with %i ms frames, %i ms before release and late movement %s',
+  async (interval, beforeRelease, lateMovement) => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.useFakeTimers();
     const frames = new Map<number, FrameRequestCallback>();
@@ -591,6 +592,11 @@ it.each([
         vi.advanceTimersByTime(16);
         pointer('pointermove', 300);
         pointer('pointerup', 300);
+        if (lateMovement) {
+          pointer('lostpointercapture', 300);
+          pointer('pointermove', 290);
+          character.click();
+        }
       });
       expect(surface.dataset['motion']).toBe('fall');
       const releasedBottom = Number.parseFloat(surface.style.bottom);
