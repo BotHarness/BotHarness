@@ -63,6 +63,34 @@ async function fixture(
 }
 
 describe('own-Bot Inbox history', () => {
+  it('removes purged tokens from FTS storage instead of leaving recoverable delete keys', async () => {
+    await fixture((core, append) => {
+      append({ id: 'secret', body: 'xqz' });
+      const database = attachOperationalModule(core.operationalDatabase, 'messaging');
+      const indexContainsSecret = () =>
+        database.read((db) =>
+          db
+            .prepare('SELECT block FROM inbox_history_fts_data')
+            .all()
+            .some(
+              (row) =>
+                row.block instanceof Uint8Array &&
+                Buffer.from(row.block).includes(Buffer.from('xqz')),
+            ),
+        );
+      expect(indexContainsSecret()).toBe(true);
+      database.transaction((db) => {
+        db.prepare(
+          "INSERT INTO messaging_purge_facts VALUES ('secret', 'dm-ada', 'secret', ?, '{}')",
+        ).run('2026-10-10T00:00:00.000Z');
+        db.prepare(
+          "UPDATE source_events SET body = '', payload_json = '{}' WHERE source_event_id = 'secret'",
+        ).run();
+      });
+      expect(indexContainsSecret()).toBe(false);
+    });
+  });
+
   it('removes derived cause content when that cause is purged, including after rebuild', async () => {
     await fixture((core, append) => {
       append({ id: 'cause', body: 'private original' });

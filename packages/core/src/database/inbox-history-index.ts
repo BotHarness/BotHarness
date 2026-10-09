@@ -21,6 +21,7 @@ export const INBOX_HISTORY_INDEX_SQL = `
   CREATE VIRTUAL TABLE inbox_history_fts USING fts5(
     search_text, content='inbox_history_documents', content_rowid='rowid', tokenize='trigram'
   );
+  INSERT INTO inbox_history_fts(inbox_history_fts, rank) VALUES ('secure-delete', 1);
   CREATE TRIGGER inbox_history_insert AFTER INSERT ON source_events BEGIN
     INSERT INTO inbox_history_fts(rowid, search_text)
       SELECT rowid, search_text FROM inbox_history_documents WHERE rowid = NEW.rowid;
