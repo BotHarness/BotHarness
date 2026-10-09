@@ -11,15 +11,19 @@ const apps = [
   { providerId: 'dsh-im', platform: 'qq', ref: 'qq_b', name: 'QQ B' },
 ] as unknown as MessagingApp[];
 
-it('lists every App and its PersonaBot without naming a Bot', async () => {
+it('lists every App, its PersonaBot and the App setups without naming a Bot', async () => {
   const core = createCore({ dshHome: createTempRoot('bh-messaging-apps-rpc-') });
-  const externalMessaging = { apps: async () => apps } as Partial<OutboundMessaging>;
+  const setups = [{ providerId: 'dsh-im', platform: 'feishu' }];
+  const externalMessaging = {
+    apps: async () => apps,
+    setups: async () => setups,
+  } as unknown as Partial<OutboundMessaging>;
   const methods = createBridgeMethods({
     ...core,
     externalMessaging: externalMessaging as OutboundMessaging,
   });
   const service = registerBridge(new Context(), methods);
-  expect(await service.messagingApps()).toEqual({ apps });
+  expect(await service.messagingApps()).toEqual({ apps, setups });
 });
 
 it('reports messaging as unavailable when no Provider is present', async () => {

@@ -363,6 +363,11 @@ export interface BridgeError {
 
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
+export interface MessagingAppsView {
+  apps: MessagingApp[];
+  setups: NonNullable<MessagingSnapshot['appSetups']>;
+}
+
 export interface BridgeMethods {
   onboarding(payload: unknown): Promise<BridgeResult<OnboardingSnapshot>>;
   modelPlanInherit(payload: unknown): BridgeResult<{ revision: number }>;
@@ -392,7 +397,7 @@ export interface BridgeMethods {
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
   messagingDefaults(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
   messagingDefaultsSet(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
-  messagingApps(): Promise<BridgeResult<{ apps: MessagingApp[] }>>;
+  messagingApps(): Promise<BridgeResult<MessagingAppsView>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
@@ -1300,7 +1305,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return messagingCall((service) => service.setDefaults(parsed.data));
     },
     messagingApps() {
-      return messagingCall(async (service) => ({ apps: await service.apps() }));
+      return messagingCall(async (service) => ({
+        apps: await service.apps(),
+        setups: await service.setups(),
+      }));
     },
     messagingSnapshot(payload) {
       const slug = asSlug(payload);
