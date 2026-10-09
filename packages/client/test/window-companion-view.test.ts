@@ -7,6 +7,12 @@ import { WindowCompanionView } from '../src/client/window-companion-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { CompanionSound } from '../src/client/companion-sound.js';
 
+function companionPosition(surface: HTMLElement): { left: string; bottom: string } {
+  const match = /^translate3d\(([-\d.]+)px, ([-\d.]+)px, 0\)$/.exec(surface.style.transform);
+  expect(match).not.toBeNull();
+  return { left: `${Number(match![1])}px`, bottom: `${-Number(match![2])}px` };
+}
+
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
     anchor,
@@ -252,8 +258,8 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
       if (!this.classList.contains('bh-persona-avatar')) return stage;
       const surface = this.closest<HTMLElement>('.bh-companion')!;
       return new DOMRect(
-        stage.left + Number.parseFloat(surface.style.left),
-        stage.bottom - Number.parseFloat(surface.style.bottom) - 96,
+        stage.left + Number.parseFloat(companionPosition(surface).left),
+        stage.bottom - Number.parseFloat(companionPosition(surface).bottom) - 96,
         96,
         96,
       );
@@ -308,7 +314,7 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     );
     stage = new DOMRect(100, 60, 320, 500);
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(node.querySelector<HTMLElement>('.bh-companion')?.style.left).toBe('216px');
+    expect(companionPosition(node.querySelector<HTMLElement>('.bh-companion')!).left).toBe('216px');
     expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
       /^M 264 404 /u,
     );
@@ -599,7 +605,7 @@ it.each([
         }
       });
       expect(surface.dataset['motion']).toBe('fall');
-      const releasedBottom = Number.parseFloat(surface.style.bottom);
+      const releasedBottom = Number.parseFloat(companionPosition(surface).bottom);
       const heights: number[] = [];
       for (let index = 0; index < 3000 / interval; index++) {
         await act(() => {
@@ -608,12 +614,12 @@ it.each([
           frames.clear();
           due.forEach((callback) => callback(performance.now()));
         });
-        heights.push(Number.parseFloat(surface.style.bottom));
+        heights.push(Number.parseFloat(companionPosition(surface).bottom));
       }
       expect(heights.some((height) => height > releasedBottom)).toBe(true);
       expect(heights.slice(0, 2000 / interval).some((height) => height === 0)).toBe(true);
       expect(surface.dataset['motion']).toBe('rest');
-      expect(surface.style.bottom).toBe('0px');
+      expect(companionPosition(surface).bottom).toBe('0px');
       expect(openDm).not.toHaveBeenCalled();
     } finally {
       await act(() => root.unmount());
@@ -771,33 +777,33 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     }
     expect(Number.parseFloat(character.style.rotate)).toBeGreaterThan(0);
     await act(() => pointer('pointermove', 400, 400));
-    const lifted = Number.parseFloat(surface.style.bottom);
+    const lifted = Number.parseFloat(companionPosition(surface).bottom);
     expect(lifted).toBeGreaterThan(12);
-    const draggedLeft = surface.style.left;
+    const draggedLeft = companionPosition(surface).left;
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     await act(() => pointer('pointermove', 400, 400));
-    expect(surface.style.left).toBe(draggedLeft);
+    expect(companionPosition(surface).left).toBe(draggedLeft);
     await act(() => {
       pointer('pointerdown', 400, 400, 2);
       pointer('pointermove', 800, 100, 2);
       pointer('pointercancel', 800, 100, 2);
       pointer('lostpointercapture', 800, 100, 2);
     });
-    expect(surface.style.left).toBe(draggedLeft);
+    expect(companionPosition(surface).left).toBe(draggedLeft);
     expect(surface.dataset['motion']).toBe('drag');
     await act(() => {
       pointer('pointerup', 400, 400);
       character.click();
     });
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     expect(surface.dataset['motion']).toBe('fall');
     await act(() => {
       document.documentElement.dataset['botharnessMotion'] = 'reduce';
     });
-    expect(surface.style.bottom).toBe('0px');
+    expect(companionPosition(surface).bottom).toBe('0px');
     expect(character.style.rotate).toBe('0deg');
     expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => {
@@ -820,7 +826,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
         frames.clear();
         for (const callback of callbacks) callback(performance.now());
       });
-      positions.push(Number.parseFloat(surface.style.bottom));
+      positions.push(Number.parseFloat(companionPosition(surface).bottom));
     }
     expect(positions.some((bottom) => bottom > 0 && bottom < lifted)).toBe(true);
     expect(positions.every((bottom) => bottom >= 0 && bottom <= window.innerHeight - 120)).toBe(
@@ -829,7 +835,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     const firstContact = positions.findIndex((bottom) => bottom === 0);
     expect(firstContact).toBeGreaterThan(0);
     expect(positions.slice(firstContact + 1).some((bottom) => bottom > 0)).toBe(true);
-    expect(surface.style.bottom).toBe('0px');
+    expect(companionPosition(surface).bottom).toBe('0px');
     expect(openDm).not.toHaveBeenCalled();
     expect(interact.mock.calls.filter(([, event]) => event.kind === 'land')).toHaveLength(1);
     await act(() => owner.reading(false));
@@ -860,10 +866,10 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       expect(stop).toHaveBeenLastCalledWith('ada');
       interact.mockClear();
       const shown = owner.getSnapshot().cards[0]!.shown;
-      expect(Number.isFinite(Number.parseFloat(surface.style.bottom))).toBe(true);
+      expect(Number.isFinite(Number.parseFloat(companionPosition(surface).bottom))).toBe(true);
       await advanceFrames(240);
       expect(surface.dataset['motion']).toBe('rest');
-      expect(surface.style.bottom).toBe('0px');
+      expect(companionPosition(surface).bottom).toBe('0px');
       expect(owner.getSnapshot().cards[0]!.shown).toBe(shown);
       expect(interact).not.toHaveBeenCalled();
     }
@@ -872,7 +878,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       character.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
     );
     expect(owner.getSnapshot().selection?.position).toBeCloseTo(
-      Number.parseFloat(surface.style.left) / 896,
+      Number.parseFloat(companionPosition(surface).left) / 896,
     );
     document.documentElement.dataset['botharnessMotion'] = 'reduce';
     await act(() => {
@@ -882,7 +888,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     expect(character.style.rotate).toBe('0deg');
     expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => pointer('pointerup', 700, 200));
-    expect(surface.style.bottom).toBe('0px');
+    expect(companionPosition(surface).bottom).toBe('0px');
     await act(() => vi.runOnlyPendingTimers());
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => character.click());

@@ -458,7 +458,12 @@ export function WindowCompanionView({
         data-sync={view.sync}
         data-motion={point.phase}
         data-bot={bot.slug}
-        style={{ left: point.x, bottom: point.y, zIndex: view.reading ? 10 : 1 }}
+        style={{
+          left: 0,
+          bottom: 0,
+          transform: `translate3d(${point.x}px, ${-point.y}px, 0)`,
+          zIndex: view.reading ? 10 : 1,
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && menu) {
             event.preventDefault();
