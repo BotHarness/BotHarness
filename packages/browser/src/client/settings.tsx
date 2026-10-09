@@ -104,9 +104,6 @@ export function BrowserTargetSettings({
   const target = snapshot.value?.target ?? 'local';
   return (
     <div className="bh-settings-rows bh-browser-settings">
-      <div className="bh-settings-section-head">
-        <div className="bh-settings-section-title">Browser</div>
-      </div>
       <ConfigChoice
         scope={scope}
         field="target"
@@ -149,6 +146,7 @@ export function registerBrowserSettings(ctx: BrowserClientContext, t: BrowserTra
             name: string;
             id: string;
             order: number;
+            label: () => string;
             locale: string;
             inject: () => { scope: TargetScope; t: BrowserTranslate };
           },
@@ -157,12 +155,13 @@ export function registerBrowserSettings(ctx: BrowserClientContext, t: BrowserTra
       };
     };
     const scope = native.configForms.get('botharness-browser');
-    return native.slots.inject('botharness.settings.item', () =>
+    return native.slots.inject('botharness.settings.section', () =>
       native.slots.register(
         {
-          name: 'botharness.settings.item',
+          name: 'botharness.settings.section',
           id: 'browser',
-          order: 11,
+          order: 32,
+          label: () => t('settings.section'),
           locale: LOCALE_NS,
           inject: () => ({ scope, t }),
         },

@@ -209,6 +209,13 @@ describe('@botharness/ui browser bundle', () => {
         inject: expect.any(Function),
       },
       {
+        name: 'shell.overlay',
+        id: 'botharness-bot-settings',
+        locale: 'botharness',
+        inject: expect.any(Function),
+        children: { 'botharness.settings.section': { kind: 'list', scope: 'root' } },
+      },
+      {
         name: 'sidebar.panellist',
         id: 'botharness',
         order: 10,

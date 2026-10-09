@@ -30,10 +30,6 @@ function openSettingsSection(labels: () => readonly string[], doc?: Document): v
   }, SETTLE_TIMEOUT_MS);
 }
 
-export function openBotSettings(labels: () => readonly string[], doc?: Document): void {
-  openSettingsSection(labels, doc);
-}
-
 export function openModelsSettings(doc?: Document): void {
   openSettingsSection(() => ['模型', 'Models'], doc);
 }

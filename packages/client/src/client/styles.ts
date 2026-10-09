@@ -3363,7 +3363,15 @@ button.bh-profile-heat-cell:focus-visible {
   flex-direction: column;
   padding: 74px 18px calc(10px + var(--bh-activity-overlay-inset, 0px));
   overscroll-behavior: contain;
+  transition: padding-bottom 160ms ease;
 }
+/* The faded composer status gives its reserved space back only after the
+   fade, so the working rows slide down instead of jumping onto its text. */
+.bh-chat-pane[data-activity-concealed='true'] .bh-chat-body {
+  padding-bottom: 10px;
+  transition-delay: 160ms;
+}
+html[data-botharness-motion='reduce'] .bh-chat-body { transition: none; }
 .bh-chat-empty {
   height: 100%;
 }
@@ -3421,6 +3429,45 @@ button.bh-profile-heat-cell:focus-visible {
   background: transparent;
 }
 .bh-message-group-avatar-link { cursor: pointer; }
+/* Client-only working rows under the latest message: the composer status
+   stays the live region, so these rows are hidden from assistive tech. */
+.bh-timeline-working {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bh-timeline-working-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-timeline-working-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-timeline-working-name { color: var(--dsw-alias-label-secondary); }
+.bh-timeline-working-ellipsis i {
+  font-style: normal;
+  animation: bh-timeline-working-dot 1.2s ease-in-out infinite;
+}
+.bh-timeline-working-ellipsis i:nth-child(2) { animation-delay: 0.2s; }
+.bh-timeline-working-ellipsis i:nth-child(3) { animation-delay: 0.4s; }
+html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animation: none; }
+@keyframes bh-timeline-working-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+.bh-timeline-working-more {
+  padding-left: 36px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
 .bh-message-group-avatar-link:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
@@ -3769,7 +3816,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-timeline-new {
   position: absolute;
   z-index: 2;
-  bottom: 82px;
+  bottom: calc(82px + var(--bh-activity-overlay-inset, 0px));
   left: 50%;
   transform: translateX(-50%);
   border: 1px solid var(--dsw-alias-border-l2);
@@ -4122,6 +4169,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 }
 
 .bh-composer-activity-status {
+  transition: opacity 160ms ease, translate 160ms ease;
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
@@ -4135,6 +4183,22 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   color: var(--bh-overview-muted);
   font-size: var(--bh-overview-font);
 }
+/* Scrolled into history, the status sits over messages, so it carries a
+   backdrop that fades in from the chat background above it. */
+.bh-composer-activity-status { isolation: isolate; }
+.bh-composer-activity-status::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0 -6px;
+  z-index: -1;
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-base) 12px);
+  pointer-events: none;
+}
+/* At the latest message the working rows already show every active Bot, so
+   the status only fades out: it stays the screen-reader live region. */
+.bh-composer-activity-status[data-concealed='true'] { opacity: 0; translate: 0 4px; }
+.bh-composer-activity-status[data-concealed='true'] * { pointer-events: none; }
+html[data-botharness-motion='reduce'] .bh-composer-activity-status { transition: none; }
 .bh-composer-activity-facepile .bh-persona-avatar,
 .bh-composer-activity-facepile .bh-avatar-facepile-overflow {
   border: 0;
@@ -5287,6 +5351,35 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
   object-fit: cover;
 }
 .bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
+/* Static member stack for a Group without an uploaded avatar: idle
+   portraits on the Group tile. Two faces overlap on a diagonal with a ring in
+   the tile fill; three or four sit in a 2x2 grid without overlap. Faces
+   ignore the pointer so their per-Bot titles never surface as state. */
+.bh-group-avatar-stack {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--dsw-alias-button-elevated-fill);
+}
+.bh-group-avatar-stack > .bh-persona-avatar {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 28%;
+  pointer-events: none;
+}
+.bh-group-avatar-stack[data-count='1'] > .bh-persona-avatar { top: 50%; left: 50%; translate: -50% -50%; }
+.bh-group-avatar-stack[data-count='2'] > .bh-persona-avatar { border: 1.5px solid var(--dsw-alias-button-elevated-fill); }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(1) { top: 8%; left: 8%; }
+.bh-group-avatar-stack[data-count='2'] > :nth-child(2) { right: 8%; bottom: 8%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(1),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(1) { top: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(2),
+.bh-group-avatar-stack[data-count='4'] > :nth-child(2) { top: 5%; right: 5%; }
+.bh-group-avatar-stack[data-count='3'] > :nth-child(3) { bottom: 5%; left: 50%; translate: -50% 0; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(3) { bottom: 5%; left: 5%; }
+.bh-group-avatar-stack[data-count='4'] > :nth-child(4) { right: 5%; bottom: 5%; }
 .bh-group-profile-avatar {
   display: inline-flex;
   align-items: center;
@@ -5507,6 +5600,126 @@ button.bh-bot-nav > svg {
 .bh-settings-rows {
   display: flex;
   flex-direction: column;
+}
+.bh-bot-settings.bh-bot-settings {
+  /* @bh-bot-settings-aliases:start — the modal portals outside .bh-root, so it
+     maps the native settings panel's tokens itself. */
+  --bh-bot-settings-label: var(--dsw-alias-label-primary);
+  --bh-bot-settings-hover: var(--dsw-alias-interactive-bg-hover);
+  --bh-bot-settings-nav-hover: var(--dsw-specific-sidebar-nav-item-hover);
+  --bh-bot-settings-nav-active: var(--dsw-specific-sidebar-nav-item-active);
+  --bh-bot-settings-radius-md: var(--dsw-radius-md);
+  --bh-bot-settings-radius-sm: var(--dsw-radius-sm);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* @bh-bot-settings-aliases:end */
+  flex-direction: row;
+  gap: 0;
+  width: min(800px, 100%);
+  height: min(800px, 100%);
+  padding: 0;
+}
+.bh-bot-settings-nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 188px;
+  padding: 22px 12px 0;
+  box-sizing: border-box;
+}
+.bh-bot-settings-nav-title {
+  padding: 0 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--bh-bot-settings-label);
+}
+.bh-bot-settings-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.bh-bot-settings-nav-cell {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 9px 16px 9px 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--bh-bot-settings-radius-md);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--bh-bot-settings-label);
+  text-align: left;
+}
+.bh-bot-settings-nav-cell:hover {
+  background: var(--bh-bot-settings-nav-hover);
+}
+.bh-bot-settings-nav-cell[aria-current='page'] {
+  background: var(--bh-bot-settings-nav-active);
+}
+.bh-bot-settings-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.bh-bot-settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bh-bot-settings-header {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 22px 14px 8px 24px;
+}
+.bh-bot-settings-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--bh-bot-settings-label);
+}
+.bh-bot-settings-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--bh-bot-settings-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--bh-bot-settings-label);
+}
+.bh-bot-settings-close:hover {
+  background: var(--bh-bot-settings-hover);
+}
+.bh-bot-settings-options {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 24px;
+  overflow-y: auto;
+}
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-header {
+  align-items: center;
+  padding: 16px 14px 8px 16px;
+}
+.bh-bot-settings-content[data-narrow] .bh-bot-settings-options {
+  padding: 0 16px 16px;
 }
 .bh-settings-row {
   display: flex;

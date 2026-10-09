@@ -17,6 +17,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - Window Companions offer optional, quiet text-paced babble and grab, fast-drag, throw and first-impact landing sounds, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS. Idle companions hide the empty status bubble and fade action controls in on hover or keyboard focus; pointer focus after dragging no longer keeps reading open. Long message bubbles follow the latest revealed text without scrollbars; scrolling upward preserves the reading position until returning to the bottom. Dismissing the final card shows waiting replies and lets later arrivals display even while the character retains keyboard focus ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
+- Bot settings has an **IM apps** section listing every app on Lark, Slack, Discord, QQ and WeChat with the Bot that uses it, and a link to DSH settings for credentials ([#1263](https://github.com/BotHarness/DeepSeekBot/issues/1263), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
+- From **IM apps**, an unbound app can be bound to a Bot, a bound app unbound after confirmation, and a Lark or WeChat app created for a chosen Bot when the Provider supports setup ([#1264](https://github.com/BotHarness/DeepSeekBot/issues/1264)).
+- A Group without its own avatar shows up to four of its PersonaBots' faces in the sidebar, rail and pinned grid instead of `#`; the faces stay still and don't show what each Bot is doing ([#1270](https://github.com/BotHarness/DeepSeekBot/issues/1270)).
+- While a PersonaBot thinks or works, a row under the latest message shows its avatar turning into the tool it is using and the same short status as the composer; a Group shows up to two working Bots, and the Bot's reply replaces its row as it streams in. While you're at the latest message, the status above the composer fades out, and it comes back when you scroll up into history ([#1271](https://github.com/BotHarness/DeepSeekBot/issues/1271)).
 - QQ conversations can sync future mentions to a chosen Group Channel or remain Inbox-only, retain accepted history when sync stops, and show bounded local reception intervals across block/allow and reconnect without claiming remote backfill ([#1153](https://github.com/BotHarness/BotHarness/issues/1153), [QQ connection guide](docs/qq-connection.md)).
 
 - An official QQ Bot app can bind to a PersonaBot, admit group text @mentions into its Inbox and answer in the original group with a native acceptance receipt; the development Provider keeps passive-reply expiry and unknown send outcomes explicit ([#1152](https://github.com/BotHarness/BotHarness/issues/1152), [QQ connection guide](docs/qq-connection.md)).
@@ -33,11 +37,20 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 
+### Changed
+
+- Bot settings open in their own window from the gear in the Bot panel, with a sidebar of General, Models & execution, Messaging, Computer, Browser, Window companions, Data & privacy, Advanced and About instead of one long page among other plugins' settings; **Bot settings** in DSH settings switches straight to it, and the telemetry notice and Window Companion menu open their own section ([#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260), [#1261](https://github.com/BotHarness/DeepSeekBot/issues/1261), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
+- In a narrow window, Bot settings shows its sections in a dropdown at the top instead of a side rail ([#1262](https://github.com/BotHarness/DeepSeekBot/issues/1262)).
+
 ### Fixed
 
 - Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause. Releasing immediately ends the drag, so a late pointer move cannot grab the character again; the release click remains suppressed. Visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
+
+### Documentation
+
+- Documented how a PersonaBot's Memory commits and its own BotHarness-tool actions will be kept as Channel Notices in the conversation that caused them and as searchable Bot Inbox history that never wakes it; runtime behavior is unchanged ([ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md), [#1272](https://github.com/BotHarness/DeepSeekBot/issues/1272)).
 
 ## [1.2.0] - 2026-10-08
 

@@ -351,6 +351,7 @@ describe('plugin entry', () => {
       'approvalTest',
       'approvalRetry',
       'pairingReview',
+      'messagingApps',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',
