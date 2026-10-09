@@ -47,7 +47,10 @@ export function MemoryCommitView({
     <div className="bh-memory-commit-view" role="region" aria-label={t('memory.diff')} ref={mount}>
       <div className="bh-memory-commit-header">
         <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
-        <div className="bh-memory-commit-title" title={sha}>
+        <div
+          className="bh-memory-commit-title"
+          title={detail?.subject ? `${sha}\n${detail.subject}` : sha}
+        >
           <code>{sha.slice(0, 7)}</code>
           {detail?.subject === undefined || detail.subject === '' ? null : (
             <span>{detail.subject}</span>

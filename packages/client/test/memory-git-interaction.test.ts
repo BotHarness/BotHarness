@@ -491,7 +491,7 @@ describe('Memory Git graph sidebar', () => {
     });
     const title = container.querySelector<HTMLElement>('.bh-memory-commit-title');
     expect(title?.textContent).toBe('aaaaaaaRemember the launch date');
-    expect(title?.title).toBe(SHA);
+    expect(title?.title).toBe(`${SHA}\nRemember the launch date`);
     expect(container.textContent).not.toContain('从这里新建并切换分支');
     expect(container.querySelector('.bh-memory-continue-form')).toBeNull();
   });
