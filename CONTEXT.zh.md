@@ -484,12 +484,12 @@ _避免使用_：queue、mailbox、backlog
 一种持久关系，用来说明一条 Source Event 为何有资格进入某个 PersonaBot 的 attention，并记录该 Bot 的 read、defer 或 ignore facts。它引用 Source Event，绝不复制其内容。
 _避免使用_：inbox item body、delivery job、message copy
 
-**Bot Self-Record**（Bot 自我记录）：
-关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：作为 Channel Notice 出现在引起它的 Source Event 所在的 Channel，同时以已处理状态进入该 PersonaBot 的 Bot Inbox。Bot 之后可以查到自己做过什么、为什么做，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
+**Bot Self-Record**：
+Bot 自我记录。关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：作为 Channel Notice 出现在引起它的 Source Event 所在的 Channel，同时以已处理状态进入该 PersonaBot 的 Bot Inbox。Bot 之后可以查到自己做过什么、为什么做，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
 _避免使用_：activity log、tool trace
 
-**Channel Notice**（频道事件行）：
-Channel 历史里由系统呈现的一行，记录发生了什么（例如一次 Memory commit 或某个 Bot 的动作），而不是某位参与者说的话。它没有已读或未读，也不会叫醒或通知任何人（ADR-0154）。
+**Channel Notice**：
+频道事件行。Channel 历史里由系统呈现的一行，记录发生了什么（例如一次 Memory commit 或某个 Bot 的动作），而不是某位参与者说的话。它没有已读或未读，也不会叫醒或通知任何人（ADR-0154）。
 _避免使用_：message、notification、system message（单独使用）
 
 **Inbox Trigger**：
