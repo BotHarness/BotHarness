@@ -259,6 +259,8 @@ sequenceDiagram
 
 Source Event 是内容唯一权威；Channel 和 Inbox 都只保存关系。Reply 使用可信 Reply Route 自动选择来源 provider；主动发布属于 Service Action，需要 Provider Capability，以及该 Bot 对应用可触达会话的会话条目，或作为后备的 Human 保存目标 Service Grant。SQLite 事务只覆盖本地事实；外部副作用使用 Outbox Intent、幂等标识和有界 reconciliation，不宣称 exactly-once。不可证明的结果进入 `unknown-outcome`，由 Human 处理。
 
+#1115 的首条可触达群主动发送路径通过 Provider 的公开列表和 checked 原生会话发送能力，复用 Messaging 的 Binding、屏蔽、隐式会话条目和 Outbox；Client Profile 与 Bot 工具共享同一命令。首次发送不创建入站 Source Event，原生接口调用前重新核对发言权限和当前授权。应用级默认每滚动小时 60 次主动尝试，Human 可调高或关闭；未知结果计入限额且不自动重发。当前新能力先覆盖 Lark 允许全体成员发言的群，其余应用继续使用已保存目标后备。详见 [ADR-0154](../adr/0154-reachable-posts-reuse-messaging-authority-and-outbox.md)。
+
 Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完成后的安全边界、当前 turn 结束后，或 idle 时启动新 turn。普通外部消息不打断正在执行的 model/tool step；只有 DSH 明确支持且策略授权的控制路径才能 steer。就绪的 attention 按回合收割：忙碌期间新到的事件只把就绪集合置脏，当前回合结束（即空闲）时由一次 harvest turn 消费全部就绪项；主动 steer 只用于直接 @ 与 DM（ADR-0077）。
 
 ### Lark 接收与回答反馈（ADR-0149）

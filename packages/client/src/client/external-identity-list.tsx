@@ -48,8 +48,10 @@ export function ExternalIdentityList({
   botName = (slug) => slug,
   bindDialog,
   appSetup,
+  post,
 }: {
   snapshot: MessagingSnapshot | undefined;
+  post?(identity: MessagingIdentityView): void;
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
   conversation(input: MessagingConversationInput): Promise<void>;
@@ -318,6 +320,19 @@ export function ExternalIdentityList({
           <div className="bh-modal-footer">
             {mode === 'edit' ? (
               <>
+                {post && selected ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy || !selected.enabled}
+                    onClick={() => {
+                      const identity = selected;
+                      close();
+                      post(identity);
+                    }}
+                  >
+                    {t('proactive.title')}
+                  </Button>
+                ) : null}
                 <Button
                   variant="outline"
                   disabled={busy}

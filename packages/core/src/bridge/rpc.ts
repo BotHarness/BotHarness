@@ -246,6 +246,36 @@ export class BotharnessBridgeService extends TypertRemoteService {
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
     return unwrapAsync(this.methods.messagingSnapshot({ slug }));
   }
+  messagingReachable(
+    slug: string,
+    bindingId: string,
+    cursor?: string,
+  ): Promise<import('../messaging/provider.js').MessagingReachablePage> {
+    return unwrapAsync(
+      this.methods.messagingReachable({ slug, bindingId, ...(cursor ? { cursor } : {}) }),
+    );
+  }
+  messagingPostConversation(
+    slug: string,
+    bindingId: string,
+    conversationId: string,
+    requestId: string,
+    text: string,
+  ): Promise<{ intent: OutboxIntent }> {
+    return unwrapAsync(
+      this.methods.messagingPostConversation({ slug, bindingId, conversationId, requestId, text }),
+    );
+  }
+  messagingPostLimit(
+    slug: string,
+    bindingId: string,
+    expectedRevision: number,
+    limit: number | null,
+  ): Promise<{ identity: MessagingIdentity }> {
+    return unwrapAsync(
+      this.methods.messagingPostLimit({ slug, bindingId, expectedRevision, limit }),
+    );
+  }
   messagingTargets(
     providerId: string,
     accountRef: string,
@@ -1147,6 +1177,9 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pairingReview',
   'messagingSnapshot',
   'messagingTargets',
+  'messagingReachable',
+  'messagingPostConversation',
+  'messagingPostLimit',
   'messagingAuthorize',
   'messagingRevoke',
   'messagingConversation',

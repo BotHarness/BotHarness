@@ -218,6 +218,24 @@ export interface OrchestratorAgentRun {
       Array<{ grantId: string; platform: string; accountName: string; targetName: string }>
     >;
     post?(grantId: string, requestId: string, text: string): ReturnType<OutboundMessaging['post']>;
+    reachable?(
+      bindingId?: string,
+      cursor?: string,
+    ): Promise<
+      Array<{
+        bindingId: string;
+        platform: string;
+        accountName: string;
+        page?: import('../messaging/provider.js').MessagingReachablePage;
+        reason?: string;
+      }>
+    >;
+    postConversation?(
+      bindingId: string,
+      conversationId: string,
+      requestId: string,
+      text: string,
+    ): ReturnType<OutboundMessaging['postConversation']>;
     outbox?(
       intentId?: string,
     ): OutboxIntent | Array<Omit<OutboxIntent, 'text'> & { preview: string }>;
@@ -3092,6 +3110,57 @@ class BotRuntimeImplementation implements BotRuntime {
           ? {}
           : {
               externalMessaging: {
+                reachable: async (bindingId, cursor) => {
+                  const snapshot = await this.#externalMessaging!.snapshot(bot.slug);
+                  const identities = (snapshot.identities ?? []).filter(
+                    (identity) =>
+                      !identity.revokedAt &&
+                      identity.enabled &&
+                      identity.availability === 'available' &&
+                      (bindingId === undefined || identity.id === bindingId),
+                  );
+                  if (bindingId && !identities.length) throw new Error('identity-unavailable');
+                  if (cursor && !bindingId) throw new Error('bad-request');
+                  return Promise.all(
+                    identities.map(async (identity) => {
+                      const app = {
+                        bindingId: identity.id,
+                        platform: identity.platform,
+                        accountName: identity.name,
+                      };
+                      try {
+                        return {
+                          ...app,
+                          page: await this.#externalMessaging!.reachable(
+                            bot.slug,
+                            identity.id,
+                            cursor,
+                          ),
+                        };
+                      } catch (error) {
+                        return {
+                          ...app,
+                          reason:
+                            error instanceof Error &&
+                            'code' in error &&
+                            typeof error.code === 'string'
+                              ? error.code
+                              : 'provider-unavailable',
+                        };
+                      }
+                    }),
+                  );
+                },
+                postConversation: (bindingId, conversationId, requestId, text) => {
+                  markSideEffect();
+                  return this.#externalMessaging!.postConversation(
+                    bot.slug,
+                    bindingId,
+                    conversationId,
+                    requestId,
+                    text,
+                  );
+                },
                 targets: async () => {
                   const snapshot = await this.#externalMessaging!.snapshot(bot.slug);
                   return snapshot.grants

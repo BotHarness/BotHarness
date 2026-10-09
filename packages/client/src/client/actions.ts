@@ -70,6 +70,9 @@ import {
   loadChannelIngests,
   manageChannelIngest,
   loadMessagingSnapshot,
+  loadMessagingReachable,
+  postMessagingConversation,
+  setMessagingPostLimit,
   manageMessagingIdentity,
   manageMessagingConversation,
   loadMessagingTargets,
@@ -316,6 +319,24 @@ export interface BridgeActions {
   messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
   appSetup?: ProviderAppSetup;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
+  messagingReachable?(
+    slug: string,
+    bindingId: string,
+    cursor?: string,
+  ): Promise<import('../../../core/src/messaging/provider.js').MessagingReachablePage>;
+  messagingPostConversation?(
+    slug: string,
+    bindingId: string,
+    conversationId: string,
+    requestId: string,
+    text: string,
+  ): Promise<OutboxIntent>;
+  messagingPostLimit?(
+    slug: string,
+    bindingId: string,
+    expectedRevision: number,
+    limit: number | null,
+  ): Promise<void>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
     botSlug: string;
@@ -1985,6 +2006,12 @@ export function createActions(
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
     messagingConversation: (slug, input) => manageMessagingConversation(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
+    messagingReachable: (slug, bindingId, cursor) =>
+      loadMessagingReachable(call, slug, bindingId, cursor),
+    messagingPostConversation: (slug, bindingId, conversationId, requestId, text) =>
+      postMessagingConversation(call, slug, bindingId, conversationId, requestId, text),
+    messagingPostLimit: (slug, bindingId, expectedRevision, limit) =>
+      setMessagingPostLimit(call, slug, bindingId, expectedRevision, limit),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),
     messagingAuthorize: (input) => authorizeMessaging(call, input),

@@ -1132,6 +1132,7 @@ describe('DSH Bot Agent adapter', () => {
       'stop_assignment',
       'channel_list',
       'bridge_targets',
+      'bridge_reachable_groups',
       'bridge_post',
       'bridge_outbox',
       'bridge_read',
@@ -1620,6 +1621,20 @@ it('routes external Tools through the active owning Orchestrator without a local
           { scope: 'thread', cursor: 'opaque', maxCharacters: 1000 },
           signal,
         );
+        const groups = tools.find((tool) => tool.name === 'bridge_reachable_groups');
+        if (!groups) throw new Error('reachable groups tool unavailable');
+        expect(JSON.parse(String(await groups.execute({}, {} as ToolRunContext)))).toEqual([
+          {
+            bindingId: 'owned-app',
+            platform: 'feishu',
+            accountName: 'Owned app',
+            page: {
+              version: 1,
+              conversations: [{ id: 'oc_new', kind: 'group', name: 'New group' }],
+              hasMore: false,
+            },
+          },
+        ]);
         const targets = tools.find((tool) => tool.name === 'bridge_targets');
         const post = tools.find((tool) => tool.name === 'bridge_post');
         const outbox = tools.find((tool) => tool.name === 'bridge_outbox');
@@ -1631,6 +1646,17 @@ it('routes external Tools through the active owning Orchestrator without a local
             {} as ToolRunContext,
           ),
         ).rejects.toThrow('post ownership sentinel');
+        await expect(
+          post.execute(
+            {
+              binding_id: 'owned-app',
+              conversation_id: 'oc_new',
+              request_id: 'new_group_post',
+              text: 'Report',
+            },
+            {} as ToolRunContext,
+          ),
+        ).rejects.toThrow('reachable post ownership sentinel');
         await expect(
           outbox.execute({ intent_id: 'foreign' }, {} as ToolRunContext),
         ).rejects.toThrow('outbox ownership sentinel');
@@ -1684,6 +1710,21 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      reachable: async () => [
+        {
+          bindingId: 'owned-app',
+          platform: 'feishu',
+          accountName: 'Owned app',
+          page: {
+            version: 1,
+            conversations: [{ id: 'oc_new', kind: 'group', name: 'New group' }],
+            hasMore: false,
+          },
+        },
+      ],
+      postConversation: async () => {
+        throw new Error('reachable post ownership sentinel');
+      },
       targets: async () => [],
       post: async () => {
         throw new Error('post ownership sentinel');
