@@ -2454,6 +2454,11 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-part-name { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .bh-part-name input { flex: 1; min-height: 30px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
 .bh-part-library-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.bh-part-image { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; font-size: 13px; }
+.bh-part-image p { margin: 0; }
+.bh-part-image label { display: flex; align-items: center; gap: 8px; }
+.bh-part-image input, .bh-part-image select { min-height: 28px; padding: 0 6px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
+.bh-part-image input { width: 72px; }
 .bh-avatar-color-reset { min-height: 26px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
 .bh-avatar-colors { display: flex; flex-direction: column; gap: 10px; }
 .bh-avatar-color-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
@@ -2908,6 +2913,8 @@ canvas.bh-banner-art { image-rendering: pixelated; }
 .bh-modal-footer > button { white-space: nowrap; }
 .bh-modal-footer-gap { flex: 1; }
 .bh-sidebar-modal { width: min(440px, calc(100vw - 32px)); }
+.bh-external-identity-modal { max-height: calc(100dvh - 32px); }
+.bh-external-identity-content { min-height: 0; overflow-y: auto; }
 .bh-sidebar-modal-form, .bh-im-grant-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-size: 13px; }
 .bh-sidebar-modal-form p, .bh-im-grant-body p { margin: 0; }
 .bh-sidebar-modal-form ul:not(.bh-card-list) { margin: 0; padding-left: 18px; }

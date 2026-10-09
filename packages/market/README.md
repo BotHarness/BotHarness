@@ -16,7 +16,7 @@ The Bot Marketplace Worker ([ADR-0131](../../docs/adr/0131-bot-marketplace-start
 
 ## Public read API (v1)
 
-The product site ([deepseekbot.botharness.ai](https://deepseekbot.botharness.ai) `/market` and `/en/market`, repository `BotHarness/deepseekbot-site`) reads the same `/v1` routes the Host uses. They need no authentication. The `v1` contract only grows: new fields may be added, existing fields keep their names and types, and a breaking change gets a new `/v2` path.
+The product site ([deepseekbot.app](https://deepseekbot.app) `/market` and `/en/market`, repository `BotHarness/deepseekbot-site`) reads the same `/v1` routes the Host uses. They need no authentication. The `v1` contract only grows: new fields may be added, existing fields keep their names and types, and a breaking change gets a new `/v2` path.
 
 | Route                                             | Response                                              |
 | ------------------------------------------------- | ----------------------------------------------------- |
@@ -62,7 +62,7 @@ interface MarketplaceError {
 }
 ```
 
-- **CORS**: responses carry `Access-Control-Allow-Origin` only for `https://deepseekbot.botharness.ai` and the site's Vite dev and preview origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173`, `http://127.0.0.1:4173`), with `Vary: Origin`. `OPTIONS` preflight answers `204` with `GET`, the `accept` header and a one-day max age for those origins and no grant for any other.
+- **CORS**: responses carry `Access-Control-Allow-Origin` only for the product site (`https://deepseekbot.app`, `https://deepseekbot.dev` and `https://deepseekbot.botharness.ai`) and the site's Vite dev and preview origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173`, `http://127.0.0.1:4173`), with `Vary: Origin`. `OPTIONS` preflight answers `204` with `GET`, the `accept` header and a one-day max age for those origins and no grant for any other.
 - **Caching**: `200` responses send `Cache-Control: public, max-age=60`; errors send `no-store`. Hidden (`hidden_missing`, `hidden_reported`) and blocked entries are never listed, searched or served as detail, so they disappear from the site within a minute.
 - Paste, report, challenge and admin routes are not part of this contract and get no CORS grant.
 

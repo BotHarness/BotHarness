@@ -6,6 +6,14 @@ For user-facing setup walkthroughs, see the verified [Lark / Feishu connection g
 
 ## Keep the two layers distinct
 
+### QQ group text candidate (#1152)
+
+The official QQ application candidate uses the existing exclusive Consumer, canonical Source Event/Inbox and checked reply path. Its five reply-only capabilities make it bindable independently of proactive sending. Authenticated `/users/@me` supplies the native identity; live group applications may omit the example's bot flag, but explicit contradictory values are refused. Group/member locators remain application-scoped.
+
+Only text `GROUP_AT_MESSAGE_CREATE` enters this candidate. Exact source proof is bounded and process-local, with a five-minute window and five attempted replies. No durable history cursor or group source reread is claimed. Prepare the official SDK token before the final source/lease/account/cancellation/consumer fence, then dispatch without an intervening asynchronous step. Retain definite native refusals separately from unknown results, with no proactive fallback or automatic retry. Receipt IDs mean native acceptance. See [ADR-0151](../../adr/0151-qq-group-replies-use-authenticated-apps-and-process-local-source-proof.md) and the [QQ setup guide](../../qq-connection.md). Installed real-group/model qualification is recorded in #1152 separately from fixture coverage.
+
+### Shared ownership
+
 DSH-native Plugin/Fiber lifecycle owns the connection and Service registration. The Service Definition → Provider → Consumer seam supplies checked external operations; the API Gateway owns Host/Client transport. PersonaBot identities, Grants, Source Events, Channel placements, Inbox Admissions and Outbox intents are **application-defined**, durable BotHarness records.
 
 ```mermaid

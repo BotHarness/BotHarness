@@ -113,6 +113,7 @@ export function WindowCompanionView({
       }),
   );
   const [point, setPoint] = useState(motion.point);
+  const motionFrameAt = useRef(performance.now());
   const displayedPoint = useRef(point);
   displayedPoint.current = point;
   const anchor = useRef<AvatarAnchor | undefined>(undefined);
@@ -163,11 +164,16 @@ export function WindowCompanionView({
   const reducedMotion = (): boolean =>
     document.documentElement.dataset['botharnessMotion'] === 'reduce';
   const persistPosition = (): void => companion.configure({ position: motion.position() });
+  const releaseMotion = (cancelled = false): void => {
+    const now = performance.now();
+    motionFrameAt.current = now;
+    setPoint(motion.release(now, reducedMotion(), cancelled));
+  };
   const cancelDrag = (event: { pointerId: number }): void => {
     if (!pointer.current || pointer.current.id !== event.pointerId || motion.point.phase !== 'drag')
       return;
     pointer.current = undefined;
-    setPoint(motion.release(performance.now(), reducedMotion(), true));
+    releaseMotion(true);
     persistPosition();
   };
   const leave = (): void => {
@@ -287,12 +293,14 @@ export function WindowCompanionView({
       };
       const tick = (now: number) => {
         frame = 0;
-        const milliseconds = Math.min(100, Math.max(0, now - previous));
+        const milliseconds = Math.max(0, now - previous);
+        const motionMilliseconds = Math.max(0, now - motionFrameAt.current);
+        motionFrameAt.current = now;
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
         if (!document.hidden && stageVisible) {
-          if (visible) elapsed += milliseconds;
+          if (visible) elapsed += Math.min(100, milliseconds);
           if (elapsed >= 50) {
             const before = companion.getSnapshot().cards;
             companion.advance(elapsed, reduced);
@@ -318,7 +326,7 @@ export function WindowCompanionView({
             statusVisible(state) || state.cards.length || state.requests.length
               ? anchor.current?.read()
               : undefined;
-          const next = motion.advance(milliseconds, reduced, walking, direction.current);
+          const next = motion.advance(motionMilliseconds, reduced, walking, direction.current);
           placeBubble(next, sampled);
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
@@ -334,6 +342,7 @@ export function WindowCompanionView({
         cancelAnimationFrame(frame);
         frame = 0;
         previous = performance.now();
+        motionFrameAt.current = previous;
         elapsed = 0;
         if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
@@ -742,7 +751,7 @@ export function WindowCompanionView({
             if (!drag || drag.id !== event.pointerId) return;
             event.currentTarget.releasePointerCapture(event.pointerId);
             if (drag.moved) {
-              setPoint(motion.release(performance.now(), reducedMotion()));
+              releaseMotion();
               persistPosition();
               event.preventDefault();
               clickReset.current = setTimeout(() => {
@@ -751,7 +760,7 @@ export function WindowCompanionView({
               }, 0);
             } else {
               pointer.current = undefined;
-              setPoint(motion.release(performance.now(), reducedMotion(), true));
+              releaseMotion(true);
             }
           }}
           onPointerCancel={cancelDrag}

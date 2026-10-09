@@ -1,4 +1,6 @@
 export const PUBLIC_ORIGINS: readonly string[] = [
+  'https://deepseekbot.app',
+  'https://deepseekbot.dev',
   'https://deepseekbot.botharness.ai',
   'http://localhost:5173',
   'http://127.0.0.1:5173',

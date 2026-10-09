@@ -7,8 +7,10 @@ import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js'
 import type { BotHarnessTranslate } from './locale.js';
 import { GroupReceptionSettings } from './messaging-grant.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { Combobox } from './combobox.js';
 
 type Grant = MessagingSnapshot['grants'][number];
+export type ConversationSync = (grant: Grant, channelId: string, enabled: boolean) => Promise<void>;
 type Held = NonNullable<MessagingSnapshot['heldConversations']>[number];
 type Blocked = NonNullable<MessagingSnapshot['blockedConversations']>[number];
 
@@ -22,6 +24,8 @@ export function ExternalConversations({
   change,
   rules,
   channels = [],
+  sync,
+  syncChannels = [],
 }: {
   identity: MessagingIdentityView;
   snapshot: MessagingSnapshot | undefined;
@@ -30,6 +34,8 @@ export function ExternalConversations({
   change(input: MessagingConversationInput): Promise<void>;
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   channels?: { id: string; name: string }[];
+  sync?: ConversationSync;
+  syncChannels?: { id: string; name: string }[];
 }): ReactElement {
   const [open, setOpen] = useState<string>();
   const [confirm, setConfirm] = useState<string>();
@@ -41,6 +47,33 @@ export function ExternalConversations({
   const muted = entries.filter((g) => g.muted);
   const waiting = (snapshot?.heldConversations ?? []).filter((h) => h.bindingId === identity.id);
   const blocked = (snapshot?.blockedConversations ?? []).filter((b) => b.bindingId === identity.id);
+  const gaps = (snapshot?.receptionHistory ?? []).filter(
+    (interval) =>
+      interval.providerId === identity.providerId && interval.fingerprint === identity.fingerprint,
+  );
+  const history = gaps.length ? (
+    <details className="bh-im-field">
+      <summary>{t('conversation.gapTitle', { count: gaps.length })}</summary>
+      <p className="bh-muted">{t('conversation.gapHint')}</p>
+      <ul>
+        {gaps.map((interval) => (
+          <li key={interval.id}>
+            <strong>{t(`conversation.gap.${interval.reason}`)}</strong> · {interval.name}
+            <p className="bh-muted">
+              {t(`conversation.gapBoundary.${interval.boundary}`)} ·{' '}
+              <time dateTime={interval.startedAt}>{time(interval.startedAt)}</time>
+              {' — '}
+              {interval.endedAt ? (
+                <time dateTime={interval.endedAt}>{time(interval.endedAt)}</time>
+              ) : (
+                t('conversation.gapOngoing')
+              )}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </details>
+  ) : null;
   const kind = (value: 'dm' | 'group') =>
     t(value === 'dm' ? 'identity.kind.dm' : 'identity.kind.group');
   const icon = (value: 'dm' | 'group') => (value === 'dm' ? 'user' : 'users');
@@ -101,6 +134,7 @@ export function ExternalConversations({
     ) : undefined;
   const synced = (grant: Grant) =>
     (grant.bridgeRoutes ?? [])
+      .filter((route) => route.enabled !== false)
       .map((route) => channels.find((c) => c.id === route.channelId)?.name)
       .filter((name): name is string => name !== undefined);
   const entryRow = (grant: Grant) => {
@@ -112,7 +146,15 @@ export function ExternalConversations({
         name,
         () => void change({ kind: 'block', grantId: grant.id, expectedRevision: grant.revision }),
       ) ??
-      (open === grant.id && grant.groupPolicy ? (
+      (open === `sync:${grant.id}` && sync ? (
+        <ConversationChannelSync
+          grant={grant}
+          channels={syncChannels}
+          busy={busy}
+          sync={sync}
+          t={t}
+        />
+      ) : open === grant.id && grant.groupPolicy ? (
         <GroupReceptionSettings
           key={`${grant.id}:${grant.groupPolicy.revision}:${grant.groupPolicy.defaultRevision ?? 0}`}
           policy={grant.groupPolicy}
@@ -140,6 +182,18 @@ export function ExternalConversations({
         detail={actions(
           name,
           <>
+            {sync && scope.kind === 'group'
+              ? small(
+                  t('conversation.sync'),
+                  t('conversation.syncHint'),
+                  () => {
+                    setConfirm(undefined);
+                    setOpen(open === `sync:${grant.id}` ? undefined : `sync:${grant.id}`);
+                  },
+                  false,
+                  open === `sync:${grant.id}`,
+                )
+              : null}
             {small(
               t(grant.muted ? 'conversation.unmute' : 'conversation.mute'),
               t(grant.muted ? 'conversation.unmuteHint' : 'conversation.muteHint'),
@@ -267,13 +321,112 @@ export function ExternalConversations({
       </section>
     ) : null;
   if (!entries.length && !waiting.length && !blocked.length)
-    return <p className="bh-muted">{t('identity.conversationsEmpty')}</p>;
+    return (
+      <>
+        <p className="bh-muted">
+          {t(
+            identity.platform === 'qq'
+              ? 'identity.qqConversationsEmpty'
+              : 'identity.conversationsEmpty',
+          )}
+        </p>
+        {history}
+      </>
+    );
   return (
     <>
       {group(t('conversation.waiting'), waiting.map(heldRow))}
       {group(t('conversation.active'), active.map(entryRow))}
       {group(t('conversation.muted'), muted.map(entryRow))}
       {group(t('conversation.blocked'), blocked.map(blockedRow))}
+      {history}
     </>
+  );
+}
+
+function ConversationChannelSync({
+  grant,
+  channels,
+  busy,
+  sync,
+  t,
+}: {
+  grant: Grant;
+  channels: { id: string; name: string }[];
+  busy: boolean;
+  sync: ConversationSync;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const [channelId, setChannelId] = useState('');
+  const active = (grant.bridgeRoutes ?? []).filter(
+    (route) => route.channelId !== null && route.enabled,
+  );
+  const inbox =
+    grant.bridgeRoutes === undefined ||
+    grant.bridgeRoutes.some((route) => route.channelId === null && route.enabled);
+  const selected = channels.find((channel) => channel.id === channelId);
+  return (
+    <section className="bh-im-field" aria-label={t('conversation.syncTitle')}>
+      <p className="bh-muted">{t('conversation.syncHint')}</p>
+      <p role="status">
+        {active.length === 0
+          ? t(inbox ? 'bridge.inboxOnly' : 'im.reception.off')
+          : t('conversation.syncedTo', {
+              names: active
+                .map(
+                  (route) =>
+                    channels.find((channel) => channel.id === route.channelId)?.name ??
+                    t('im.targetUnavailable'),
+                )
+                .join('、'),
+            })}
+      </p>
+      {active.map((route) => {
+        const channel = channels.find((item) => item.id === route.channelId);
+        return (
+          <div key={route.id} className="bh-conversation-actions">
+            <span>{channel?.name ?? t('im.targetUnavailable')}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || channel === undefined}
+              aria-label={t('conversation.syncStopFor', {
+                name: channel?.name ?? t('im.targetUnavailable'),
+              })}
+              onClick={() => void sync(grant, route.channelId!, false)}
+            >
+              {t('conversation.syncStop')}
+            </Button>
+          </div>
+        );
+      })}
+      {channels.length ? (
+        <>
+          <Combobox
+            label={t('conversation.syncTitle')}
+            toggleLabel={t('conversation.syncTitle')}
+            value={channelId}
+            disabled={busy}
+            options={channels.map((channel) => ({ value: channel.id, label: channel.name }))}
+            onSelect={setChannelId}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={
+              busy ||
+              selected === undefined ||
+              active.some((route) => route.channelId === channelId)
+            }
+            aria-label={t('conversation.syncApply', { name: selected?.name ?? '' })}
+            onClick={() => void sync(grant, channelId, true)}
+          >
+            {t('conversation.sync')}
+          </Button>
+        </>
+      ) : (
+        <p className="bh-muted">{t('conversation.syncNone')}</p>
+      )}
+    </section>
   );
 }

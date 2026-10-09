@@ -57,12 +57,17 @@ describe('telemetry ingest proxy', () => {
         'access-control-allow-origin',
       ),
     ).toBe('https://deepseekbot.botharness.ai');
+    for (const site of ['https://deepseekbot.app', 'https://deepseekbot.dev'])
+      expect((await preflight(site)).headers.get('access-control-allow-origin')).toBe(site);
     expect(
       (await preflight('http://localhost:5173')).headers.get('access-control-allow-origin'),
     ).toBe('http://localhost:5173');
-    expect(
-      (await preflight('https://evil.example')).headers.get('access-control-allow-origin'),
-    ).toBeNull();
+    for (const other of [
+      'https://evil.example',
+      'https://deepseekbot.app.evil.example',
+      'https://deepseekbot.example',
+    ])
+      expect((await preflight(other)).headers.get('access-control-allow-origin')).toBeNull();
     expect(forwarded).toHaveLength(0);
   });
 });

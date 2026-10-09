@@ -134,7 +134,8 @@ export class CompanionMotion {
         return (this.point = { ...this.point, tilt: 0, squash: 0 });
       return this.point;
     }
-    let remaining = Number.isFinite(milliseconds) ? Math.min(64, Math.max(0, milliseconds)) : 0;
+    const limit = this.point.phase === 'fall' || this.point.phase === 'land' ? 2000 : 64;
+    let remaining = Number.isFinite(milliseconds) ? Math.min(limit, Math.max(0, milliseconds)) : 0;
     let { x, y, tilt, squash, phase } = this.point;
     while (remaining > 0) {
       const dt = Math.min(8, remaining) / 1000;
