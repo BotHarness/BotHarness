@@ -36,7 +36,7 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-pending > header { flex: none; padding: 8px 10px; font: 12px/18px var(--bh-companion-font); border-bottom: 1px solid var(--bh-companion-border); }
 .bh-companion-pending > ol { margin: 0; padding: 8px; list-style: none; overflow: auto; scrollbar-gutter: stable; }
 .bh-companion-pending > ol:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: -2px; }
-.bh-companion-pending li + li { margin-top: 12px; }
+.bh-companion-pending > ol > li + li { margin-top: 12px; }
 .bh-companion-request-source { margin-bottom: 6px; font: 11px/16px var(--bh-companion-font); color: var(--bh-companion-muted); overflow-wrap: anywhere; }
 .bh-companion-pending .bh-tool-approval-card { margin: 0; min-width: 0; grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
 .bh-companion-pending .bh-tool-approval-input { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }

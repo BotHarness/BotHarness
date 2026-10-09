@@ -1,7 +1,7 @@
 import type {
   CompanionBot,
   CompanionMessage,
-  CompanionApproval,
+  CompanionRequest,
 } from '../../../core/src/companions/feed.js';
 import { companionRequests } from './companion-requests.js';
 import {
@@ -42,7 +42,7 @@ export interface CompanionViewState {
   activity?: PersonaBotActivitySnapshot['bots'][number] | undefined;
   sync: 'connecting' | 'live' | 'stale';
   cards: readonly CompanionCard[];
-  requests: readonly CompanionApproval[];
+  requests: readonly CompanionRequest[];
   pending: number;
   reading: boolean;
   mouth?: PixelMouthState | undefined;

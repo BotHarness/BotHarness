@@ -185,6 +185,7 @@ export function apply(ctx: ClientContext): void {
       companion.dispose();
     };
   }, 'botharness: independent Window Companion owner');
+  const prefs = new BotModePrefs(storage);
   ctx.slots.inject('shell.overlay', () =>
     ctx.slots.register(
       {
@@ -193,6 +194,7 @@ export function apply(ctx: ClientContext): void {
         locale: LOCALE_NS,
         inject: () => ({
           companion,
+          prefs,
           actions,
           openDm: (botId: string) => {
             ctx.layout.selectPanel(PANEL_ID);
@@ -212,7 +214,6 @@ export function apply(ctx: ClientContext): void {
       WindowCompanionsView,
     ),
   );
-  const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
     openBotSettings(() => [t('settings.nav')]);

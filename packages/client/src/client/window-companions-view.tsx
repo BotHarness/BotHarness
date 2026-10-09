@@ -9,6 +9,10 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { WindowCompanions } from './window-companions.js';
 import { WindowCompanionView, type WindowCompanionViewProps } from './window-companion-view.js';
 import { CompanionBubbles } from './companion-bubbles.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
+import { MessageDeveloperMode } from './message-developer-mode.js';
+
+const subscribeWithoutPrefs = (): (() => void) => () => {};
 
 export function CompanionPin({
   companion,
@@ -45,12 +49,21 @@ export function CompanionPin({
 
 export function WindowCompanionsView({
   companion,
+  prefs,
   ...props
-}: Omit<WindowCompanionViewProps, 'companion'> & { companion: WindowCompanions }): ReactElement {
+}: Omit<WindowCompanionViewProps, 'companion'> & {
+  companion: WindowCompanions;
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
+}): ReactElement {
   const state = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
+  const developerMode = useSyncExternalStore(
+    prefs?.source.subscribe ?? subscribeWithoutPrefs,
+    () => prefs?.source.getSnapshot().developerMode ?? false,
+    () => false,
+  );
   const [bubbles] = useState(() => new CompanionBubbles());
   return (
-    <>
+    <MessageDeveloperMode.Provider value={developerMode}>
       {state.companions.map((child) => (
         <WindowCompanionView
           key={child.getSnapshot().selection?.botId}
@@ -60,7 +73,7 @@ export function WindowCompanionsView({
           onRemove={(botId) => companion.remove(botId)}
         />
       ))}
-    </>
+    </MessageDeveloperMode.Provider>
   );
 }
 

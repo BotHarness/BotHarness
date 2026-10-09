@@ -5,6 +5,7 @@ import type { PersonaBotOutputCommitted } from '../channels/output.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import { randomUUID } from 'node:crypto';
 import type { ChannelToolApproval, ToolApprovalNotice } from '../workspaces/tool-approval.js';
+import type { ChannelUserQuestions, ChannelQuestionNotice } from '../channels/user-questions.js';
 import { dmChannelId } from '../channels/channel.js';
 import {
   companionSources,
@@ -19,6 +20,12 @@ export interface CompanionApproval extends ToolApprovalNotice {
   channelId: string;
   channelName: string;
 }
+export interface CompanionQuestion extends ChannelQuestionNotice {
+  kind: 'user-question';
+  channelId: string;
+  channelName: string;
+}
+export type CompanionRequest = CompanionApproval | CompanionQuestion;
 export interface CompanionBot {
   slug: string;
   name: string;
@@ -26,7 +33,7 @@ export interface CompanionBot {
   lifecycle?: string;
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
-  requests?: readonly CompanionApproval[];
+  requests?: readonly CompanionRequest[];
   avatarSeed?: 2;
 }
 export interface CompanionSnapshot {
@@ -47,6 +54,7 @@ export interface CompanionMessage {
 }
 export interface CompanionFeed {
   attachApprovals(owner: Pick<ChannelToolApproval, 'requests' | 'subscribe'>): () => void;
+  attachQuestions(owner: Pick<ChannelUserQuestions, 'requests' | 'subscribe'>): () => void;
   open(request: Request): Response;
   update(request: Request): Promise<Response>;
   publish(event: PersonaBotOutputCommitted): void;
@@ -82,8 +90,13 @@ interface RecoveryState {
 }
 
 export function createCompanionFeed(source: FeedSource): CompanionFeed {
-  let approvals: Pick<ChannelToolApproval, 'requests' | 'subscribe'> | undefined;
-  let offApprovals: (() => void) | undefined;
+  const requestSources = new Map<
+    CompanionRequest['kind'],
+    {
+      read(bot: CompanionBot): CompanionRequest[];
+      off(): void;
+    }
+  >();
   const presentedBot = (id: string): CompanionBot | undefined => {
     const bot = source.bot(id);
     return bot === undefined
@@ -92,12 +105,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           ...bot,
           requests: bot.paused
             ? []
-            : (approvals?.requests(id) ?? []).map((request) => ({
-                ...request,
-                kind: 'tool-approval',
-                channelId: dmChannelId(id),
-                channelName: bot.name,
-              })),
+            : [...requestSources.values()].flatMap((owner) => owner.read(bot)),
         };
   };
   const consumers = new Set<{
@@ -137,22 +145,52 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     for (const id of identities.keys()) lifecycle(id);
     for (const consumer of consumers) consumer.reconcile();
   });
-  return {
-    attachApprovals(owner) {
-      if (disposed) return () => undefined;
-      offApprovals?.();
-      approvals = owner;
-      offApprovals = owner.subscribe(() => {
-        for (const consumer of consumers) consumer.reconcile();
-      });
+  const attachRequests = (
+    kind: CompanionRequest['kind'],
+    read: (bot: CompanionBot) => CompanionRequest[],
+    subscribe: (listener: () => void) => () => void,
+  ): (() => void) => {
+    if (disposed) return () => undefined;
+    requestSources.get(kind)?.off();
+    const reconcile = (): void => {
       for (const consumer of consumers) consumer.reconcile();
-      return () => {
-        if (approvals !== owner) return;
-        offApprovals?.();
-        offApprovals = undefined;
-        approvals = undefined;
-        for (const consumer of consumers) consumer.reconcile();
-      };
+    };
+    const owner = { read, off: subscribe(reconcile) };
+    requestSources.set(kind, owner);
+    reconcile();
+    return () => {
+      if (requestSources.get(kind) !== owner) return;
+      owner.off();
+      requestSources.delete(kind);
+      reconcile();
+    };
+  };
+  return {
+    attachQuestions(owner) {
+      return attachRequests(
+        'user-question',
+        (bot) =>
+          owner.requests(bot.slug).map((request) => ({
+            ...request,
+            kind: 'user-question',
+            channelId: dmChannelId(bot.slug),
+            channelName: bot.name,
+          })),
+        (listener) => owner.subscribe(listener),
+      );
+    },
+    attachApprovals(owner) {
+      return attachRequests(
+        'tool-approval',
+        (bot) =>
+          owner.requests(bot.slug).map((request) => ({
+            ...request,
+            kind: 'tool-approval',
+            channelId: dmChannelId(bot.slug),
+            channelName: bot.name,
+          })),
+        (listener) => owner.subscribe(listener),
+      );
     },
     async update(request) {
       if (disposed) return new Response('Companion unavailable', { status: 503 });
@@ -627,9 +665,8 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
     },
     close() {
       disposed = true;
-      offApprovals?.();
-      offApprovals = undefined;
-      approvals = undefined;
+      for (const owner of requestSources.values()) owner.off();
+      requestSources.clear();
       offIdentity?.();
       identities.clear();
       for (const consumer of consumers) consumer.close();

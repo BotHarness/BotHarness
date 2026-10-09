@@ -6,6 +6,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import { store, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
+import type { CompanionRequestTarget } from './companion-requests.js';
 
 export function ToolApprovalCard({
   message,
@@ -23,15 +24,7 @@ export function ToolApprovalCard({
     | 'rejected'
     | undefined;
   t: BotHarnessTranslate;
-  companionTarget?:
-    | {
-        channelId: string;
-        botSlug: string;
-        sessionId: string;
-        callId: string;
-        live: boolean;
-      }
-    | undefined;
+  companionTarget?: (CompanionRequestTarget & { callId: string }) | undefined;
 }): ReactElement {
   const request = message.toolApprovalRequest!;
   const [acceptedDecision, setAcceptedDecision] = useState<typeof decision>();
