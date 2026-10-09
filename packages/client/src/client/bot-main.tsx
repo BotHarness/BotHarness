@@ -681,17 +681,22 @@ function ConversationView({
                 ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
                 : t('main.activity.bots', { count: composerFacepile.length }),
           };
+  const streamingBotSlugs = new Set(conversation.drafts.map((item) => item.botSlug));
+  const latestMessage = messages.findLast(
+    (item) => item.botDmAction === undefined && item.memberDeparture === undefined,
+  );
   const workingRows = timelineWorkingRows(
     conversation.status === 'ready' && !conversation.timeline.hasNewer
       ? composerActivity
       : undefined,
-    new Set(conversation.drafts.map((item) => item.botSlug)),
+    streamingBotSlugs,
+    latestMessage?.author.kind === 'bot' ? latestMessage.author.slug : undefined,
   );
   const composerActivityConcealed =
     atLatest &&
     conversation.status === 'ready' &&
     !conversation.timeline.hasNewer &&
-    timelineWorkingRowsCover(composerActivity, workingRows);
+    timelineWorkingRowsCover(composerActivity, workingRows, streamingBotSlugs);
   const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
   const activeMemoryView =
@@ -1543,7 +1548,9 @@ function ConversationView({
                 <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
                   {conversation.timeline.hasNewer
                     ? t('messages.latest')
-                    : t('messages.unseen', { count: unseen })}
+                    : t(unseen === 1 ? 'messages.unseenOne' : 'messages.unseen', {
+                        count: unseen,
+                      })}
                 </button>
               ) : null}
               {activeMemoryView === undefined && restoreBlocked ? (
