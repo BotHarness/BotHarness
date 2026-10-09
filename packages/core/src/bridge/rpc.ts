@@ -67,6 +67,7 @@ import type {
   BridgeMethods,
   BridgeResult,
   ChannelListItem,
+  MessagingAppsView,
   PersonaBotDetail,
   PersonaBotSummary,
   OwnedSessionSummary,
@@ -248,7 +249,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): Promise<{ identity: MessagingIdentity }> {
     return unwrapAsync(this.methods.messagingIdentity({ slug, input }));
   }
-  messagingApps(): Promise<{ apps: MessagingApp[] }> {
+  messagingApps(): Promise<MessagingAppsView> {
     return unwrapAsync(this.methods.messagingApps());
   }
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {

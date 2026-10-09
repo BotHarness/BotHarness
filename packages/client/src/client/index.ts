@@ -435,7 +435,7 @@ export function apply(ctx: ClientContext): void {
         MessagingSection,
       ),
     );
-    const imApps = createImApps({ call, botSettings });
+    const imApps = createImApps({ call, botSettings, actions });
     settingsCtx.slots.inject('botharness.settings.section', () =>
       settingsCtx.slots.register(
         {

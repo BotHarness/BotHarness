@@ -54,11 +54,15 @@ function storeWithBots() {
 }
 
 async function render(
-  load: () => Promise<MessagingApp[]>,
+  loadApps: () => Promise<MessagingApp[]>,
   manage: () => void = () => undefined,
   notice?: 'settings-unavailable',
 ): Promise<void> {
-  const imApps = { load, manage, takeNotice: () => notice };
+  const imApps = {
+    load: async () => ({ apps: await loadApps(), setups: [] }),
+    manage,
+    takeNotice: () => notice,
+  };
   await act(async () => {
     root.render(
       createElement(ImAppsSection, {
@@ -81,9 +85,9 @@ it('lists Apps from every platform with their PersonaBot or an unbound marker', 
     app({ ref: 'c', name: 'Old Slack', platform: 'slack', boundBotSlug: 'gone' }),
   ]);
   expect(rows()).toEqual([
-    'Lark SalesLark/飞书 · 已连接Ada',
-    'QQ GroupQQ · 未连接未绑定',
-    'Old SlackSlack · 已连接已移除的 Bot',
+    'Lark SalesLark/飞书 · 已连接Ada解绑',
+    'QQ GroupQQ · 未连接未绑定绑定',
+    'Old SlackSlack · 已连接已移除的 Bot解绑',
   ]);
 });
 
@@ -119,8 +123,9 @@ it('closes Bot Settings for DSH settings and reopens at IM apps when it returns'
   let returned: (() => void) | undefined;
   let unavailable: (() => void) | undefined;
   const imApps = createImApps({
-    call: async () => ({ ok: true, value: { apps: [] } }) as never,
+    call: async () => ({ ok: true, value: { apps: [], setups: [] } }) as never,
     botSettings: settings,
+    actions: {} as never,
     openDshSettings: (onReturn, onUnavailable) => {
       returned = onReturn;
       unavailable = onUnavailable;
@@ -149,5 +154,5 @@ it('loads the list again each time the section mounts', async () => {
   root = createRoot(host);
   await render(load);
   expect(load).toHaveBeenCalledTimes(2);
-  expect(rows()).toEqual(['Lark SalesLark/飞书 · 已连接未绑定']);
+  expect(rows()).toEqual(['Lark SalesLark/飞书 · 已连接未绑定绑定']);
 });

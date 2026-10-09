@@ -3769,11 +3769,16 @@ export async function reviewPairing(
 }
 export type { MessagingApp } from '../../../core/src/messaging/outbound.js';
 
-export async function loadMessagingApps(call: BridgeCall): Promise<MessagingApp[]> {
+export async function loadMessagingApps(
+  call: BridgeCall,
+): Promise<{ apps: MessagingApp[]; setups: NonNullable<MessagingSnapshot['appSetups']> }> {
   const record = asRecord(await unwrap(call, 'messagingApps', {}));
   const apps = record?.['apps'];
+  const setups = record?.['setups'];
   if (
     !Array.isArray(apps) ||
+    !Array.isArray(setups) ||
+    !setups.every((value) => typeof asRecord(value)?.['providerId'] === 'string') ||
     !apps.every((value) => {
       const app = asRecord(value);
       return (
@@ -3788,7 +3793,10 @@ export async function loadMessagingApps(call: BridgeCall): Promise<MessagingApp[
     })
   )
     throw new BridgeCallError('invalid-response', 'Invalid messaging apps');
-  return apps as MessagingApp[];
+  return {
+    apps: apps as MessagingApp[],
+    setups: setups as NonNullable<MessagingSnapshot['appSetups']>,
+  };
 }
 
 export async function loadMessagingSnapshot(
