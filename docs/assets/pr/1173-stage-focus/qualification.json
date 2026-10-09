@@ -1,0 +1,171 @@
+{
+  "issue": 1173,
+  "beforeSource": "5cddec3541a3c2869412520d42d4ea6dee75caaa",
+  "afterSource": "1c0651ef8485b4e8a359959bbed14e30b0acf41c",
+  "afterClientSha256": "57a6b695e5f22e3d7fd93efbf7b320c7ceb4c340ff627d84b9b906c17a3828b6",
+  "formalPixelAvatar": "0.10.0",
+  "dsh": "0.2.0-rc.1",
+  "locale": "English native UI, Chinese canonical test messages",
+  "theme": "native dark",
+  "cssViewport": [960, 640],
+  "dpr": 1.4249999523162842,
+  "geometryBefore": {
+    "observations": [
+      {
+        "bot": "阅读验收 Ada · Window Companion",
+        "bottom": 635.0877151489258,
+        "overflow": "hidden",
+        "scrollTop": 4.912281036376953,
+        "x": 330.4364013671875
+      },
+      {
+        "bot": "阅读验收 Grace · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "hidden",
+        "scrollTop": 0,
+        "x": 404.4211730957031
+      },
+      {
+        "bot": "声音与问答验收 A · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "hidden",
+        "scrollTop": 0,
+        "x": 275.51617431640625
+      },
+      {
+        "bot": "声音与问答验收 B · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "hidden",
+        "scrollTop": 0,
+        "x": 146.61300659179688
+      },
+      {
+        "bot": "抛掷回归 Bot · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "hidden",
+        "scrollTop": 0,
+        "x": 543.6257934570312
+      }
+    ],
+    "pass": false,
+    "viewport": [960, 640]
+  },
+  "geometryAfter": {
+    "card": [
+      {
+        "height": 54,
+        "length": 431,
+        "scroll": 396,
+        "scrollbar": "none",
+        "top": 341.75439453125
+      }
+    ],
+    "observations": [
+      {
+        "bot": "阅读验收 Ada · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "clip",
+        "scrollTop": 0,
+        "x": 330.4364013671875
+      },
+      {
+        "bot": "阅读验收 Grace · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "clip",
+        "scrollTop": 0,
+        "x": 404.4211730957031
+      },
+      {
+        "bot": "声音与问答验收 A · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "clip",
+        "scrollTop": 0,
+        "x": 275.51617431640625
+      },
+      {
+        "bot": "声音与问答验收 B · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "clip",
+        "scrollTop": 0,
+        "x": 146.61300659179688
+      },
+      {
+        "bot": "抛掷回归 Bot · Window Companion",
+        "bottom": 640.0000076293945,
+        "overflow": "clip",
+        "scrollTop": 0,
+        "x": 543.6257934570312
+      }
+    ],
+    "pass": true,
+    "viewport": [960, 640]
+  },
+  "readingResizeAfter": {
+    "card": [
+      {
+        "height": 54,
+        "length": 402,
+        "scroll": 378,
+        "scrollbar": "none",
+        "top": 0
+      }
+    ],
+    "observations": [
+      {
+        "bot": "阅读验收 Ada · Window Companion",
+        "bottom": 540.3508987426758,
+        "overflow": "clip",
+        "scrollTop": 0
+      },
+      {
+        "bot": "阅读验收 Grace · Window Companion",
+        "bottom": 540.3508987426758,
+        "overflow": "clip",
+        "scrollTop": 0
+      },
+      {
+        "bot": "声音与问答验收 A · Window Companion",
+        "bottom": 540.3508987426758,
+        "overflow": "clip",
+        "scrollTop": 0
+      },
+      {
+        "bot": "声音与问答验收 B · Window Companion",
+        "bottom": 540.3508987426758,
+        "overflow": "clip",
+        "scrollTop": 0
+      },
+      {
+        "bot": "抛掷回归 Bot · Window Companion",
+        "bottom": 540.3508987426758,
+        "overflow": "clip",
+        "scrollTop": 0
+      }
+    ],
+    "pass": true,
+    "viewport": [760, 540]
+  },
+  "recordings": [
+    {
+      "file": "after-reading.mp4",
+      "original": [
+        {
+          "codec_type": "video",
+          "width": 1368,
+          "height": 912
+        }
+      ],
+      "durationSeconds": 38.3555,
+      "publishedBytes": 7299793,
+      "encoding": "Original T3 recording, byte-for-byte copy; fixed960×640 CSS viewport; no audio track; decoder validated without malformed frames"
+    }
+  ],
+  "limits": [
+    "Two original T3 recordings changed dimensions during capture and contained malformed H.264 frames; excluded and preserved privately. The published fixed-viewport recording was decoded successfully and copied without edits. Resize qualification uses PNG/DOM evidence.",
+    "Five native paused companions, keyboard navigation, canonical model/channel_send message playback and real resize only. Not calibrated fast throw, moving hover, genuine background, audio or formal 0.10.1 qualification.",
+    "No profiler or performance acceptance under high machine CPU load.",
+    "A restart-era document recorded connection-lost and shell-timeout before mounting later; it remains a failed attempt. A separate fresh document mounted the shell in686ms, then native pins/composer/messages were checked independently. This is not a recovery-budget measurement.",
+    "Actual complete console read contains older GitHub404s, two unsuccessful asset-path probes and intentional owned Host restart connection errors; no new post-navigation exception observed.",
+    "The before/after idle pair uses the same five saved positions and profile. A new real message is used after restart; historical messages are not replayed."
+  ]
+}
