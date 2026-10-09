@@ -2405,6 +2405,32 @@ export async function loadToolApprovalStatus(
   return status;
 }
 
+export type ToolApprovalExecutionState =
+  | 'waiting-human'
+  | 'waiting-capacity'
+  | 'running'
+  | 'settled'
+  | 'needs-repair';
+
+export async function loadToolApprovalExecutionState(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<ToolApprovalExecutionState | undefined> {
+  const response = asRecord(await unwrap(call, 'toolApprovalStatus', { channelId, messageId }));
+  const execution = response?.['execution'];
+  if (
+    execution !== undefined &&
+    execution !== 'waiting-human' &&
+    execution !== 'waiting-capacity' &&
+    execution !== 'running' &&
+    execution !== 'settled' &&
+    execution !== 'needs-repair'
+  )
+    throw new Error('invalid toolApprovalStatus execution');
+  return execution;
+}
+
 export async function decideToolApproval(
   call: BridgeCall,
   channelId: string,

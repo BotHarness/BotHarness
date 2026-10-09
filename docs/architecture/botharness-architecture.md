@@ -450,6 +450,8 @@ Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical 
 
 Assignment Runtime 的并发上限覆盖整个 Host 的所有 PersonaBot（默认 3），同时约束新建、按 Session 恢复空闲事项和按 Continuity Key 复用。恢复前先同步占用原有 Assignment Directory 的 working 名额，再交给 DSH；运行中的事项接收更新不增加名额。满额时返回 `assignment-capacity`、当前数量、上限和可重试标记，不启动执行、不清除待答问题、不改变模型或权限快照。事项停止确认前仍占名额；释放名额后，Orchestrator 可重试同一 Session，不引入等待队列（#811）。
 
+#1037 有界切片只在无后代、无执行中工具且无已批准待执行调用的 Assignment 等待 Human 审批时释放 live 运行名额。持久 activity 仍为 working，process-local executionWait 区分 waiting-human 与 waiting-capacity；最多 32 个等待中的 Assignment Session 使用独立上限。Human 决定提交后，原生 outcome 或下一模型 Step 必须先取得当前运行名额，实际工具执行前再次检查归属、Grant、原 Source Event 与准确操作。新建和空闲恢复仍在满额时立即拒绝；中止、停止与冷恢复均不重放原调用。同一 Orchestrator 的权限 continuation 与群聊隐私仍单独保持 gate。见 [ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#live-approval-waits-and-running-permits)。
+
 Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原生 Settings schema 的 Volatile field 由 Profile Config Editor 持久化；UI Plugin 的 Host Fiber 将 live reader 绑定到 application-defined Assignment Runtime，并在 dispose 时释放绑定。Client 只展示 Host 确认的保存值；Runtime 在每次新建或恢复空闲事项的准入时读取当前值。保存后立即影响后续准入，重启后保留；降低上限不中止已有执行，直到使用量低于新上限才允许启动新工作（#825）。
 
 待处理 Workspace Grant 请求通过同一持久 Human-action 查询进入独立 Activity attention。只有经过校验的 Grant 关联 Human 回复、Inbox 忽略或来源 DM 移除才清除计数；普通授权文字不会清除。重启从已提交 action 重建计数，不伪造执行状态。
@@ -505,6 +507,12 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 首次选择/Client 或 Host 重启建立 Host 一致的新消息基线，不重播旧输出，直接查询当前 Activity；短暂后台/断线仅有界恢复本轮基线后尚未播出的消息，canonical identity 去重并拒绝旧 generation 响应。关闭来源清卡片与待播，重新开启或新合格 Channel 从当前基线继续。进程内 output-committed 只是通知，不能充当持久 cursor；查询成本与队列都必须有界。气泡到期/移除不更新 Channel read position。独立 Human attention 即使所有播放关闭仍保留并导航到 owning 活动/Human Inbox，不从计数编造正文或审批控件。
 
 每 Bot 一张当前活动卡加独立并行逐字消息卡，默认折叠 3 层、最多保留 20 张未到期卡；全局设置可调整。hover/focus 展开稳定列表，暂停漫游与到期，已显示文字继续播放，新增内容只计数、退出后有界合并；长文预览、列表滚动，基本气泡避让。无自动 +N 折叠或钉选数量上限，Human 通过拖动、暂停漫游、移除调整。归档保留静态伙伴与标记、删除清选择；reduced motion、freshness、上传图片静态 media 和版本快照降级沿既有 Avatar 合同。先完成真实 Host→Client 的一个像素伙伴 Activity/DM 与操作/恢复切片，Human 验证后扩展多个 Bot、群聊与三档范围；闭合/半开/张开文字节奏嘴型作为随后 BotPixel 兼容扩展。独立桌面窗口、fork 分发与全身动作不属于此目标。
+
+[ADR-0150](../adr/0150-window-companion-requests-use-their-live-owners.md) 记录 Human 在 #1178 接受的 attention 扩展：伙伴显示真实 owning Tool Approval 的当前待处理请求并可直接决策，独立于普通输出的播放开关和范围。审批正文来自现有 live owner 的已提交请求，不由 attention 计数或旧 Channel 历史重建；原规格保留历史边界。
+
+生产 feed 通过 Fiber 拥有的可释放 attachment 观察 `ChannelToolApproval`，在已确认选择快照中投影当前已提交请求；首次钉选、重连都不需要重播历史。`CompanionRequests` 将待处理请求放入有总数提示的常驻滚动区域，独立于装饰气泡容量；普通消息暂缓逐字与到期，显示等待数量。复用 `ToolApprovalCard`、原生控件和既有审批 RPC，只有明确匹配 Bot/DM/Session/call 且 live 的 companion target 可脱离当前 Channel；普通聊天选择检查保留。提交前重新读取状态，Host 仍验证规范请求和 native caller；竞争决定只能一次生效。断线禁用、状态读取失败可重试，拥有者结算或撤销后快照移除请求并恢复键盘焦点，Host 重启不从耐久请求历史重建 live 权限。
+
+依赖切片 #1179 将既有 `ChannelUserQuestions` owner 接入同一 feed，并在 `CompanionRequests` 中增加正式提问变体。`UserQuestionCard` 与 Chat、Human Inbox 共用，保留全部问题、选项说明、单选／多选和自定义文字。当前回答草稿不受普通消息和悬浮影响，不另建持久化；明确匹配 Bot/DM/Session 且 live 的目标在提交前重新读状态，可在其他 Channel 仍被选择时直接回答。规范拥有者校验、提交且只接受一次，再恢复原 native request。普通问句不生成交互控件，新 Host 不从历史重建待答问题；审批 attention 与导航保持独立。
 
 ### 5.4 · 形象物种与自绘部件（部分已实现）
 

@@ -271,6 +271,9 @@ describe('native timed question card continuation', () => {
     expect(state.channels.readMessages(channelId)).toHaveLength(1);
     expect(state.channels.readMessages(channelId)[0]?.userQuestionRequest?.callId).toBe('original');
     expect(state.answerer.status('ada', state.id)).toBe('pending');
+    expect(state.answerer.requests('ada')).toMatchObject([
+      { messageId: state.id, callId: 'original' },
+    ]);
     expect(state.answerer.activeSessionIds()).toEqual([sessionId]);
     expect(state.states.snapshot('ada').attention?.questionCount).toBe(1);
     expect(await state.answerer.answer('other', state.id, state.answer)).toBe(false);
@@ -279,6 +282,9 @@ describe('native timed question card continuation', () => {
     expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(true);
     expect(state.port.answer).toHaveBeenCalledWith(state.agent, 'original', state.answer);
     expect(state.answerer.status('ada', state.id)).toBe('submitted');
+    expect(state.answerer.requests('ada')).toMatchObject([
+      { messageId: state.id, callId: 'original' },
+    ]);
     await state.answerer.reconcileSession(sessionId);
     expect(state.channels.readMessages(channelId)).toHaveLength(1);
     expect(await state.answerer.answer('ada', state.id, state.answer)).toBe(false);
@@ -289,6 +295,7 @@ describe('native timed question card continuation', () => {
       answers: state.answer.answers,
     });
     expect(state.answerer.status('ada', state.id)).toBe('answered');
+    expect(state.answerer.requests('ada')).toEqual([]);
     expect(state.answerer.activeMessageIds()).toEqual([]);
     expect(state.states.snapshot('ada').attention).toBeUndefined();
   });
@@ -365,6 +372,7 @@ describe('live question attention authority', () => {
     });
     const rejected = expect(request).rejects.toThrow(/cancelled/);
     expect(state.states.snapshot('ada').attention).toBeUndefined();
+    expect(state.answerer.requests('ada')).toEqual([]);
     controller.abort();
     release();
     await rejected;

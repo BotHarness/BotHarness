@@ -492,6 +492,61 @@ describe('Channel message body', () => {
 });
 
 describe('Tool approval card', () => {
+  it('keeps an accepted decision visible while capacity is unavailable, then clears the wait on execution', async () => {
+    vi.useFakeTimers();
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const toolApprovalExecutionState = vi
+      .fn()
+      .mockResolvedValueOnce('waiting-capacity')
+      .mockResolvedValueOnce('running');
+    const actions = { toolApprovalExecutionState } as unknown as BridgeActions;
+    const message: ChannelMessage = {
+      id: 'approval-capacity',
+      at: '2026-10-09T00:00:00Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'Approve bash',
+      toolApprovalRequest: {
+        sessionId: 'original',
+        callId: 'call',
+        role: 'assignment',
+        toolName: 'bash',
+        cwd: '/qa',
+        input: '{}',
+      },
+    };
+    try {
+      await act(async () =>
+        root.render(
+          createElement(ChannelMessageBody, {
+            message,
+            actions,
+            t: zhTranslate,
+            toolApprovalDecision: 'allowed-once',
+          }),
+        ),
+      );
+      expect(container.textContent).toContain('已批准这一次调用');
+      expect(container.textContent).toContain('等待运行名额');
+      expect(container.textContent).not.toContain('仅批准这一次');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(container.textContent).not.toContain('等待运行名额');
+      expect(container.textContent).toContain('已批准这一次调用');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(toolApprovalExecutionState).toHaveBeenCalledTimes(2);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('removes approval actions immediately when a Workspace Grant change expires the request', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

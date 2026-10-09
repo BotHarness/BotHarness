@@ -1,0 +1,45 @@
+{
+  "runtimeSource": "1b00b0a5898977e9c4173a4278e164bd6c89a45b",
+  "mergedMain": "652410b578077446a5265875c512c238125a2a8e",
+  "formalPixelAvatar": "0.8.0",
+  "capture": "Actual isolated DSH 0.2.0-rc.1, Chinese light theme, 1559 x 865, foreground",
+  "recording": {
+    "file": "main652-stream-return.webm",
+    "continuous": true,
+    "silent": true,
+    "containerRemuxOnly": true,
+    "performanceMeasurement": false
+  },
+  "transport": {
+    "actualSharedCompanionStreamDropped": 1,
+    "reconnectAttemptsRefused": 4,
+    "hostGenerationUnchanged": true,
+    "documentTimeOriginUnchanged": true
+  },
+  "observations": {
+    "samples": 57,
+    "staleSamples": 44,
+    "pendingRetainedAndActionsDisabledWhileStale": true,
+    "nativeScrollExposesRejectBeforeCutAndAfterRecovery": true,
+    "nativeMouseReject": true,
+    "canonicalRejections": 1,
+    "unrelatedChannelRetainedThroughSettlement": true,
+    "originalBotCommittedDenialReply": true,
+    "lateDuplicateRefused": "invalid-input"
+  },
+  "console": {
+    "expectedIntentionalTransportErrors": 2,
+    "otherErrors": 0
+  },
+  "cleanup": {
+    "ownedBrowserClosed": true,
+    "proxyClosed": true,
+    "activeStreams": 0
+  },
+  "limits": [
+    "Foreground same-Host stream recovery only, not full outage or background behavior.",
+    "The native harmless echo is rejected; successful Shell execution is not claimed.",
+    "Earlier captures retain their original source attribution.",
+    "Assignment-capacity state is covered by the retained automated regression; this recording is an Orchestrator request."
+  ]
+}

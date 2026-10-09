@@ -1,0 +1,72 @@
+{
+  "recordedAt": "2026-10-09T02:48:33.009Z",
+  "source": {
+    "runtimeCommit": "ce926cbec838594bc2db098e42e108b95efd7bed",
+    "main": "5efae378",
+    "approvalParent": "b593540f",
+    "pixelAvatar": "formal 0.7.0",
+    "dsh": "0.2.0-rc.1"
+  },
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "themes": ["light", "dark"],
+  "language": "Chinese",
+  "capture": "Official Chrome DevTools MCP, continuous silent 41.133s VP9; container remux only",
+  "assertions": {
+    "realNativeQuestionOwners": 2,
+    "suppliedQuestions": {
+      "A": 3,
+      "B": 1
+    },
+    "bothInitiallyPendingWithoutSelectionOrAnswer": true,
+    "unrelatedDmRetainedThroughCompanionAnswerAndOriginalAReply": true,
+    "nativeChoiceCheckboxCustomInputAndSubmit": true,
+    "draftPreservedAcrossThemeChange": true,
+    "answersA": [
+      {
+        "id": "route",
+        "selected": ["体验版"]
+      },
+      {
+        "id": "checks",
+        "selected": ["拖拽", "气泡"]
+      },
+      {
+        "id": "note",
+        "selected": [],
+        "custom": "保持轻微音量，优先保证阅读稳定。"
+      }
+    ],
+    "canonicalAnsweredResolutionsA": 1,
+    "originalBotAContinuesWithEveryAnswer": true,
+    "bRemainsPendingWithoutAnswerAfterAResolves": true,
+    "bSelectedDraftRetainedAfterActualAMessage": true,
+    "explicitlyOpenBChatForSecondAnswer": true,
+    "simultaneousChatAndCompanionCustomInputIdsUnique": true,
+    "chatAnswerB": [
+      {
+        "id": "scope",
+        "selected": ["只检查自己"]
+      }
+    ],
+    "canonicalAnsweredResolutionsB": 1,
+    "originalBotBContinuesWithChatAnswer": true,
+    "bothCompanionRequestsRemoved": true,
+    "sameDocumentTimeOrigin": true,
+    "lateAnswerRefused": "invalid-input",
+    "noSecondBResolutionAfterLateAnswer": true,
+    "consoleErrors": 0,
+    "ownedBrowserClosed": true
+  },
+  "limits": [
+    "Six screenshots are successive interaction states, not matched base/PR layout comparisons; the earlier option-design pair remains separately attributed.",
+    "The continuous clip begins after real pinning, pausing walking and native drag placement. Those setup interactions are not in this clip.",
+    "Choice/checkbox/submit actions use native Enter/Space after DOM focus, and custom text uses native MCP fill. This scene does not claim mouse answer coverage; the separately attributed current native-answer scene does.",
+    "The tall A request remains scrollable. Draft captures show its lower questions after focusing the custom input, so the first question is above the viewport; this is not a complete-form still.",
+    "B Chat initially opens at its current scroll position, with part of the pending card above the viewport. Native focus scrolls the actual choice and submit for the answer. No synthetic scroll or UI event is injected.",
+    "Pending characters show question-mark presentations; this scene does not qualify mouth animation, performance, actual background return or same-context multi-tab startup.",
+    "No synthetic question, owner, reply, canonical answer, SSE or local success is injected. Raw authenticated records and login credentials remain machine-local."
+  ]
+}

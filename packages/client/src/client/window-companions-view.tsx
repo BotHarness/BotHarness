@@ -12,6 +12,10 @@ import { WindowCompanionView, type WindowCompanionViewProps } from './window-com
 import { CompanionBubbles } from './companion-bubbles.js';
 import { CompanionSound } from './companion-sound.js';
 import { useMountedResource } from './mounted-resource.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
+import { MessageDeveloperMode } from './message-developer-mode.js';
+
+const subscribeWithoutPrefs = (): (() => void) => () => {};
 
 export function CompanionPin({
   companion,
@@ -48,9 +52,18 @@ export function CompanionPin({
 
 export function WindowCompanionsView({
   companion,
+  prefs,
   ...props
-}: Omit<WindowCompanionViewProps, 'companion'> & { companion: WindowCompanions }): ReactElement {
+}: Omit<WindowCompanionViewProps, 'companion'> & {
+  companion: WindowCompanions;
+  prefs?: Pick<BotModePrefs, 'source'> | undefined;
+}): ReactElement {
   const state = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
+  const developerMode = useSyncExternalStore(
+    prefs?.source.subscribe ?? subscribeWithoutPrefs,
+    () => prefs?.source.getSnapshot().developerMode ?? false,
+    () => false,
+  );
   const [bubbles] = useState(() => new CompanionBubbles());
   const [sound] = useState(() => new CompanionSound());
   const audioMount = useMountedResource<HTMLSpanElement>(() => {
@@ -80,7 +93,7 @@ export function WindowCompanionsView({
     };
   }, [companion, sound]);
   return (
-    <>
+    <MessageDeveloperMode.Provider value={developerMode}>
       <span hidden ref={audioMount} />
       {state.companions.map((child) => (
         <WindowCompanionView
@@ -92,7 +105,7 @@ export function WindowCompanionsView({
           onRemove={(botId) => companion.remove(botId)}
         />
       ))}
-    </>
+    </MessageDeveloperMode.Provider>
   );
 }
 

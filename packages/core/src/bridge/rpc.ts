@@ -844,7 +844,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
   }
 
-  toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  toolApprovalStatus(
+    channelId: string,
+    messageId: string,
+  ): {
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  } {
     return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
   }
 

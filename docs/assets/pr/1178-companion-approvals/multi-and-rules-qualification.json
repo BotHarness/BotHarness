@@ -1,0 +1,92 @@
+{
+  "runtimeSource": "3afc8f0a7e69f0b22cdf770f2a948f4d9cc827a9",
+  "formalPixelAvatar": "0.7.0",
+  "dsh": "0.2.0-rc.1",
+  "viewport": [1559, 865],
+  "locale": "zh-CN",
+  "theme": "light",
+  "multipleRequests": {
+    "sameBot": true,
+    "distinctSessions": 3,
+    "roles": ["assignment", "assignment", "orchestrator"],
+    "nativeTools": ["pwsh", "pwsh", "bash"],
+    "harmlessEchoOnly": true,
+    "initialCount": 3,
+    "visibleList": {
+      "clientHeight": 409,
+      "scrollHeight": 1458,
+      "top": 0,
+      "bottom": 1049
+    },
+    "nativeKeyboardScrolling": true,
+    "nativeKeyboardRejections": 3,
+    "remainingCounts": [2, 1, 0],
+    "unsettledOwnersRemainPending": true,
+    "canonicalRejectedDecisions": 3,
+    "onePerRequest": true,
+    "duplicateError": "invalid-input",
+    "canonicalDecisionsAfterDuplicate": 3,
+    "allCommandsUnexecuted": true,
+    "originalOrchestratorDenialReply": true,
+    "bothAssignmentsIdleAfterTerminalReports": true,
+    "unrelatedChannelRetainedFromBaselineThroughSettlement": true,
+    "finalExplicitOwnerDmVisit": true,
+    "grantRevokedAfterStudy": true,
+    "consoleErrors": [],
+    "ownedBrowserClosed": true
+  },
+  "ruleSaving": {
+    "scenes": [
+      {
+        "kind": "exact",
+        "realOwnedOrchestratorRequest": true,
+        "nativeUserAction": true,
+        "explicitConfirmation": false,
+        "canonicalDecisionOutcome": "allowed-always-exact",
+        "canonicalDecisions": 1,
+        "ruleKind": "exact",
+        "exactInputsMatch": true,
+        "requestCardReleased": true,
+        "unrelatedChannelRetained": true,
+        "originalBotReportedActualOutcome": true,
+        "ruleStillOwnedAfterRealClientReload": true,
+        "newClientDocument": true,
+        "testRuleRevokedAfterQualification": true
+      },
+      {
+        "kind": "all-opaque",
+        "realOwnedOrchestratorRequest": true,
+        "nativeUserAction": true,
+        "explicitConfirmation": true,
+        "cancelCreatedNoRuleOrDecision": true,
+        "canonicalDecisionOutcome": "allowed-always-all",
+        "canonicalDecisions": 1,
+        "ruleKind": "all-opaque",
+        "requestCardReleased": true,
+        "unrelatedChannelRetained": true,
+        "originalBotReportedActualOutcome": true,
+        "ruleStillOwnedAfterRealClientReload": true,
+        "newClientDocument": true,
+        "testRuleRevokedAfterQualification": true
+      }
+    ],
+    "activeRulesAfterCleanup": 0,
+    "consoleErrors": [],
+    "ownedBrowserClosed": true
+  },
+  "media": {
+    "multi": "multi-session.webm",
+    "rules": "rule-save.webm",
+    "continuous": true,
+    "silent": true,
+    "containerRemuxOnly": true
+  },
+  "limits": [
+    "The model used native pwsh for the two Assignment echo requests and bash for the Orchestrator; all three concurrent requests were rejected, never executed.",
+    "Rule-saving echo calls were actually authorized; their native execution outcome is separate. Existing Windows workspace guard can refuse execution, so no successful Shell execution claim is made.",
+    "Real Client reload proves rules remain in the canonical owner across a new Client document; no Host cold restart or automatic future-call rule matching was exercised in this study.",
+    "This is one Bot with three pending Sessions, not a stress test of arbitrary request counts, backgrounding or performance.",
+    "Runtime integrates main5efae378; no matched comparison of unrelated upstream Avatar/onboarding changes.",
+    "Current recordings qualify the stated code composition, not every untested lifecycle edge or overall goal completion."
+  ]
+}

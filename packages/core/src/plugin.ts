@@ -1013,8 +1013,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
 
   ctx.on(
     'agent/pre-step',
-    async ({ agent }, next) =>
-      permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
+    async ({ agent, signal }, next) => {
+      try {
+        await core.runtime.ensureAssignmentCapacity?.(agent.session.id, signal);
+      } catch {
+        return { kind: 'reject' };
+      }
+      return permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' };
+    },
     { global: true },
   );
   toolApproval = new ChannelToolApproval(
@@ -1045,10 +1051,16 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       changed: (slug, count) => core.states.setApprovalCount(slug, count),
       warn: (message) => ctx.logger.warn(message),
     },
+    (sessionId, callId, signal) =>
+      core.runtime.beginAssignmentApprovalWait?.(sessionId, callId, signal),
   );
   ctx.effect(
     () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
     'botharness: approved IM tool controls',
+  );
+  ctx.effect(
+    () => core.companions.attachApprovals(toolApproval),
+    'botharness: companion approval observation',
   );
   userQuestions = new ChannelUserQuestions(
     core.channels,
@@ -1059,6 +1071,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     nativeTimedQuestions(ctx, core.runtime),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
+  ctx.effect(
+    () => core.companions.attachQuestions(userQuestions),
+    'botharness: companion question observation',
+  );
   ctx.on(
     'user-questions/request',
     async (request, next) => (await userQuestions.ask(request)) ?? next(),
@@ -1227,7 +1243,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
 
   ctx.tools.guard(({ agent, name, arguments: args, token }) => {
     const approvalGuard = approvedCalls.get(token);
-    approvedCalls.delete(token);
     if (approvalGuard && !approvalGuard(name, args))
       return 'Approval authority or operation changed before execution';
     const allowedOnce = approvalGuard !== undefined;
@@ -1244,9 +1259,45 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         );
   });
   ctx.on(
+    'tools/execute',
+    async (execution, next) => {
+      if (
+        execution.agent === undefined ||
+        core.ownership.resolve(execution.agent.session.id)?.rootRole !== 'assignment' ||
+        core.runtime.runAssignmentTool === undefined
+      )
+        return next();
+      return core.runtime.runAssignmentTool(
+        execution.agent.session.id,
+        execution.callId,
+        execution.token,
+        execution.signal,
+        () => {
+          const approvalGuard = approvedCalls.get(execution.token);
+          if (approvalGuard && !approvalGuard(execution.name, execution.arguments))
+            throw new Error('Approval authority or operation changed before execution');
+          const denial = grantToolExecutionDenial(
+            core,
+            execution.agent!.session,
+            ctx.get('sandboxPolicy'),
+            ctx.get('approval'),
+            execution.name,
+            execution.arguments,
+            approvalGuard !== undefined,
+          );
+          if (denial !== undefined) throw new Error(denial);
+          return next();
+        },
+      );
+    },
+    { global: true },
+  );
+  ctx.on(
     'tools/result',
     (execution) => {
       approvedCalls.delete(execution.token);
+      if (execution.agent !== undefined)
+        core.runtime.settleAssignmentTool?.(execution.agent.session.id, execution.callId);
     },
     { global: true },
   );
