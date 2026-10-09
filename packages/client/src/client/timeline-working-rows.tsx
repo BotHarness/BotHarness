@@ -4,6 +4,7 @@ import {
   personaBotActivitySummary,
   type PersonaBotFacepileItem,
 } from './avatar.js';
+import { attentionCount } from './activity-attention.js';
 import type { ChannelComposerActivity } from './channel-composer.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -21,12 +22,21 @@ export function timelineWorkingRows(
   const active = (activity?.items ?? []).filter(
     (item) =>
       (item.state === 'thinking' || item.state === 'working') &&
+      attentionCount(item.attention) === 0 &&
       !streamingBotSlugs.has(item.personaBotId),
   );
   return {
     items: active.slice(0, MAX_WORKING_ROWS),
     more: Math.max(0, active.length - MAX_WORKING_ROWS),
   };
+}
+
+function rowActivity(
+  activity: PersonaBotFacepileItem['activity'],
+): PersonaBotFacepileItem['activity'] {
+  if (activity === undefined) return undefined;
+  const { sources: _sources, ...rest } = activity;
+  return { ...rest, activeToolCount: 1 };
 }
 
 export function TimelineWorkingRowsView({
@@ -62,7 +72,7 @@ export function TimelineWorkingRowsView({
           <span className="bh-timeline-working-summary">
             <span className="bh-timeline-working-name">{item.name}</span>
             {' · '}
-            {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
+            {personaBotActivitySummary(item.state ?? 'idle', rowActivity(item.activity), t)}
             <span className="bh-timeline-working-ellipsis">
               <i>.</i>
               <i>.</i>
