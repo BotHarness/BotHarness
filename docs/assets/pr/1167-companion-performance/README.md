@@ -1,6 +1,6 @@
 # Five-companion performance evidence
 
-[formal-browser-cold.json](./formal-browser-cold.json) adds three actual formal0.10.1 browser-process restarts with persisted five pins, fifteen-second no-replay checks, navigation/paint entries and official frame distributions. Host and disk cache remain warm; this candidate-only study has no matched parent restart or agreed budget. Cold-trace renderer metadata is separate from earlier GPU-process counter attribution.
+[formal-browser-cold.json](./formal-browser-cold.json) adds three actual formal0.10.1 browser-process restarts with persisted five pins, fifteen-second no-replay checks, navigation/paint entries and official frame distributions. Host and disk cache remain warm; this candidate-only study has no matched parent restart. Budgets were not agreed at capture; the later confirmed scoped limits are recorded in the research report, with overall acceptance still open. Cold-trace renderer metadata is separate from earlier GPU-process counter attribution.
 
 [render-stage-times.json](./render-stage-times.json) adds offline whole-page main-renderer stage observations from the same twelve formal0.8.0 pilot traces. Nested same-name Paint intervals are removed from outermost totals; wall and recorded thread clocks stay separate. These observations establish neither SVG/GPU attribution nor a causal regression or budget.
 
