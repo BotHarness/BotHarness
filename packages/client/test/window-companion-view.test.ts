@@ -518,9 +518,14 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
   }
 });
 
-it.each([100, 200, 500])(
-  'returns a fast upward throw to the floor with %i ms frame intervals',
-  async (interval) => {
+it.each([
+  [100, 0],
+  [200, 0],
+  [500, 0],
+  [16, 1000],
+])(
+  'returns a fast upward throw with %i ms frames and %i ms before release',
+  async (interval, beforeRelease) => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.useFakeTimers();
     const frames = new Map<number, FrameRequestCallback>();
@@ -578,6 +583,7 @@ it.each([100, 200, 500])(
       };
       await act(() => pointer('pointerdown', 750));
       await act(() => {
+        vi.advanceTimersByTime(beforeRelease);
         vi.advanceTimersByTime(16);
         pointer('pointermove', 550);
       });
@@ -589,7 +595,7 @@ it.each([100, 200, 500])(
       expect(surface.dataset['motion']).toBe('fall');
       const releasedBottom = Number.parseFloat(surface.style.bottom);
       const heights: number[] = [];
-      for (let index = 0; index < 2000 / interval; index++) {
+      for (let index = 0; index < 3000 / interval; index++) {
         await act(() => {
           vi.advanceTimersByTime(interval);
           const due = [...frames.values()];
@@ -599,7 +605,7 @@ it.each([100, 200, 500])(
         heights.push(Number.parseFloat(surface.style.bottom));
       }
       expect(heights.some((height) => height > releasedBottom)).toBe(true);
-      expect(heights.some((height) => height === 0)).toBe(true);
+      expect(heights.slice(0, 2000 / interval).some((height) => height === 0)).toBe(true);
       expect(surface.dataset['motion']).toBe('rest');
       expect(surface.style.bottom).toBe('0px');
       expect(openDm).not.toHaveBeenCalled();
