@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BOT_GLYPH_SVG, botBackdropUri, botIconMarkup } from '../src/client/bot-icon.js';
 import { findBotNavCell, installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
-import { openBotSettings, openModelsSettings } from '../src/client/bot-settings-open.js';
+import { openModelsSettings } from '../src/client/bot-settings-open.js';
 
 describe('bot icon markup', () => {
   it('serves the mascot as palette-matched artwork', () => {
@@ -177,7 +177,7 @@ describe('settings nav tagging', () => {
     expect(bot.classList.has('bh-bot-nav')).toBe(false);
     expect(bot.querySelector(':scope > .bh-bot-nav-icon')).toBeNull();
   });
-  it('finds the Bot nav cell by label and opens Settings through the trigger', () => {
+  it('finds the Bot nav cell by label', () => {
     const bot = fakeNavCell('Bot 设置');
     const general = fakeNavCell('通用设置');
     const trigger = fakeElement('button');
@@ -193,11 +193,6 @@ describe('settings nav tagging', () => {
 
     expect(findBotNavCell(document as never, ['Bot 设置'])).toBe(bot);
     expect(findBotNavCell(document as never, ['Bot settings'])).toBeUndefined();
-
-    openBotSettings(() => ['Bot 设置'], document as never);
-    expect(trigger.clicks).toBe(1);
-    expect(bot.clicks).toBe(1);
-    expect(general.clicks).toBe(0);
   });
 
   it('opens native Models from a failure action', () => {
@@ -228,7 +223,7 @@ describe('settings nav tagging', () => {
       querySelectorAll: () => [],
       querySelector: () => trigger,
     };
-    openBotSettings(() => ['Bot 设置'], document as never);
+    openModelsSettings(document as never);
     expect(trigger.clicks).toBe(0);
   });
 });

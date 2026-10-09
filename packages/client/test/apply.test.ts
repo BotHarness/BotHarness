@@ -305,13 +305,13 @@ describe('client apply', () => {
     expect(withoutSettings.some((spec) => spec.id === 'botharness-bot-settings')).toBe(true);
   });
 
-  it('opens Bot Settings from the Bot panel gear, the Window Companion menu and the DSH settings item', () => {
+  it('opens Bot Settings from each entry point at its section', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     apply(createScoped(specs, [], true) as never);
     const overlay = specs.find((spec) => spec.id === 'botharness-bot-settings');
     const { botSettings } = overlay?.inject?.() as {
-      botSettings: { getSnapshot(): { open: boolean }; close(): void };
+      botSettings: { getSnapshot(): { open: boolean; sectionId?: string }; close(): void };
     };
     const panel = specs.find((spec) => spec.name === 'sidebar.panellist');
     (panel?.inject?.() as { openSettings(): void }).openSettings();
@@ -320,7 +320,14 @@ describe('client apply', () => {
     botSettings.close();
     const companion = specs.find((spec) => spec.id === 'botharness-window-companion');
     (companion?.inject?.() as { openSettings(): void }).openSettings();
-    expect(botSettings.getSnapshot().open).toBe(true);
+    expect(botSettings.getSnapshot()).toEqual({ open: true, sectionId: 'companions' });
+
+    botSettings.close();
+    const main = specs.find((spec) => spec.name === 'main' && spec.key === PANEL_ID);
+    (
+      main?.inject?.() as { telemetryNotice: { openSettings(): void } }
+    ).telemetryNotice.openSettings();
+    expect(botSettings.getSnapshot()).toEqual({ open: true, sectionId: 'data-privacy' });
 
     botSettings.close();
     const native = specs.find((spec) => spec.name === 'settings.section');
