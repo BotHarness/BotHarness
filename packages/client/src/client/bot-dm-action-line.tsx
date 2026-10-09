@@ -20,17 +20,19 @@ function BotChip({
   const bot = bots.find((candidate) => candidate.slug === slug);
   return (
     <span className="bh-bot-dm-action-bot">
-      <PersonaBotAvatar
-        t={t}
-        personaBotId={slug}
-        name={name}
-        src={bot?.avatar}
-        appearance={bot?.appearance}
-        avatarSeed={bot?.avatarSeed}
-        size={16}
-        indicator={false}
-        still
-      />
+      <span className="bh-bot-dm-action-avatar" aria-hidden="true">
+        <PersonaBotAvatar
+          t={t}
+          personaBotId={slug}
+          name={name}
+          src={bot?.avatar}
+          appearance={bot?.appearance}
+          avatarSeed={bot?.avatarSeed}
+          size={16}
+          indicator={false}
+          still
+        />
+      </span>
       <span className="bh-bot-dm-action-name">{name}</span>
     </span>
   );

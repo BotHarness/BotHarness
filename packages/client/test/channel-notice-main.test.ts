@@ -189,7 +189,7 @@ describe('Channel Notices in a Group', () => {
     expect(notice?.dataset['messageId']).toBe('bot-dm-action-x');
     expect(
       Array.from(notice?.querySelectorAll('.bh-bot-dm-action-bot') ?? []).map((chip) => [
-        chip.querySelector('.bh-persona-avatar') !== null,
+        chip.querySelector('[aria-hidden="true"] .bh-persona-avatar') !== null,
         chip.textContent,
       ]),
     ).toEqual([

@@ -6348,6 +6348,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   align-items: center;
   gap: 4px;
 }
+.bh-bot-dm-action-avatar { display: inline-flex; pointer-events: none; }
 .bh-bot-dm-action-bot .bh-persona-avatar { border-radius: 28%; overflow: hidden; }
 .bh-bot-dm-action-name { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .bh-bot-dm-readonly {
