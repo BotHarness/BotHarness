@@ -87,7 +87,7 @@ it('lists Apps from every platform with their PersonaBot or an unbound marker', 
   expect(rows()).toEqual([
     'Lark SalesLark/飞书 · 已连接Ada解绑',
     'QQ GroupQQ · 未连接未绑定绑定',
-    'Old SlackSlack · 已连接已移除的 Bot解绑',
+    'Old SlackSlack · 已连接已移除的 Bot',
   ]);
 });
 

@@ -245,16 +245,18 @@ export function ImAppsSection({
             ) : (
               <>
                 <span className="bh-im-apps-bot">{botName(app.boundBotSlug)}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  aria-label={t('imApps.unbindFor', { app: app.name })}
-                  onClick={() => {
-                    open({ kind: 'unbind', app });
-                  }}
-                >
-                  {t('imApps.unbind')}
-                </Button>
+                {bots.some((bot) => bot.slug === app.boundBotSlug) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={t('imApps.unbindFor', { app: app.name })}
+                    onClick={() => {
+                      open({ kind: 'unbind', app });
+                    }}
+                  >
+                    {t('imApps.unbind')}
+                  </Button>
+                ) : null}
               </>
             )}
           </div>
