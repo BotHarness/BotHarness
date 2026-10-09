@@ -577,14 +577,16 @@ export function createInboundMessaging(options: {
     receptionChanged();
     const startedAt = Date.now();
     try {
+      const inspected = await inspectGrant(entry.provider, value);
       if (value.platform === 'qq' && !replyOnly) {
         await startControl(value.bindingId);
         const control = controls.get(value.bindingId);
         if (!control?.dispose || control.token !== entry.token)
-          throw new MessagingError('consumer-unavailable');
+          throw new MessagingError(
+            controlRetries.has(value.bindingId) ? 'provider-unavailable' : 'consumer-unavailable',
+          );
         lease.controller.signal.throwIfAborted();
       }
-      const inspected = await inspectGrant(entry.provider, value);
       if (
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
