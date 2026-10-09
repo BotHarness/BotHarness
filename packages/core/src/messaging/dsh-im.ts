@@ -1247,6 +1247,14 @@ export function createDshImProvider(
                 },
               };
             } catch (error) {
+              if (
+                platform === 'qq' &&
+                error !== null &&
+                typeof error === 'object' &&
+                'code' in error &&
+                error.code === 'provider-unavailable'
+              )
+                throw new MessagingProviderError('provider-unavailable', 'not-started');
               throw providerFailure(error);
             }
           },

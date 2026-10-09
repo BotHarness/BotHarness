@@ -178,6 +178,32 @@ it('qualified QQ post is external-only, current-own-authorized and idempotent th
   ).rejects.toThrow('grant-revoked');
 });
 
+it('QQ checked preflight unavailability is a definite failure with its result retained and no retry', async () => {
+  const { core, transport, grant } = await fixture();
+  const checkedSend = vi.fn(async () => {
+    throw Object.assign(new Error('token unavailable before native POST'), {
+      code: 'provider-unavailable',
+    });
+  });
+  transport.sendChecked = checkedSend;
+  const intent = await core.externalMessaging.post(
+    'ada',
+    grant.id,
+    'qq_preflight_report',
+    'retained report',
+  );
+  expect(intent).toMatchObject({
+    state: 'failed',
+    reason: 'provider-unavailable',
+    text: 'retained report',
+  });
+  expect(
+    (await core.externalMessaging.post('ada', grant.id, 'qq_preflight_report', 'retained report'))
+      .id,
+  ).toBe(intent.id);
+  expect(checkedSend).toHaveBeenCalledTimes(1);
+});
+
 it.each([
   ['send-rate-limited', 'failed'],
   ['send-permission-denied', 'failed'],
