@@ -21,6 +21,10 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - Pixel Avatars can be an elf, dwarf, orc or talking flower. Beards always leave the speaking mouth visible. Armor, robe, tunic and cloak outfits are available, and a helmet or hood hides the hair underneath. Flowers have bead eyes, five petal styles and a stem or pot. Choices a species or headwear doesn't show stay saved, with a note, and return when switched back ([#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212), [#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)).
 - A new PersonaBot starts with a random face from every species, part and outfit, based on its name. Existing PersonaBots keep their current face ([#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)).
 
+### Documentation
+
+- Documented five-companion foreground frame measurements and ten-cycle heap observations with a repeatable protocol and explicit remaining qualification; no performance budget has been accepted ([report](docs/research/2026-10-09-window-companion-performance.md), [#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)).
+
 ## [1.2.0] - 2026-10-08
 
 Bots can be pinned as pixel Window Companions that play their replies, binding one app is enough to send and receive on Lark, Slack, Discord and WeChat, group Channels can connect external conversations, a Bot can be exported and imported as a zip, the Bot Profile gets a banner, tags and bio while its settings move to the Channel sidebar, the Bot Marketplace shows profile cards, Bot mode can install Git, and first-time Bot mode walks you through one real conversation.

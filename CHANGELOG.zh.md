@@ -21,6 +21,10 @@
 - 像素头像新增精灵、矮人、兽人和会说话的花。胡子始终露出说话的嘴，新增盔甲、法袍、束腰外衣和斗篷，戴上头盔或兜帽会遮住下面的头发。花有豆豆眼、五种花瓣样式，以及茎叶或花盆。当前物种或头饰不显示的选择会保留并给出提示，换回后恢复（[#1212](https://github.com/BotHarness/DeepSeekBot/issues/1212)、[#1213](https://github.com/BotHarness/DeepSeekBot/issues/1213)）。
 - 新建的 PersonaBot 会按名字从全部物种、部件和服装中随机生成初始形象，已有的 PersonaBot 保持原来的样子（[#1214](https://github.com/BotHarness/DeepSeekBot/issues/1214)）。
 
+### Documentation
+
+- 记录五个窗口伙伴在前台的帧耗时和十次钉选循环后的堆内存观察，附可复现流程及尚未完成的验收项；目前没有已确认的性能预算（[报告](docs/research/2026-10-09-window-companion-performance.md)、[#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)）。
+
 ## [1.2.0] - 2026-10-08
 
 Bot 可以作为像素窗口伙伴固定在窗口里播放回复；绑定一个应用即可在飞书、Slack、Discord 和微信收发消息；群 Channel 可以连接外部会话；Bot 可以导出为 zip 并在别处导入；Bot 资料页新增横幅、标签和简介，设置项移到 Channel 侧栏；Bot 市场改为资料卡；Bot 模式可以帮你安装 Git；首次进入 Bot 模式会带你完成一次真实对话。
