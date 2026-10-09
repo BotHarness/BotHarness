@@ -349,3 +349,69 @@ it('adding native group discovery preserves checked posting to an existing restr
   expect(posts).toEqual(['Existing saved report']);
   expect(nativeEffects).toBe(0);
 });
+
+it('a received-group block during saved-target preparation fences its separate saved Grant', async () => {
+  const { core, binding, transport } = await fixture();
+  await core.externalMessaging.postConversation(
+    'ada',
+    binding.id,
+    'oc_new',
+    'block-setup-request',
+    'First report',
+  );
+  const received = (await core.externalMessaging.snapshot('ada')).grants[0]!;
+  transport.postFenceVersion = 1;
+  transport.receiptVersion = 1;
+  transport.describeBot = async () => ({
+    version: 1,
+    botId: 'qa',
+    channel: 'feishu',
+    connected: true,
+    account: { fingerprint: binding.fingerprint },
+    capabilities: [
+      'proactive-text-checked',
+      'proactive-receipt-checked',
+      'reachable-conversations-checked',
+    ],
+  });
+  transport.listTargets = async () => [
+    { targetId: 'saved', kind: 'group', route: { chatId: 'oc_new' } },
+  ];
+  core.externalMessaging.register(createDshImProvider(transport)!);
+  const targets = await core.externalMessaging.targets('dsh-im/feishu', 'qa');
+  const saved = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'qa',
+    targetRef: 'saved',
+    fingerprint: binding.fingerprint,
+    targetDigest: targets[0]!.digest,
+  });
+  expect(saved.id).not.toBe(received.id);
+  let effects = 0;
+  transport.sendChecked = async (_app, _target, _text, options) => {
+    await core.externalMessaging.conversation('ada', {
+      kind: 'block',
+      grantId: received.id,
+      expectedRevision: received.revision,
+    });
+    if (options.beforeSend?.() !== true)
+      throw Object.assign(new Error('Native final fence refused'), {
+        code: 'send-permission-denied',
+      });
+    effects++;
+    return {
+      sent: true,
+      receipt: { version: 1, messageId: 'om_forbidden', conversationId: 'oc_new' },
+    };
+  };
+  const result = await core.externalMessaging.post(
+    'ada',
+    saved.id,
+    'blocked-saved',
+    'Must not send',
+  );
+  expect(result.state).toBe('failed');
+  expect(result.reason).toBe('conversation-blocked');
+  expect(effects).toBe(0);
+});

@@ -545,6 +545,21 @@ export function createOutboundMessaging(options: {
       },
     };
   };
+  const assertConversationAllowed = (
+    value: MessagingGrant,
+    scope: MessagingTarget['receiveScope'],
+  ) => {
+    if (
+      scope &&
+      database.read((db) =>
+        readBlock(db, value.botSlug, value.fingerprint, {
+          kind: scope.kind,
+          id: scope.conversationId,
+        }),
+      )
+    )
+      throw new MessagingError('conversation-blocked');
+  };
   const check = async (value: MessagingGrant) => {
     active(value.botSlug);
     if (value.revokedAt !== undefined) throw new MessagingError('grant-revoked');
@@ -576,6 +591,7 @@ export function createOutboundMessaging(options: {
       suspend(value);
       throw new MessagingError('rebind-required');
     }
+    assertConversationAllowed(value, inspected.target.receiveScope);
     return { ...entry, inspected, identityRevision: identity.revision };
   };
   const checkPostLimit = (db: DatabaseSync, bindingId: string, reserved = false) => {
@@ -2161,7 +2177,8 @@ export function createOutboundMessaging(options: {
               AbortSignal.timeout(options.timeoutMs ?? 15000),
             )
           : undefined;
-      const conversationId = acceptedEntry.inspected.target.receiveScope?.conversationId;
+      const postScope = acceptedEntry.inspected.target.receiveScope;
+      const conversationId = postScope?.conversationId;
       if (report && !conversationId) throw new MessagingError('capability-unavailable');
       const id = transaction(
         (db) => {
@@ -2173,6 +2190,7 @@ export function createOutboundMessaging(options: {
             currentGrant.revision !== acceptedGrant.revision
           )
             throw new MessagingError('grant-revoked');
+          if (report) assertConversationAllowed(currentGrant, postScope);
           if (sourceEventId !== undefined) sourceForReply(botSlug, sourceEventId, currentGrant);
           const existing = db
             .prepare('SELECT id FROM messaging_outbox WHERE request_id = ?')
@@ -2314,6 +2332,7 @@ export function createOutboundMessaging(options: {
             )
               throw new MessagingError('grant-revoked');
             enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+            assertConversationAllowed(latest, postScope);
             database.read((db) => checkPostLimit(db, acceptedGrant.bindingId, true));
             return !controller.signal.aborted;
           } catch (error) {
