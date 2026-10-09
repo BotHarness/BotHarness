@@ -320,9 +320,8 @@ function PersonaBotActivityStatus({
         return () => {
           disclosure.current = null;
         };
-      const report = (): void => onResize(concealed ? 0 : element.getBoundingClientRect().height);
-      report();
-      const observer = new ResizeObserver(report);
+      onResize(element.getBoundingClientRect().height);
+      const observer = new ResizeObserver(() => onResize(element.getBoundingClientRect().height));
       observer.observe(element);
       return () => {
         observer.disconnect();
@@ -330,7 +329,7 @@ function PersonaBotActivityStatus({
         onResize(0);
       };
     },
-    [onResize, concealed],
+    [onResize],
   );
   if (activity === undefined || activity.items.length === 0) return null;
 

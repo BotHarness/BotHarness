@@ -3363,7 +3363,15 @@ button.bh-profile-heat-cell:focus-visible {
   flex-direction: column;
   padding: 74px 18px calc(10px + var(--bh-activity-overlay-inset, 0px));
   overscroll-behavior: contain;
+  transition: padding-bottom 160ms ease;
 }
+/* The faded composer status gives its reserved space back only after the
+   fade, so the working rows slide down instead of jumping onto its text. */
+.bh-chat-pane[data-activity-concealed='true'] .bh-chat-body {
+  padding-bottom: 10px;
+  transition-delay: 160ms;
+}
+html[data-botharness-motion='reduce'] .bh-chat-body { transition: none; }
 .bh-chat-empty {
   height: 100%;
 }
@@ -4174,6 +4182,17 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   padding: 0 6px;
   color: var(--bh-overview-muted);
   font-size: var(--bh-overview-font);
+}
+/* Scrolled into history, the status sits over messages, so it carries a
+   backdrop that fades in from the chat background above it. */
+.bh-composer-activity-status { isolation: isolate; }
+.bh-composer-activity-status::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0 -6px;
+  z-index: -1;
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-base) 12px);
+  pointer-events: none;
 }
 /* At the latest message the working rows already show every active Bot, so
    the status only fades out: it stays the screen-reader live region. */

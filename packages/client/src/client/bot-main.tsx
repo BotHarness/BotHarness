@@ -1123,7 +1123,10 @@ function ConversationView({
     <div ref={conversationMount} className="bh-root bh-main">
       <span ref={allBotPreviewMount} hidden />
       <div className="bh-chat-layout">
-        <section className="bh-chat-pane">
+        <section
+          className="bh-chat-pane"
+          data-activity-concealed={composerActivityConcealed ? 'true' : undefined}
+        >
           <div ref={profileMount} className="bh-topbar">
             {channel === undefined ? null : (
               <HumanChannelNameMenu key={channel.id} channel={channel} actions={actions} t={t} />
@@ -1333,6 +1336,14 @@ function ConversationView({
                 className="bh-chat-body"
                 ref={timelineMount}
                 onScroll={onTimelineScroll}
+                onTransitionEnd={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    event.propertyName === 'padding-bottom' &&
+                    followingLatest.current
+                  )
+                    event.currentTarget.scrollTop = event.currentTarget.scrollHeight;
+                }}
                 style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
               >
                 {conversation.timeline.hasOlder ? (
