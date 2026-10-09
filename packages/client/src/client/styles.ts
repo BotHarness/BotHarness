@@ -6271,9 +6271,10 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   flex-direction: row;
   align-items: baseline;
   gap: 8px;
-  padding: 0 4px;
+  padding: 0 0 0 10px;
   white-space: nowrap;
 }
+.bh-memory-graph-list > .bh-memory-continue-form { margin: 6px 0 10px 24px; }
 .bh-memory-commit-title code { flex: none; font-family: var(--bh-memory-font-code); font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .bh-memory-commit-header .bh-memory-commit-title span {
   min-width: 0;
