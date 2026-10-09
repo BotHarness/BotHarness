@@ -9,6 +9,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Breaking Changes
 
+- Bot Self-Records add Profile schema Generation 75, which rebuilds the Source Event and Inbox Admission tables to accept the new kinds. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1276](https://github.com/BotHarness/DeepSeekBot/issues/1276)).
+
 - The Part Library adds Profile schema Generation 73. Back up before upgrading; reopening an upgraded Profile requires a compatible binary or restoration of the pre-upgrade backup ([#1211](https://github.com/BotHarness/DeepSeekBot/issues/1211)).
 
 - QQ reception intervals add Profile schema Generation 74 and reuse the existing receive boundary; back up before upgrading and repair forward after upgrade ([#1153](https://github.com/BotHarness/BotHarness/issues/1153)).
@@ -36,6 +38,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - Bind app can create a Lark/Feishu app or start a WeChat QR pairing through a compatible Provider setup capability, then bind its authenticated identity without sending credentials through BotHarness; older Providers retain the IM settings path. Existing WeChat accounts are preserved rather than replaced by inline setup. The [Lark setup checklist](docs/lark-connection.md) includes original-message read permission needed for protected replies ([#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)).
 
 ### Changed
+
+- When a PersonaBot messages another Bot because of a Group or a Bot DM, the "sent a direct message" line now appears in that conversation instead of the sender's private DM, and the sender's Bot Inbox keeps a handled record of it. These lines no longer count as unread, get read receipts or replace the Channel preview ([#1276](https://github.com/BotHarness/DeepSeekBot/issues/1276), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
 
 - Bot settings open in their own window from the gear in the Bot panel, with a sidebar of General, Models & execution, Messaging, Computer, Browser, Window companions, Data & privacy, Advanced and About instead of one long page among other plugins' settings; **Bot settings** in DSH settings switches straight to it, and the telemetry notice and Window Companion menu open their own section ([#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260), [#1261](https://github.com/BotHarness/DeepSeekBot/issues/1261), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
 - In a narrow window, Bot settings shows its sections in a dropdown at the top instead of a side rail ([#1262](https://github.com/BotHarness/DeepSeekBot/issues/1262)).
