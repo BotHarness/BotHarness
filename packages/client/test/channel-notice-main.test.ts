@@ -269,7 +269,7 @@ describe('Channel Notices in a Group', () => {
     expect(line?.textContent).toBe(
       'Mira更新了记忆Remember the launch dateaaaaaaalaunch.md +5 −2 · 另有 2 个文件',
     );
-    expect(line?.title).toBe(`${commit.sha} · Git 作者：Mira`);
+    expect(line?.title).toBe(`${commit.sha} · Git 作者：Mira\nlaunch.md +5 −2 · 另有 2 个文件`);
     expect(line?.querySelector('svg')).not.toBeNull();
     await act(async () => line?.click());
     expect(store.getSnapshot().memoryCommitIntent).toEqual({

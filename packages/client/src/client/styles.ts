@@ -6349,6 +6349,10 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   gap: 4px;
 }
 .bh-bot-dm-action-avatar { display: inline-flex; pointer-events: none; }
+.bh-memory-commit-row { container-type: inline-size; width: 100%; }
+@container (max-width: 720px) {
+  .bh-memory-commit-line > .bh-memory-commit-files { display: none; }
+}
 .bh-memory-commit-line {
   display: flex;
   align-items: center;
