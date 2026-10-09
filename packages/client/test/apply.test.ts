@@ -283,6 +283,7 @@ describe('client apply', () => {
       { id: 'general', order: 0 },
       { id: 'models', order: 10 },
       { id: 'messaging', order: 20 },
+      { id: 'im-apps', order: 25 },
       { id: 'companions', order: 40 },
       { id: 'data-privacy', order: 50 },
       { id: 'advanced', order: 60 },

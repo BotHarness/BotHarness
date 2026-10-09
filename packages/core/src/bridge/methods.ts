@@ -38,6 +38,7 @@ import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
+  MessagingApp,
   MessagingSnapshot,
   MessagingGrant,
   OutboxIntent,
@@ -391,6 +392,7 @@ export interface BridgeMethods {
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
   messagingDefaults(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
   messagingDefaultsSet(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
+  messagingApps(): Promise<BridgeResult<{ apps: MessagingApp[] }>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
@@ -1296,6 +1298,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!parsed.success)
         return Promise.resolve(invalidInput('Valid qualified platform defaults required'));
       return messagingCall((service) => service.setDefaults(parsed.data));
+    },
+    messagingApps() {
+      return messagingCall(async (service) => ({ apps: await service.apps() }));
     },
     messagingSnapshot(payload) {
       const slug = asSlug(payload);

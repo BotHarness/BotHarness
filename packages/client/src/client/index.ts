@@ -26,6 +26,7 @@ import {
   botSettingsSectionSource,
 } from './bot-settings.js';
 import { DshBotSettingsItem } from './dsh-bot-settings-item.js';
+import { createImApps, ImAppsSection } from './im-apps-section.js';
 import {
   AboutSection,
   AdvancedSection,
@@ -432,6 +433,20 @@ export function apply(ctx: ClientContext): void {
           inject: () => ({ ...botModePrefsFace(prefs), call }),
         },
         MessagingSection,
+      ),
+    );
+    const imApps = createImApps({ call, botSettings });
+    settingsCtx.slots.inject('botharness.settings.section', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.section',
+          id: BOT_SETTINGS_SECTIONS.imApps,
+          order: 25,
+          label: () => t('botSettings.section.imApps'),
+          locale: LOCALE_NS,
+          inject: () => ({ imApps, store }),
+        },
+        ImAppsSection,
       ),
     );
     settingsCtx.slots.inject('botharness.settings.section', () =>
