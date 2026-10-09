@@ -47,7 +47,9 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Changed
 
-- The onboarding tutorial is now a floating driver.js guide over the welcome message instead of a permanent bar at the top of Bot mode: it opens automatically the first time the welcome message appears, closing it pauses, the guide offers **Skip tutorial**, and **Bot settings → General** continues or restarts it; completed Profiles no longer see any onboarding bar ([#1295](https://github.com/BotHarness/BotHarness/issues/1295), [ADR-0155](docs/adr/0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md)).
+- The onboarding tutorial is now a floating multi-step driver.js walkthrough of the interface — the welcome letter, conversation list, Activity Center, Bot settings, conversation header, message box, Channel sidebar and Window Companion — instead of a permanent bar at the top of Bot mode; it starts on the first Bot-mode entry, closing pauses, the guide offers **Skip tutorial**, and **Bot settings → General** restarts it, with completed Profiles seeing no onboarding bar ([#1295](https://github.com/BotHarness/BotHarness/issues/1295), [#1301](https://github.com/BotHarness/BotHarness/issues/1301), [ADR-0155](docs/adr/0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md)).
+
+- The preset welcome message now reads as a first-person letter from the Bot, with its banner, avatar, name and tags and the suggestion questions kept as reply options; the timeline labels that message with the Bot's name instead of "System" ([#1301](https://github.com/BotHarness/BotHarness/issues/1301)).
 
 - The Memory commit view's header now shows just the short hash and commit message, and creating a branch from a past memory moved to a right-click menu on that commit in the Memory evolution graph ([#1288](https://github.com/BotHarness/DeepSeekBot/issues/1288)).
 

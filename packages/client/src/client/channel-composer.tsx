@@ -815,7 +815,7 @@ export function ChannelComposer({
   };
 
   return (
-    <div className="bh-composer-shell">
+    <div className="bh-composer-shell" data-bh-tour="composer">
       {allBotNotice === undefined ? null : (
         <div className="bh-muted" role="status">
           {allBotNotice}

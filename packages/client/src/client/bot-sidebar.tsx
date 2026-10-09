@@ -207,6 +207,7 @@ export function BotPanelIcon({
             <button
               type="button"
               className="bh-root bh-human-inbox-entry bh-panel-activity"
+              data-bh-tour="inbox"
               data-wide={wide ? 'true' : 'false'}
               data-unread={state.humanInbox.unreadCount > 0 ? 'true' : 'false'}
               data-active={active ? 'true' : 'false'}
@@ -246,6 +247,7 @@ export function BotPanelIcon({
               {wide ? (
                 <span
                   className="bh-panel-gear"
+                  data-bh-tour="bot-settings"
                   role="button"
                   tabIndex={0}
                   aria-label={t('panel.settings')}
@@ -1498,7 +1500,11 @@ export function BotSidebar({
       );
     };
     return (
-      <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
+      <div
+        className="bh-root bh-region bh-region-rail"
+        aria-label={t('rail.label')}
+        data-bh-tour="roster"
+      >
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1549,6 +1555,7 @@ export function BotSidebar({
     <div
       ref={rosterMount}
       className="bh-root bh-region"
+      data-bh-tour="roster"
       onDragOver={(event) => {
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;

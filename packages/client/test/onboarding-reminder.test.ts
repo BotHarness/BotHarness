@@ -9,6 +9,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) =>
     createElement('button', props),
   Checkbox: () => null,
+  Tag: ({ children, ...props }: { children?: unknown } & Record<string, unknown>) =>
+    createElement('span', props, children as never),
 }));
 vi.mock('../src/client/model-picker.js', () => ({ ModelPicker: () => null }));
 vi.mock('../src/client/onboarding-memory.js', () => ({ OnboardingMemory: () => null }));
