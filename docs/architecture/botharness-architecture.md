@@ -514,7 +514,7 @@ Custom Part 是有界像素网格，每格引用外形颜色或固定色并带�
 
 新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
 
-目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），以及第一条 Custom Part 路径（#1211）。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList` 和 `partLibraryAdd` 两个桥接方法使用它；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、导入部件、PNG 部件文件和更多绘制工具尚未实现。
+目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），自绘头发（#1238），自绘其他部件（#1240）、部件文件分享（#1215），以及完整绘制工具（#1216）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList`、`partLibraryAdd`、`partLibraryExport` 和 `partLibraryImport` 四个桥接方法使用它；`part-file` 把单个部件编码为 ×8 预览 PNG，部件数据放在 `botharness-part` tEXt 块中，整个部件库导出为这种 PNG 的 zip，导入时校验每个块的 CRC 并按内容去重；导入 Bot 时其外形穿戴的部件以 `imported-bot` 来源加入部件库，作者为该 Bot 的显示名；编辑器提供带变亮／变暗明暗笔的铅笔、橡皮、四连通填充、按 Shift 锁定角度和正方形的直线与矩形、限定在区域内并带 4×4 或 2×2 Bayer 抖动的明暗渐变、可重新随机的 ±1 明暗杂色、Alt 点击或长按吸管、所有工具的中线镜像、前后两层、每次操作一步撤销（触屏双指撤销、三指重做）、触屏偏移光标和 1× 预览；每个工具的格子都由 BotPixel 计算，结果仍是外形颜色加明暗档位。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种和普通 PNG 导入尚未实现。
 
 ## 6 · 持久化、导出与恢复边界
 
@@ -774,6 +774,8 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用单一重试计时器重新建立连接，间隔从 1 秒退避到最多 8 秒。最后确认的过程消费 ID 通过 `?resume=` 携带；新连接随后原生自动重连时，`Last-Event-ID` 优先于查询参数。两条路径共享同一认证、有界 Host 租约与规范资格重查。成功基线重置退避；移除最后一个选择或卸载 Plugin 清理计时器和恢复标识。Client 重启不保留恢复标识。
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
+
+Avatar 为伙伴消费者提供可释放的锚点读取器：每次形象替换只采集一次受支持头部的局部顶部中心，既有可见帧循环只读取该局部组当前显示的屏幕矩阵，包含外层旋转、缩放及过渡中的变换原点。像素 Activity 覆盖使用相同头部区域点与 SVG 根矩阵；图片、未知 rig 或不可用的 SVG 几何使用可见 Avatar 盒子顶部中心。不逐帧扫描整个 SVG 边界，也不向 Host 发送姿态 RPC。`CompanionBubbles` 保留原始投射点，让直立卡片受视口、工具栏与多伙伴避让约束，偏移后用像素式连线保持来源关系。阅读延续既有位置与离开宽限；隐藏／离屏停止采样，形象替换／销毁清除读取器（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
 
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 

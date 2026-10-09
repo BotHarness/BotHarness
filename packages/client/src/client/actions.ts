@@ -97,6 +97,8 @@ import {
   setBotAppearance as setBotAppearanceViaBridge,
   loadPartLibrary as loadPartLibraryViaBridge,
   addLibraryPart as addLibraryPartViaBridge,
+  exportLibraryParts as exportLibraryPartsViaBridge,
+  importLibraryParts as importLibraryPartsViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -586,6 +588,17 @@ export interface BridgeActions {
     channelId: string,
     recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
+  exportLibraryParts(
+    id?: string,
+    part?: import('../../../core/src/bots/avatar-appearance.js').PixelCustomPart,
+  ): Promise<{ fileName: string; data: string } | undefined>;
+  importLibraryParts(data: string): Promise<
+    | {
+        added: import('../../../core/src/bots/part-library.js').PartLibraryEntry[];
+        refused: number;
+      }
+    | { error: string }
+  >;
   loadPartLibrary(): Promise<
     import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
   >;
@@ -2272,6 +2285,20 @@ export function createActions(
         return await loadPartLibraryViaBridge(call);
       } catch {
         return undefined;
+      }
+    },
+    async exportLibraryParts(id, part) {
+      try {
+        return await exportLibraryPartsViaBridge(call, id, part);
+      } catch {
+        return undefined;
+      }
+    },
+    async importLibraryParts(data) {
+      try {
+        return await importLibraryPartsViaBridge(call, data);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
       }
     },
     async addLibraryPart(part, name, parent) {
