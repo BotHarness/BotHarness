@@ -196,7 +196,10 @@ describe('release composition', () => {
       '@botharness/im-provider': '4.32.0-botharness.17',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
-    expect(release.bin).toEqual({ 'botharness-profile': './dist/profile-cli.mjs' });
+    expect(release.bin).toEqual({
+      'botharness-profile': './dist/profile-cli.mjs',
+      deepseekbot: './dist/deepseekbot.mjs',
+    });
     expect(release.files).toContain('dist');
     expect(source.private).toBe(true);
   });

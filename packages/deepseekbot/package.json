@@ -4,7 +4,8 @@
   "private": true,
   "description": "DeepSeekBot bundle: BotHarness core + web client, installed as one profile layer",
   "bin": {
-    "botharness-profile": "./dist/profile-cli.mjs"
+    "botharness-profile": "./dist/profile-cli.mjs",
+    "deepseekbot": "./dist/deepseekbot.mjs"
   },
   "files": [
     "dist",

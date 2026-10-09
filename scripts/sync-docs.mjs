@@ -447,6 +447,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'docs/bot-cli',
+    order: 26,
+    en: {
+      source: 'docs/bot-cli.md',
+      title: 'Create Bots from the command line',
+      description:
+        'Create a PersonaBot without clicking: blank, bundle, or GitHub, with machine-readable JSON output.',
+    },
+    zh: {
+      source: 'docs/bot-cli.zh.md',
+      title: '用命令行创建 Bot',
+      description: '无需点击创建 PersonaBot：空白、Bot 包或 GitHub，输出机器可读的 JSON。',
+    },
+  },
+  {
     slug: 'docs/share-bot',
     order: 26,
     en: {
