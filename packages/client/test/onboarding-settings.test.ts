@@ -16,9 +16,7 @@ vi.mock('../src/client/onboarding-memory.js', () => ({ OnboardingMemory: () => n
 vi.mock('../src/client/onboarding-binding.js', () => ({ OnboardingAppBinding: () => null }));
 vi.mock('../src/client/modal.js', () => ({ Modal: () => null }));
 vi.mock('../src/client/bot-settings-open.js', () => ({ openModelsSettings: vi.fn() }));
-vi.mock('../src/client/internal-tour.js', () => ({
-  highlightInternalControl: vi.fn(() => () => {}),
-}));
+vi.mock('../src/client/internal-tour.js', () => ({ startInternalTour: vi.fn(() => () => {}) }));
 
 import type { OnboardingSnapshot, TutorialAction } from '../../core/src/onboarding/types.js';
 import type { BridgeActions } from '../src/client/actions.js';

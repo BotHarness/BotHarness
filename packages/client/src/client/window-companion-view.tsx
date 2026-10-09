@@ -366,6 +366,7 @@ export function WindowCompanionView({
       <section
         className="bh-companion"
         aria-label={t('companion.label', { name: bot.name })}
+        data-bh-tour="companion"
         data-reading={view.reading}
         data-static={bot.paused}
         data-sync={view.sync}

@@ -47,7 +47,9 @@
 
 ### Changed
 
-- 新手教程改为欢迎消息上的 driver.js 浮层，不再是 Bot 模式内容区顶部的常驻横条：首次看到欢迎消息时自动打开，关闭即暂停，浮层内提供「跳过教程」；**Bot 设置 → 通用** 里可以继续或重新开始；已完成教程的 Profile 不再看到任何教程横条（[#1295](https://github.com/BotHarness/BotHarness/issues/1295)，[ADR-0155](docs/adr/0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md)）。
+- 新手教程改为多步 driver.js 界面导览：依次介绍欢迎信、消息列表、收件箱、Bot 设置、会话头部、输入框、右侧栏和窗口伙伴，不再是 Bot 模式内容区顶部的常驻横条；首次进入 Bot 模式自动开始，关闭即暂停，浮层内提供「跳过教程」，**Bot 设置 → 通用** 可重新开始；已完成教程的 Profile 不再看到任何教程横条（[#1295](https://github.com/BotHarness/BotHarness/issues/1295)，[#1301](https://github.com/BotHarness/BotHarness/issues/1301)，[ADR-0155](docs/adr/0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md)）。
+
+- 预设欢迎消息改为 Bot 的第一人称来信：banner、头像、名字与标签，四张建议问题保留为回信选项；时间线里这条消息的作者显示 Bot 名字，而不是 System（[#1301](https://github.com/BotHarness/BotHarness/issues/1301)）。
 
 - 记忆 commit 查看页的顶部现在只显示短 hash 和 commit 信息；「从某个记忆新建分支」移到了记忆演化图里对应 commit 的右键菜单（[#1288](https://github.com/BotHarness/DeepSeekBot/issues/1288)）。
 

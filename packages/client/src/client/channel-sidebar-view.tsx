@@ -696,6 +696,7 @@ export function ChannelSidebar({
       id="bh-channel-sidebar"
       ref={inboxMount}
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
+      data-bh-tour="channel-sidebar"
       role="complementary"
       aria-label={t('sidebar.region')}
       style={

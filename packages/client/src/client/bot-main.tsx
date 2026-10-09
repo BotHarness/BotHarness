@@ -270,42 +270,49 @@ function MessageGroupView({
   const human = author.kind === 'human';
   const authorBot =
     author.kind === 'bot' ? bots.find((candidate) => candidate.slug === author.slug) : undefined;
+  const welcomeBot =
+    first.onboardingWelcome === undefined || currentDmBotSlug === undefined
+      ? undefined
+      : bots.find((candidate) => candidate.slug === currentDmBotSlug);
+  const displayBot = authorBot ?? welcomeBot;
   const avatar =
-    author.kind === 'bot' ? (
+    displayBot === undefined ? undefined : (
       <PersonaBotAvatar
         t={t}
-        personaBotId={author.slug}
-        name={authorBot?.displayName ?? author.slug}
-        src={authorBot?.avatar}
-        appearance={authorBot?.appearance}
-        avatarSeed={authorBot?.avatarSeed}
+        personaBotId={displayBot.slug}
+        name={displayBot.displayName}
+        src={displayBot.avatar}
+        appearance={displayBot.appearance}
+        avatarSeed={displayBot.avatarSeed}
         size={28}
         indicator={false}
       />
-    ) : undefined;
+    );
   return (
     <div
       className={`bh-message-group${human ? ' bh-message-group-me' : ''}`}
       data-group-size={group.messages.length}
     >
-      {author.kind !== 'bot' || avatar === undefined ? null : currentDmBotSlug === author.slug ? (
-        <span className="bh-message-group-avatar">{avatar}</span>
-      ) : (
+      {avatar === undefined ? null : author.kind === 'bot' && currentDmBotSlug !== author.slug ? (
         <button
           type="button"
           className="bh-message-group-avatar bh-message-group-avatar-link"
-          aria-label={t('message.mention.openDm', { bot: authorBot?.displayName ?? author.slug })}
+          aria-label={t('message.mention.openDm', { bot: displayBot?.displayName ?? '' })}
           onClick={() => void actions.openBot(author.slug)}
         >
           {avatar}
         </button>
+      ) : (
+        <span className="bh-message-group-avatar">{avatar}</span>
       )}
       <div className="bh-message-stack">
         <div className="bh-message-identity">
           {first.bridgeOrigin ? (
             <BridgeSourceAuthor origin={first.bridgeOrigin} t={t} />
           ) : (
-            <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
+            <div className="bh-bubble-author">
+              {welcomeBot?.displayName ?? authorLabel(first, bots, t, humanName)}
+            </div>
           )}
           <time className="bh-bubble-time" dateTime={first.at}>
             {clockTime(first.at)}
@@ -1144,6 +1151,7 @@ function ConversationView({
           <div
             ref={profileMount}
             className="bh-topbar"
+            data-bh-tour="topbar"
             data-memory-diff={
               activeMemoryView?.kind === 'commit' || activeMemoryView?.kind === 'working'
                 ? 'true'

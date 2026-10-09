@@ -106,10 +106,23 @@ export const CSS =
 .bh-onboarding-notice { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100vw - 32px)); padding: 8px 12px; border: 1px solid var(--bh-onboarding-border); border-radius: 12px; background: var(--bh-onboarding-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
 .bh-onboarding-notice-text { min-width: 0; overflow-wrap: anywhere; }
 .bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; }
-.bh-onboarding-welcome-heading { display: grid; gap: 4px; }
+.bh-bubble:has(> .bh-onboarding-welcome) { padding: 0; background: transparent; }
+.bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; border: 1px solid var(--bh-onboarding-border); border-radius: 16px; background: var(--dsw-alias-bg-module-platform); overflow: hidden; }
+.bh-onboarding-welcome > :not(.bh-welcome-banner) { margin-inline: 14px; }
+.bh-onboarding-welcome > :last-child { margin-bottom: 14px; }
+.bh-welcome-banner { aspect-ratio: 4 / 1; background: var(--dsw-alias-bg-base); }
+.bh-welcome-banner .bh-banner-art { display: block; width: 100%; height: 100%; }
+.bh-welcome-identity { position: relative; z-index: 1; display: flex; align-items: flex-end; gap: 10px; margin-top: -42px; }
+.bh-welcome-avatar { padding: 3px; border-radius: 17px; background: var(--dsw-alias-bg-module-platform); line-height: 0; }
+.bh-welcome-identity-text { display: grid; gap: 4px; min-width: 0; padding-bottom: 2px; }
+.bh-welcome-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-welcome-roles { display: flex; flex-wrap: wrap; gap: 4px; }
+.bh-welcome-letter { display: grid; gap: 6px; }
+.bh-welcome-letter strong { font-size: 15px; }
+.bh-welcome-letter p { margin: 0; }
+.bh-welcome-signature { color: var(--dsw-alias-label-secondary); }
+.bh-welcome-provenance { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
 .bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
-.bh-onboarding-welcome > button { justify-self: start; }
 .bh-onboarding-welcome .bh-card-title { white-space: normal; }
 .bh-onboarding-welcome .bh-onboarding-create { color: color-mix(in srgb, var(--bh-accent) 80%, var(--bh-onboarding-label)); background: color-mix(in srgb, var(--bh-accent) 10%, var(--bh-onboarding-surface)); border-color: color-mix(in srgb, var(--bh-accent) 35%, transparent); }
 .bh-onboarding-welcome .bh-onboarding-create:hover:not(:disabled) { background: color-mix(in srgb, var(--bh-accent) 18%, var(--bh-onboarding-surface)); }

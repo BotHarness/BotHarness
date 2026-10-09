@@ -1,7 +1,9 @@
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
-import { Button, Checkbox } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { Button, Checkbox, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { TutorialAction } from '../../../core/src/onboarding/types.js';
 import type { BridgeActions } from './actions.js';
+import { PersonaBotAvatar } from './avatar.js';
+import { BotBannerArt, bannerOf } from './bot-banner.js';
 import type { ModelCatalogEntryView, ModelRouteView } from './bridge.js';
 import { errorMessage } from './bridge.js';
 import { ModelPicker } from './model-picker.js';
@@ -15,7 +17,7 @@ import { useMountedResource } from './mounted-resource.js';
 import { onboardingFor, requestBotCreation } from './onboarding.js';
 import { store } from './store.js';
 import type { WindowCompanions } from './window-companions.js';
-import { highlightInternalControl } from './internal-tour.js';
+import { startInternalTour, type InternalTourSpec } from './internal-tour.js';
 
 export function OnboardingModelDialog({
   actions,
@@ -182,6 +184,14 @@ export function OnboardingWelcome({
 }): ReactElement {
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const client = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const channel =
+    client.channels.find((candidate) => candidate.id === channelId) ??
+    (client.conversation.channel?.id === channelId ? client.conversation.channel : undefined);
+  const botSlug = channel?.botSlug;
+  const bot =
+    botSlug === undefined ? undefined : client.bots.find((entry) => entry.slug === botSlug);
+  const botName = bot?.displayName ?? botSlug ?? t('onboarding.letter.defaultName');
   const [modelLabel, setModelLabel] = useState('');
   const [timeZone] = useState(() => {
     try {
@@ -192,10 +202,9 @@ export function OnboardingWelcome({
   });
   const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
-    const slug = store.getSnapshot().conversation.channel?.botSlug;
     void Promise.all([
       actions.modelCatalog(),
-      slug ? actions.modelPlanState(slug) : Promise.resolve(undefined),
+      botSlug ? actions.modelPlanState(botSlug) : Promise.resolve(undefined),
     ])
       .then(([catalog, plan]) => {
         const route = plan?.plan?.orchestrator ?? catalog.default;
@@ -213,64 +222,42 @@ export function OnboardingWelcome({
     return () => {
       active = false;
     };
-  }, [actions, channelId, state.modelOpen]);
-  const autoStarted = useRef(false);
-  const autoStartMount = useMountedResource<HTMLSpanElement>(() => {
-    if (autoStarted.current || state.busy || state.modelOpen) return;
-    const receipt = state.receipt;
-    if (
-      receipt === undefined ||
-      receipt.completed ||
-      receipt.tutorial !== 'not-started' ||
-      receipt.channelId !== channelId
-    )
-      return;
-    autoStarted.current = true;
-    void controller.refresh(undefined, 'start');
-  }, [channelId, controller, state.busy, state.modelOpen, state.receipt]);
-  const tourMount = useMountedResource<HTMLSpanElement>(
-    (node) => {
-      if (
-        !state.guideOpen ||
-        state.receipt?.tutorial !== 'active' ||
-        state.modelOpen ||
-        state.sendOpen
-      )
-        return;
-      const target = node.closest('[data-onboarding-welcome]');
-      if (target === null) return;
-      return highlightInternalControl(
-        target,
-        t('onboarding.tourTitle'),
-        t('onboarding.tourHint'),
-        t('common.close'),
-        () => {
-          controller.pauseGuide();
-        },
-        {
-          label: t('onboarding.skip'),
-          onSkip: () => {
-            void controller.refresh(undefined, 'skip');
-          },
-        },
-      );
-    },
-    [
-      state.guideOpen,
-      state.receipt?.tutorial,
-      state.receipt?.completed,
-      state.modelOpen,
-      state.sendOpen,
-    ],
-  );
+  }, [actions, botSlug, state.modelOpen]);
   return (
     <div ref={mount} className="bh-onboarding-welcome" data-onboarding-welcome>
-      <span ref={autoStartMount} hidden />
-      <span ref={tourMount} hidden />
-      <div className="bh-note">{t('onboarding.productMessage')}</div>
-      <div className="bh-onboarding-welcome-heading">
-        <strong>{t('onboarding.welcome')}</strong>
-        <p>{t('onboarding.prompt')}</p>
+      <div className="bh-welcome-banner" aria-hidden="true">
+        <BotBannerArt banner={bannerOf(bot?.banner, botName)} />
+      </div>
+      <div className="bh-welcome-identity">
+        <span className="bh-welcome-avatar">
+          <PersonaBotAvatar
+            t={t}
+            personaBotId={botSlug ?? ''}
+            name={botName}
+            src={bot?.avatar}
+            appearance={bot?.appearance}
+            avatarSeed={bot?.avatarSeed}
+            size={56}
+            indicator={false}
+            still
+          />
+        </span>
+        <span className="bh-welcome-identity-text">
+          <span className="bh-welcome-name">{botName}</span>
+          <span className="bh-welcome-roles">
+            <Tag tone="outline">{t('onboarding.letter.tag')}</Tag>
+            {(bot?.roles ?? []).map((role) => (
+              <Tag key={role} tone="neutral">
+                {role}
+              </Tag>
+            ))}
+          </span>
+        </span>
+      </div>
+      <div className="bh-welcome-letter">
+        <strong>{t('onboarding.letter.greeting', { name: botName })}</strong>
+        <p>{t('onboarding.letter.body')}</p>
+        <p className="bh-welcome-signature">{t('onboarding.letter.signature')}</p>
       </div>
       <SidebarCardList className="bh-message-card-list" label={t('onboarding.prompt')}>
         {(
@@ -322,8 +309,7 @@ export function OnboardingWelcome({
           disabled={state.busy}
           dialog
           onClick={() => {
-            const slug = store.getSnapshot().conversation.channel?.botSlug;
-            if (slug) controller.chooseModel(channelId, slug);
+            if (botSlug) controller.chooseModel(channelId, botSlug);
           }}
         />
       </SidebarCardList>
@@ -344,8 +330,54 @@ export function OnboardingWelcome({
           t={t}
         />
       </div>
+      <p className="bh-welcome-provenance">{t('onboarding.productMessage')}</p>
     </div>
   );
+}
+
+function onboardingTourSteps(t: BotHarnessTranslate): InternalTourSpec[] {
+  return [
+    {
+      selector: '[data-onboarding-welcome]',
+      title: t('onboarding.tour.welcome.title'),
+      description: t('onboarding.tour.welcome.hint'),
+    },
+    {
+      selector: '[data-bh-tour="roster"]',
+      title: t('onboarding.tour.roster.title'),
+      description: t('onboarding.tour.roster.hint'),
+    },
+    {
+      selector: '[data-bh-tour="inbox"]',
+      title: t('onboarding.tour.inbox.title'),
+      description: t('onboarding.tour.inbox.hint'),
+    },
+    {
+      selector: '[data-bh-tour="bot-settings"]',
+      title: t('onboarding.tour.settings.title'),
+      description: t('onboarding.tour.settings.hint'),
+    },
+    {
+      selector: '[data-bh-tour="topbar"]',
+      title: t('onboarding.tour.header.title'),
+      description: t('onboarding.tour.header.hint'),
+    },
+    {
+      selector: '[data-bh-tour="composer"]',
+      title: t('onboarding.tour.composer.title'),
+      description: t('onboarding.tour.composer.hint'),
+    },
+    {
+      selector: '[data-bh-tour="channel-sidebar"]',
+      title: t('onboarding.tour.sidebar.title'),
+      description: t('onboarding.tour.sidebar.hint'),
+    },
+    {
+      selector: '[data-bh-tour="companion"]',
+      title: t('onboarding.tour.companion.title'),
+      description: t('onboarding.tour.companion.hint'),
+    },
+  ];
 }
 
 export function OnboardingOverlay({
@@ -359,10 +391,16 @@ export function OnboardingOverlay({
 }): ReactElement {
   const controller = onboardingFor(actions);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const enter = (): Promise<void> =>
+    controller.enter(companion).then(() => {
+      const receipt = controller.getSnapshot().receipt;
+      if (receipt !== undefined && !receipt.completed && receipt.tutorial === 'not-started')
+        void controller.refresh(undefined, 'start', undefined, true);
+    });
   const mount = useMountedResource<HTMLSpanElement>(() => {
     let active = true;
     let key = '';
-    void controller.enter(companion);
+    void enter();
     const unsubscribe = store.subscribe(() => {
       const snapshot = store.getSnapshot();
       const channel = snapshot.conversation.channel;
@@ -385,13 +423,45 @@ export function OnboardingOverlay({
       clearInterval(timer);
     };
   }, [actions, companion]);
+  const tourMount = useMountedResource<HTMLSpanElement>(() => {
+    if (
+      !state.guideOpen ||
+      state.receipt?.tutorial !== 'active' ||
+      state.modelOpen ||
+      state.sendOpen
+    )
+      return;
+    return startInternalTour(onboardingTourSteps(t), {
+      closeLabel: t('common.close'),
+      skipLabel: t('onboarding.skip'),
+      previousLabel: t('onboarding.tour.previous'),
+      nextLabel: t('onboarding.tour.next'),
+      doneLabel: t('onboarding.tour.done'),
+      onClosed: () => {
+        controller.pauseGuide();
+      },
+      onFinished: () => {
+        controller.pauseGuide();
+      },
+      onSkip: () => {
+        void controller.refresh(undefined, 'skip');
+      },
+    });
+  }, [
+    state.guideOpen,
+    state.receipt?.tutorial,
+    state.receipt?.completed,
+    state.modelOpen,
+    state.sendOpen,
+  ]);
   return (
     <>
       <span ref={mount} hidden aria-hidden="true" />
+      <span ref={tourMount} hidden />
       {state.error && !state.modelOpen && !state.sendOpen ? (
         <div role="alert" className="bh-root bh-onboarding-notice">
           <span className="bh-onboarding-notice-text">{state.error}</span>
-          <Button variant="ghost" onClick={() => void controller.enter(companion)}>
+          <Button variant="ghost" onClick={() => void enter()}>
             {t('onboarding.retryPrepare')}
           </Button>
         </div>
