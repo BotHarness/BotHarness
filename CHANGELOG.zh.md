@@ -52,6 +52,8 @@
 - Bot 设置改为独立窗口，从 Bot 面板的齿轮打开，左侧按通用、模型与运行、消息、Computer、Browser、窗口伙伴、数据与隐私、高级、关于分区，不再是混在其他插件设置中的一整页长列表；DSH 设置中的 **Bot 设置** 会直接切换到这里，遥测提示和窗口伙伴菜单会打开各自的分区（[#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260)，[#1261](https://github.com/BotHarness/DeepSeekBot/issues/1261)，[ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)）。
 - 窗口较窄时，Bot 设置改用顶部下拉菜单切换分区，不再显示侧边栏（[#1262](https://github.com/BotHarness/DeepSeekBot/issues/1262)）。
 
+- Channel 附件卡片统一为 320px 同一形态：音频附件改用气泡内自绘播放器播放，不再按文件行显示；文件卡片纵向排布名称与易读尺寸，并以分隔线加直接下载按钮呈现（[#1290](https://github.com/BotHarness/DeepSeekBot/issues/1290)）。
+
 ### Fixed
 
 - PersonaBot 刚发出回复、还在收尾时，工作状态行不再以「思考中」重新出现在回复下方；只有一条新消息时，「跳到最新」提示的英文改用单数（[#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)）。
