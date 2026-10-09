@@ -40,7 +40,12 @@ import type { HumanAssignmentContext } from '../runtime/assignment-human-context
 import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
 import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
-import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
+import type {
+  MessagingApp,
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
 import type { PersonaBotDeletionPreview, PersonaBotDeletion } from '../bots/deletion.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
@@ -62,6 +67,7 @@ import type {
   BridgeMethods,
   BridgeResult,
   ChannelListItem,
+  MessagingAppsView,
   PersonaBotDetail,
   PersonaBotSummary,
   OwnedSessionSummary,
@@ -242,6 +248,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
     input: MessagingIdentityInput,
   ): Promise<{ identity: MessagingIdentity }> {
     return unwrapAsync(this.methods.messagingIdentity({ slug, input }));
+  }
+  messagingApps(): Promise<MessagingAppsView> {
+    return unwrapAsync(this.methods.messagingApps());
   }
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
     return unwrapAsync(this.methods.messagingSnapshot({ slug }));
@@ -505,6 +514,15 @@ export class BotharnessBridgeService extends TypertRemoteService {
     refused: { name: string; reason: string }[];
   } {
     return unwrap(this.methods.partLibraryImport({ data }));
+  }
+
+  partLibraryImportImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryImportImage({ data, slot, colors, name }));
   }
 
   partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
@@ -844,7 +862,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
   }
 
-  toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  toolApprovalStatus(
+    channelId: string,
+    messageId: string,
+  ): {
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  } {
     return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
   }
 
@@ -1130,6 +1154,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'approvalTest',
   'approvalRetry',
   'pairingReview',
+  'messagingApps',
   'messagingSnapshot',
   'messagingTargets',
   'messagingAuthorize',
@@ -1256,6 +1281,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'partLibraryAdd',
   'partLibraryExport',
   'partLibraryImport',
+  'partLibraryImportImage',
   'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',

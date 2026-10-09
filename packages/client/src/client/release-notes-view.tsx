@@ -7,7 +7,7 @@ import {
   type MarkdownLabels,
   type TagTone,
 } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots';
 
 import type { ReleaseNote } from '../../../core/src/release/notes.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
@@ -296,8 +296,7 @@ function RestartGuide({
   );
 }
 
-export type ReleaseSettingsProps = PropsRuntime<'botharness.settings.item'> &
-  PropsLocale<'botharness'> &
+export type ReleaseSettingsProps = PropsLocale<'botharness'> &
   InjectFace<{ releaseNotes: ReleaseNotesController }>;
 
 export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): ReactElement {

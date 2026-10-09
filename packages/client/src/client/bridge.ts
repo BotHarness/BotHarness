@@ -62,6 +62,7 @@ import type {
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
+  MessagingApp,
   MessagingSnapshot,
   MessagingGrant,
   OutboxIntent,
@@ -1984,13 +1985,53 @@ export async function exportLibraryParts(
 export async function importLibraryParts(
   call: BridgeCall,
   data: string,
-): Promise<{ added: PartLibraryEntry[]; refused: number }> {
+): Promise<{ added: PartLibraryEntry[]; refused: number; image?: PartImageInfo }> {
   const value = asRecord(await unwrap(call, 'partLibraryImport', { data }));
   const added = value?.['added'];
   const refused = value?.['refused'];
   if (!Array.isArray(added) || !Array.isArray(refused))
     throw new Error('invalid partLibraryImport response');
-  return { added: added.filter(isPartLibraryEntry), refused: refused.length };
+  const image = asRecord(value?.['image']);
+  const info =
+    image &&
+    typeof image['width'] === 'number' &&
+    typeof image['height'] === 'number' &&
+    typeof image['colors'] === 'number' &&
+    Array.isArray(image['slots']) &&
+    image['slots'].every((slot) => typeof slot === 'string')
+      ? {
+          width: image['width'],
+          height: image['height'],
+          colors: image['colors'],
+          slots: image['slots'] as string[],
+        }
+      : undefined;
+  return {
+    added: added.filter(isPartLibraryEntry),
+    refused: refused.length,
+    ...(info ? { image: info } : {}),
+  };
+}
+
+export interface PartImageInfo {
+  width: number;
+  height: number;
+  colors: number;
+  slots: string[];
+}
+
+export async function importLibraryImage(
+  call: BridgeCall,
+  data: string,
+  slot: string,
+  colors: number,
+  name: string,
+): Promise<PartLibraryEntry> {
+  const entry = asRecord(
+    await unwrap(call, 'partLibraryImportImage', { data, slot, colors, name }),
+  )?.['entry'];
+  if (!isPartLibraryEntry(entry)) throw new Error('invalid partLibraryImportImage response');
+  return entry;
 }
 
 export async function addLibraryPart(
@@ -2403,6 +2444,32 @@ export async function loadToolApprovalStatus(
     throw new Error('invalid toolApprovalStatus response');
   }
   return status;
+}
+
+export type ToolApprovalExecutionState =
+  | 'waiting-human'
+  | 'waiting-capacity'
+  | 'running'
+  | 'settled'
+  | 'needs-repair';
+
+export async function loadToolApprovalExecutionState(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<ToolApprovalExecutionState | undefined> {
+  const response = asRecord(await unwrap(call, 'toolApprovalStatus', { channelId, messageId }));
+  const execution = response?.['execution'];
+  if (
+    execution !== undefined &&
+    execution !== 'waiting-human' &&
+    execution !== 'waiting-capacity' &&
+    execution !== 'running' &&
+    execution !== 'settled' &&
+    execution !== 'needs-repair'
+  )
+    throw new Error('invalid toolApprovalStatus execution');
+  return execution;
 }
 
 export async function decideToolApproval(
@@ -3700,6 +3767,38 @@ export async function reviewPairing(
     throw new BridgeCallError('invalid-response', 'Invalid pairing review');
   return pairing as unknown as PairingRequest;
 }
+export type { MessagingApp } from '../../../core/src/messaging/outbound.js';
+
+export async function loadMessagingApps(
+  call: BridgeCall,
+): Promise<{ apps: MessagingApp[]; setups: NonNullable<MessagingSnapshot['appSetups']> }> {
+  const record = asRecord(await unwrap(call, 'messagingApps', {}));
+  const apps = record?.['apps'];
+  const setups = record?.['setups'];
+  if (
+    !Array.isArray(apps) ||
+    !Array.isArray(setups) ||
+    !setups.every((value) => typeof asRecord(value)?.['providerId'] === 'string') ||
+    !apps.every((value) => {
+      const app = asRecord(value);
+      return (
+        typeof app?.['providerId'] === 'string' &&
+        typeof app['ref'] === 'string' &&
+        typeof app['platform'] === 'string' &&
+        typeof app['name'] === 'string' &&
+        typeof app['fingerprint'] === 'string' &&
+        typeof app['connected'] === 'boolean' &&
+        (app['boundBotSlug'] === undefined || typeof app['boundBotSlug'] === 'string')
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid messaging apps');
+  return {
+    apps: apps as MessagingApp[],
+    setups: setups as NonNullable<MessagingSnapshot['appSetups']>,
+  };
+}
+
 export async function loadMessagingSnapshot(
   call: BridgeCall,
   slug: string,
@@ -3891,7 +3990,7 @@ export async function readMessagingSource(
     !Number.isInteger(source?.['grantRevision']) ||
     Number(source?.['grantRevision']) < 1 ||
     event?.['version'] !== 1 ||
-    !['feishu', 'slack', 'discord', 'weixin'].includes(String(event['channel'])) ||
+    !['feishu', 'slack', 'discord', 'weixin', 'qq'].includes(String(event['channel'])) ||
     !strings(event, ['botId', 'fingerprint', 'eventId', 'messageId', 'at']) ||
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||

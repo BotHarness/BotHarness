@@ -484,6 +484,14 @@ _避免使用_：queue、mailbox、backlog
 一种持久关系，用来说明一条 Source Event 为何有资格进入某个 PersonaBot 的 attention，并记录该 Bot 的 read、defer 或 ignore facts。它引用 Source Event，绝不复制其内容。
 _避免使用_：inbox item body、delivery job、message copy
 
+**Bot Self-Record**：
+Bot 自我记录。关于 PersonaBot 自己的一次 Memory commit 或一次 BotHarness 工具动作的 Source Event：作为 Channel Notice 出现在引起它的 Source Event 所在的 Channel，同时以已处理状态进入该 PersonaBot 的 Bot Inbox。Bot 之后可以查到自己做过什么、为什么做，但它永远不会成为 attention，也不会叫醒 Bot（ADR-0154）。
+_避免使用_：activity log、tool trace
+
+**Channel Notice**：
+频道事件行。Channel 历史里由系统呈现的一行，记录发生了什么（例如一次 Memory commit 或某个 Bot 的动作），而不是某位参与者说的话。它没有已读或未读，也不会叫醒或通知任何人（ADR-0154）。
+_避免使用_：message、notification、system message（单独使用）
+
 **Inbox Trigger**：
 由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。PersonaBot 自己塑造这些规则，Human 可以查看、覆盖或冻结；template 可以提供初值，Bridge 绝不拥有 attention 或 wake behavior，安全闸门永远不属于规则。
 _避免使用_：bridge、wake policy、model trigger、scheduler
@@ -764,9 +772,13 @@ _避免使用_：widget、tile、gadget、Channel sidebar entry
 Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RPC surface，不与 Client 共享 Host service。
 _避免使用_：remote、IPC、gateway
 
-**Settings UI**：
-harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 Memory 的链接。日常 Memory 使用属于 Channel sidebar。
-_避免使用_：admin panel、dashboard、web console
+**Bot Settings**：
+BotHarness 自有的 modal（Bot 设置），承载 profile 级的 BotHarness 配置，按自己 sidebar 中的 Bot Settings section 组织。单个 PersonaBot 或单个 Channel 的配置不在这里，而是 Channel sidebar entry。DSH 自带的设置 modal 称为 DSH settings；其中的 Bot 设置 项只负责指向 Bot Settings，App 凭据仍留在 DSH settings。
+_避免使用_：Settings UI、settings page、preferences、admin panel、dashboard、web console
+
+**Bot Settings section**：
+Bot Settings 的一个 sidebar 目的地：稳定的 id、label、order，以及渲染一组内聚的 profile 级设置的 renderer。
+_避免使用_：tab、page、settings item、Channel sidebar entry
 
 **Access policy**：
 每个 PersonaBot 各自维护、允许访问它的 user 与 Chat 列表。

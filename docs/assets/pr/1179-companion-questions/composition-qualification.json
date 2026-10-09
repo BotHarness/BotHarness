@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-10-08T23:36:15.907Z",
+  "source": {
+    "localIntegrationCommit": "fc356883152ac5d86b11993216084dbda60be4d4",
+    "main": "66d2767a",
+    "featureHeads": ["84f01f3a", "33619966", "b593540f", "e00ab3c8"],
+    "pixelAvatar": "formal 0.8.0",
+    "dsh": "0.2.0-rc.1"
+  },
+  "viewport": { "width": 1559, "height": 865 },
+  "theme": "dark",
+  "language": "Chinese",
+  "capture": "Official Chrome DevTools MCP, continuous silent 22.367s VP9; container remux only",
+  "assertions": {
+    "realNativeQuestion": true,
+    "unrelatedDmSelectedThroughout": true,
+    "pendingOwnerStatusChecked": true,
+    "nativeChoiceAndSubmit": true,
+    "canonicalAnswers": 1,
+    "selectedLabel": "继续检查",
+    "originalBotContinuesWithActualAnswer": true,
+    "resolvedControlsRemoved": true,
+    "sameDocumentTimeOrigin": true,
+    "consoleErrors": 0,
+    "ownedBrowserClosed": true
+  },
+  "limits": [
+    "This is the explicit local composition of the four feature PRs, not the standalone #1188 branch.",
+    "No synthetic question, local success, owner, mouth, SSE or canonical answer was injected.",
+    "The earlier integrated attempt retains its selector assertion failure and transient fetch failure; a subsequent read-only recovery found exactly one answered resolution and the original Bot continuation. Those incomplete clips are not stitched into this fresh continuous workflow.",
+    "This scene does not qualify performance, actual background return, calibrated fast throw, multiple concurrent Bots or the unpublished 0.10.1 mouth candidate."
+  ]
+}

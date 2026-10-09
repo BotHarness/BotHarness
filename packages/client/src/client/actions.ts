@@ -1,5 +1,6 @@
 import type { PixelBannerRecipe } from '@botharness/pixel-banner';
 import { onboardingFor } from './onboarding.js';
+import type { ProviderAppSetup } from './provider-app-setup.js';
 import type { OnboardingSnapshot, TutorialAction } from '../../../core/src/onboarding/types.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {
@@ -98,6 +99,8 @@ import {
   addLibraryPart as addLibraryPartViaBridge,
   exportLibraryParts as exportLibraryPartsViaBridge,
   importLibraryParts as importLibraryPartsViaBridge,
+  importLibraryImage as importLibraryImageViaBridge,
+  type PartImageInfo,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -125,6 +128,8 @@ import {
   revokeWorkspaceGrant,
   setWorkspaceGrantWrite,
   loadToolApprovalStatus,
+  loadToolApprovalExecutionState,
+  type ToolApprovalExecutionState,
   decideToolApproval,
   loadUserQuestionStatus,
   answerUserQuestion,
@@ -309,6 +314,7 @@ export interface BridgeActions {
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
+  appSetup?: ProviderAppSetup;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -533,6 +539,10 @@ export interface BridgeActions {
   listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
   revokeToolApprovalRule(slug: string, id: string): Promise<void>;
   toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  toolApprovalExecutionState?(
+    channelId: string,
+    messageId: string,
+  ): Promise<ToolApprovalExecutionState | undefined>;
   decideToolApproval(
     channelId: string,
     messageId: string,
@@ -594,9 +604,16 @@ export interface BridgeActions {
     | {
         added: import('../../../core/src/bots/part-library.js').PartLibraryEntry[];
         refused: number;
+        image?: PartImageInfo;
       }
     | { error: string }
   >;
+  importLibraryImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): Promise<import('../../../core/src/bots/part-library.js').PartLibraryEntry | { error: string }>;
   loadPartLibrary(): Promise<
     import('../../../core/src/bots/part-library.js').PartLibraryEntry[] | undefined
   >;
@@ -1218,6 +1235,8 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
+    toolApprovalExecutionState: (channelId, messageId) =>
+      loadToolApprovalExecutionState(call, channelId, messageId),
     decideToolApproval: (channelId, messageId, outcome) =>
       settleNativeInboxAction(
         'tool-approval',
@@ -2295,6 +2314,13 @@ export function createActions(
     async importLibraryParts(data) {
       try {
         return await importLibraryPartsViaBridge(call, data);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    async importLibraryImage(data, slot, colors, name) {
+      try {
+        return await importLibraryImageViaBridge(call, data, slot, colors, name);
       } catch (error) {
         return { error: error instanceof Error ? error.message : String(error) };
       }

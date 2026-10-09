@@ -66,7 +66,7 @@ export type MessagingContextScope = MessagingHistoryScope | 'retained' | 'retain
 
 export interface MessagingInboundEvent {
   version: 1;
-  channel: 'feishu' | 'slack' | 'discord' | 'weixin';
+  channel: 'feishu' | 'slack' | 'discord' | 'weixin' | 'qq';
   botId: string;
   fingerprint: string;
   eventId: string;
@@ -166,7 +166,15 @@ export interface MessagingApprovalAck {
   status: 'queued' | 'refused';
 }
 
+export interface MessagingSetup {
+  version: 1;
+  platform: 'feishu' | 'weixin';
+  endpoint: 'dsh-im/app-setup';
+  kind: 'credentials' | 'qr';
+}
+
 export interface MessagingProvider {
+  setup?(): Promise<MessagingSetup | undefined>;
   id: string;
   react?(input: {
     accountRef: string;

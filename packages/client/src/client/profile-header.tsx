@@ -197,6 +197,7 @@ function AvatarModal({
     | 'addLibraryPart'
     | 'exportLibraryParts'
     | 'importLibraryParts'
+    | 'importLibraryImage'
   >;
   t: BotHarnessTranslate;
   onClose(): void;
@@ -229,6 +230,7 @@ function AvatarModal({
           add: actions.addLibraryPart,
           exportParts: actions.exportLibraryParts,
           importParts: actions.importLibraryParts,
+          importImage: actions.importLibraryImage,
         }}
         onUpload={() => input.current?.click()}
         onRemoveImage={() => void removeImage()}

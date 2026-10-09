@@ -281,7 +281,7 @@ describe('optional onboarding Bind app', () => {
       fingerprint: 'a'.repeat(64),
     });
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
-      zhTranslate('identity.ready', { app: 'qq available' }),
+      zhTranslate('identity.readyQq', { app: 'qq available' }),
     );
     await click(zhTranslate('identity.done'));
     expect(container.querySelector('[role="dialog"]')).toBeNull();

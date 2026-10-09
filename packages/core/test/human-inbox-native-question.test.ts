@@ -31,6 +31,7 @@ function fixture() {
     activeQuestionMessageIds: () => broker?.activeMessageIds() ?? [],
   });
   broker = new ChannelUserQuestions(core.channels, core.ownership, () => live);
+  core.companions.attachQuestions(broker);
   const methods = createBridgeMethods({ ...core, userQuestions: broker });
   const start = async (slug: string, signal?: AbortSignal) => {
     core.registry.create({ slug, displayName: slug });
@@ -46,7 +47,12 @@ function fixture() {
     const answer = broker.ask({ agent, questions, ...(signal ? { signal } : {}) });
     void answer.catch(() => undefined);
     await vi.waitFor(() => expect(core.channels.readMessages(channel.id)).toHaveLength(1));
-    return { channelId: channel.id, message: core.channels.readMessages(channel.id)[0]!, answer };
+    return {
+      channelId: channel.id,
+      message: core.channels.readMessages(channel.id)[0]!,
+      answer,
+      agent,
+    };
   };
   return {
     home,
@@ -60,6 +66,83 @@ function fixture() {
   };
 }
 describe('Human Inbox question Host boundary', () => {
+  it('projects only current committed questions, settles a competing answer once and does not resurrect history after owner replacement', async () => {
+    const f = fixture();
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    try {
+      const ada = await f.start('ada');
+      const bea = await f.start('bea');
+      const controller = new AbortController();
+      const second = f.broker.ask({ agent: ada.agent, questions, signal: controller.signal });
+      const cancelled = expect(second).rejects.toThrow(/cancelled/);
+      await vi.waitFor(() => expect(f.broker.requests('ada')).toHaveLength(2));
+      const copied = f.broker.requests('ada');
+      copied[0]!.questions[0]!.options![0]!.label = 'mutated view';
+      expect(f.broker.requests('ada')[0]!.questions[0]!.options![0]!.label).toBe('Canary');
+      reader = f.core.companions
+        .open(new Request('http://localhost/api/botharness/companion?botId=ada&dm=0'))
+        .body!.getReader();
+      const read = async () => {
+        const text = new TextDecoder().decode((await reader!.read()).value);
+        const data = /data: ([^\n]+)/u.exec(text)?.[1];
+        if (!data) throw new Error('Missing companion snapshot');
+        return JSON.parse(data) as { bot: { requests: unknown[] } };
+      };
+      expect((await read()).bot.requests).toMatchObject([
+        {
+          kind: 'user-question',
+          botSlug: 'ada',
+          channelId: 'dm-ada',
+          messageId: ada.message.id,
+          sessionId: 'qa-ada',
+          questions,
+        },
+        {
+          kind: 'user-question',
+          botSlug: 'ada',
+          channelId: 'dm-ada',
+          sessionId: 'qa-ada',
+          questions,
+        },
+      ]);
+      const answer = { answers: [{ id: 'release-route', selected: ['Canary'] }] };
+      const results = await Promise.all(
+        [0, 1].map(() =>
+          f.methods.userQuestionAnswer({ channelId: 'dm-ada', messageId: ada.message.id, answer }),
+        ),
+      );
+      expect(results.map((result) => result.ok).sort()).toEqual([false, true]);
+      expect(await ada.answer).toEqual(answer);
+      expect((await read()).bot.requests).toHaveLength(1);
+      expect(f.broker.requests('bea')).toHaveLength(1);
+      expect(
+        f.core.channels
+          .readMessages('dm-ada')
+          .filter((message) => message.userQuestionResolution?.state === 'answered'),
+      ).toHaveLength(1);
+      controller.abort();
+      await cancelled;
+      expect((await read()).bot.requests).toEqual([]);
+      const fresh = new ChannelUserQuestions(f.core.channels, f.core.ownership);
+      f.core.companions.attachQuestions(fresh);
+      await reader.cancel();
+      reader = f.core.companions
+        .open(new Request('http://localhost/api/botharness/companion?botId=ada&dm=0'))
+        .body!.getReader();
+      expect((await read()).bot.requests).toEqual([]);
+      expect(fresh.requests('ada')).toEqual([]);
+      f.broker.close();
+      await bea.answer.catch(() => undefined);
+    } finally {
+      await reader?.cancel();
+      f.broker.close();
+      f.core.companions.close();
+      await f.core.runtime.close();
+      f.core.externalMessaging.close();
+      f.core.live.close();
+      f.core.operationalDatabase.close();
+    }
+  });
   it('pages handled decisions by stable scope, keeps reading independent and reconstructs after restart', async () => {
     const f = fixture();
     let expected: string[] = [];

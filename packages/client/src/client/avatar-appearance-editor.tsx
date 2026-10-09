@@ -7,6 +7,15 @@ import {
   AVATAR_PARTS,
   AVATAR_PARTS_V2,
   AVATAR_PIECE_COLORS,
+  AVATAR_PIECE_COLORS_V4,
+  AVATAR_HEADPIECES,
+  AVATAR_ANIMAL_SPECIES,
+  AVATAR_PATTERNS,
+  isAnimalSpecies,
+  AVATAR_STRANDS,
+  withAvatarPieces,
+  withAvatarBuiltInHeadpiece,
+  builtInAvatarHeadpiece,
   AVATAR_PRESETS,
   AVATAR_RANGES,
   AVATAR_SPECIES,
@@ -19,6 +28,7 @@ import {
   withAvatarCustomPart,
   wornAvatarPart,
   hairPieceStart,
+  headpieceStart,
   isHairPartSlot,
   isReplacePartSlot,
   replacePartStart,
@@ -60,33 +70,45 @@ interface FamilySpec {
   seeded(name: string, seed: 2 | undefined): AvatarRecipe;
 }
 
+const PIECE_COLORS = [
+  'bangsColor',
+  ...AVATAR_PIECE_COLORS,
+  'backHairColor',
+  'strandColor',
+] as const satisfies readonly string[];
+const V4_KEYS = new Set<string>(['strand', 'pattern', ...AVATAR_PIECE_COLORS_V4]);
+const MOVED = new Set<string>(AVATAR_HEADPIECES);
+
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
     parts: {
-      species: AVATAR_SPECIES,
+      species: [...AVATAR_SPECIES, ...AVATAR_ANIMAL_SPECIES],
+      pattern: AVATAR_PATTERNS,
       ...AVATAR_PARTS_V2,
       ...AVATAR_HAIR_PARTS,
       rightSideHair: AVATAR_HAIR_PARTS.sideHair,
       beard: ['none', ...AVATAR_EXTRA_PARTS.beard],
       petals: AVATAR_EXTRA_PARTS.petals,
       flowerBase: AVATAR_EXTRA_PARTS.flowerBase,
+      strand: ['none', ...AVATAR_STRANDS],
     },
-    colors: [...AVATAR_COLORS, ...AVATAR_PIECE_COLORS],
+    colors: [...AVATAR_COLORS, ...PIECE_COLORS],
     swatches: {
       ...AVATAR_SWATCHES,
-      leftSideHairColor: AVATAR_SWATCHES.hairColor,
-      rightSideHairColor: AVATAR_SWATCHES.hairColor,
+      ...Object.fromEntries(PIECE_COLORS.map((key) => [key, AVATAR_SWATCHES.hairColor])),
     },
     ranges: AVATAR_RANGES,
     presets: AVATAR_PRESETS,
     categories: [
       'presets',
       'species',
+      'pattern',
       'hair',
       'bangs',
       'sideHair',
       'rightSideHair',
       'backHair',
+      'strand',
       'petals',
       'flowerBase',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop' && part !== 'hair'),
@@ -129,6 +151,7 @@ const SPLIT = new Set<string>([
 ]);
 const PART_CATEGORY: Partial<Record<string, PartSlot>> = {
   headpiece: 'headpiece',
+  pattern: 'pattern',
   bangs: 'bangs',
   sideHair: 'leftSideHair',
   rightSideHair: 'rightSideHair',
@@ -150,7 +173,11 @@ function withPart(recipe: AvatarRecipe, key: string, value: string | number): Av
   if (recipe.family !== 'illustrated')
     return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
   if (key === 'species')
-    return withAvatarSpecies(recipe, value as IllustratedAvatarRecipe['species'] & string);
+    return withAvatarSpecies(recipe, value as Parameters<typeof withAvatarSpecies>[1]);
+  if (V4_KEYS.has(key)) {
+    const { [key]: _removed, ...rest } = withAvatarPieces(recipe) as unknown as Fields;
+    return (value === 'none' ? rest : { ...rest, [key]: value }) as unknown as AvatarRecipe;
+  }
   if (EXTRAS.has(key) && value === 'none') {
     const { [key]: _removed, ...rest } = recipe as unknown as Fields;
     return rest as unknown as AvatarRecipe;
@@ -184,7 +211,8 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const spec = FAMILIES[recipe.family];
   const pick = <T,>(values: readonly T[]) => values[Math.floor(Math.random() * values.length)]!;
   const next: Fields = { ...(recipe as unknown as Fields) };
-  const own = (key: string) => !SPLIT.has(key) || recipe.family !== 'illustrated';
+  const own = (key: string) =>
+    recipe.family !== 'illustrated' || (!SPLIT.has(key) && !V4_KEYS.has(key));
   for (const [part, values] of Object.entries(spec.parts)) if (own(part)) next[part] = pick(values);
   for (const color of spec.colors) if (own(color)) next[color] = pick(spec.swatches[color]!);
   for (const [key, [min, max]] of Object.entries(spec.ranges))
@@ -193,6 +221,7 @@ function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const species = pick(AVATAR_SPECIES);
   const random = withAvatarSpecies(next as unknown as IllustratedAvatarRecipe, species);
   for (const color of AVATAR_PIECE_COLORS) delete random[color];
+  for (const key of V4_KEYS) delete random[key as keyof typeof random];
   for (const extra of EXTRAS) delete random[extra as keyof typeof random];
   const beard = pick(['none', ...AVATAR_EXTRA_PARTS.beard] as const);
   return {
@@ -223,9 +252,11 @@ function categoriesFor(
       ? flower
       : key === 'beard'
         ? !flower
-        : key === 'headpiece'
-          ? library
-          : true,
+        : key === 'strand'
+          ? !flower
+          : key === 'pattern'
+            ? isAnimalSpecies(recipe.species)
+            : true,
   );
 }
 
@@ -236,15 +267,54 @@ export interface PartLibraryActions {
     id?: string,
     part?: PixelCustomPart,
   ) => Promise<{ fileName: string; data: string } | undefined>;
-  importParts?: (
+  importParts?: (data: string) => Promise<
+    | {
+        added: PartLibraryEntry[];
+        refused: number;
+        image?: { width: number; height: number; colors: number; slots: string[] };
+      }
+    | { error: string }
+  >;
+  importImage?: (
     data: string,
-  ) => Promise<{ added: PartLibraryEntry[]; refused: number } | { error: string }>;
+    slot: string,
+    colors: number,
+    name: string,
+  ) => Promise<PartLibraryEntry | { error: string }>;
 }
 
-const ORIGIN_FILTERS = ['all', 'drawn', 'imported-bot', 'imported-file'] as const;
+interface PendingImage {
+  data: string;
+  name: string;
+  width: number;
+  height: number;
+  colors: number;
+  slots: PartSlot[];
+  slot: PartSlot;
+  keep: number;
+}
+
+const ORIGIN_FILTERS = [
+  'all',
+  'drawn',
+  'derived',
+  'imported-bot',
+  'imported-file',
+  'imported-image',
+] as const;
 type OriginFilter = (typeof ORIGIN_FILTERS)[number];
-const originKey = (origin: Exclude<OriginFilter, 'all'>) =>
-  origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn';
+const ORIGIN_KEYS = {
+  drawn: 'drawn',
+  derived: 'derived',
+  'imported-bot': 'importedBot',
+  'imported-file': 'importedFile',
+  'imported-image': 'importedImage',
+} as const;
+const originKey = (origin: Exclude<OriginFilter, 'all'>) => ORIGIN_KEYS[origin];
+const SLOT_CATEGORY = Object.fromEntries(
+  Object.entries(PART_CATEGORY).map(([category, slot]) => [slot, category]),
+) as Record<PartSlot, string>;
+const MAX_IMAGE_KEEP = 32;
 
 const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 
@@ -332,6 +402,7 @@ export function AvatarAppearanceEditor({
   const [parts, setParts] = useState<PartLibraryEntry[]>();
   const [originFilter, setOriginFilter] = useState<OriginFilter>('all');
   const [libraryNote, setLibraryNote] = useState<string>();
+  const [pendingImage, setPendingImage] = useState<PendingImage>();
   const [drawing, setDrawing] = useState<{
     slot: PartSlot;
     base: IllustratedAvatarRecipe;
@@ -402,13 +473,16 @@ export function AvatarAppearanceEditor({
       : next;
   };
   const originLabel = (entry: PartLibraryEntry) =>
-    `${entry.name || t('profile.avatar.part.untitled')} · ${entry.origins
-      .map((origin) =>
-        t(
-          `profile.avatar.part.origin.${origin === 'imported-bot' ? 'importedBot' : origin === 'imported-file' ? 'importedFile' : 'drawn'}`,
-        ),
-      )
-      .join(', ')}`;
+    [
+      entry.name || t('profile.avatar.part.untitled'),
+      entry.origins
+        .map((origin) => t(`profile.avatar.part.origin.${ORIGIN_KEYS[origin]}`))
+        .join(', '),
+      ...(entry.author ? [t('profile.avatar.part.byAuthor', { author: entry.author })] : []),
+      ...(entry.parentAuthor
+        ? [t('profile.avatar.part.basedOn', { author: entry.parentAuthor })]
+        : []),
+    ].join(' · ');
   const partEditor = () =>
     drawing ? (
       <CustomPartEditor
@@ -461,6 +535,23 @@ export function AvatarAppearanceEditor({
         setLibraryNote(result.error);
         return;
       }
+      if (result.image) {
+        const slots = result.image.slots.filter((value): value is PartSlot =>
+          Object.hasOwn(SLOT_CATEGORY, value),
+        );
+        setLibraryNote(undefined);
+        setPendingImage({
+          data,
+          name: file.name.replace(/\.png$/iu, '').slice(0, 60),
+          width: result.image.width,
+          height: result.image.height,
+          colors: result.image.colors,
+          slots,
+          slot: slots.includes(slot) ? slot : slots[0]!,
+          keep: Math.min(result.image.colors, MAX_IMAGE_KEEP),
+        });
+        return;
+      }
       setParts((current) => [
         ...result.added,
         ...(current ?? []).filter((item) => !result.added.some((added) => added.id === item.id)),
@@ -477,32 +568,59 @@ export function AvatarAppearanceEditor({
       if (file) download(file.fileName, file.data, part ? 'image/png' : 'application/zip');
       else setLibraryNote(t('profile.avatar.part.exportFailed'));
     };
+    const builtInHead = slot === 'headpiece' ? builtInAvatarHeadpiece(recipe) : undefined;
+    const acceptImage = async (pending: PendingImage) => {
+      if (!library?.importImage) return;
+      const result = await library.importImage(
+        pending.data,
+        pending.slot,
+        pending.keep,
+        pending.name,
+      );
+      if ('error' in result) {
+        setLibraryNote(result.error);
+        return;
+      }
+      setPendingImage(undefined);
+      setParts((current) => [result, ...(current ?? []).filter((item) => item.id !== result.id)]);
+      if (result.part.slot === slot) update(withAvatarCustomPart(recipe, slot, result.part));
+      setLibraryNote(t('profile.avatar.part.imported', { count: 1, refused: 0 }));
+    };
     const draw = () =>
       setDrawing(
-        hair
+        builtInHead && !worn
           ? {
               slot,
-              base: withAvatarCustomPart(recipe, slot, undefined),
+              base: recipe,
               restore: recipe,
-              backdrop: withAvatarCustomPart(recipe, slot, {
-                slot,
-                front: [],
-                back: [],
-              }) as IllustratedAvatarRecipe,
-              initial: isHairPartSlot(slot)
-                ? hairPieceStart(recipe, slot)
-                : replacePartStart(recipe, slot as Parameters<typeof replacePartStart>[1]),
-              ...(worn
-                ? { parent: customPartId(worn) }
-                : {
-                    note: t(
-                      isHairPartSlot(slot)
-                        ? 'profile.avatar.part.flattenNote'
-                        : 'profile.avatar.part.flattenPartNote',
-                    ),
-                  }),
+              backdrop: withAvatarCustomPart(recipe, slot, undefined) as IllustratedAvatarRecipe,
+              initial: headpieceStart(recipe),
+              note: t('profile.avatar.part.flattenPartNote'),
             }
-          : { slot, base: recipe, restore: recipe },
+          : hair
+            ? {
+                slot,
+                base: withAvatarCustomPart(recipe, slot, undefined),
+                restore: recipe,
+                backdrop: withAvatarCustomPart(recipe, slot, {
+                  slot,
+                  front: [],
+                  back: [],
+                }) as IllustratedAvatarRecipe,
+                initial: isHairPartSlot(slot)
+                  ? hairPieceStart(recipe, slot)
+                  : replacePartStart(recipe, slot as Parameters<typeof replacePartStart>[1]),
+                ...(worn
+                  ? { parent: customPartId(worn) }
+                  : {
+                      note: t(
+                        isHairPartSlot(slot)
+                          ? 'profile.avatar.part.flattenNote'
+                          : 'profile.avatar.part.flattenPartNote',
+                      ),
+                    }),
+              }
+            : { slot, base: recipe, restore: recipe },
       );
     return (
       <>
@@ -603,11 +721,89 @@ export function AvatarAppearanceEditor({
             ) : null}
           </div>
         ) : null}
+        {pendingImage ? (
+          <div className="bh-part-image" data-part-image role="group">
+            <p>
+              {t('profile.avatar.part.imageInfo', {
+                width: pendingImage.width,
+                height: pendingImage.height,
+                colors: pendingImage.colors,
+              })}
+            </p>
+            {pendingImage.slots.length > 1 ? (
+              <label>
+                <span>{t('profile.avatar.part.imageSlot')}</span>
+                <select
+                  data-part-image-slot
+                  value={pendingImage.slot}
+                  onChange={(event) =>
+                    setPendingImage({
+                      ...pendingImage,
+                      slot: event.currentTarget.value as PartSlot,
+                    })
+                  }
+                >
+                  {pendingImage.slots.map((value) => (
+                    <option key={value} value={value}>
+                      {t(`profile.avatar.${SLOT_CATEGORY[value]}` as Key)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <label>
+              <span>{t('profile.avatar.part.imageKeep')}</span>
+              <input
+                type="number"
+                data-part-image-keep
+                min={1}
+                max={Math.min(pendingImage.colors, MAX_IMAGE_KEEP)}
+                value={pendingImage.keep}
+                onChange={(event) =>
+                  setPendingImage({
+                    ...pendingImage,
+                    keep: Math.max(
+                      1,
+                      Math.min(
+                        Math.min(pendingImage.colors, MAX_IMAGE_KEEP),
+                        Math.round(Number(event.currentTarget.value)) || 1,
+                      ),
+                    ),
+                  })
+                }
+              />
+            </label>
+            {pendingImage.colors > MAX_IMAGE_KEEP ? (
+              <p className="bh-avatar-hidden-note" data-part-image-reduce>
+                {t('profile.avatar.part.imageReduce', { max: MAX_IMAGE_KEEP })}
+              </p>
+            ) : null}
+            <p className="bh-avatar-hidden-note">{t('profile.avatar.part.imageRemap')}</p>
+            <div className="bh-part-library-actions">
+              <button
+                type="button"
+                className="bh-avatar-color-reset"
+                data-part-image-accept
+                onClick={() => void acceptImage(pendingImage)}
+              >
+                {t('profile.avatar.part.imageAccept')}
+              </button>
+              <button
+                type="button"
+                className="bh-avatar-color-reset"
+                data-part-image-cancel
+                onClick={() => setPendingImage(undefined)}
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {hair ? null : (
           <OptionTile
             id={`${slot}:none`}
             recipe={withAvatarCustomPart(recipe, slot, undefined)}
-            selected={!worn}
+            selected={!worn && builtInAvatarHeadpiece(recipe) === undefined}
             label={t('profile.avatar.part.none')}
             onSelect={() => update(withAvatarCustomPart(recipe, slot, undefined))}
           />
@@ -820,7 +1016,7 @@ export function AvatarAppearanceEditor({
                         onChange={(event) => set(key, event.currentTarget.value)}
                       />
                       {fields[key] !== undefined &&
-                      (AVATAR_PIECE_COLORS as readonly string[]).includes(key) ? (
+                      (PIECE_COLORS as readonly string[]).includes(key) ? (
                         <button
                           type="button"
                           className="bh-avatar-color-reset"
@@ -843,7 +1039,38 @@ export function AvatarAppearanceEditor({
                   id="bh-avatar-panel"
                   aria-labelledby="bh-avatar-tab-headpiece"
                 >
-                  {drawing?.slot === 'headpiece' ? partEditor() : partActions('headpiece', draft)}
+                  {hiddenFor(draft, 'headpiece') ? (
+                    <p className="bh-avatar-hidden-note" data-avatar-hidden-note="headpiece">
+                      {t('profile.avatar.hiddenNote')}
+                    </p>
+                  ) : null}
+                  {drawing?.slot === 'headpiece' ? (
+                    partEditor()
+                  ) : (
+                    <>
+                      {library ? (
+                        partActions('headpiece', draft)
+                      ) : (
+                        <OptionTile
+                          id="headpiece:none"
+                          recipe={withAvatarBuiltInHeadpiece(draft, undefined)}
+                          selected={builtInAvatarHeadpiece(draft) === undefined}
+                          label={t('profile.avatar.part.none')}
+                          onSelect={() => update(withAvatarBuiltInHeadpiece(draft, undefined))}
+                        />
+                      )}
+                      {AVATAR_HEADPIECES.map((value) => (
+                        <OptionTile
+                          key={value}
+                          id={`headpiece:${value}`}
+                          recipe={withAvatarBuiltInHeadpiece(draft, value)}
+                          selected={builtInAvatarHeadpiece(draft) === value}
+                          label={t(`profile.avatar.option.headpiece.${value}` as Key)}
+                          onSelect={() => update(withAvatarBuiltInHeadpiece(draft, value))}
+                        />
+                      ))}
+                    </>
+                  )}
                 </div>
               ) : category === 'presets' ? (
                 <div
@@ -904,7 +1131,16 @@ export function AvatarAppearanceEditor({
                     : null}
                   {(drawing && pieceSlot && drawing.slot === pieceSlot
                     ? []
-                    : (spec.parts[category] ?? [])
+                    : (spec.parts[category] ?? []).filter(
+                        (value) =>
+                          !(
+                            category === 'accessory' &&
+                            draft.family === 'illustrated' &&
+                            draft.assetVersion === 4 &&
+                            MOVED.has(value) &&
+                            fields[category] !== value
+                          ),
+                      )
                   ).map((value) => (
                     <OptionTile
                       key={value}

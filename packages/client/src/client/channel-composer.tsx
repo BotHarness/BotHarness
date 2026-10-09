@@ -93,6 +93,7 @@ export interface ChannelComposerProps {
   onRemoveAttachment?(id: string): void;
   onActivityOverlayResize?(height: number): void;
   activity?: ChannelComposerActivity | undefined;
+  activityConcealed?: boolean | undefined;
   allBotNotice?: string | undefined;
   allBotPreview?: AllBotPreview | undefined;
   mentionCandidates?: readonly BotSummary[] | undefined;
@@ -302,10 +303,12 @@ export function fitComposerTextarea(
 
 function PersonaBotActivityStatus({
   activity,
+  concealed = false,
   t,
   onResize,
 }: {
   activity: ChannelComposerActivity | undefined;
+  concealed?: boolean | undefined;
   t: BotHarnessTranslate;
   onResize?: ((height: number) => void) | undefined;
 }): ReactElement | null {
@@ -331,7 +334,11 @@ function PersonaBotActivityStatus({
   if (activity === undefined || activity.items.length === 0) return null;
 
   return (
-    <details ref={overlayMount} className="bh-composer-activity-status">
+    <details
+      ref={overlayMount}
+      className="bh-composer-activity-status"
+      data-concealed={concealed ? 'true' : undefined}
+    >
       <summary className="bh-composer-activity-toggle">
         <PersonaBotFacepile
           t={t}
@@ -458,6 +465,7 @@ export function ChannelComposer({
   onRemoveAttachment,
   onActivityOverlayResize,
   activity,
+  activityConcealed = false,
   allBotNotice,
   allBotPreview,
   mentionCandidates = [],
@@ -881,7 +889,12 @@ export function ChannelComposer({
           )}
         </div>
       ) : null}
-      <PersonaBotActivityStatus activity={activity} t={t} onResize={onActivityOverlayResize} />
+      <PersonaBotActivityStatus
+        activity={activity}
+        concealed={activityConcealed}
+        t={t}
+        onResize={onActivityOverlayResize}
+      />
       <div
         className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${fit.animateFirstExpand ? ' bh-composer-first-expand' : ''}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}

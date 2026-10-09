@@ -38,6 +38,7 @@ import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
+  MessagingApp,
   MessagingSnapshot,
   MessagingGrant,
   OutboxIntent,
@@ -90,7 +91,20 @@ import {
 import { botAvatarUrl } from '../bots/avatar-http.js';
 import { botBannerSummary, type BotBannerSummary } from '../bots/banner-http.js';
 import { isBotBanner, seededBotBanner } from '../bots/bot-banner.js';
-import { customPartId, isPixelCustomPart } from '../bots/avatar-appearance.js';
+import {
+  PART_SLOTS,
+  customPartId,
+  isPixelCustomPart,
+  type PartSlot,
+} from '../bots/avatar-appearance.js';
+import {
+  MAX_PART_IMAGE_BYTES,
+  MAX_PART_IMAGE_COLORS,
+  MAX_PART_IMAGE_SCALE,
+  partFromImage,
+  readPartImage,
+  type PartImageError,
+} from '../bots/part-image.js';
 import { MAX_PART_NAME, type PartLibrary, type PartLibraryEntry } from '../bots/part-library.js';
 import {
   MAX_PART_LIBRARY_FILES,
@@ -349,6 +363,11 @@ export interface BridgeError {
 
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
+export interface MessagingAppsView {
+  apps: MessagingApp[];
+  setups: NonNullable<MessagingSnapshot['appSetups']>;
+}
+
 export interface BridgeMethods {
   onboarding(payload: unknown): Promise<BridgeResult<OnboardingSnapshot>>;
   modelPlanInherit(payload: unknown): BridgeResult<{ revision: number }>;
@@ -378,6 +397,7 @@ export interface BridgeMethods {
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
   messagingDefaults(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
   messagingDefaultsSet(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
+  messagingApps(): Promise<BridgeResult<MessagingAppsView>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
@@ -469,7 +489,10 @@ export interface BridgeMethods {
   assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
-  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   userQuestionStatus(
     payload: unknown,
@@ -526,7 +549,9 @@ export interface BridgeMethods {
   partLibraryImport(payload: unknown): BridgeResult<{
     added: PartLibraryEntry[];
     refused: { name: string; reason: string }[];
+    image?: { width: number; height: number; colors: number; slots: PartSlot[] };
   }>;
+  partLibraryImportImage(payload: unknown): BridgeResult<{ entry: PartLibraryEntry }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
@@ -605,6 +630,23 @@ function unmanagedGitStatus(): GitStatus {
   return git.available
     ? { ...git, source: 'system', installable: false, install: { phase: 'idle' } }
     : { ...git, installable: false, install: { phase: 'idle' } };
+}
+
+function partImageMessage(error: PartImageError): string {
+  switch (error) {
+    case 'too-large':
+      return 'The image is larger than 1 MB';
+    case 'wrong-size':
+      return `The image must be 32×32 or 32×16 pixels, or a whole-number scale of it up to ×${MAX_PART_IMAGE_SCALE}`;
+    case 'too-many-colors':
+      return `The image has more than ${MAX_PART_IMAGE_COLORS} colors, or more colors than a part can keep`;
+    case 'empty':
+      return 'The image has no opaque pixels';
+    case 'unsupported':
+      return 'Interlaced and 16-bit PNGs are not supported';
+    case 'not-png':
+      return 'The file is not a PNG';
+  }
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -1261,6 +1303,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!parsed.success)
         return Promise.resolve(invalidInput('Valid qualified platform defaults required'));
       return messagingCall((service) => service.setDefaults(parsed.data));
+    },
+    messagingApps() {
+      return messagingCall(async (service) => ({
+        apps: await service.apps(),
+        setups: await service.setups(),
+      }));
     },
     messagingSnapshot(payload) {
       const slug = asSlug(payload);
@@ -2228,7 +2276,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (parent !== undefined && (typeof parent !== 'string' || !/^[\da-f]{64}$/u.test(parent)))
         return invalidInput('parent must be a Custom Part id');
       try {
-        const entry = deps.partLibrary.add({ part, name, origin: 'drawn', parent });
+        const source = parent === undefined ? undefined : deps.partLibrary.get(parent);
+        const parentAuthor = source?.author ?? source?.parentAuthor;
+        const entry = deps.partLibrary.add({
+          part,
+          name,
+          origin: source ? 'derived' : 'drawn',
+          parent,
+          ...(parentAuthor ? { parentAuthor } : {}),
+        });
         return { ok: true, value: { entry } };
       } catch (error) {
         if (error instanceof OperationalDatabaseError) return unavailable();
@@ -2294,16 +2350,32 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const data = asObject(payload)['data'];
       if (typeof data !== 'string' || data.length > (MAX_PART_LIBRARY_FILE_BYTES * 4) / 3 + 4)
         return invalidInput('data must be a base64 PNG or zip of at most 8 MB');
-      const decoded = decodePartFiles(Buffer.from(data, 'base64'));
+      const bytes = Buffer.from(data, 'base64');
+      const decoded = decodePartFiles(bytes);
+      if (decoded === 'no-part-data') {
+        const image = readPartImage(bytes);
+        if (typeof image === 'string') return invalidInput(partImageMessage(image));
+        return {
+          ok: true,
+          value: {
+            added: [],
+            refused: [],
+            image: {
+              width: image.width,
+              height: image.height,
+              colors: image.colors,
+              slots: image.slots,
+            },
+          },
+        };
+      }
       if (typeof decoded === 'string')
         return invalidInput(
           decoded === 'too-large'
             ? 'The file is too large'
-            : decoded === 'no-part-data'
-              ? 'This PNG has no part data'
-              : decoded === 'invalid-part'
-                ? 'The part data in this file is invalid'
-                : 'The file is not a part PNG or a zip of part PNGs',
+            : decoded === 'invalid-part'
+              ? 'The part data in this file is invalid'
+              : 'The file is not a part PNG or a zip of part PNGs',
         );
       try {
         const added = decoded.files.map((file) =>
@@ -2315,6 +2387,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           }),
         );
         return { ok: true, value: { added, refused: decoded.refused } };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
+    },
+    partLibraryImportImage(payload) {
+      if (!deps.partLibrary) return unavailable();
+      const input = asObject(payload);
+      const data = input['data'];
+      const slot = input['slot'];
+      const colors = input['colors'];
+      const name = input['name'] ?? '';
+      if (typeof data !== 'string' || data.length > (MAX_PART_IMAGE_BYTES * 4) / 3 + 4)
+        return invalidInput('data must be a base64 PNG of at most 1 MB');
+      if (typeof slot !== 'string' || !Object.hasOwn(PART_SLOTS, slot))
+        return invalidInput('slot must be a Custom Part slot');
+      if (typeof name !== 'string' || name.length > MAX_PART_NAME)
+        return invalidInput(`name must be a string of at most ${MAX_PART_NAME} characters`);
+      if (typeof colors !== 'number' || !Number.isInteger(colors) || colors < 1)
+        return invalidInput('colors must be a positive integer');
+      const image = readPartImage(Buffer.from(data, 'base64'));
+      if (typeof image === 'string') return invalidInput(partImageMessage(image));
+      const part = partFromImage(image, slot as PartSlot, colors);
+      if (typeof part === 'string') return invalidInput(partImageMessage(part));
+      try {
+        const entry = deps.partLibrary.add({ part, name, origin: 'imported-image' });
+        return { ok: true, value: { entry } };
       } catch (error) {
         if (error instanceof OperationalDatabaseError) return unavailable();
         throw error;
@@ -3836,12 +3935,31 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel?.type !== 'dm' || channel.botSlug === undefined) {
         return invalidInput('Tool approval is available only in a PersonaBot DM');
       }
-      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+      const request = deps.channels.message(channelId, messageId)?.toolApprovalRequest;
+      if (request === undefined) {
         return invalidInput('Unknown tool approval request');
       }
+      const assignment =
+        request.role === 'assignment'
+          ? deps.runtime?.getAssignment(channel.botSlug, request.sessionId)
+          : undefined;
+      const execution =
+        assignment === undefined
+          ? undefined
+          : assignment.activity === 'error'
+            ? 'needs-repair'
+            : assignment.activity === 'working'
+              ? ((deps.runtime?.assignmentApprovalWait === undefined
+                  ? assignment.executionWait
+                  : deps.runtime.assignmentApprovalWait(request.sessionId, request.callId)) ??
+                'running')
+              : 'settled';
       return {
         ok: true,
-        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+        value: {
+          status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired',
+          ...(execution === undefined ? {} : { execution }),
+        },
       };
     },
     async toolApprovalDecide(payload) {

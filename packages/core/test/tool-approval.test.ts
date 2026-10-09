@@ -46,6 +46,66 @@ function fixture(attention?: {
 }
 
 describe('Channel tool approval', () => {
+  it('commits a Human decision promptly but holds its native outcome until capacity is reserved', async () => {
+    const state = fixture();
+    let release!: () => void;
+    const capacity = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const lease = { resume: vi.fn(() => capacity), release: vi.fn() };
+    const begin = vi.fn(() => lease);
+    const broker = new ChannelToolApproval(
+      state.channels,
+      state.ownership,
+      undefined,
+      undefined,
+      undefined,
+      begin,
+    );
+    broker.track(state.execution());
+    const delivered = vi.fn();
+    const answer = broker
+      .ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' })
+      .then((value) => {
+        delivered(value);
+        return value;
+      });
+    await vi.waitFor(() => expect(state.messages).toHaveLength(1));
+    expect(begin).toHaveBeenCalledWith(sessionId, 'call-1', expect.any(AbortSignal));
+    expect(await broker.decide(botSlug, state.messages[0]!.id, 'allowed-once')).toBe(true);
+    expect(state.messages[1]?.toolApprovalDecision?.outcome).toBe('allowed-once');
+    expect(lease.resume).toHaveBeenCalledTimes(1);
+    expect(delivered).not.toHaveBeenCalled();
+    release();
+    expect(await answer).toBe('allowed-once');
+    expect(lease.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns unavailable if authority disappears after the Human decision and releases the wait', async () => {
+    const state = fixture();
+    let refuse!: (error: Error) => void;
+    const capacity = new Promise<void>((_resolve, reject) => {
+      refuse = reject;
+    });
+    const lease = { resume: () => capacity, release: vi.fn() };
+    const broker = new ChannelToolApproval(
+      state.channels,
+      state.ownership,
+      undefined,
+      undefined,
+      undefined,
+      () => lease,
+    );
+    broker.track(state.execution());
+    const answer = broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' });
+    await vi.waitFor(() => expect(state.messages).toHaveLength(1));
+    expect(await broker.decide(botSlug, state.messages[0]!.id, 'allowed-once')).toBe(true);
+    refuse(new Error('authority unavailable'));
+    expect(await answer).toBe('unavailable');
+    expect(lease.release).toHaveBeenCalledTimes(1);
+    expect(broker.status(botSlug, state.messages[0]!.id)).toBe('expired');
+  });
+
   it('keeps one native tool call paused until a Human decision is committed', async () => {
     const state = fixture();
     const untrack = state.broker.track(state.execution());

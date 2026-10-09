@@ -463,7 +463,7 @@ A Channel-owned, one-way connection that places every message of one external co
 _Avoid_: sync, mirror, Bridge (for this record)
 
 **App**:
-The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Settings → IM apps lists every App and the Bot that uses it.
+The UI name (应用) for one authenticated Provider account, such as a Lark app, a Slack app, a Discord bot or a paired WeChat Bot. An App is bound to at most one PersonaBot; a PersonaBot may bind several Apps, including several of one platform. Bot Settings → IM apps lists every App and the PersonaBot that uses it.
 _Avoid_: IM account (in UI copy), connector, integration
 
 **Default traffic**:
@@ -485,6 +485,14 @@ _Avoid_: queue, mailbox, backlog
 **Inbox Admission**:
 The durable relationship saying why a Source Event is eligible for one PersonaBot's attention, together with that Bot's read, defer, or ignore facts. It references the Source Event and never copies its content.
 _Avoid_: inbox item body, delivery job, message copy
+
+**Bot Self-Record**:
+A Source Event about a PersonaBot's own Memory commit or BotHarness-tool action. It appears as a Channel Notice in the Channel of the Source Event that caused it, and is admitted to that PersonaBot's Bot Inbox already handled, so the Bot can find what it did and why without it ever becoming attention or a wake (ADR-0154).
+_Avoid_: activity log, tool trace
+
+**Channel Notice**:
+A system-presented line in a Channel's history that records an effect, such as a Memory commit or a Bot's action, rather than something a participant said. It has no read or unread state and never wakes or notifies anyone (ADR-0154).
+_Avoid_: message, notification, system message (bare)
 
 **Inbox Trigger**:
 A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. The PersonaBot shapes its own rules and the Human may inspect, override, or freeze them; templates may supply initial values, a Bridge never owns attention or wake behavior, and safety gates are never part of a rule.
@@ -766,9 +774,13 @@ _Avoid_: widget, tile, gadget, Channel sidebar entry
 The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
 _Avoid_: remote, IPC, gateway
 
-**Settings UI**:
-The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to the Channel sidebar.
-_Avoid_: admin panel, dashboard, web console
+**Bot Settings**:
+The BotHarness-owned modal (Bot 设置) for profile-wide BotHarness configuration, organised into Bot Settings sections in its own sidebar. Configuration of one PersonaBot or one Channel never lives here; that is a Channel sidebar entry. DSH's own settings modal is called DSH settings; its Bot 设置 item only points into Bot Settings, while App credentials remain in DSH settings.
+_Avoid_: Settings UI, settings page, preferences, admin panel, dashboard, web console
+
+**Bot Settings section**:
+One sidebar destination of Bot Settings: a stable id, label, order, and a renderer for one coherent group of profile-wide settings.
+_Avoid_: tab, page, settings item, Channel sidebar entry
 
 **Access policy**:
 The per-PersonaBot list of users and chats allowed to reach it.

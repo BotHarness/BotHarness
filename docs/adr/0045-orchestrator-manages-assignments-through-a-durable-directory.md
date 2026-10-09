@@ -144,8 +144,34 @@ Event context and rechecking current ownership, DM and source-content fences; th
 available until native idle so the model can use its Channel tools. It adds no ordinary input
 or Inbox Admission. The process-local correlation does not recover a
 cold Agent or add a second executor, Inbox or decision store.
-Permission approval and bounded running-capacity qualification remain unresolved. The
-production runtime stays on RC1 and all downstream gates remain blocked.
+The production runtime stays on RC1. The #1037 candidate below qualifies live resource
+accounting separately; the missing same-Orchestrator permission continuation and
+#1036/#1038 privacy gates remain unresolved.
+
+## Live approval waits and running permits
+
+The bounded #1037 slice retains the original native approval Promise, Agent, Session and
+call. Assignment Runtime may release its application-defined running permit only while
+a Human approval is pending, all tool bodies have stopped and no approved call is prepared
+to execute. Assignments with any owned descendants conservatively retain their permit:
+this slice does not claim descendant quiescence. The durable Directory remains `working`;
+process-local `executionWait` distinguishes waiting for the Human from waiting for capacity
+without inventing a semantic Report or a second approval store.
+
+At most 32 Assignment Sessions may hold live approval waits, independently of the Human's
+1–32 running limit. The Human decision still commits through the owning Channel broker.
+Before that outcome returns to native approval, Runtime must reacquire capacity and check
+current ownership, identity, Grant and original Source Event authority. The final tool-body
+boundary repeats the native operation guard after any capacity wait; the next model step
+also requires a permit. Parallel tool bodies and prepared calls retain the permit. Lowering
+the limit does not cancel existing execution; later acquisitions observe the current limit.
+
+Only already admitted live waits can await a running permit. New dispatches and idle wakes
+still fail immediately at capacity and create no queued delivery intent. This bounded live
+resumption is an explicit qualification of the no-dispatch-queue rule, not a durable scheduler.
+Stop and abort end the original wait; cold restart retains the existing interrupted/needs-repair
+path and never recreates the permit lease, native Promise or original tool execution. See
+the [real Host verification](../research/1037-assignment-approval-capacity.md).
 
 ## Native live-turn cancellation
 

@@ -62,18 +62,23 @@ it('pins independently, exposes right-click controls and applies global bounded 
     frames.set(++frame, callback);
     return frame;
   });
-  vi.stubGlobal('cancelAnimationFrame', () => {});
-  const measurement = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-    x: 0,
-    y: 0,
-    top: 0,
-    left: 0,
-    right: 1000,
-    bottom: 800,
-    width: 1000,
-    height: 800,
-    toJSON: () => ({}),
-  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  let stageWidth = 1000;
+  let stageHeight = window.innerHeight;
+  const measurement = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('bh-persona-avatar')) {
+        const companion = this.closest<HTMLElement>('.bh-companion');
+        return new DOMRect(
+          Number.parseFloat(companion?.style.left ?? '0'),
+          window.innerHeight - Number.parseFloat(companion?.style.bottom ?? '0') - 96,
+          96,
+          96,
+        );
+      }
+      return new DOMRect(0, 0, stageWidth, stageHeight);
+    });
   const events = new EventTarget();
   const owner = new WindowCompanions({
     context: async () => ({ profileId: 'qa' }),
@@ -167,7 +172,16 @@ it('pins independently, exposes right-click controls and applies global bounded 
       for (const callback of [...frames.values()]) callback(performance.now());
     });
     const bubbles = [...node.querySelectorAll<HTMLElement>('.bh-companion-activity')];
-    expect(bubbles[0]!.style.bottom).not.toBe(bubbles[1]!.style.bottom);
+    const positions = bubbles.map((bubble) => ({
+      x:
+        Number.parseFloat(bubble.style.left) +
+        Number.parseFloat(bubble.closest<HTMLElement>('.bh-companion')!.style.left),
+      y: Number.parseFloat(bubble.style.bottom),
+    }));
+    expect(
+      Math.abs(positions[0]!.x - positions[1]!.x) >= 328 ||
+        Math.abs(positions[0]!.y - positions[1]!.y) >= 32,
+    ).toBe(true);
     expect([...pins].map((pin) => pin.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
     const grace = node.querySelector<HTMLElement>('[data-bot="grace"]')!;
     await act(() => {
@@ -261,17 +275,8 @@ it('pins independently, exposes right-click controls and applies global bounded 
     expect(owner.get('ada')!.getSnapshot().selection?.walking).toBe(false);
     expect(owner.get('grace')!.getSnapshot().selection?.walking).toBe(true);
     vi.stubGlobal('innerHeight', 640);
-    measurement.mockReturnValue({
-      x: 0,
-      y: 0,
-      top: 0,
-      left: 0,
-      right: 360,
-      bottom: 640,
-      width: 360,
-      height: 640,
-      toJSON: () => ({}),
-    });
+    stageWidth = 360;
+    stageHeight = 640;
     await act(() => {
       owner.configureCapacity({ layers: 10, retention: 10 });
       for (const botId of ['ada', 'grace']) {

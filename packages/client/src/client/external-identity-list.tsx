@@ -1,3 +1,5 @@
+import { CreateAppForm } from './create-app-form.js';
+import type { ProviderAppSetup } from './provider-app-setup.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { useRef, useState, type ReactElement } from 'react';
 import {
@@ -16,7 +18,7 @@ import type {
   MessagingIdentityView,
 } from '../../../core/src/messaging/identity.js';
 import { Combobox } from './combobox.js';
-import { ExternalConversations } from './external-conversations.js';
+import { ExternalConversations, type ConversationSync } from './external-conversations.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -41,8 +43,11 @@ export function ExternalIdentityList({
   rules,
   refresh,
   channels,
+  sync,
+  syncChannels,
   botName = (slug) => slug,
   bindDialog,
+  appSetup,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
@@ -51,13 +56,17 @@ export function ExternalIdentityList({
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
+  sync?: ConversationSync;
+  syncChannels?: { id: string; name: string }[];
   botName?(slug: string): string;
+  appSetup?: { client: ProviderAppSetup; botSlug: string } | undefined;
   bindDialog?: { onClose(): void; dismissLabel: string; description: string };
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind' | undefined>(
     bindDialog ? 'bind' : undefined,
   );
   const [selected, setSelected] = useState<MessagingIdentityView>();
+  const [creatingApp, setCreatingApp] = useState(false);
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
@@ -109,6 +118,7 @@ export function ExternalIdentityList({
     setRefreshing(false);
     setError('');
     setMode(next);
+    setCreatingApp(false);
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
@@ -290,7 +300,8 @@ export function ExternalIdentityList({
         </SidebarCardList>
       )}
       <Modal
-        className="bh-sidebar-modal"
+        className="bh-sidebar-modal bh-external-identity-modal"
+        contentClassName="bh-external-identity-content"
         open={mode !== undefined}
         onClose={close}
         title={t(
@@ -335,7 +346,7 @@ export function ExternalIdentityList({
               <Button variant="primary" onClick={close}>
                 {t('identity.done')}
               </Button>
-            ) : (
+            ) : creatingApp ? null : (
               <Button
                 variant="primary"
                 className={mode === 'unbind' ? 'bh-im-danger' : undefined}
@@ -374,7 +385,24 @@ export function ExternalIdentityList({
               {error}
             </p>
           ) : null}
-          {mode === 'bind' ? (
+          {mode === 'bind' && creatingApp && appSetup ? (
+            <CreateAppForm
+              client={appSetup.client}
+              botSlug={appSetup.botSlug}
+              descriptors={snapshot?.appSetups ?? []}
+              t={t}
+              onBack={() => setCreatingApp(false)}
+              onCreated={async () => {
+                const input = appSetup.client.binding(appSetup.botSlug);
+                await mutate(input);
+                await refresh();
+                if (input.kind === 'bind') setAccountKey(input.providerId + ':' + input.accountRef);
+                appSetup.client.forget(appSetup.botSlug);
+                setCreatingApp(false);
+                setMode('bound');
+              }}
+            />
+          ) : mode === 'bind' ? (
             <>
               <nav className="bh-im-field" aria-label={t('identity.tutorials')}>
                 <span className="bh-muted">{t('identity.tutorials')}</span>
@@ -395,6 +423,16 @@ export function ExternalIdentityList({
               <div className="bh-im-field">
                 <div className="bh-im-app-heading">
                   <span>{t('identity.app')}</span>
+                  {appSetup && snapshot?.appSetups?.length ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy || refreshing}
+                      onClick={() => setCreatingApp(true)}
+                    >
+                      {t('appSetup.create')}
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -474,6 +512,14 @@ export function ExternalIdentityList({
                   </Tooltip>
                 </div>
               </div>
+              <p className="bh-muted">
+                {t(
+                  selectedAccount?.platform === 'qq' ? 'identity.bindHintQq' : 'identity.bindHint',
+                )}
+              </p>
+              {appSetup && !snapshot?.appSetups?.length ? (
+                <p className="bh-note">{t('appSetup.fallback')}</p>
+              ) : null}
               {refreshing ? <p role="status">{t('identity.refreshing')}</p> : null}
             </>
           ) : mode === 'bound' && selectedAccount ? (
@@ -486,7 +532,9 @@ export function ExternalIdentityList({
                   bound?.reception === 'receiving'
                     ? selectedAccount.platform === 'weixin'
                       ? 'identity.readyWeixin'
-                      : 'identity.ready'
+                      : selectedAccount.platform === 'qq'
+                        ? 'identity.readyQq'
+                        : 'identity.ready'
                     : bound?.reception === 'connecting' || bound === undefined
                       ? 'identity.connecting'
                       : 'identity.offline',
@@ -650,6 +698,13 @@ export function ExternalIdentityList({
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
                     {...(channels ? { channels } : {})}
+                    {...(selected.platform === 'qq' && sync
+                      ? {
+                          sync: (grant, channelId, enabled) =>
+                            operate(() => sync(grant, channelId, enabled)),
+                          syncChannels: syncChannels ?? [],
+                        }
+                      : {})}
                   />
                 </div>
               ) : null}

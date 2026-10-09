@@ -20,6 +20,8 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-capacity-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .bh-companion-capacity-controls label { display: grid; gap: 4px; max-width: 150px; }
 .bh-companion { position: absolute; width: 96px; height: 96px; pointer-events: auto; }
+.bh-companion-tether { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.bh-companion-tether path { fill: none; stroke: var(--bh-companion-border); stroke-width: 2; stroke-linejoin: miter; }
 .bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; transform-origin: center 20%; transition: transform 140ms ease-out, transform-origin 140ms ease-out; }
 .bh-companion[data-motion='fall'] .bh-companion-character,
 .bh-companion[data-motion='land'] .bh-companion-character { transform-origin: center bottom; transition: transform 70ms ease-out, transform-origin 140ms ease-out; }
@@ -30,6 +32,14 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion button:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 3px; }
 .bh-companion-activity { position: absolute; bottom: 134px; width: 320px; max-width: calc(100vw - 16px); padding: 6px 9px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); color: var(--bh-companion-muted); font: 12px/18px var(--bh-companion-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-companion[data-sync='stale'] .bh-companion-activity { border-style: dashed; }
+.bh-companion-pending { position: absolute; z-index: 3; display: flex; flex-direction: column; width: 320px; max-width: calc(100vw - 16px); background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); color: var(--bh-companion-text); box-shadow: 3px 3px 0 var(--bh-companion-border); }
+.bh-companion-pending > header { flex: none; padding: 8px 10px; font: 12px/18px var(--bh-companion-font); border-bottom: 1px solid var(--bh-companion-border); }
+.bh-companion-pending > ol { margin: 0; padding: 8px; list-style: none; overflow: auto; scrollbar-gutter: stable; }
+.bh-companion-pending > ol:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: -2px; }
+.bh-companion-pending > ol > li + li { margin-top: 12px; }
+.bh-companion-request-source { margin-bottom: 6px; font: 11px/16px var(--bh-companion-font); color: var(--bh-companion-muted); overflow-wrap: anywhere; }
+.bh-companion-pending .bh-tool-approval-card { margin: 0; min-width: 0; grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
+.bh-companion-pending .bh-tool-approval-input { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-companion-cards { position: absolute; bottom: 174px; width: 320px; max-width: calc(100vw - 16px); margin: 0; padding: 0; list-style: none; overflow: visible; transition: height 220ms ease; }
 .bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-gutter: stable; }
 .bh-companion-card { position: absolute; width: 100%; height: 104px; padding: 8px 10px; background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); transform-origin: center top; color: var(--bh-companion-text); transition: top 220ms ease, transform 220ms ease; box-shadow: 3px 3px 0 var(--bh-companion-border); }

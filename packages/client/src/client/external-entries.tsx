@@ -60,6 +60,7 @@ function IdentitiesForBot({
         </p>
       ) : null}
       <ExternalIdentityList
+        appSetup={actions.appSetup ? { client: actions.appSetup, botSlug: slug } : undefined}
         snapshot={snapshot}
         refresh={refresh}
         t={t}
@@ -76,6 +77,34 @@ function IdentitiesForBot({
           await refresh();
         }}
         channels={syncChannels}
+        syncChannels={snapshot?.channelTargets ?? []}
+        sync={async (grant, channelId, enabled) => {
+          const route = grant.bridgeRoutes?.find((item) => item.channelId === channelId);
+          const input = {
+            grantId: grant.id,
+            expectedGrantRevision: grant.revision,
+            delivery: 'channel' as const,
+            name: route?.name ?? grant.targetName,
+            enabled,
+            collection: route?.collection ?? 'mentions',
+            collectionInheritance: route?.collectionInheritance ?? 'inherit',
+            ...(grant.groupPolicy?.defaultRevision !== undefined
+              ? { expectedDefaultRevision: grant.groupPolicy.defaultRevision }
+              : {}),
+          };
+          try {
+            await actions.channelBridge(
+              channelId,
+              route
+                ? { ...input, kind: 'update', routeId: route.id, expectedRevision: route.revision }
+                : { ...input, kind: 'add' },
+            );
+          } catch (error) {
+            await refresh().catch(() => undefined);
+            throw error;
+          }
+          await refresh();
+        }}
         botName={(owner) => state.bots.find((item) => item.slug === owner)?.displayName ?? owner}
       />
       <SidebarCardList label={t('pairing.title')}>
