@@ -105,6 +105,7 @@ import {
   type BotRuntime,
 } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
+import { createInboxHistoryQuery, type InboxHistoryQuery } from './runtime/inbox-history.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './runtime/source-policy.js';
 import { createBotScheduleStore, type BotScheduleStore } from './schedules/bot-schedules.js';
 import {
@@ -267,6 +268,7 @@ export interface BotHarnessCore {
   roster: RosterStore;
   runtime: BotRuntime;
   attention: BotAttentionQuery;
+  inboxHistory: InboxHistoryQuery;
   sourcePolicy: BotSourcePolicyStore;
   schedules: BotScheduleStore;
   humanAttention: HumanAttentionQuery;
@@ -517,6 +519,10 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'messaging'),
     channels,
   );
+  const inboxHistory = createInboxHistoryQuery(
+    attachOperationalModule(operationalDatabase, 'messaging'),
+    channels,
+  );
   const humanAttentionDatabase = attachOperationalModule(operationalDatabase, 'human-attention');
   const humanAttention = createHumanAttentionQuery(
     humanAttentionDatabase,
@@ -653,6 +659,7 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   runtime = createBotRuntime({
+    inboxHistory,
     requireExecution: (slug) => profileRecovery.requireExecution(slug),
     schedules,
     assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
@@ -781,6 +788,7 @@ export function createCore(
     assignmentAccess,
     channels,
     attention,
+    inboxHistory,
     sourcePolicy,
     schedules,
     humanAttention,

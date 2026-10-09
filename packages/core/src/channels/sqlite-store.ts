@@ -795,7 +795,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               action.id,
               '',
               action.at,
-              eventPayload(action),
+              JSON.stringify({
+                ...JSON.parse(eventPayload(action)),
+                causeSourceEventId: durable.botCausation?.parentSourceEventId,
+              }),
             );
             db.prepare(`
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
@@ -1830,7 +1833,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               channel.id,
               message.id,
               message.at,
-              eventPayload(message),
+              JSON.stringify({
+                ...JSON.parse(eventPayload(message)),
+                causeSourceEventId: input.causeSourceEventId,
+              }),
             );
             db.prepare(`
               INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)

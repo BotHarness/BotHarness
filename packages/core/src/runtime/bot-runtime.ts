@@ -34,6 +34,12 @@ import type {
 } from '../messaging/inbound.js';
 import { sniffAttachmentMime } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
+import {
+  createInboxHistoryQuery,
+  type InboxHistoryInput,
+  type InboxHistoryPage,
+  type InboxHistoryQuery,
+} from './inbox-history.js';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -204,6 +210,7 @@ export interface OrchestratorAssignmentAccess {
 }
 
 export interface OrchestratorAgentRun {
+  inboxHistory?(input?: InboxHistoryInput): InboxHistoryPage;
   acceptNativeInput?: () => boolean;
   requireContent?(): void;
   sessionId: string;
@@ -496,6 +503,7 @@ export interface BotRuntime {
 }
 
 export interface BotRuntimeOptions {
+  inboxHistory?: InboxHistoryQuery;
   requireExecution?: (botSlug: string) => void;
   beginAssignmentWait?: (botSlug: string, orchestratorSessionId: string) => () => void;
   externalMessaging?: OutboundMessaging;
@@ -906,6 +914,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
+  readonly #inboxHistory: InboxHistoryQuery;
   readonly #sourcePolicy: BotSourcePolicyStore;
   readonly #schedules: BotRuntimeOptions['schedules'];
   readonly #agents: BotAgentAdapter;
@@ -959,6 +968,13 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#registry = options.registry;
     this.#requireExecution = options.requireExecution;
     this.#channels = options.channels;
+    this.#inboxHistory =
+      options.inboxHistory ??
+      createInboxHistoryQuery(
+        attachOperationalModule(options.database, 'messaging'),
+        options.channels,
+        options.now,
+      );
     this.#sourcePolicy =
       options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
     this.#schedules = options.schedules;
@@ -2856,6 +2872,7 @@ class BotRuntimeImplementation implements BotRuntime {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    this.#inboxHistory.clear();
     this.#approvalCapacity.close();
     this.#waitLifetime.abort(new Error('Bot Runtime closed'));
     await Promise.allSettled(
@@ -3237,6 +3254,7 @@ class BotRuntimeImplementation implements BotRuntime {
                 },
               },
             }),
+        inboxHistory: (input) => this.#inboxHistory.list(bot.slug, input),
         channels: this.#channelAccess(
           bot.slug,
           channelId,

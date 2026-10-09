@@ -76,6 +76,27 @@ async function call(tools: readonly ToolDefinition[], name: string, args: unknow
 }
 
 describe('attention Tool contracts through the owning Host', () => {
+  it('searches only its own admitted history through the native Tool without observing or handling it', async () => {
+    await fixture(async (tools, core) => {
+      const t = tool(tools, 'inbox_history');
+      expect(() => assertSupportedJsonSchema(t.parameters)).not.toThrow();
+      const before = core.attention.list({ botSlug: 'ada' });
+      const result = await call(tools, 'inbox_history', {
+        query: 'attention',
+        kind: 'dm',
+        limit: 1,
+      });
+      expect(result.items).toEqual([
+        expect.objectContaining({ kind: 'human-dm', snippet: 'Check attention' }),
+      ]);
+      expect(core.attention.list({ botSlug: 'ada' })).toEqual(before);
+      expect(
+        await call(tools, 'inbox_history', { query: 'attention', channel_id: 'missing' }),
+      ).toEqual({ items: [] });
+      await expect(call(tools, 'inbox_history', { query: '中文' })).rejects.toThrow('trigram');
+    });
+  });
+
   it('uses pinned supported integer schemas and exposes all five effective read/edit/reset contracts', async () => {
     await fixture(async (tools) => {
       const names = [
