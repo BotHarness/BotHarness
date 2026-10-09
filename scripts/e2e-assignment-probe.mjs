@@ -23,7 +23,7 @@ export const installed = (name) =>
     ),
   )(name);
 
-export function assignmentProbe({ origin, home }) {
+export function assignmentProbe({ origin, home, freshConnections = false }) {
   assert.ok(
     new URL(origin).protocol === 'http:' &&
       ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(origin).hostname),
@@ -35,7 +35,11 @@ export function assignmentProbe({ origin, home }) {
   async function rpc(method, args = {}, namespace = 'botharness') {
     const response = await fetch(origin + '/api/' + namespace + '/' + method, {
       method: 'POST',
-      headers: { cookie, 'content-type': 'application/json' },
+      headers: {
+        cookie,
+        'content-type': 'application/json',
+        ...(freshConnections ? { connection: 'close' } : {}),
+      },
       body: JSON.stringify({
         type: 'client-request',
         rpcId: crypto.randomUUID(),

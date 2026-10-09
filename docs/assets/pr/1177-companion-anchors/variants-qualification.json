@@ -1,0 +1,65 @@
+{
+  "runtimeCode": "d1dde91edc4fd01dab9cbaa12a43ed504be68434",
+  "integratedMain": "04da609342f31b613b4102aa716228f00cb3d171",
+  "formalPixelAvatar": "0.6.0",
+  "viewport": [1559, 865],
+  "themes": ["light", "dark"],
+  "locale": "zh-CN",
+  "actualCanonicalReplies": 2,
+  "actualNativeQuestionContinuations": 2,
+  "scenes": [
+    {
+      "label": "light-image-reading",
+      "samples": 25,
+      "maxSampledAnchorError": 0,
+      "samplesWithConnector": 25,
+      "coveredSamples": 0,
+      "lastPhase": "rest"
+    },
+    {
+      "label": "native-image-release",
+      "samples": 25,
+      "maxSampledAnchorError": 0,
+      "samplesWithConnector": 25,
+      "coveredSamples": 0,
+      "lastPhase": "rest"
+    },
+    {
+      "label": "light-native-tool-cover",
+      "samples": 25,
+      "maxSampledAnchorError": 0,
+      "samplesWithConnector": 25,
+      "coveredSamples": 25,
+      "lastPhase": "rest"
+    },
+    {
+      "label": "dark-native-tool-cover",
+      "samples": 25,
+      "maxSampledAnchorError": 0,
+      "samplesWithConnector": 25,
+      "coveredSamples": 25,
+      "lastPhase": "rest"
+    },
+    {
+      "label": "native-tool-release",
+      "samples": 25,
+      "maxSampledAnchorError": 0,
+      "samplesWithConnector": 25,
+      "coveredSamples": 25,
+      "lastPhase": "rest"
+    }
+  ],
+  "originalAvatarsRestored": true,
+  "ownedPagesClosed": [1, 2],
+  "consoleErrors": 0,
+  "limits": [
+    "After-state qualification only; no matched original-main fallback/tool-cover baseline in this capture",
+    "Native editor saved QA Grace own seeded appearance to PNG; owning avatar API switched to the identical PNG; owning reset restored exact original absent avatar/appearance/seed fields",
+    "Native channel_send and ask_user_question, canonical request pending plus real native form submission and actual Bot continuation; no synthetic SSE, replies, cards or activity",
+    "Normal public character focus retains a newly arrived card while official-tool capture latency elapses; walking paused with native buttons",
+    "80ms geometry sampling covers stationary reading and observed post-release state; native drag is visible in continuous video but no claim about held/reversing grabs or unsampled first frames",
+    "Continuous silent official MCP screen recordings, remux only; not an audio or performance measurement",
+    "This branch independently retains its existing quiet-idle presentation; PR1180 quiet-idle/sound changes are not part of this capture",
+    "Background, automatic reconnect, moving-hover/grace and reduced-motion message reading remain separately unqualified"
+  ]
+}

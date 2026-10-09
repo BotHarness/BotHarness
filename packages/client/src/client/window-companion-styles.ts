@@ -20,6 +20,8 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-capacity-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .bh-companion-capacity-controls label { display: grid; gap: 4px; max-width: 150px; }
 .bh-companion { position: absolute; width: 96px; height: 96px; pointer-events: auto; }
+.bh-companion-tether { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.bh-companion-tether path { fill: none; stroke: var(--bh-companion-border); stroke-width: 2; stroke-linejoin: miter; }
 .bh-companion-character { border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; width: 96px; height: 96px; transform-origin: center 20%; transition: transform 140ms ease-out, transform-origin 140ms ease-out; }
 .bh-companion[data-motion='fall'] .bh-companion-character,
 .bh-companion[data-motion='land'] .bh-companion-character { transform-origin: center bottom; transition: transform 70ms ease-out, transform-origin 140ms ease-out; }

@@ -26,6 +26,7 @@ function BindingDialog({
   return (
     <div ref={mount}>
       <ExternalIdentityList
+        appSetup={actions.appSetup ? { client: actions.appSetup, botSlug: slug } : undefined}
         snapshot={snapshot}
         refresh={refresh}
         t={t}

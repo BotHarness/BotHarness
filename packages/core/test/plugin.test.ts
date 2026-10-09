@@ -475,6 +475,8 @@ describe('plugin entry', () => {
       'botAppearanceSet',
       'partLibraryList',
       'partLibraryAdd',
+      'partLibraryExport',
+      'partLibraryImport',
       'botBannerSet',
       'marketplaceList',
       'marketplaceSubmit',

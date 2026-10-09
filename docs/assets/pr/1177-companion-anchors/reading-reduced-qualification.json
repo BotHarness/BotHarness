@@ -1,0 +1,126 @@
+{
+  "runtimeCode": "c946a749",
+  "evidenceHead": "5c16fab9",
+  "viewport": [1559, 865],
+  "theme": "dark",
+  "locale": "zh-CN",
+  "canonicalNativeReplies": [
+    {
+      "name": "锚点验收 Grace",
+      "length": 82
+    },
+    {
+      "name": "锚点验收 Ada",
+      "length": 80
+    },
+    {
+      "name": "锚点验收 Ada",
+      "length": 80
+    }
+  ],
+  "setup": "Autonomous walking paused by native buttons; when three real new cards appear, public character.focus() enters reading before tool/capture latency expires their TTL. No card/store mutation or message replay.",
+  "phases": [
+    {
+      "label": "full-idle",
+      "samples": 18,
+      "motion": ["full"],
+      "bots": [
+        {
+          "name": "锚点验收 Ada · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        },
+        {
+          "name": "锚点验收 Grace · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        }
+      ]
+    },
+    {
+      "label": "expanded-reading",
+      "samples": 36,
+      "motion": ["full"],
+      "bots": [
+        {
+          "name": "锚点验收 Ada · 窗口伙伴",
+          "reading": "true",
+          "phase": "rest",
+          "cards": 2,
+          "bottom": 865,
+          "viewport": 865
+        },
+        {
+          "name": "锚点验收 Grace · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        }
+      ]
+    },
+    {
+      "label": "reduced-reading",
+      "samples": 18,
+      "motion": ["reduce"],
+      "bots": [
+        {
+          "name": "锚点验收 Ada · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        },
+        {
+          "name": "锚点验收 Grace · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        }
+      ]
+    },
+    {
+      "label": "reduced-released",
+      "samples": 22,
+      "motion": ["reduce"],
+      "bots": [
+        {
+          "name": "锚点验收 Ada · 窗口伙伴",
+          "reading": "true",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        },
+        {
+          "name": "锚点验收 Grace · 窗口伙伴",
+          "reading": "false",
+          "phase": "rest",
+          "cards": 0,
+          "bottom": 865,
+          "viewport": 865
+        }
+      ]
+    }
+  ],
+  "maxSampledAnchorError": 0,
+  "p95SampledAnchorError": 0,
+  "limits": [
+    "80ms geometry sampling, not frame-time or proof about unsampled transients",
+    "Public focus setup before real hover; not moving-character mouse usability acceptance",
+    "Both earlier failed attempts preserved privately: moving target hover timeout, then cards expired during tool latency",
+    "Reduced-release samples qualify settled floor alignment, not timing of the first release frame",
+    "Continuous silent official MCP recording, remux only; no synthetic reply/SSE/card injection",
+    "Does not qualify held/reversing grab, image/tool-cover variants, background or performance"
+  ]
+}

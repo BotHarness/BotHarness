@@ -1,4 +1,9 @@
 import { AssignmentInboxAcceptanceUncertainError } from './assignment-delivery.js';
+import {
+  AssignmentApprovalCapacity,
+  type AssignmentApprovalWaitLease,
+  type AssignmentExecutionWait,
+} from './assignment-approval-capacity.js';
 import { waitForAssignment, type AssignmentWaitOutcome } from './assignment-wait.js';
 import { externalMemberWake } from '../messaging/defaults.js';
 import type {
@@ -124,6 +129,7 @@ export interface AssignmentSummary {
   sessionId: string;
   purpose: string;
   activity: AssignmentActivity;
+  executionWait?: AssignmentExecutionWait;
   latestReport?: AssignmentReport;
   continuityKey?: string;
   openAsk?: AssignmentOpenAsk;
@@ -439,6 +445,21 @@ export type DmMessageAdmission =
   | { admitted: false; reason: DmAdmissionFailure };
 
 export interface BotRuntime {
+  beginAssignmentApprovalWait?(
+    sessionId: string,
+    callId: string,
+    signal: AbortSignal,
+  ): AssignmentApprovalWaitLease | undefined;
+  assignmentApprovalWait?(sessionId: string, callId: string): AssignmentExecutionWait | undefined;
+  ensureAssignmentCapacity?(sessionId: string, signal: AbortSignal): Promise<void>;
+  runAssignmentTool?<T>(
+    sessionId: string,
+    callId: string,
+    token: symbol,
+    signal: AbortSignal,
+    body: () => Promise<T>,
+  ): Promise<T>;
+  settleAssignmentTool?(sessionId: string, callId: string): void;
   bindNativeQuestionInput?(
     sessionId: string,
     channelId: string,
@@ -894,6 +915,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
   readonly #assignmentConcurrencyLimit: () => number;
+  readonly #approvalCapacity: AssignmentApprovalCapacity;
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
@@ -949,6 +971,25 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#assignmentConcurrencyLimit =
       typeof configuredLimit === 'function' ? configuredLimit : () => configuredLimit;
     this.#warn = options.warn;
+    this.#approvalCapacity = new AssignmentApprovalCapacity({
+      valid: (sessionId) => this.#assignmentExecutionAvailable(sessionId),
+      available: () => this.#assignmentCapacityRefusal('awakened') === undefined,
+      releaseAllowed: (sessionId) => this.#ownership.descendantsOf(sessionId).length === 0,
+      changed: (sessionId, state, durationMs) => {
+        this.#database.transaction(
+          (database) =>
+            database
+              .prepare(
+                "UPDATE assignments SET updated_at = ? WHERE session_id = ? AND stop_state = 'running'",
+              )
+              .run(this.#now().toISOString(), sessionId),
+          ['assignments'],
+        );
+        this.#warn?.(
+          `botharness.assignment.approval_capacity session=${sessionId} initiator=native-approval phase=${state ?? 'running'} duration_ms=${durationMs}`,
+        );
+      },
+    });
 
     if (options.database.mode === 'ready') {
       this.#recoverInterruptedAttempts();
@@ -2660,7 +2701,8 @@ class BotRuntimeImplementation implements BotRuntime {
         sourceEventId: _sourceEventId,
         ...summary
       } = assignmentFromRow(row);
-      return summary;
+      const executionWait = this.#approvalCapacity.state(row.session_id);
+      return { ...summary, ...(executionWait === undefined ? {} : { executionWait }) };
     });
   }
 
@@ -2679,7 +2721,77 @@ class BotRuntimeImplementation implements BotRuntime {
         )
         .get(botSlug, sessionId),
     ) as AssignmentRow | undefined;
-    return row === undefined ? undefined : assignmentFromRow(row);
+    if (row === undefined) return undefined;
+    const executionWait = this.#approvalCapacity.state(sessionId);
+    return {
+      ...assignmentFromRow(row),
+      ...(executionWait === undefined ? {} : { executionWait }),
+    };
+  }
+
+  beginAssignmentApprovalWait(
+    sessionId: string,
+    callId: string,
+    signal: AbortSignal,
+  ): AssignmentApprovalWaitLease | undefined {
+    if (this.#assignmentRow(undefined, sessionId) === undefined) return undefined;
+    return this.#approvalCapacity.begin(sessionId, callId, signal);
+  }
+
+  async ensureAssignmentCapacity(sessionId: string, signal: AbortSignal): Promise<void> {
+    if (this.#ownership.resolve(sessionId)?.rootRole === 'assignment')
+      await this.#approvalCapacity.ensure(sessionId, signal);
+  }
+
+  assignmentApprovalWait(sessionId: string, callId: string): AssignmentExecutionWait | undefined {
+    return this.#approvalCapacity.stateForCall(sessionId, callId);
+  }
+
+  runAssignmentTool<T>(
+    sessionId: string,
+    callId: string,
+    token: symbol,
+    signal: AbortSignal,
+    body: () => Promise<T>,
+  ): Promise<T> {
+    return this.#assignmentRow(undefined, sessionId) !== undefined
+      ? this.#approvalCapacity.execute(sessionId, callId, token, signal, body)
+      : body();
+  }
+
+  settleAssignmentTool(sessionId: string, callId: string): void {
+    this.#approvalCapacity.settledTool(sessionId, callId);
+  }
+
+  #assignmentExecutionAvailable(sessionId: string): boolean {
+    if (this.#closed) return false;
+    const row = this.#assignmentRow(undefined, sessionId);
+    const owner = this.#ownership.resolve(sessionId);
+    const bot = row === undefined ? undefined : this.#registry.get(row.bot_slug);
+    if (
+      row?.stop_state !== 'running' ||
+      row.activity !== 'working' ||
+      owner?.rootRole !== 'assignment' ||
+      owner.botSlug !== row.bot_slug ||
+      bot === undefined ||
+      bot.paused === true ||
+      !this.#ownership.contentAvailable(sessionId)
+    )
+      return false;
+    const permission = permissionFromRow(row);
+    if (permission === undefined || this.#grants === undefined) return false;
+    try {
+      const grant = this.#grants.requireActive(row.bot_slug, permission.grantId);
+      if (
+        grant.workspaceId !== permission.workspaceId ||
+        grant.workspacePath !== permission.primaryCwd
+      )
+        return false;
+      this.#database.read((db) => requireSourceEffects(db, row.source_event_id, row.bot_slug));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async stopBot(botSlug: string): Promise<void> {
@@ -2739,6 +2851,7 @@ class BotRuntimeImplementation implements BotRuntime {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    this.#approvalCapacity.close();
     this.#waitLifetime.abort(new Error('Bot Runtime closed'));
     await Promise.allSettled(
       [...this.#typingTurns.values(), ...this.#typingAssignments.values()].map((processing) =>
@@ -5135,6 +5248,7 @@ class BotRuntimeImplementation implements BotRuntime {
         await processing?.stop();
         if (this.#typingAssignments.get(sessionId) === processing)
           this.#typingAssignments.delete(sessionId);
+        this.#approvalCapacity.forget(sessionId);
       }
     })();
     tracked = run.then(
@@ -5170,12 +5284,14 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #activeAssignmentCount(): number {
     return this.#database.read((database) => {
-      const row = database
+      const rows = database
         .prepare(
-          `SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working' OR stop_state = 'requested'`,
+          "SELECT session_id, stop_state FROM assignments WHERE activity = 'working' OR stop_state = 'requested'",
         )
-        .get() as { count: number };
-      return row.count;
+        .all() as Array<{ session_id: string; stop_state: string }>;
+      return rows.filter(
+        (row) => row.stop_state === 'requested' || !this.#approvalCapacity.released(row.session_id),
+      ).length;
     });
   }
 
@@ -5963,6 +6079,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments'],
     );
+    this.#approvalCapacity.changed();
   }
 }
 
