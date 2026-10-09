@@ -7,6 +7,7 @@ import { zhTranslate } from '../src/client/locale.js';
 import {
   TimelineWorkingRowsView,
   timelineWorkingRows,
+  timelineWorkingRowsCover,
 } from '../src/client/timeline-working-rows.js';
 
 const mira: PersonaBotFacepileItem = {
@@ -84,6 +85,20 @@ describe('timelineWorkingRows', () => {
   it('hands a Bot over to its streaming draft', () => {
     const rows = timelineWorkingRows({ items: [mira, nova], summary: '' }, new Set(['mira']));
     expect(rows.items.map((item) => item.personaBotId)).toEqual(['nova']);
+  });
+});
+
+describe('timelineWorkingRowsCover', () => {
+  it('covers the composer status only when every Bot it lists has a working row', () => {
+    expect(timelineWorkingRowsCover(undefined)).toBe(false);
+    expect(timelineWorkingRowsCover({ items: [mira, nova, kai], summary: '' })).toBe(true);
+    expect(timelineWorkingRowsCover({ items: [mira, waiting], summary: '' })).toBe(false);
+    expect(
+      timelineWorkingRowsCover({
+        items: [{ ...mira, attention: { approvalCount: 0, informationalCount: 1 } }],
+        summary: '',
+      }),
+    ).toBe(false);
   });
 });
 

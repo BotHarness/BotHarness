@@ -258,4 +258,39 @@ describe('timeline working rows in the Channel body', () => {
     expect(chat.scrollTop).toBe(100);
     expect(container.querySelector('.bh-timeline-new')).toBeNull();
   });
+
+  it('fades the composer status at the latest message and brings it back when scrolled up', async () => {
+    const chat = await open(dm, [bot('mira', 'Mira', 'working')]);
+    const status = (): HTMLElement | null =>
+      container.querySelector<HTMLElement>('.bh-composer-activity-status');
+    expect(status()?.dataset['concealed']).toBe('true');
+    expect(status()?.querySelector('[aria-live]')).not.toBeNull();
+
+    layout(chat, 1000);
+    chat.scrollTop = 100;
+    await act(async () => chat.dispatchEvent(new Event('scroll')));
+    expect(status()?.dataset['concealed']).toBeUndefined();
+
+    chat.scrollTop = 600;
+    await act(async () => chat.dispatchEvent(new Event('scroll')));
+    expect(status()?.dataset['concealed']).toBe('true');
+  });
+
+  it('keeps the composer status visible when a Bot waits on a card', async () => {
+    await open(group, [bot('mira', 'Mira', 'working'), bot('nova', 'Nova', 'working')]);
+    await act(async () =>
+      store.applyActivity({
+        generation: 'approval-test',
+        revision: 1,
+        bots: [
+          { slug: 'mira', state: 'working' },
+          { slug: 'nova', state: 'working', attention: { approvalCount: 1 } },
+        ],
+      }),
+    );
+    expect(rowNames()).toEqual(['mira']);
+    expect(
+      container.querySelector<HTMLElement>('.bh-composer-activity-status')?.dataset['concealed'],
+    ).toBeUndefined();
+  });
 });

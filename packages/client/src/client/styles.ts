@@ -4161,6 +4161,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 }
 
 .bh-composer-activity-status {
+  transition: opacity 160ms ease, translate 160ms ease;
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
@@ -4174,6 +4175,11 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   color: var(--bh-overview-muted);
   font-size: var(--bh-overview-font);
 }
+/* At the latest message the working rows already show every active Bot, so
+   the status only fades out: it stays the screen-reader live region. */
+.bh-composer-activity-status[data-concealed='true'] { opacity: 0; translate: 0 4px; }
+.bh-composer-activity-status[data-concealed='true'] * { pointer-events: none; }
+html[data-botharness-motion='reduce'] .bh-composer-activity-status { transition: none; }
 .bh-composer-activity-facepile .bh-persona-avatar,
 .bh-composer-activity-facepile .bh-avatar-facepile-overflow {
   border: 0;

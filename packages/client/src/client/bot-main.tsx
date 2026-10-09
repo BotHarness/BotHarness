@@ -62,7 +62,11 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
-import { timelineWorkingRows, TimelineWorkingRowsView } from './timeline-working-rows.js';
+import {
+  timelineWorkingRows,
+  timelineWorkingRowsCover,
+  TimelineWorkingRowsView,
+} from './timeline-working-rows.js';
 import { groupComposerActivity } from './group-composer-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
@@ -572,6 +576,7 @@ function ConversationView({
   const lastRevision = useRef<number | undefined>(undefined);
   const readMarkTimer = useRef<number | undefined>(undefined);
   const [unseen, setUnseen] = useState(0);
+  const [atLatest, setAtLatest] = useState(true);
   const [messageMenu, setMessageMenu] = useState<MessageMenuRequest | undefined>();
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
   const [profileViewOpen, setProfileViewOpen] = useState(
@@ -682,6 +687,11 @@ function ConversationView({
       : undefined,
     new Set(conversation.drafts.map((item) => item.botSlug)),
   );
+  const composerActivityConcealed =
+    atLatest &&
+    conversation.status === 'ready' &&
+    !conversation.timeline.hasNewer &&
+    timelineWorkingRowsCover(composerActivity);
   const workingRowsKey = `${workingRows.items.map((item) => item.personaBotId).join(',')}+${workingRows.more}`;
   const channelId = channel?.id;
   const activeMemoryView =
@@ -853,8 +863,10 @@ function ConversationView({
       scrollRef.current = element;
       if (conversation.timeline.olderError !== undefined) prependAnchor.current = null;
       if (conversation.status === 'ready') {
-        if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer)
+        if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer) {
           followingLatest.current = false;
+          setAtLatest(false);
+        }
         const anchor = prependAnchor.current;
         if (anchor !== null && messages[0]?.id !== anchor.firstId) {
           const retained = Array.from(
@@ -929,6 +941,7 @@ function ConversationView({
     if (element === null) return;
     const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
     followingLatest.current = atBottom && !conversation.timeline.hasNewer;
+    setAtLatest(followingLatest.current);
     if (followingLatest.current) setUnseen(0);
     scheduleReadMark();
     if (element.scrollTop <= 48) loadOlderAtTop();
@@ -937,6 +950,7 @@ function ConversationView({
 
   const jumpToLatest = (): void => {
     followingLatest.current = true;
+    setAtLatest(true);
     setUnseen(0);
     if (conversation.timeline.hasNewer && channelId !== undefined) {
       void actions.openLatest(channelId).catch((error: unknown) => {
@@ -1033,6 +1047,7 @@ function ConversationView({
       viewport !== null &&
       !conversation.timeline.hasNewer &&
       viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 80;
+    setAtLatest(followingLatest.current);
     if (followingLatest.current) setUnseen(0);
     const submittedFor = currentChannel.current;
     const submittedUploads = uploadItems;
@@ -1572,6 +1587,7 @@ function ConversationView({
                       setUploadItems((current) => current.filter((item) => item.id !== id));
                     }}
                     activity={composerActivity}
+                    activityConcealed={composerActivityConcealed}
                     onActivityOverlayResize={resizeActivityOverlay}
                     reply={
                       replyTarget === undefined
