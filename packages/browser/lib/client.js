@@ -1272,6 +1272,7 @@ window.__ModuleLoader__.load({
 			"settings.containerDriver": "容器驱动",
 			"settings.driver.current": "默认",
 			"settings.driver.agent-browser": "agent-browser（试用）",
+			"settings.section": "Browser",
 			"settings.target": "操作目标",
 			"settings.local": "本机 Browser",
 			"settings.container": "Docker Browser",
@@ -1353,6 +1354,7 @@ window.__ModuleLoader__.load({
 			"settings.containerDriver": "Container driver",
 			"settings.driver.current": "Default",
 			"settings.driver.agent-browser": "agent-browser (trial)",
+			"settings.section": "Browser",
 			"settings.target": "Browser Target",
 			"settings.local": "Local Browser",
 			"settings.container": "Docker Browser",
@@ -1690,53 +1692,44 @@ window.__ModuleLoader__.load({
 			const target = snapshot.value?.target ?? "local";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: "bh-settings-rows bh-browser-settings",
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: "bh-settings-section-head",
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bh-settings-section-title",
-							children: "Browser"
-						})
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
-						scope,
-						field: "target",
-						value: target,
-						writable: snapshot.writable,
-						title: t("settings.target"),
-						items: [
-							"local",
-							"container",
-							"extension",
-							"daily-control",
-							"profile-control"
-						].map((id) => ({
-							id,
-							label: t(`settings.${id}`)
-						}))
-					}),
-					target !== "local" && target !== "container" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
-						scope,
-						field: target === "container" ? "containerDriver" : "localDriver",
-						value: (target === "container" ? snapshot.value?.containerDriver : snapshot.value?.localDriver) ?? "current",
-						writable: snapshot.writable,
-						title: t(target === "container" ? "settings.containerDriver" : "settings.localDriver"),
-						items: ["current", "agent-browser"].map((id) => ({
-							id,
-							label: t(`settings.driver.${id}`)
-						}))
-					})
-				]
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
+					scope,
+					field: "target",
+					value: target,
+					writable: snapshot.writable,
+					title: t("settings.target"),
+					items: [
+						"local",
+						"container",
+						"extension",
+						"daily-control",
+						"profile-control"
+					].map((id) => ({
+						id,
+						label: t(`settings.${id}`)
+					}))
+				}), target !== "local" && target !== "container" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
+					scope,
+					field: target === "container" ? "containerDriver" : "localDriver",
+					value: (target === "container" ? snapshot.value?.containerDriver : snapshot.value?.localDriver) ?? "current",
+					writable: snapshot.writable,
+					title: t(target === "container" ? "settings.containerDriver" : "settings.localDriver"),
+					items: ["current", "agent-browser"].map((id) => ({
+						id,
+						label: t(`settings.driver.${id}`)
+					}))
+				})]
 			});
 		}
 		function registerBrowserSettings(ctx, t) {
 			ctx.inject(["configForms", "slots"], (settingsCtx) => {
 				const native = settingsCtx;
 				const scope = native.configForms.get("botharness-browser");
-				return native.slots.inject("botharness.settings.item", () => native.slots.register({
-					name: "botharness.settings.item",
+				return native.slots.inject("botharness.settings.section", () => native.slots.register({
+					name: "botharness.settings.section",
 					id: "browser",
-					order: 11,
+					order: 32,
+					label: () => t("settings.section"),
 					locale: LOCALE_NS,
 					inject: () => ({
 						scope,

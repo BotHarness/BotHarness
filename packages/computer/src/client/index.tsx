@@ -804,12 +804,13 @@ export function apply(ctx: ClientContext): void {
       prefs: settingsPrefs,
       pickDirectory: workspace?.pickDirectory?.bind(workspace),
     });
-    workspaceCtx.slots.inject('botharness.settings.item', () =>
+    workspaceCtx.slots.inject('botharness.settings.section', () =>
       workspaceCtx.slots.register(
         {
-          name: 'botharness.settings.item',
+          name: 'botharness.settings.section',
           id: 'computer',
-          order: 10,
+          order: 30,
+          label: () => t('section.title'),
           locale: LOCALE_NS,
           inject: () => face,
         },

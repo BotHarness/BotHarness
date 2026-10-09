@@ -202,7 +202,11 @@ describe('client apply', () => {
       locale: 'botharness',
       inject: expect.any(Function),
     });
-    const specs = registrations.slice(1);
+    expect(registrations[1]).toMatchObject({
+      name: 'shell.overlay',
+      id: 'botharness-bot-settings',
+    });
+    const specs = registrations.slice(2);
 
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
@@ -239,7 +243,7 @@ describe('client apply', () => {
     });
 
     store.setMode('bot');
-    specs.splice(0, specs.length, ...registrations.slice(1));
+    specs.splice(0, specs.length, ...registrations.slice(2));
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
@@ -259,25 +263,69 @@ describe('client apply', () => {
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
     expect(disposed).not.toContain(registrations[0]);
+    expect(disposed).not.toContain(registrations[1]);
   });
 
-  it('registers the BotHarness settings section only while configForms is served', () => {
+  it('registers Bot Settings on the overlay and its sections only while configForms is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];
     apply(createScoped(specs, disposed, true) as never);
 
-    const section = specs.find((spec) => spec.name === 'settings.section');
-    expect(section).toMatchObject({ id: 'botharness', order: 25, locale: 'botharness' });
-    expect(section?.inject).toBeTypeOf('function');
-    expect(section?.label).toBeTypeOf('function');
-    expect(section?.children).toEqual({
-      'botharness.settings.item': { kind: 'list', scope: 'root' },
+    expect(specs.find((spec) => spec.id === 'botharness-bot-settings')).toMatchObject({
+      name: 'shell.overlay',
+      locale: 'botharness',
+      inject: expect.any(Function),
+      children: { 'botharness.settings.section': { kind: 'list', scope: 'root' } },
     });
+    const sections = specs.filter((spec) => spec.name === 'botharness.settings.section');
+    expect(sections.map(({ id, order }) => ({ id, order }))).toEqual([
+      { id: 'general', order: 0 },
+      { id: 'models', order: 10 },
+      { id: 'messaging', order: 20 },
+      { id: 'companions', order: 40 },
+      { id: 'data-privacy', order: 50 },
+      { id: 'advanced', order: 60 },
+      { id: 'about', order: 70 },
+    ]);
+    for (const section of sections) {
+      expect(section).toMatchObject({ locale: 'botharness', label: expect.any(Function) });
+      expect(section.inject).toBeTypeOf('function');
+    }
+
+    const native = specs.find((spec) => spec.name === 'settings.section');
+    expect(native).toMatchObject({ id: 'botharness', order: 25, locale: 'botharness' });
+    expect(native?.children).toBeUndefined();
+    expect(native?.label).toBeTypeOf('function');
 
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);
     expect(withoutSettings.some((spec) => spec.name === 'settings.section')).toBe(false);
+    expect(withoutSettings.some((spec) => spec.name === 'botharness.settings.section')).toBe(false);
+    expect(withoutSettings.some((spec) => spec.id === 'botharness-bot-settings')).toBe(true);
+  });
+
+  it('opens Bot Settings from the Bot panel gear, the Window Companion menu and the DSH settings item', () => {
+    store.setMode('dsh');
+    const specs: Spec[] = [];
+    apply(createScoped(specs, [], true) as never);
+    const overlay = specs.find((spec) => spec.id === 'botharness-bot-settings');
+    const { botSettings } = overlay?.inject?.() as {
+      botSettings: { getSnapshot(): { open: boolean }; close(): void };
+    };
+    const panel = specs.find((spec) => spec.name === 'sidebar.panellist');
+    (panel?.inject?.() as { openSettings(): void }).openSettings();
+    expect(botSettings.getSnapshot().open).toBe(true);
+
+    botSettings.close();
+    const companion = specs.find((spec) => spec.id === 'botharness-window-companion');
+    (companion?.inject?.() as { openSettings(): void }).openSettings();
+    expect(botSettings.getSnapshot().open).toBe(true);
+
+    botSettings.close();
+    const native = specs.find((spec) => spec.name === 'settings.section');
+    (native?.inject?.() as { openBotSettings(): void }).openBotSettings();
+    expect(botSettings.getSnapshot().open).toBe(true);
   });
 
   it('boots without the panelInfo facet, skipping view-persist', () => {
