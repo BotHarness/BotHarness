@@ -140,6 +140,8 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 ### Changed
 
+- QQ checked text intake preserves explicit self mentions after the Human enables full group reception; preflight unavailability stays a definite retained failure, and native posting/echo qualifications remain revision-specific. ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154), [#1204](https://github.com/BotHarness/DeepSeekBot/pull/1204))
+
 - The development QQ Provider records bounded, private group notification-change hints for diagnosing proactive-send refusals; observed switches do not grant posting permission or retry retained results ([#1154](https://github.com/BotHarness/DeepSeekBot/issues/1154)).
 
 - Bot Marketplace cards now read like a profile card: the Profile banner sits on top, the Bot's avatar overlaps its lower edge with the name, repository and Install beside it, then a two-line bio and one line of tags, stars and update date. The detail view opens with the same banner and avatar, and the modal shows two cards per row ([#1232](https://github.com/BotHarness/BotHarness/pull/1232)).

@@ -79,3 +79,13 @@ SDK **1.0.4 已有 rawEvent 生命周期入口**，但当前维护 fork 与现�
 ## 6. 历史冲突材料
 
 腾讯 `bot-docs` GitHub 旧文档仍写 2025-04-21 停止主动推送和每月 4 条；当前在线群发送页及概述都采用另一套主动规则。这是可复现的第一方版本冲突。面对本次 2026-10-09 调研，优先使用有当前页脚时间的在线契约及实际 native 结果，不能再断言“主动消息全球停止”，也不能以新文档反推 QA 已有权限。[旧仓库公告](https://github.com/tencent-connect/bot-docs/blob/main/docs/develop/api-v2/server-inter/message/send-receive/send.md)、[当前在线契约](https://bot.q.qq.com/wiki/develop/api-v2/autogen/api/v2_groups_group_openid_messages.post.html)
+
+## 同日实机更新：找到群开关后主动发送成功
+
+Human 最初仅确认「接收机器人推送」为 ON，2026-10-09 06:21:42 UTC 的独立请求仍得到原生 HTTP 400 / 40034105。随后 Human 找到并给两个测试 Bot 开启「获取群内全部消息」和「可以主动发言」；06:25:46 UTC 的新请求获得实际 native receipt，Human 确认原群可见。两个请求有不同的 Outbox requestId，旧失败和 unknown 均没有重发。这证明该应用、群、文字在当次权限配置下的主动路径；不替代完整超时任务与共享 #1115 验收。
+
+成功请求使用已安装维护 Provider d967adb；之后的生产候选和现代上游不继承该次完整组合资格。开启全量后首次观察到 GROUP_MESSAGE_CREATE 的 Bot 发送者，但其当前账户关联和 receipt 关联均为 false，不能标记为自身 Echo。只有后续实际事件与本应用、原群、原生消息 ID 的严格关联才可完成自身回声验收。
+
+全量消息还改变明确 @ 的载荷：旧 checked consumer 仅接受 GROUP_AT_MESSAGE_CREATE，GROUP_MESSAGE_CREATE 的明确自身 @ 会被拒绝。修复候选 81a2f958 仅接受 SDK 顶层 mentions 中 is_you 严格为 true 的 Human 消息，普通 Human、其他 @、引用中的 @ 和 Bot 消息继续拒绝；公开 Service/Controller/Runtime 收发回归先失败后通过，实机验收另行记录。此标识见官方 SDK1.0.4 protocol/types.ts 和 middleware/mention-gate.ts；[官方全量事件页](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html)说明全量载荷覆盖不限于 @ 的群消息。
+
+早期 QA 日志 exporter 未包含 qq-group-notification，因而旧 proof 的 notificationHints=0 不证明平台没有发送通知事件；修复 exporter 后的新窗口单独计量。Bot 消息观察事件此前已纳入 exporter，首次真实 Bot 候选仍可成立。
