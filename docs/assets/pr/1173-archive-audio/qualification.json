@@ -18,9 +18,7 @@
     "archived": false,
     "sync": "live",
     "cards": 1,
-    "mouth": [
-      "closed"
-    ],
+    "mouth": ["closed"],
     "sourceStarts": 5,
     "immediateStops": 0
   },
@@ -28,9 +26,7 @@
     "archived": true,
     "sync": "live",
     "cards": 0,
-    "mouth": [
-      "saved"
-    ],
+    "mouth": ["saved"],
     "sourceStarts": 11,
     "immediateStops": 1
   },
@@ -38,9 +34,7 @@
     "archived": true,
     "sync": "live",
     "cards": 0,
-    "mouth": [
-      "saved"
-    ],
+    "mouth": ["saved"],
     "sourceStarts": 11,
     "immediateStops": 1
   },
@@ -50,9 +44,7 @@
     "archived": false,
     "sync": "live",
     "cards": 0,
-    "mouth": [
-      "saved"
-    ],
+    "mouth": ["saved"],
     "sourceStarts": 11,
     "immediateStops": 1
   },
@@ -60,9 +52,7 @@
     "archived": false,
     "sync": "live",
     "cards": 0,
-    "mouth": [
-      "saved"
-    ],
+    "mouth": ["saved"],
     "sourceStarts": 11,
     "immediateStops": 1
   },
