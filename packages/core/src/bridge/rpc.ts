@@ -507,6 +507,15 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.partLibraryImport({ data }));
   }
 
+  partLibraryImportImage(
+    data: string,
+    slot: string,
+    colors: number,
+    name: string,
+  ): { entry: PartLibraryEntry } {
+    return unwrap(this.methods.partLibraryImportImage({ data, slot, colors, name }));
+  }
+
   partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
     return unwrap(this.methods.partLibraryAdd({ part, name, parent }));
   }
@@ -1262,6 +1271,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'partLibraryAdd',
   'partLibraryExport',
   'partLibraryImport',
+  'partLibraryImportImage',
   'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',

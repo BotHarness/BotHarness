@@ -90,6 +90,8 @@ describe('public read API contract', () => {
     for (const origin of [
       'https://evil.example',
       'https://deepseekbot.botharness.ai.evil.example',
+      'https://deepseekbot.app.evil.example',
+      'http://deepseekbot.app',
       'null',
     ]) {
       const response = await get(market, '/v1/bots', origin);

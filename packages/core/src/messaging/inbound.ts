@@ -21,6 +21,7 @@ import {
 } from './conversation-ingest.js';
 import type { MessagingIdentity } from './identity.js';
 import type { BotPairing } from './pairing.js';
+import { recordLocalReception } from './reception-history.js';
 import { readMessagingIdentity } from './identity.js';
 import {
   currentReceptionPaths,
@@ -232,7 +233,12 @@ export function createInboundMessaging(options: {
   const { database } = options;
   const transaction = <T>(command: (db: DatabaseSync) => T, topics: string[] = []): T => {
     try {
-      return database.transaction(command, topics);
+      return database.transaction((db) => {
+        const result = command(db);
+        if (topics.includes('grants') || topics.includes('bindings'))
+          recordLocalReception(db, new Date().toISOString(), options.isBotActive);
+        return result;
+      }, topics);
     } catch (error) {
       if (error instanceof OperationalDatabaseError && error.cause instanceof MessagingError)
         throw error.cause;
@@ -572,6 +578,15 @@ export function createInboundMessaging(options: {
     const startedAt = Date.now();
     try {
       const inspected = await inspectGrant(entry.provider, value);
+      if (value.platform === 'qq' && !replyOnly) {
+        await startControl(value.bindingId);
+        const control = controls.get(value.bindingId);
+        if (!control?.dispose || control.token !== entry.token)
+          throw new MessagingError(
+            controlRetries.has(value.bindingId) ? 'provider-unavailable' : 'consumer-unavailable',
+          );
+        lease.controller.signal.throwIfAborted();
+      }
       if (
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
@@ -626,6 +641,9 @@ export function createInboundMessaging(options: {
             throw new MessagingError('consumer-unavailable');
           if (event.fingerprint !== value.fingerprint || event.botId !== value.accountRef)
             throw new MessagingError('untrusted-source');
+          const identity = database.read((db) => readMessagingIdentity(db, value.bindingId));
+          if (identity.receiveAfter && Date.parse(event.at) < Date.parse(identity.receiveAfter))
+            return { accepted: true };
           if (!latest.receiveScope) return { accepted: true };
           if (
             event.conversation.kind !== latest.receiveScope.kind ||
@@ -1350,6 +1368,12 @@ export function createInboundMessaging(options: {
       (db) => {
         signal.throwIfAborted();
         lease.controller.signal.throwIfAborted();
+        const currentIdentity = readMessagingIdentity(db, id);
+        if (
+          currentIdentity.receiveAfter &&
+          Date.parse(event.at) < Date.parse(currentIdentity.receiveAfter)
+        )
+          return undefined;
         const entries = renameEntries(db, conversationEntries(db, id, event.conversation), event);
         if (entries.some((item) => item.origin !== 'implicit')) return undefined;
         let value: MessagingGrant | undefined = entries[0];
@@ -1372,6 +1396,25 @@ export function createInboundMessaging(options: {
             return { held: true as const };
           }
           removeHeld(db, id, event.conversation);
+          const priorRow = db
+            .prepare(
+              `SELECT g.body FROM messaging_grants g JOIN messaging_bindings b ON b.id = g.binding_id
+               WHERE g.bot_slug = ? AND b.provider_id = ? AND b.fingerprint = ?
+                 AND b.revoked_at IS NOT NULL
+                 AND json_extract(g.body, '$.origin') = 'implicit'
+                 AND json_extract(g.body, '$.receiveScope.kind') = ?
+                 AND json_extract(g.body, '$.receiveScope.conversationId') = ?
+               ORDER BY g.created_at DESC, g.rowid DESC LIMIT 1`,
+            )
+            .get(
+              identity.botSlug,
+              identity.providerId,
+              identity.fingerprint,
+              event.conversation.kind,
+              event.conversation.id,
+            ) as { body: string } | undefined;
+          const prior = priorRow ? (JSON.parse(priorRow.body) as MessagingGrant) : undefined;
+          if (prior && Date.parse(event.at) < Date.parse(identity.createdAt)) return undefined;
           value = {
             id: randomUUID(),
             bindingId: id,
@@ -1386,6 +1429,15 @@ export function createInboundMessaging(options: {
             targetDigest: '',
             revision: 1,
             createdAt: new Date().toISOString(),
+            ...(prior
+              ? {
+                  receiveAfter: identity.createdAt,
+                  ...(prior.muted !== undefined ? { muted: prior.muted } : {}),
+                  ...(prior.preferenceRevision !== undefined
+                    ? { preferenceRevision: prior.preferenceRevision }
+                    : {}),
+                }
+              : {}),
             receiveScope: { kind: event.conversation.kind, conversationId: event.conversation.id },
             origin: 'implicit',
           };
@@ -1395,6 +1447,8 @@ export function createInboundMessaging(options: {
           if (event.conversation.kind === 'group') initializeGroupReceptionPolicy(db, value.id);
           created = true;
         }
+        if (value.receiveAfter && Date.parse(event.at) < Date.parse(value.receiveAfter))
+          return undefined;
         const existing = db
           .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ?')
           .get(sourceId(value, event));
@@ -1456,6 +1510,17 @@ export function createInboundMessaging(options: {
         if (account.fingerprint !== identity.fingerprint)
           throw new MessagingError('rebind-required');
         if (!account.connected) throw new MessagingError('provider-unavailable');
+        if (identity.platform === 'qq')
+          transaction((db) => {
+            controller.signal.throwIfAborted();
+            const latest = readMessagingIdentity(db, id);
+            if (!latest.enabled || latest.revokedAt || controls.get(id) !== lease)
+              throw new MessagingError('consumer-unavailable');
+            db.prepare('UPDATE messaging_bindings SET receive_after = ? WHERE id = ?').run(
+              new Date().toISOString(),
+              id,
+            );
+          });
         lease.dispose = await bounded(
           entry.consume!({
             accountRef: identity.accountRef,
@@ -1788,6 +1853,8 @@ export function createInboundMessaging(options: {
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
       if (target === null && channel.type !== 'dm') throw new MessagingError('channel-unavailable');
+      if (value.platform === 'qq' && target !== null && channel.type !== 'group')
+        throw new MessagingError('channel-unavailable');
       const routes = channelBridgeRoutes(value);
       const configuration = routes.find((route) =>
         input.routeId ? route.id === input.routeId : route.channelId === target,

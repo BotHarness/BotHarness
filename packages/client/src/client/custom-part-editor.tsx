@@ -35,7 +35,16 @@ import {
 import type { BotHarnessTranslate } from './locale.js';
 
 type Key = Parameters<BotHarnessTranslate>[0];
-type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'gradient' | 'noise' | 'eyedropper';
+type Tool =
+  | 'pencil'
+  | 'eraser'
+  | 'fill'
+  | 'replace'
+  | 'line'
+  | 'rect'
+  | 'gradient'
+  | 'noise'
+  | 'eyedropper';
 type Layers = Record<PartLayerName, PartLayer>;
 type Point = readonly [number, number];
 interface Gesture {
@@ -66,6 +75,7 @@ const TOOLS: readonly Tool[] = [
   'pencil',
   'eraser',
   'fill',
+  'replace',
   'line',
   'rect',
   'gradient',
@@ -83,6 +93,13 @@ const STROKE_TOOLS = new Set<Tool>(['pencil', 'eraser', 'line', 'rect', 'gradien
 const OFFSET_ROWS = 3;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 16;
+
+function replaced(layer: PartLayer, from: PartInk | null, to: PartInk | null): PartLayer {
+  if (!from) return layer;
+  return layer.map((row) =>
+    row.map((ink) => (ink && ink.color === from.color && ink.tone === from.tone ? to : ink)),
+  );
+}
 
 function inkColor(recipe: IllustratedAvatarRecipe, ink: PartInk): string {
   const base = ink.color.startsWith('#') ? ink.color : recipe[ink.color as 'hairColor'];
@@ -167,18 +184,20 @@ export function CustomPartEditor({
     const next =
       tool === 'fill'
         ? fillPartLayer(slot, target, from[0], from[1], value, mirror)
-        : tool === 'line'
-          ? paintPartLayer(slot, target, partLinePoints(from, to, snap), value, mirror)
-          : tool === 'rect'
-            ? paintPartLayer(slot, target, partRectPoints(from, to, snap), value, mirror)
-            : tool === 'gradient'
-              ? gradientPartLayer(slot, target, from, to, ink.color, ink.tone, gradientTo, {
-                  dither,
-                  mirror,
-                })
-              : tool === 'pencil' && shade !== 0
-                ? shadePartLayer(slot, target, points, shade, mirror)
-                : paintPartLayer(slot, target, points, value, mirror);
+        : tool === 'replace'
+          ? replaced(target, target[from[1]]![from[0]] ?? null, value)
+          : tool === 'line'
+            ? paintPartLayer(slot, target, partLinePoints(from, to, snap), value, mirror)
+            : tool === 'rect'
+              ? paintPartLayer(slot, target, partRectPoints(from, to, snap), value, mirror)
+              : tool === 'gradient'
+                ? gradientPartLayer(slot, target, from, to, ink.color, ink.tone, gradientTo, {
+                    dither,
+                    mirror,
+                  })
+                : tool === 'pencil' && shade !== 0
+                  ? shadePartLayer(slot, target, points, shade, mirror)
+                  : paintPartLayer(slot, target, points, value, mirror);
     return { ...base, [layer]: next };
   };
   const pick = ([x, y]: Point) => {
@@ -193,7 +212,7 @@ export function CustomPartEditor({
       else pick(point);
       return;
     }
-    const fixed = tool === 'fill' || tool === 'noise';
+    const fixed = tool === 'fill' || tool === 'noise' || tool === 'replace';
     const current = { base: layers, future, from: point, points: [point], fixed };
     record();
     if (tool === 'noise') {

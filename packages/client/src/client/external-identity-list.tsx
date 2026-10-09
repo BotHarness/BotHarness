@@ -18,7 +18,7 @@ import type {
   MessagingIdentityView,
 } from '../../../core/src/messaging/identity.js';
 import { Combobox } from './combobox.js';
-import { ExternalConversations } from './external-conversations.js';
+import { ExternalConversations, type ConversationSync } from './external-conversations.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -43,6 +43,8 @@ export function ExternalIdentityList({
   rules,
   refresh,
   channels,
+  sync,
+  syncChannels,
   botName = (slug) => slug,
   bindDialog,
   appSetup,
@@ -54,6 +56,8 @@ export function ExternalIdentityList({
   rules(grantId: string, input: GroupReceptionInput): Promise<void>;
   refresh(): Promise<void>;
   channels?: { id: string; name: string }[];
+  sync?: ConversationSync;
+  syncChannels?: { id: string; name: string }[];
   botName?(slug: string): string;
   appSetup?: { client: ProviderAppSetup; botSlug: string } | undefined;
   bindDialog?: { onClose(): void; dismissLabel: string; description: string };
@@ -296,7 +300,8 @@ export function ExternalIdentityList({
         </SidebarCardList>
       )}
       <Modal
-        className="bh-sidebar-modal"
+        className="bh-sidebar-modal bh-external-identity-modal"
+        contentClassName="bh-external-identity-content"
         open={mode !== undefined}
         onClose={close}
         title={t(
@@ -507,6 +512,11 @@ export function ExternalIdentityList({
                   </Tooltip>
                 </div>
               </div>
+              <p className="bh-muted">
+                {t(
+                  selectedAccount?.platform === 'qq' ? 'identity.bindHintQq' : 'identity.bindHint',
+                )}
+              </p>
               {appSetup && !snapshot?.appSetups?.length ? (
                 <p className="bh-note">{t('appSetup.fallback')}</p>
               ) : null}
@@ -522,7 +532,9 @@ export function ExternalIdentityList({
                   bound?.reception === 'receiving'
                     ? selectedAccount.platform === 'weixin'
                       ? 'identity.readyWeixin'
-                      : 'identity.ready'
+                      : selectedAccount.platform === 'qq'
+                        ? 'identity.readyQq'
+                        : 'identity.ready'
                     : bound?.reception === 'connecting' || bound === undefined
                       ? 'identity.connecting'
                       : 'identity.offline',
@@ -686,6 +698,13 @@ export function ExternalIdentityList({
                     change={(input) => operate(() => conversation(input))}
                     rules={(grantId, input) => operate(() => rules(grantId, input))}
                     {...(channels ? { channels } : {})}
+                    {...(selected.platform === 'qq' && sync
+                      ? {
+                          sync: (grant, channelId, enabled) =>
+                            operate(() => sync(grant, channelId, enabled)),
+                          syncChannels: syncChannels ?? [],
+                        }
+                      : {})}
                   />
                 </div>
               ) : null}
