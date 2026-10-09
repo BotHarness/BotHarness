@@ -1,3 +1,4 @@
+import { notChannelNoticeSql } from '../channels/channel-notice.js';
 import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import {
   readHumanAssignmentContext,
@@ -280,6 +281,7 @@ const CHANNEL_ATTENTION_CTE = `
              AND m.left_at IS NULL AND m.visible_from_revision IS NOT NULL
              AND p.revision >= m.visible_from_revision))
        AND json_extract(e.payload_json, '$.author.kind') != 'human'
+       AND ${notChannelNoticeSql('e.payload_json')}
   ), visible_unread AS (
     SELECT * FROM visible_messages WHERE revision > read_revision
   )`;

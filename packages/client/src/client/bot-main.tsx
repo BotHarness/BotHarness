@@ -62,6 +62,7 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import { BotDmActionLabel } from './bot-dm-action-line.js';
 import {
   timelineWorkingRows,
   timelineWorkingRowsCover,
@@ -1515,10 +1516,22 @@ function ConversationView({
                               .then(() => actions.openAround(action.channelId, action.messageId));
                           }}
                         >
-                          {t('botDm.action', {
-                            sender: authorLabel(first, state.bots, t, channelHumanName(channel)),
-                            recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
-                          })}
+                          <BotDmActionLabel
+                            senderSlug={first.author.kind === 'bot' ? first.author.slug : undefined}
+                            senderName={authorLabel(
+                              first,
+                              state.bots,
+                              t,
+                              channelHumanName(channel),
+                            )}
+                            recipientSlug={first.botDmAction.recipientBotSlug}
+                            recipientName={memberName(
+                              state.bots,
+                              first.botDmAction.recipientBotSlug,
+                            )}
+                            bots={state.bots}
+                            t={t}
+                          />
                         </button>
                       )}
                     </div>

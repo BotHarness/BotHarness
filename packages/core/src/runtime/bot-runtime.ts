@@ -4672,6 +4672,22 @@ class BotRuntimeImplementation implements BotRuntime {
     return result.message;
   }
 
+  #turnSourceIn(botSlug: string, channelId: string): string | undefined {
+    const sources = [...(this.#turnSources.get(botSlug) ?? [])];
+    if (sources.length === 0) return undefined;
+    const row = this.#database.read(
+      (database) =>
+        database
+          .prepare(
+            `SELECT source_event_id FROM source_events
+              WHERE channel_id = ? AND source_event_id IN (${sources.map(() => '?').join(', ')})
+              ORDER BY rowid DESC LIMIT 1`,
+          )
+          .get(channelId, ...sources) as { source_event_id: string } | undefined,
+    );
+    return row?.source_event_id;
+  }
+
   #botCausation(sourceEventId: string): BotMessageCausation {
     const parent = this.#database.read((database) =>
       database
@@ -4758,7 +4774,9 @@ class BotRuntimeImplementation implements BotRuntime {
       throw new Error('Bot DM sender is no longer active');
     if (this.#channels.getOrCreateDm(botSlug, sender.displayName) === undefined)
       throw new Error('Sender Human DM is unavailable');
-    const botCausation = this.#botCausation(input.sourceEventId);
+    const botCausation = this.#botCausation(
+      this.#turnSourceIn(botSlug, channel.id) ?? input.sourceEventId,
+    );
     const messageId = this.#deliveryMessageId(input.sessionId, input.deliveryKey);
     const message: ChannelMessage = {
       id: messageId,

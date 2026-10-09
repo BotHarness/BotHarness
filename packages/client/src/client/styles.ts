@@ -6336,6 +6336,21 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-bot-dm-action:hover {
   color: var(--dsw-alias-label-primary);
 }
+.bh-bot-dm-action-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.bh-bot-dm-action-bot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bh-bot-dm-action-avatar { display: inline-flex; pointer-events: none; }
+.bh-bot-dm-action-bot .bh-persona-avatar { border-radius: 28%; overflow: hidden; }
+.bh-bot-dm-action-name { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .bh-bot-dm-readonly {
   padding: 14px 18px;
   text-align: center;
