@@ -35,4 +35,6 @@ Owned browsers are closed after both recordings. Failed onboarding and an
 initial activity-dependent turn-count assumption are retained privately and
 excluded. The successful runs have five layers in both captured snapshots;
 the component normally reduces to its base pose when Activity becomes idle.
-Human confirmation of the new full opening remains pending.
+Human accepted the formal after recording on 2026-10-09, confirming the
+new full opening, preserved half-open mouth and restored expression. Current
+delivery status is tracked in Issue #1241 and PR #1254.
