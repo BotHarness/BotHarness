@@ -1,8 +1,12 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
+
+import { useMountedResource } from './mounted-resource.js';
+
+export const DSH_BOT_SETTINGS_FALLBACK_MS = 800;
 
 export type DshBotSettingsItemProps = PropsRuntime<'settings.section'> &
   PropsLocale<'botharness'> &
@@ -13,23 +17,32 @@ export function DshBotSettingsItem({
   openBotSettings,
   t,
 }: DshBotSettingsItemProps): ReactElement {
+  const [stalled, setStalled] = useState(false);
+  const leave = (): void => {
+    close();
+    openBotSettings();
+  };
+  const redirect = useMountedResource<HTMLDivElement>(() => {
+    const fallback = setTimeout(() => {
+      setStalled(true);
+    }, DSH_BOT_SETTINGS_FALLBACK_MS);
+    leave();
+    return () => {
+      clearTimeout(fallback);
+    };
+  }, []);
   return (
-    <div className="bh-settings-rows">
-      <div className="bh-settings-row">
-        <div className="bh-settings-row-text">
-          <div className="bh-settings-row-desc">{t('settings.moved')}</div>
+    <div ref={redirect} className="bh-settings-rows">
+      {stalled ? (
+        <div className="bh-settings-row">
+          <div className="bh-settings-row-text">
+            <div className="bh-settings-row-desc">{t('settings.moved')}</div>
+          </div>
+          <Button variant="outline" size="sm" onClick={leave}>
+            {t('settings.open')}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            close();
-            openBotSettings();
-          }}
-        >
-          {t('settings.open')}
-        </Button>
-      </div>
+      ) : null}
     </div>
   );
 }

@@ -34,6 +34,7 @@
 ### Changed
 
 - Bot 设置改为独立窗口，从 Bot 面板的齿轮打开，左侧按通用、模型与运行、消息、Computer、Browser、窗口伙伴、数据与隐私、高级、关于分区，不再是混在其他插件设置中的一整页长列表；DSH 设置中的 **Bot 设置** 可跳转到这里（[#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260)，[ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)）。
+- 在 DSH 设置中点击 **Bot 设置** 会直接切换到 Bot 设置窗口；遥测提示打开“数据与隐私”，窗口伙伴菜单打开“窗口伙伴”（[#1261](https://github.com/BotHarness/DeepSeekBot/issues/1261)）。
 
 ### Fixed
 

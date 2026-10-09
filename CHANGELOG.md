@@ -34,6 +34,7 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 ### Changed
 
 - Bot settings open in their own window from the gear in the Bot panel, with a sidebar of General, Models & execution, Messaging, Computer, Browser, Window companions, Data & privacy, Advanced and About instead of one long page among other plugins' settings; **Bot settings** in DSH settings links to it ([#1260](https://github.com/BotHarness/DeepSeekBot/issues/1260), [ADR-0153](docs/adr/0153-bot-settings-is-a-botharness-owned-modal.md)).
+- Clicking **Bot settings** in DSH settings now switches straight to the Bot settings window, the telemetry notice opens it at Data & privacy and the Window Companion menu at Window companions ([#1261](https://github.com/BotHarness/DeepSeekBot/issues/1261)).
 
 ### Fixed
 

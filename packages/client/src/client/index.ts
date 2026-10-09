@@ -212,7 +212,7 @@ export function apply(ctx: ClientContext): void {
             void actions.openActivityCenter();
           },
           openSettings: () => {
-            botSettings.open();
+            botSettings.open('companions');
           },
         }),
       },
@@ -234,7 +234,7 @@ export function apply(ctx: ClientContext): void {
   );
   const releaseNotes = new ReleaseNotesController(call, storage);
   const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
-    botSettings.open();
+    botSettings.open('data-privacy');
   });
   const lastView =
     typeof window === 'undefined'
