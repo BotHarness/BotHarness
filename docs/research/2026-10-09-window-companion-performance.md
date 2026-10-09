@@ -52,6 +52,53 @@ Idle and roaming traces request 15 seconds with no page evaluation during the ti
 
 **Cadence difference requiring follow-up:** roaming presentation-interval p95 is 9.697–9.720 ms in the parent and 16.180–16.253 ms in the candidate, despite similar AnimationFrame wall p95. Candidate roaming has 4 / 9 / 7 presentation intervals above 16.667 ms, compared with 0 / 0 / 0 in the parent; neither has an interval above 50 ms. These event intervals do not measure physical display FPS. The repeated difference is an observation to isolate, not evidence of statistical equivalence or an attributable Companion regression: shell/setup/history and upstream application changes differ. A controlled owning-feature comparison is still needed before deciding whether a correction is required.
 
+## Same-document walking controls
+
+A follow-up keeps all five companions mounted in the same document and changes only the existing native walking controls in order **0 → 1 → 5 → 5 → 1 → 0**. Each setting records approximately 15 seconds after a 2.5-second settle. Dark theme, Profile, source, viewport, recipes, card count and shell content stay fixed within this run. Before/after positions confirm that exactly the enabled number changed horizontal position; disabled companions remain in place. The physics phase is grounded during walking, so a rest phase label alone would not establish inactivity.
+
+| Run         | Walking enabled | Changed horizontal position | Trace seconds | Frame wall p95 ms | Presentation interval p95 ms | Presentation intervals >16.667 ms |
+| ----------- | --------------: | --------------------------: | ------------: | ----------------: | ---------------------------: | --------------------------------: |
+| walkers-0-1 |               0 |                           0 |        15.432 |             9.789 |                        9.909 |                                 7 |
+| walkers-1-1 |               1 |                           1 |        15.079 |             9.049 |                       16.816 |                               129 |
+| walkers-5-1 |               5 |                           5 |        15.088 |             8.834 |                       16.186 |                                 1 |
+| walkers-5-2 |               5 |                           5 |        15.093 |             8.900 |                       16.224 |                                10 |
+| walkers-1-2 |               1 |                           1 |        15.090 |             9.222 |                       16.895 |                               136 |
+| walkers-0-2 |               0 |                           0 |        15.093 |             9.665 |                        9.812 |                                 6 |
+
+[cadence-controls.json](../assets/pr/1167-companion-performance/cadence-controls.json) contains the complete distributions. All-static controls return to roughly 9.8–9.9 ms presentation p95; one walking companion reaches roughly 16.8–16.9 ms and five roughly 16.2 ms. One moving companion is sufficient to reproduce this observation among five mounted companions; it does not worsen proportionally with walking count in these samples. This narrows the workload, but does not identify a faulty module or prove a regression against an otherwise identical parent build. No code fix or physical display-FPS conclusion is claimed. Two sequential samples per setting and uncontrolled desktop workloads remain limits. Both the collector and offline analysis complete, console errors are zero, and the task-owned browser is closed.
+
+## Real concurrent output and expanded reading
+
+Both final runs send five actual Human DM inputs through the owning Host. Four real PersonaBots each call channel_send once; the fifth calls it three times. Seven authored, committed Bot messages are verified against their canonical DMs before profiling. Actual message body hashes match exactly across revisions, each 1,715 characters. There is no injected feed, generated DOM card or replay of old output. Both use the same native dark 960 × 640/DPR1 page state and the same five saved appearances; the earlier application/history/roster comparison limits still apply.
+
+Before new model inputs, a visible-character setup followed by actual Tab and Shift+Tab must return focus to the exact Bot5 character, satisfy focus-visible and enter reading; focus is then moved outside and the reading grace expires. The timed scene starts only after seven real cards render and at least two different Bots still show incomplete canonical text. It records ten seconds of collapsed reveal, then the same visible-character/Tab/Shift+Tab route to Bot5 and fifteen seconds of expanded reading. Bounded DOM observations and the input operations are included, so this is an interaction workload rather than an observation-free paint microbenchmark. Message delivery and reveal start times remain model-dependent despite matching body hashes.
+
+| Revision  | Bots revealing at trace start | Trace seconds | AnimationFrames | Frame wall p95 / p99 / max ms | Presentation interval p95 / p99 / max ms | >50 ms frame wall / presentation interval |
+| --------- | ----------------------------: | ------------: | --------------: | ----------------------------: | ---------------------------------------: | ----------------------------------------: |
+| parent    |                             5 |        39.134 |            4134 |      11.510 / 12.249 / 27.910 |                 17.956 / 18.340 / 37.382 |                                     0 / 0 |
+| candidate |                             5 |        40.885 |            4283 |      17.997 / 21.540 / 25.711 |                 26.952 / 28.152 / 37.047 |                                     0 / 0 |
+
+The candidate has higher p95 frame wall and presentation intervals in this paired interaction sample. Matching message bodies does not match model arrival times, reveal progress, scrolling behavior or the intervening application changes. This is a follow-up observation, not an attributable owning-feature regression or evidence that the versions are equivalent. Neither sampled trace has a frame wall duration or presentation interval above 50 ms; that does not override the p95 difference or establish acceptance.
+
+The candidate raw trace exceeds Node's single-string size limit. Offline analysis uses the official MCP chunked trace parser on the unchanged raw buffer, followed by the same unchanged DevTools frame handler; no events are filtered. The same parser reproduces the original parent statistics exactly. This is a parsing-method correction, not a new runtime sample.
+
+| Recorded state                                    | Rendered cards | Cards exposed to accessibility | Reading companions |
+| ------------------------------------------------- | -------------: | -----------------------------: | -----------------: |
+| parent: collapsed-reveal-after-ten-seconds        |              7 |                              5 |                  0 |
+| parent: expanded-reading-start                    |              7 |                              7 |                  1 |
+| parent: expanded-reading-after-fifteen-seconds    |              7 |                              7 |                  1 |
+| candidate: collapsed-reveal-after-ten-seconds     |              7 |                              5 |                  0 |
+| candidate: expanded-reading-start                 |              7 |                              7 |                  1 |
+| candidate: expanded-reading-after-fifteen-seconds |              7 |                              7 |                  1 |
+
+Rendered-card counts include collapsed inert layers; they do not assert that every card is simultaneously readable or unobscured. Bot5's three-card expanded state is verified in both final runs. Both stay in the same document and visible throughout their trace; both final console checks are empty and owned browsers are closed. Full distributions, source versions, body hashes and actual state counts are in [concurrent-output.json](../assets/pr/1167-companion-performance/concurrent-output.json).
+
+![Parent: actual seven-output workload with Bot5 expanded](../assets/pr/1167-companion-performance/parent-concurrent-expanded.png)
+
+![Candidate: actual seven-output workload with Bot5 expanded](../assets/pr/1167-companion-performance/candidate-concurrent-expanded.png)
+
+The first candidate attempt used script focus after mouse setup and failed the reading precondition: the current view deliberately requires focus-visible for keyboard entry. Its raw trace and failure remain private and excluded. A second attempt tried a hidden toolbar control as its starting focus target; that preflight failed before sending any new model input. Both failures are retained privately and excluded. The final protocol validates actual Tab followed by Shift+Tab from the visible character before sending any new model input, and both revisions were measured again with that route. No product interaction rule was relaxed to pass the test. One successful paired interaction sample does not establish sustained-load performance, low-end support or an accepted budget.
+
 ## Post-GC heap and resources
 
 Both revisions use the same official take_heapsnapshot procedure, which collects garbage before capturing the graph. Chrome also documents snapshot GC in its [heap snapshot guide](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots). Each snapshot follows a 2.5-second settle, with all five live companions paused and no cards. Ten real existing pin/unpin button handlers observed mounted counts 5 → 4 → 5 per cycle, with 150 ms after each transition and a live-stream check before the second snapshot. This tests lifecycle disposal, not mouse usability.
@@ -96,7 +143,7 @@ Both final collectors and the retaining-path inspector closed their owned browse
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Sources, device, repeated idle/roam/drag, separate asset costs | Recorded, subject to the disclosed whole-page comparison limits                                                                                              |
 | Same-procedure ten-cycle heap and bounded resource inspection  | Recorded for this foreground load; not a leak-free guarantee                                                                                                 |
-| Concurrent real message reveal and expanded reading cost       | Still to measure against both revisions                                                                                                                      |
+| Concurrent real message reveal and expanded reading cost       | Recorded in one actual paired seven-message/keyboard-reading workload above; repeated/sustained qualification remains open                                   |
 | Actual hidden/background → visible                             | Still unqualified: official MCP forces focused-page emulation; selecting another tab left visibilityState=visible. No synthetic hidden state was substituted |
 | Bounded reconnect return, cold-start no-replay cost            | Still to measure; functional evidence alone does not qualify cost                                                                                            |
 | Larger/sustained loads and supported-device envelope           | Not established by these short five-companion runs                                                                                                           |

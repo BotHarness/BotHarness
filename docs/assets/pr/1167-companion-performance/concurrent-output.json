@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "issue": 1167,
+  "status": "paired real concurrent reveal and native keyboard reading; overall qualification incomplete",
+  "viewport": {
+    "width": 960,
+    "height": 640,
+    "dpr": 1
+  },
+  "theme": "native dark",
+  "locale": "Chinese",
+  "visibleCompanions": 5,
+  "canonicalBotMessages": 7,
+  "sameCanonicalOutputBodies": true,
+  "syntheticFeed": false,
+  "protocol": "Five actual Human DM inputs, native Bot channel_send outputs; ten seconds collapsed reveal, visible Bot5 character focus, actual Tab forward and Shift+Tab back, fifteen seconds expanded reading. Bounded DOM and input-tool observations are included in the trace.",
+  "roles": {
+    "parent": {
+      "source": {
+        "host": "75a236a56942f75c3ebbbe84b88bde2e6fc3abcb"
+      },
+      "avatarVersion": "0.1.0",
+      "chromeVersion": "154.0.8037.98",
+      "keyboardPreflight": {
+        "exactCharacter": true,
+        "focusVisible": true,
+        "reading": "true"
+      },
+      "initialMessagesPerDm": [6, 6, 6, 6, 8],
+      "actualCanonicalBodies": [
+        {
+          "bodyLength": 1715,
+          "bodyHash": "055c8a6276e56eb43ce0912d91add26a496786530804dadbe9d50dabdb84e890"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "026842908c9094283f05bcadd618d817e50b6c3ccfcf2af06c88af4f120f265b"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "32d9be77bfa58cef9441c55764797e017334dc2b29063002f2ccda0921b5541b"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "9c61c1c89af74c23351f6d914b7c1389d750f317d3ab126ee567d54ed1e77766"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "4248b6c08fa272b1279070b7c646025cf851ab373b72d8f70ced738ef0577cc9"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "ca957d28e1752ff617b03ca342b206bbeef47872b43548f8b7cec492737cd7d1"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "5a9962da8007ed6693457b850c3dcc520e8955dd152233c2af39693d3eb03087"
+        }
+      ],
+      "revealingBotCountBeforeTrace": 5,
+      "traceSeconds": 39.133738,
+      "animationFrameWallDuration": {
+        "count": 4134,
+        "minMs": 1.359,
+        "meanMs": 9.016585389453297,
+        "p50Ms": 9.208,
+        "p95Ms": 11.51,
+        "p99Ms": 12.249,
+        "maxMs": 27.91,
+        "over8_333Ms": 3272,
+        "over16_667Ms": 1,
+        "over50Ms": 0
+      },
+      "presentationInterval": {
+        "count": 4131,
+        "minMs": 0.177,
+        "meanMs": 9.413715565238467,
+        "p50Ms": 9.339,
+        "p95Ms": 17.956,
+        "p99Ms": 18.34,
+        "maxMs": 37.382,
+        "over8_333Ms": 3317,
+        "over16_667Ms": 657,
+        "over50Ms": 0
+      },
+      "observations": [
+        {
+          "label": "collapsed-reveal-after-ten-seconds",
+          "at": "2026-10-09T01:07:08.725Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 5,
+          "readingCompanions": 0
+        },
+        {
+          "label": "expanded-reading-start",
+          "at": "2026-10-09T01:07:17.798Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 7,
+          "readingCompanions": 1
+        },
+        {
+          "label": "expanded-reading-after-fifteen-seconds",
+          "at": "2026-10-09T01:07:33.623Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 7,
+          "readingCompanions": 1
+        }
+      ],
+      "consoleErrorCount": 0,
+      "closedOwnedBrowser": true
+    },
+    "candidate": {
+      "source": {
+        "hostBase": "fc356883152ac5d86b11993216084dbda60be4d4",
+        "hostMain": "66d2767a",
+        "owner": "ac9e25740e7ef33d1409b124d9bab23d16732ced",
+        "localUncommittedChanges": "Companion speechMouthVersion2 and packed owner0.10.1 dependency, not published"
+      },
+      "avatarVersion": "0.10.1",
+      "chromeVersion": "154.0.8037.98",
+      "keyboardPreflight": {
+        "exactCharacter": true,
+        "focusVisible": true,
+        "reading": "true"
+      },
+      "initialMessagesPerDm": [3, 3, 3, 3, 5],
+      "actualCanonicalBodies": [
+        {
+          "bodyLength": 1715,
+          "bodyHash": "055c8a6276e56eb43ce0912d91add26a496786530804dadbe9d50dabdb84e890"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "026842908c9094283f05bcadd618d817e50b6c3ccfcf2af06c88af4f120f265b"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "32d9be77bfa58cef9441c55764797e017334dc2b29063002f2ccda0921b5541b"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "9c61c1c89af74c23351f6d914b7c1389d750f317d3ab126ee567d54ed1e77766"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "4248b6c08fa272b1279070b7c646025cf851ab373b72d8f70ced738ef0577cc9"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "ca957d28e1752ff617b03ca342b206bbeef47872b43548f8b7cec492737cd7d1"
+        },
+        {
+          "bodyLength": 1715,
+          "bodyHash": "5a9962da8007ed6693457b850c3dcc520e8955dd152233c2af39693d3eb03087"
+        }
+      ],
+      "revealingBotCountBeforeTrace": 5,
+      "traceSeconds": 40.885111,
+      "animationFrameWallDuration": {
+        "count": 4283,
+        "minMs": 0.93,
+        "meanMs": 8.79696124212003,
+        "p50Ms": 9.092,
+        "p95Ms": 17.997,
+        "p99Ms": 21.54,
+        "maxMs": 25.711,
+        "over8_333Ms": 2799,
+        "over16_667Ms": 301,
+        "over50Ms": 0
+      },
+      "presentationInterval": {
+        "count": 4278,
+        "minMs": 0.928,
+        "meanMs": 9.49770710612436,
+        "p50Ms": 8.149,
+        "p95Ms": 26.952,
+        "p99Ms": 28.152,
+        "maxMs": 37.047,
+        "over8_333Ms": 2090,
+        "over16_667Ms": 1029,
+        "over50Ms": 0
+      },
+      "observations": [
+        {
+          "label": "collapsed-reveal-after-ten-seconds",
+          "at": "2026-10-09T01:02:52.324Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 5,
+          "readingCompanions": 0
+        },
+        {
+          "label": "expanded-reading-start",
+          "at": "2026-10-09T01:03:02.881Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 7,
+          "readingCompanions": 1
+        },
+        {
+          "label": "expanded-reading-after-fifteen-seconds",
+          "at": "2026-10-09T01:03:18.971Z",
+          "visibility": "visible",
+          "renderedCards": 7,
+          "exposedCards": 7,
+          "readingCompanions": 1
+        }
+      ],
+      "consoleErrorCount": 0,
+      "closedOwnedBrowser": true
+    }
+  },
+  "limits": [
+    "One successful sample per revision; not randomized or a sustained-load envelope.",
+    "Parent/candidate application, Avatar, shell history and roster differ as disclosed in the original checkpoint.",
+    "Model delivery/reveal start times vary; identical canonical bodies do not make timing identical.",
+    "Original candidate programmatic-focus attempt failed the keyboard-visible-focus precondition; retained privately and excluded. A second attempt could not focus its hidden toolbar starting control and stopped before new Human inputs. Both final runs instead preflight the visible character with actual Tab followed by Shift+Tab before committing new Human inputs.",
+    "No physical display FPS, budget agreement or overall acceptance is claimed."
+  ]
+}
