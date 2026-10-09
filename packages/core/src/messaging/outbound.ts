@@ -2478,7 +2478,7 @@ export function createOutboundMessaging(options: {
               ? error.code
               : 'provider-result-unknown';
         const state =
-          reason === 'grant-revoked' && definite
+          reason === 'grant-revoked' && (!started || (report && definite))
             ? 'grant-revoked'
             : definite
               ? 'failed'
