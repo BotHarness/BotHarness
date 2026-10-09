@@ -239,6 +239,33 @@ All three raw trace metadata records agree on HeadlessChrome154, Chinese locale,
 
 These images record actual mounted/live state, not an isolated visual before/after comparison or proof that every character is unobscured. This candidate-only three-run study has no matched parent browser-cold sample. Host cold start, genuine background return, sustained/low-end support, owning-seam regression attribution and Human budget agreement remain open.
 
+## Current formal 0.10.0: incomplete revision-order study
+
+A later collection compares common main bcae2205d7562f3eec1d9b2f5e20c1b4fbb5a9da with #1173 product source4072b9e6b8add5fa7cfab214b8a769c8220f1894 (evidence-only head aa74d85a), both using formal Avatar0.10.0 and pinned DSH0.2.0-rc.1. Five canonical Bots, seeded recipes, portrait hashes and a dedicated durable Profile match. Each run starts a fresh owned Host/browser, uses Chinese/dark/960×640/DPR1, mounts all five companions live without cards, and changes native walking controls 0→5→5→0 with 2.5-second settling and five-second requested traces. No page evaluation or screencast runs during a timed interval. The unchanged official Meta+AnimationFrames handlers parse actual traces; all included endpoint movement counts match enabled walkers. These are whole-page metrics, not isolated spring, sound or SVG costs.
+
+The planned order was parent1→candidate1→candidate2→parent2. The last parent run stopped after one paused trace because the subsequent native control sequence left a companion in reading state. Its browser and exact Host closed; **the entire last run, including that paused trace, is excluded**. The twelve traces from the first three complete runs below are preliminary, unbalanced observations. They do not establish a completed order-balanced comparison or performance acceptance; no successful run is substituted for the failure.
+
+The original setup counts differed: the first parent recorded zero messages per DM before opening Channels; later runs recorded one. A read-only canonical placement/source-event ledger after every owned Host stopped contains exactly one native system onboarding welcome per DM, all written by12:24:04.966Z, before the first timed precondition at12:26:22.470Z. This explains the setup mismatch and qualifies identical timed history for the included samples. Original setup metadata and the failed run remain private and unchanged; the report does not claim identical initial setup or a contemporaneous post-trace RPC count.
+
+| Run         | Scene       | Enabled walkers | Trace seconds | Frame wall p95 ms | Presentation interval p95 ms |
+| ----------- | ----------- | --------------: | ------------: | ----------------: | ---------------------------: |
+| parent-1    | walkers-0-1 |               0 |         5.594 |             9.574 |                       10.162 |
+| parent-1    | walkers-5-1 |               5 |         5.113 |            12.034 |                       16.819 |
+| parent-1    | walkers-5-2 |               5 |         5.090 |            14.706 |                       16.939 |
+| parent-1    | walkers-0-2 |               0 |         5.145 |             9.221 |                        9.389 |
+| candidate-1 | walkers-0-1 |               0 |         5.571 |            10.053 |                       10.980 |
+| candidate-1 | walkers-5-1 |               5 |         5.114 |            11.241 |                       18.567 |
+| candidate-1 | walkers-5-2 |               5 |         7.411 |            12.213 |                       20.674 |
+| candidate-1 | walkers-0-2 |               0 |         5.091 |             9.511 |                        9.785 |
+| candidate-2 | walkers-0-1 |               0 |         5.619 |             9.008 |                        9.381 |
+| candidate-2 | walkers-5-1 |               5 |         5.091 |            10.587 |                       21.407 |
+| candidate-2 | walkers-5-2 |               5 |         5.477 |            12.266 |                       22.440 |
+| candidate-2 | walkers-0-2 |               0 |         5.159 |             9.059 |                        9.435 |
+
+The candidate walking presentation p95 remains higher across these four samples (18.567–22.440ms) than the two parent samples (16.819–16.939ms); candidate frame wall p95 is lower in these samples. Neither observation attributes the difference to a specific module or GPU work, and the interrupted order, uncontrolled desktop workload and differing natural trajectories prevent a causal conclusion. Retain both clock domains and investigate the owning seam before claiming the difference resolved.
+
+The rebuilt parent Client is 2,977,184 bytes (739,836 gzip level6); candidate is 2,991,594 bytes (743,169 gzip level6), a delta of +14410 / +3333 bytes. This is the whole #1173 branch delta against common main, not the isolated price of one animation. Exact bundle hashes, complete frame distributions and exclusions are in [current-formal-incomplete.json](../assets/pr/1167-companion-performance/current-formal-incomplete.json). Canonical identities, login routes, raw traces and local process data stay private. No new visual or acoustic acceptance is inferred from this numerical collection.
+
 ## Post-GC heap and resources
 
 Both revisions use the same official take_heapsnapshot procedure, which collects garbage before capturing the graph. Chrome also documents snapshot GC in its [heap snapshot guide](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots). Each snapshot follows a 2.5-second settle, with all five live companions paused and no cards. Ten real existing pin/unpin button handlers observed mounted counts 5 → 4 → 5 per cycle, with 150 ms after each transition and a live-stream check before the second snapshot. This tests lifecycle disposal, not mouse usability.

@@ -23,7 +23,7 @@
 
 ### Documentation
 
-- 记录五个窗口伙伴的前台帧耗时、真实消息并发、消息流恢复与 Client 重载测量、十次钉选循环后的堆内存观察、相同头像版本和 Profile 的走动试测及独立的主渲染线程阶段观察、独立的 Windows GPU 进程计数，以及真实浏览器进程重启验证，附可复现流程及尚未完成的验收项；目前没有已确认的 SVG 独立 GPU 归因或性能预算（[报告](docs/research/2026-10-09-window-companion-performance.md)、[#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)）。
+- 记录五个窗口伙伴的前台帧耗时、真实消息并发、消息流恢复与 Client 重载测量、十次钉选循环后的堆内存观察、相同头像版本和 Profile 的走动试测及独立的主渲染线程阶段观察、明确标注中断的当前版本对照、独立的 Windows GPU 进程计数，以及真实浏览器进程重启验证，附可复现流程及尚未完成的验收项；目前没有已确认的 SVG 独立 GPU 归因或性能预算（[报告](docs/research/2026-10-09-window-companion-performance.md)、[#1167](https://github.com/BotHarness/DeepSeekBot/issues/1167)）。
 
 ## [1.2.0] - 2026-10-08
 
