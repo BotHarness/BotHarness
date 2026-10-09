@@ -113,6 +113,7 @@ export function WindowCompanionView({
       }),
   );
   const [point, setPoint] = useState(motion.point);
+  const presentPoint = useRef<(next: CompanionPoint) => void>(setPoint);
   const motionFrameAt = useRef(performance.now());
   const displayedPoint = useRef(point);
   displayedPoint.current = point;
@@ -168,7 +169,7 @@ export function WindowCompanionView({
   const releaseMotion = (cancelled = false): void => {
     const now = performance.now();
     motionFrameAt.current = now;
-    setPoint(motion.release(now, reducedMotion(), cancelled));
+    presentPoint.current(motion.release(now, reducedMotion(), cancelled));
   };
   const cancelDrag = (event: { pointerId: number }): void => {
     if (!pointer.current || pointer.current.id !== event.pointerId || motion.point.phase !== 'drag')
@@ -266,6 +267,10 @@ export function WindowCompanionView({
           }
         }
       };
+      presentPoint.current = (next) => {
+        placeBubble(next, anchor.current?.read());
+        setPoint(next);
+      };
       const measure = () => {
         const box = node.getBoundingClientRect();
         const width = box.width;
@@ -289,8 +294,7 @@ export function WindowCompanionView({
           drag.originX = next.x;
           drag.originY = next.y;
         }
-        setPoint(next);
-        placeBubble(next, anchor.current?.read());
+        presentPoint.current(next);
       };
       const tick = (now: number) => {
         frame = 0;
@@ -363,7 +367,7 @@ export function WindowCompanionView({
       const policy = new MutationObserver(() => {
         if (reducedMotion()) {
           sound?.stop(latest.current.selection?.botId);
-          setPoint(motion.advance(0, true, false, direction.current));
+          presentPoint.current(motion.advance(0, true, false, direction.current));
         }
       });
       policy.observe(document.documentElement, {
@@ -386,6 +390,7 @@ export function WindowCompanionView({
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
+        presentPoint.current = setPoint;
         if (latest.current.selection) bubbleOwner.remove(latest.current.selection.botId);
         root.current = null;
       };
@@ -719,7 +724,9 @@ export function WindowCompanionView({
             }
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
-              setPoint(motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)));
+              presentPoint.current(
+                motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)),
+              );
               persistPosition();
             }
           }}
@@ -738,7 +745,7 @@ export function WindowCompanionView({
               originY: motion.point.y,
               moved: false,
             };
-            setPoint(motion.grab(performance.now(), reducedMotion()));
+            presentPoint.current(motion.grab(performance.now(), reducedMotion()));
           }}
           onPointerMove={(event) => {
             const drag = pointer.current;
@@ -749,7 +756,7 @@ export function WindowCompanionView({
             drag.lastY = event.clientY;
             drag.moved ||= Math.hypot(dx, dy) > 6;
             if (!drag.moved) return;
-            setPoint(
+            presentPoint.current(
               motion.drag(drag.originX + dx, drag.originY + dy, performance.now(), reducedMotion()),
             );
           }}
