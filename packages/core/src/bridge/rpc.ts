@@ -492,6 +492,21 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.partLibraryList());
   }
 
+  partLibraryExport(id?: string, part?: unknown): { fileName: string; data: string } {
+    return unwrap(
+      this.methods.partLibraryExport(
+        part !== undefined ? { part } : id === undefined ? {} : { id },
+      ),
+    );
+  }
+
+  partLibraryImport(data: string): {
+    added: PartLibraryEntry[];
+    refused: { name: string; reason: string }[];
+  } {
+    return unwrap(this.methods.partLibraryImport({ data }));
+  }
+
   partLibraryAdd(part: unknown, name: string, parent?: string): { entry: PartLibraryEntry } {
     return unwrap(this.methods.partLibraryAdd({ part, name, parent }));
   }
@@ -829,7 +844,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
   }
 
-  toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+  toolApprovalStatus(
+    channelId: string,
+    messageId: string,
+  ): {
+    status: 'pending' | 'expired';
+    execution?: 'waiting-human' | 'waiting-capacity' | 'running' | 'settled' | 'needs-repair';
+  } {
     return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
   }
 
@@ -1239,6 +1260,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botAppearanceSet',
   'partLibraryList',
   'partLibraryAdd',
+  'partLibraryExport',
+  'partLibraryImport',
   'botBannerSet',
   'marketplaceList',
   'marketplaceSubmit',

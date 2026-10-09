@@ -1,0 +1,81 @@
+{
+  "capture": "Actual isolated DSH, foreground, Chinese, light theme, 1559 × 865",
+  "runtimeSource": "3afc8f0a7e69f0b22cdf770f2a948f4d9cc827a9",
+  "formalPixelAvatar": "0.7.0",
+  "dsh": "0.2.0-rc.1",
+  "recording": {
+    "file": "stream-return.webm",
+    "continuous": true,
+    "silent": true,
+    "containerRemuxOnly": true,
+    "performanceMeasurement": false
+  },
+  "transport": {
+    "scope": "Only the actual shared Companion SSE; other Host routes remain live",
+    "droppedStreams": 1,
+    "refusedReconnects": 4,
+    "hostGenerationUnchanged": true,
+    "documentTimeOriginUnchanged": true
+  },
+  "observations": {
+    "totalSamples": 58,
+    "staleSamples": 45,
+    "pendingRetainedAndAllFourActionsDisabledInEveryStaleSample": true,
+    "currentOwnerRevalidatedBeforeActionsEnabled": true,
+    "unrelatedChannelSelectedFromBaselineThroughSettlement": true,
+    "finalExplicitVisitToOwnerDm": true,
+    "nativeKeyboardScrollPreflights": [
+      {
+        "scrollTop": 80,
+        "scrollHeight": 489,
+        "listTop": 280,
+        "listBottom": 689,
+        "rejectTop": 644.5,
+        "rejectBottom": 680.5,
+        "viewport": 865
+      },
+      {
+        "scrollTop": 80,
+        "scrollHeight": 489,
+        "listTop": 280,
+        "listBottom": 689,
+        "rejectTop": 644.5,
+        "rejectBottom": 680.5,
+        "viewport": 865
+      }
+    ],
+    "nativeMouseReject": true,
+    "canonicalDecisionCount": 1,
+    "canonicalOutcome": "rejected",
+    "originalBotCommittedDenialReply": true,
+    "lateDuplicateSubmission": {
+      "accepted": false,
+      "errorCode": "invalid-input",
+      "canonicalDecisionCountAfter": 1
+    }
+  },
+  "console": {
+    "expectedIntentionalTransportErrors": [
+      "Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING",
+      "Failed to load resource: net::ERR_EMPTY_RESPONSE"
+    ],
+    "otherErrors": 0
+  },
+  "cleanup": {
+    "ownedBrowserClosed": true,
+    "proxyClosed": true,
+    "activeStreams": 0
+  },
+  "excludedPrecursor": {
+    "complete": false,
+    "reason": "Native MCP click did not become interactive; observed action was below the clipped pending list. Cleanup rejected only that QA request through the canonical RPC. No native-click success is claimed for that run.",
+    "correction": "A new distinct real request; native focus and Control+End expose the action, with geometry checked before interruption and after recovery. No product code change."
+  },
+  "limits": [
+    "Foreground same-Host Companion stream interruption only; not full-network outage or background qualification.",
+    "The harmless echo request was rejected and never approved or executed; this is not successful Shell execution evidence.",
+    "Simultaneous pending Sessions/overflow and actual saved broad rules remain separately unqualified.",
+    "Runtime integrates main 5efae378; media is not a matched comparison of all newer upstream UI.",
+    "Earlier screenshots/videos retain their original revisions."
+  ]
+}

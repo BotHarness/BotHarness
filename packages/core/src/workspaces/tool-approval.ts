@@ -10,6 +10,7 @@ import { dmChannelId, type ChannelMessage } from '../channels/channel.js';
 import type { ChannelStore } from '../channels/store.js';
 import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
 import type { ToolApprovalRuleStore } from './tool-approval-rules.js';
+import type { AssignmentApprovalWaitLease } from '../runtime/assignment-approval-capacity.js';
 
 export interface ToolApprovalRequestCard {
   sessionId: string;
@@ -76,6 +77,13 @@ export class ChannelToolApproval {
   readonly #channels: ChannelStore;
   readonly #ownership: SessionOwnership;
   readonly #rules: ToolApprovalRuleStore | undefined;
+  readonly #beginWait:
+    | ((
+        sessionId: string,
+        callId: string,
+        signal: AbortSignal,
+      ) => AssignmentApprovalWaitLease | undefined)
+    | undefined;
   readonly #scope: (agent: Agent, owner: SessionOwnershipRecord) => string | undefined;
   readonly #tracked = new Map<string, TrackedCall>();
   readonly #pending = new Map<string, Pending>();
@@ -92,11 +100,17 @@ export class ChannelToolApproval {
     rules?: ToolApprovalRuleStore,
     scope?: (agent: Agent, owner: SessionOwnershipRecord) => string | undefined,
     attention?: { changed(slug: string, count: number): void; warn(message: string): void },
+    beginWait?: (
+      sessionId: string,
+      callId: string,
+      signal: AbortSignal,
+    ) => AssignmentApprovalWaitLease | undefined,
   ) {
     this.#channels = channels;
     this.#ownership = ownership;
     this.#rules = rules;
     this.#attention = attention;
+    this.#beginWait = beginWait;
     this.#scope =
       scope ?? ((agent, owner) => JSON.stringify([owner.rootRole, agent.session.header.cwd]));
   }
@@ -210,7 +224,14 @@ export class ChannelToolApproval {
     pending.timer.unref();
     this.#pending.set(message.id, pending);
     request.signal?.addEventListener('abort', pending.abort, { once: true });
+    let wait: AssignmentApprovalWaitLease | undefined;
     try {
+      if (tracked.role === 'assignment')
+        wait = this.#beginWait?.(
+          tracked.sessionId,
+          tracked.callId,
+          request.signal ?? new AbortController().signal,
+        );
       const committed = await this.#channels.appendMessage(channelId, message);
       if (committed === undefined) return 'unavailable';
       if (this.#pending.get(message.id) === pending) {
@@ -218,11 +239,14 @@ export class ChannelToolApproval {
         this.#publishAttention(pending.botSlug);
         this.#publishNotice(pending, 'pending');
       }
-      return await answer;
+      const outcome = await answer;
+      await wait?.resume();
+      return outcome;
     } catch {
       return 'unavailable';
     } finally {
       this.#settle(message.id, 'unavailable');
+      wait?.release();
     }
   }
 

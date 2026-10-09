@@ -300,6 +300,8 @@ function stubActions(): BridgeActions {
     setBotAppearance: vi.fn(async () => true),
     loadPartLibrary: vi.fn(async () => []),
     addLibraryPart: vi.fn(async () => undefined),
+    exportLibraryParts: vi.fn(async () => undefined),
+    importLibraryParts: vi.fn(async () => ({ added: [], refused: 0 })),
     profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({
       slug: '',

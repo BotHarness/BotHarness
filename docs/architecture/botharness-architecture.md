@@ -450,6 +450,8 @@ Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical 
 
 Assignment Runtime 的并发上限覆盖整个 Host 的所有 PersonaBot（默认 3），同时约束新建、按 Session 恢复空闲事项和按 Continuity Key 复用。恢复前先同步占用原有 Assignment Directory 的 working 名额，再交给 DSH；运行中的事项接收更新不增加名额。满额时返回 `assignment-capacity`、当前数量、上限和可重试标记，不启动执行、不清除待答问题、不改变模型或权限快照。事项停止确认前仍占名额；释放名额后，Orchestrator 可重试同一 Session，不引入等待队列（#811）。
 
+#1037 有界切片只在无后代、无执行中工具且无已批准待执行调用的 Assignment 等待 Human 审批时释放 live 运行名额。持久 activity 仍为 working，process-local executionWait 区分 waiting-human 与 waiting-capacity；最多 32 个等待中的 Assignment Session 使用独立上限。Human 决定提交后，原生 outcome 或下一模型 Step 必须先取得当前运行名额，实际工具执行前再次检查归属、Grant、原 Source Event 与准确操作。新建和空闲恢复仍在满额时立即拒绝；中止、停止与冷恢复均不重放原调用。同一 Orchestrator 的权限 continuation 与群聊隐私仍单独保持 gate。见 [ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md#live-approval-waits-and-running-permits)。
+
 Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原生 Settings schema 的 Volatile field 由 Profile Config Editor 持久化；UI Plugin 的 Host Fiber 将 live reader 绑定到 application-defined Assignment Runtime，并在 dispose 时释放绑定。Client 只展示 Host 确认的保存值；Runtime 在每次新建或恢复空闲事项的准入时读取当前值。保存后立即影响后续准入，重启后保留；降低上限不中止已有执行，直到使用量低于新上限才允许启动新工作（#825）。
 
 待处理 Workspace Grant 请求通过同一持久 Human-action 查询进入独立 Activity attention。只有经过校验的 Grant 关联 Human 回复、Inbox 忽略或来源 DM 移除才清除计数；普通授权文字不会清除。重启从已提交 action 重建计数，不伪造执行状态。
@@ -520,7 +522,7 @@ Custom Part 是有界像素网格，每格引用外形颜色或固定色并带�
 
 新 PersonaBot 记录全域名字种子版本；没有该记录的 PersonaBot 保持仅人类的种子。使用物种、新槽位或 Custom Part 的 recipe 提升 asset/schema 版本，旧 Client 显示保存的快照；既有 recipe 渲染不变。首个切片验证哥布林、左右侧发分片与一个自绘头饰，从编辑器到 Part Library、再到 Window Companion，并经过导出/导入。
 
-目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），以及自绘头发（#1238）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList` 和 `partLibraryAdd` 两个桥接方法使用它；编辑器提供铅笔、橡皮、四连通填充、中线镜像、前后两层、撤销重做和 1× 预览。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种、导入部件、PNG 部件文件和更多绘制工具尚未实现。
+目前已实现：哥布林、精灵、矮人、兽人和花物种，左右侧发分片，胡子，中世纪服装与头饰，全域种子（#1210、#1212–#1214），第一条 Custom Part 路径（#1211），自绘头发（#1238），自绘其他部件（#1240）、部件文件分享（#1215），以及完整绘制工具（#1216）。自绘的前发、侧发或后发会替换对应的内置部件，原来的选择仍会保留；其中发色的像素会像内置头发一样上阴影，所以编辑时从当前样式压平成的格子开始。自绘头饰的 recipe 是 asset version 3。Part Library 是 `avatar-part-library` 模块的 `avatar_part_library` 表（schema generation 73），以部件内容哈希为键，并保存名称、来源和父部件。Client 编辑器通过 `partLibraryList`、`partLibraryAdd`、`partLibraryExport` 和 `partLibraryImport` 四个桥接方法使用它；`part-file` 把单个部件编码为 ×8 预览 PNG，部件数据放在 `botharness-part` tEXt 块中，整个部件库导出为这种 PNG 的 zip，导入时校验每个块的 CRC 并按内容去重；导入 Bot 时其外形穿戴的部件以 `imported-bot` 来源加入部件库，作者为该 Bot 的显示名；编辑器提供带变亮／变暗明暗笔的铅笔、橡皮、四连通填充、按 Shift 锁定角度和正方形的直线与矩形、限定在区域内并带 4×4 或 2×2 Bayer 抖动的明暗渐变、可重新随机的 ±1 明暗杂色、Alt 点击或长按吸管、所有工具的中线镜像、前后两层、每次操作一步撤销（触屏双指撤销、三指重做）、触屏偏移光标和 1× 预览；每个工具的格子都由 BotPixel 计算，结果仍是外形颜色加明暗档位。外形嵌入部件副本，因此部件会随 `.botharness/bot.json` 和 Bot Zip 一起带走。动物物种和普通 PNG 导入尚未实现。
 
 ## 6 · 持久化、导出与恢复边界
 
@@ -781,6 +783,8 @@ EventSource 在暂时 HTTP 失败后进入终态 CLOSED 时，集合 owner 用�
 
 Client 独立的 `CompanionMotion` 拥有有界拖拽姿态、速度采样、连续重力、横向阻尼、轻微地面回弹与落地收敛。View 继续拥有既有帧循环，对人物变换做缓动；气泡跟随同一位置。调整窗口保留当前运动并重新收敛边界、协调拖拽原点，指针取消只匹配活动捕获。最终落地只保存归一化横向位置；减少动效时直接回到底部并关闭姿态效果。这些呈现动力学独立实现，参考 Coopanion 的拖拽/空中/落地交互概念，不引入其源码或美术。
 
+Avatar 为伙伴消费者提供可释放的锚点读取器：每次形象替换只采集一次受支持头部的局部顶部中心，既有可见帧循环只读取该局部组当前显示的屏幕矩阵，包含外层旋转、缩放及过渡中的变换原点。像素 Activity 覆盖使用相同头部区域点与 SVG 根矩阵；图片、未知 rig 或不可用的 SVG 几何使用可见 Avatar 盒子顶部中心。不逐帧扫描整个 SVG 边界，也不向 Host 发送姿态 RPC。`CompanionBubbles` 保留原始投射点，让直立卡片受视口、工具栏与多伙伴避让约束，偏移后用像素式连线保持来源关系。阅读延续既有位置与离开宽限；隐藏／离屏停止采样，形象替换／销毁清除读取器（[#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)）。
+
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 
 应用定义的 `WindowCompanions` 集合拥有 Profile 的钉选集合和共用容量，组合每个 Bot 独立的播放 owner 与运动 View。侧栏菜单与各 Bot 的 header 按钮均操作此集合，与 Channel 置顶无关。偏好从单选 v1 迁移到 v2；只持久化形象选择、来源/范围、位置、走动与容量。多个伙伴复用一条受认证 SSE，通过原生随机的临时 consumer ID 和同路径 POST 原子替换消费集合；控制句柄随流关闭释放，既不是身份也不是耐久权威。递增选择版本阻止迟到的基线初始化被替换的消费；增加或移除其他 Bot 不重置正在阅读的卡片。
@@ -794,3 +798,7 @@ Companion Feed 通过一条可释放的订阅直接观察已提交的 `bot-regis
 ### AX Client 启动证据
 
 应用定义的 Client 诊断 collector 扩展既有 ADR-0063／0064 开发者日志边界。在明确启用的 Host 中（隔离 AX launcher 只为自己的子进程启用），Host Cordis Fiber 通过原生 `webServer.tapIndex` 在 Client 导入前安装 observer，并在 `/api/botharness/client-diagnostics` 注册精确、经过认证的 Connection Fetch route。浏览器报告白名单错误／生命周期 code、顺序化文档 attempt、固定保留的首次失败与 shell 挂载记录及有界遗漏；Host 保留有界实时 read model，并将同一过程证据写入既有 `logs.db`。它不创建 SessionEvent、产品状态、额外 SSE 或操作权威。API 健康、已提交且可见的 shell 观测、新鲜度、真实浏览器 console／DOM 核验分别成立；未知、后台延后及失败证据不能隐式变成成功。见 [agent 核验流程](../dev/guides/client-startup-diagnostics.zh.md) 与 [#1184](https://github.com/BotHarness/DeepSeekBot/issues/1184)。
+
+### Provider-owned inline app setup (#1111)
+
+The optional application-defined `setupVersion: 1` / `describeSetup(channel)` capability on the public same-Host Service supplies only a versioned settings endpoint descriptor. The browser calls the Provider-owned `dsh-im/app-setup` management transport directly; BotHarness Host has no credential or QR-session command. Provider-owned bounded attempts retain setup state, create the account in `external-consumer` mode before its first connection, and return only its opaque account reference and authenticated `describeBot` projection. The Client hands the existing Binding command only provider/account reference and fingerprint; the existing identity owner revalidates it and acquires the exclusive intake Registration. Closing the dialog leaves the browser handle resumable for the Provider attempt's lifetime; cancellation prevents a not-yet-committed account, while an account already created remains available to bind. Older Providers keep the existing Settings-and-return path. This adds no operational schema, credential store or second message receiver. The candidate covers Lark credentials and WeChat QR/code setup. QR attempts use the same Provider-owned transport and bounded lifetime, refuse replacement of existing configured accounts, and are revoked with their originating Registration. Lark native DM/group replies are qualified on the earlier packaged candidate; native WeChat pairing and final visual/recording qualification remain required before #1111 is complete.

@@ -2,6 +2,12 @@ import { onboardingNewsAvailable } from './onboarding/search.js';
 import { nativeTimedQuestions } from './channels/native-timed-questions.js';
 import { createBotOnboarding, type BotOnboarding } from './onboarding/service.js';
 import { createPartLibrary, type PartLibrary } from './bots/part-library.js';
+import {
+  PART_SLOTS,
+  isAvatarAppearance,
+  wornAvatarPart,
+  type PartSlot,
+} from './bots/avatar-appearance.js';
 import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
 import { createProfileRecovery, type ProfileRecovery } from './portability/recovery.js';
 import { createProfileBackupHttp, PROFILE_BACKUP_PATH } from './portability/http.js';
@@ -321,6 +327,9 @@ export function createCore(
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
   let usage: UsageProjection | undefined;
+  const partLibrary = createPartLibrary({
+    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
+  });
   let registry: PersonaBotRegistry;
   let modelPresets: ModelPresetStore;
   let roster: RosterStore;
@@ -333,6 +342,15 @@ export function createCore(
         options.warn?.(
           `bot-registry-import initiator=host-startup phase=${event.phase} count=${event.count ?? 0} durationMs=${Math.round(event.durationMs)}`,
         ),
+      onAppearanceImported: (record) => {
+        const recipe = isAvatarAppearance(record.appearance) ? record.appearance.recipe : undefined;
+        if (recipe?.family !== 'illustrated') return;
+        for (const slot of Object.keys(PART_SLOTS) as PartSlot[]) {
+          const part = wornAvatarPart(recipe, slot);
+          if (part)
+            partLibrary.add({ part, name: '', origin: 'imported-bot', author: record.displayName });
+        }
+      },
       onDisplayNameChanged: () => {
         try {
           live?.publishRosterCommitted();
@@ -723,9 +741,6 @@ export function createCore(
     registry,
     channels,
   });
-  const partLibrary = createPartLibrary({
-    database: attachOperationalModule(operationalDatabase, 'avatar-part-library'),
-  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     deletions,
@@ -998,8 +1013,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
 
   ctx.on(
     'agent/pre-step',
-    async ({ agent }, next) =>
-      permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
+    async ({ agent, signal }, next) => {
+      try {
+        await core.runtime.ensureAssignmentCapacity?.(agent.session.id, signal);
+      } catch {
+        return { kind: 'reject' };
+      }
+      return permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' };
+    },
     { global: true },
   );
   toolApproval = new ChannelToolApproval(
@@ -1030,6 +1051,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       changed: (slug, count) => core.states.setApprovalCount(slug, count),
       warn: (message) => ctx.logger.warn(message),
     },
+    (sessionId, callId, signal) =>
+      core.runtime.beginAssignmentApprovalWait?.(sessionId, callId, signal),
   );
   ctx.effect(
     () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
@@ -1220,7 +1243,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
 
   ctx.tools.guard(({ agent, name, arguments: args, token }) => {
     const approvalGuard = approvedCalls.get(token);
-    approvedCalls.delete(token);
     if (approvalGuard && !approvalGuard(name, args))
       return 'Approval authority or operation changed before execution';
     const allowedOnce = approvalGuard !== undefined;
@@ -1237,9 +1259,45 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         );
   });
   ctx.on(
+    'tools/execute',
+    async (execution, next) => {
+      if (
+        execution.agent === undefined ||
+        core.ownership.resolve(execution.agent.session.id)?.rootRole !== 'assignment' ||
+        core.runtime.runAssignmentTool === undefined
+      )
+        return next();
+      return core.runtime.runAssignmentTool(
+        execution.agent.session.id,
+        execution.callId,
+        execution.token,
+        execution.signal,
+        () => {
+          const approvalGuard = approvedCalls.get(execution.token);
+          if (approvalGuard && !approvalGuard(execution.name, execution.arguments))
+            throw new Error('Approval authority or operation changed before execution');
+          const denial = grantToolExecutionDenial(
+            core,
+            execution.agent!.session,
+            ctx.get('sandboxPolicy'),
+            ctx.get('approval'),
+            execution.name,
+            execution.arguments,
+            approvalGuard !== undefined,
+          );
+          if (denial !== undefined) throw new Error(denial);
+          return next();
+        },
+      );
+    },
+    { global: true },
+  );
+  ctx.on(
     'tools/result',
     (execution) => {
       approvedCalls.delete(execution.token);
+      if (execution.agent !== undefined)
+        core.runtime.settleAssignmentTool?.(execution.agent.session.id, execution.callId);
     },
     { global: true },
   );

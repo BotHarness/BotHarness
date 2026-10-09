@@ -1,4 +1,4 @@
-import { createTestRegistry } from './registry-fixture.js';
+import { createTestRegistry, registryDatabase } from './registry-fixture.js';
 import { AssignmentInboxAcceptanceUncertainError } from '../src/runtime/assignment-delivery.js';
 import { join, dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
@@ -157,14 +157,15 @@ async function setup(
   dmChannelId: string;
 }> {
   const home = createTempRoot('botharness-assignment-collaboration-');
+  const owner = trackTestOwner(
+    mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+  );
+  trackTestOwner(registryDatabase(join(home, 'bots')));
   const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
   const dm = channels.getOrCreateDm('ada', 'Ada');
   if (dm === undefined) throw new Error('DM missing');
-  const owner = trackTestOwner(
-    mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
-  );
   const agents = new ManualAgents();
   const grants = createTestWorkspaceGrants(owner, home);
   const runtime = createBotRuntime({
@@ -207,6 +208,81 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('admits real runtime work during a native approval wait and gates the original resumption', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    try {
+      await admit('Start', 'capacity-start');
+      const original = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Original' });
+      if (original.outcome !== 'created') throw new Error('Original missing');
+      const signal = new AbortController().signal;
+      const wait = runtime.beginAssignmentApprovalWait!(
+        original.assignment.sessionId,
+        'call',
+        signal,
+      )!;
+      expect(runtime.getAssignment('ada', original.assignment.sessionId)?.executionWait).toBe(
+        'waiting-human',
+      );
+      await admit('Unrelated conversation', 'capacity-unrelated');
+      const other = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Other work' });
+      if (other.outcome !== 'created') throw new Error('Other missing');
+      expect(agents.started).toHaveLength(2);
+      expect(agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Overflow' }).outcome).toBe(
+        'capacity',
+      );
+      const resumed = vi.fn();
+      const resume = wait.resume().then(resumed);
+      await Promise.resolve();
+      expect(resumed).not.toHaveBeenCalled();
+      expect(runtime.getAssignment('ada', original.assignment.sessionId)?.executionWait).toBe(
+        'waiting-capacity',
+      );
+      agents.finish(other.assignment.sessionId);
+      await resume;
+      wait.release();
+      const effect = vi.fn(async () => 'original result');
+      await expect(
+        runtime.runAssignmentTool!(original.assignment.sessionId, 'call', Symbol(), signal, effect),
+      ).resolves.toBe('original result');
+      expect(effect).toHaveBeenCalledTimes(1);
+      expect(
+        runtime.getAssignment('ada', original.assignment.sessionId)?.executionWait,
+      ).toBeUndefined();
+      expect(agents.started).toHaveLength(2);
+    } finally {
+      await close();
+    }
+  });
+
+  it('refuses an approved original call after its Grant is revoked while capacity is occupied', async () => {
+    const { runtime, agents, grants, admit, close } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    try {
+      await admit('Start', 'capacity-revoke');
+      const original = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Original' });
+      if (original.outcome !== 'created') throw new Error('Original missing');
+      const signal = new AbortController().signal;
+      const wait = runtime.beginAssignmentApprovalWait!(
+        original.assignment.sessionId,
+        'call',
+        signal,
+      )!;
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Competitor' });
+      const refused = expect(wait.resume()).rejects.toThrow('authority');
+      grants.revoke('ada', TEST_GRANT_ID);
+      await refused;
+      wait.release();
+      const effect = vi.fn(async () => undefined);
+      await expect(
+        runtime.runAssignmentTool!(original.assignment.sessionId, 'call', Symbol(), signal, effect),
+      ).rejects.toThrow('authority');
+      expect(effect).not.toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
+
   it('retains two causally linked sources without a second completed wake', async () => {
     const { runtime, agents, owner, admit, close, channels } = await setup();
     try {
@@ -2139,9 +2215,13 @@ describe('Assignment collaboration', () => {
     owner.close();
   });
 
-  it.each([true, false])(
-    'admits one recovery Notice from a real working snapshot (progress Report: %s) without Assignment replay',
-    async (hasReport) => {
+  it.each([
+    [true, false],
+    [false, false],
+    [false, true],
+  ])(
+    'admits one recovery Notice from a real working snapshot (progress Report: %s, approval wait: %s) without Assignment replay',
+    async (hasReport, approvalWait) => {
       const { runtime, owner, home, agents, admit, close, dmChannelId, channels } = await setup({
         assignmentConcurrencyLimit: 1,
       });
@@ -2159,6 +2239,16 @@ describe('Assignment collaboration', () => {
         if (created.outcome !== 'created') throw new Error('Assignment was not created');
         const sessionId = created.assignment.sessionId;
         const run = agents.started[0]!.run;
+        if (approvalWait) {
+          expect(
+            runtime.beginAssignmentApprovalWait!(
+              sessionId,
+              'interrupted-call',
+              new AbortController().signal,
+            ),
+          ).toBeDefined();
+          expect(runtime.getAssignment('ada', sessionId)?.executionWait).toBe('waiting-human');
+        }
         if (hasReport)
           await run.report(
             { state: 'progress', summary: 'Evidence retained before interruption' },
@@ -2201,6 +2291,7 @@ describe('Assignment collaboration', () => {
           activity: 'error',
         });
         expect(recovered.getAssignment('ada', sessionId)?.continuityKey).toBeUndefined();
+        expect(recovered.getAssignment('ada', sessionId)?.executionWait).toBeUndefined();
         const after = createBotAttentionQuery(
           attachOperationalModule(reopened, 'active-crash-after'),
           channels,

@@ -24,6 +24,8 @@ records the qualification without changing ADR-0035's single-root invariant.
 [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) blocks the missing
 supported continuation mechanism; #1037/#1038 production delivery remains gated.
 
+The [#1037 capacity candidate](../research/1037-assignment-approval-capacity.md) now tests a narrower independent-Assignment path on RC1: keep the original native approval open, release only a quiescent root’s application running permit, and reacquire it before returning the outcome or executing a tool/model step. Roots with descendants retain their permits conservatively. This adds no same-Orchestrator suspension mechanism and does not clear the overall continuation or privacy gates.
+
 ## Three graphs
 
 Keep these graphs explicit in architecture diagrams and data models.

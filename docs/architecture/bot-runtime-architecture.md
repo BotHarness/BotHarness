@@ -23,6 +23,8 @@ Admission 和 steering 接受不等于模型处理，原操作决定并返回后
 [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220) 阻塞缺失的受支持机制；
 #1037／#1038 生产 continuation 仍保持 gate。
 
+[#1037 容量候选](../research/1037-assignment-approval-capacity.md) 在 RC1 上验证更窄的独立 Assignment 路径：保留原生审批等待，只释放已静止 root 的 application 运行名额，在返回 outcome 或执行工具／模型 Step 前重新取得名额；有后代的 root 保守占用名额。这没有新增同一 Orchestrator 的挂起机制，也不解除整体 continuation 或隐私 gate。
+
 ## 三张图
 
 在架构图和数据模型中始终显式分开以下三张图。

@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
-import { errorMessage } from './bridge.js';
+import { errorMessage, type ToolApprovalExecutionState } from './bridge.js';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type ChannelMessage } from './store.js';
@@ -36,6 +36,7 @@ export function ToolApprovalCard({
   const [busy, setBusy] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [executionState, setExecutionState] = useState<ToolApprovalExecutionState | undefined>();
   const [retry, setRetry] = useState(0);
   const target = useRef(companionTarget);
   target.current = companionTarget;
@@ -54,13 +55,31 @@ export function ToolApprovalCard({
   };
   const approvalMount = useMountedResource<HTMLDivElement>(() => {
     mounted.current = true;
-    if (decision !== undefined) {
-      setStatus('decided');
-      return;
-    }
+    if (effectiveDecision !== undefined) setStatus('decided');
     if (botSlug === undefined) return;
     let active = true;
-    if (companionTarget) setStatus('loading');
+    let poll: ReturnType<typeof setTimeout> | undefined;
+    if (companionTarget && effectiveDecision === undefined) setStatus('loading');
+    const refreshExecution = (): void => {
+      if (request.role !== 'assignment' || actions.toolApprovalExecutionState === undefined) return;
+      void actions.toolApprovalExecutionState('dm-' + botSlug, message.id).then(
+        (value) => {
+          if (!active) return;
+          setExecutionState(value);
+          if (
+            value === 'waiting-human' ||
+            value === 'waiting-capacity' ||
+            (value === 'running' && effectiveDecision === undefined)
+          )
+            poll = setTimeout(refreshExecution, 1000);
+        },
+        () => {
+          if (!active) return;
+          setExecutionState(undefined);
+          poll = setTimeout(refreshExecution, 2000);
+        },
+      );
+    };
     const refreshStatus = (): void => {
       void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
         (value) => {
@@ -78,14 +97,16 @@ export function ToolApprovalCard({
     const onGrantChanged = (event: Event): void => {
       if ((event as CustomEvent<{ slug: string }>).detail?.slug === botSlug) refreshStatus();
     };
-    refreshStatus();
+    if (effectiveDecision === undefined) refreshStatus();
+    refreshExecution();
     window.addEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
     return () => {
       active = false;
       mounted.current = false;
+      clearTimeout(poll);
       window.removeEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
     };
-  }, [actions, botSlug, decision, message.id, companionTarget?.live, retry]);
+  }, [actions, botSlug, effectiveDecision, message.id, request.role, companionTarget?.live, retry]);
   const decide = (
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): void => {
@@ -218,6 +239,19 @@ export function ToolApprovalCard({
           <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(false)}>
             {t('approval.cancel')}
           </Button>
+        </div>
+      ) : null}
+      {executionState === 'waiting-human' ||
+      executionState === 'waiting-capacity' ||
+      executionState === 'needs-repair' ? (
+        <div role="status" className="bh-note">
+          {t(
+            executionState === 'waiting-human'
+              ? 'approval.waitingHumanCapacity'
+              : executionState === 'waiting-capacity'
+                ? 'approval.waitingCapacity'
+                : 'approval.needsRepair',
+          )}
         </div>
       ) : null}
       {error === undefined ? null : (

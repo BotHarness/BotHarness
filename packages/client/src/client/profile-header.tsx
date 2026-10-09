@@ -191,7 +191,12 @@ function AvatarModal({
   channel: ChannelSummary;
   actions: Pick<
     BridgeActions,
-    'setBotAppearance' | 'setBotAvatar' | 'loadPartLibrary' | 'addLibraryPart'
+    | 'setBotAppearance'
+    | 'setBotAvatar'
+    | 'loadPartLibrary'
+    | 'addLibraryPart'
+    | 'exportLibraryParts'
+    | 'importLibraryParts'
   >;
   t: BotHarnessTranslate;
   onClose(): void;
@@ -219,7 +224,12 @@ function AvatarModal({
         bot={bot}
         channelId={channel.id}
         onSave={actions.setBotAppearance}
-        library={{ load: actions.loadPartLibrary, add: actions.addLibraryPart }}
+        library={{
+          load: actions.loadPartLibrary,
+          add: actions.addLibraryPart,
+          exportParts: actions.exportLibraryParts,
+          importParts: actions.importLibraryParts,
+        }}
         onUpload={() => input.current?.click()}
         onRemoveImage={() => void removeImage()}
         imageBusy={busy}
