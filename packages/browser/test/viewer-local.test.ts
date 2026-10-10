@@ -113,6 +113,8 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('createImageBitmap');
     expect(page).toContain('x-viewport-width');
     expect(page).toContain("get('mode')");
+    expect(page).toContain('id="ghost"');
+    expect(page).toContain('id="modRow"');
     expect(page).toContain('Trackpad');
     expect(page).toContain('Direct tap');
     expect(page).toContain('id="kbd"');
@@ -154,9 +156,71 @@ describe('local browser viewer stream', () => {
       200,
       expect.objectContaining({ 'content-type': 'application/json' }),
     );
-    expect(f.clickAt).toHaveBeenCalledWith('tab-1', 120, 240);
+    expect(f.clickAt).toHaveBeenCalledWith('tab-1', 120, 240, 'left');
     expect(f.touch).toHaveBeenCalledWith('qa');
     expect(JSON.parse(String(response.end.mock.calls[0]?.[0]))).toMatchObject({ ok: true });
+    f.dispose();
+  });
+
+  it('forwards right clicks when held', async () => {
+    const f = fixture();
+    const response = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/input`,
+      'POST',
+      {},
+      {
+        slug: 'qa',
+        kind: 'click',
+        x: 120,
+        y: 240,
+        button: 'right',
+      },
+    );
+    expect(response.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'content-type': 'application/json' }),
+    );
+    expect(f.clickAt).toHaveBeenCalledWith('tab-1', 120, 240, 'right');
+    f.dispose();
+  });
+
+  it('rejects an unknown click button', async () => {
+    const f = fixture();
+    const response = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/input`,
+      'POST',
+      {},
+      {
+        slug: 'qa',
+        kind: 'click',
+        x: 120,
+        y: 240,
+        button: 'middle',
+      },
+    );
+    expect(response.writeHead).toHaveBeenCalledWith(400, expect.anything());
+    expect(f.clickAt).not.toHaveBeenCalled();
+    f.dispose();
+  });
+
+  it('forwards key chords with modifiers and drops unknown ones', async () => {
+    const f = fixture();
+    const response = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/input`,
+      'POST',
+      {},
+      {
+        slug: 'qa',
+        kind: 'key',
+        key: 'c',
+        modifiers: ['meta', 'nope'],
+      },
+    );
+    expect(response.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'content-type': 'application/json' }),
+    );
+    expect(f.pressKey).toHaveBeenCalledWith('tab-1', 'c', ['meta']);
     f.dispose();
   });
 
@@ -216,7 +280,7 @@ describe('local browser viewer stream', () => {
         key: 'Enter',
       },
     );
-    expect(f.pressKey).toHaveBeenCalledWith('tab-1', 'Enter');
+    expect(f.pressKey).toHaveBeenCalledWith('tab-1', 'Enter', []);
     expect(JSON.parse(String(response.end.mock.calls[0]?.[0]))).toMatchObject({ ok: true });
     f.dispose();
   });

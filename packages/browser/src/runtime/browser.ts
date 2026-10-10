@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 
 import { jpegDimensions } from '../jpeg.js';
-import { browserKey } from './keyboard.js';
+import { browserKey, modifierMask, type BrowserModifier } from './keyboard.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -88,10 +88,10 @@ export interface BotBrowserRuntime {
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
   observe(tabId: string): Promise<BrowserObservation>;
   click(tabId: string, ref: string): Promise<BrowserTab>;
-  clickAt(tabId: string, x: number, y: number): Promise<BrowserTab>;
+  clickAt(tabId: string, x: number, y: number, button?: 'left' | 'right'): Promise<BrowserTab>;
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
   insertText(tabId: string, text: string): Promise<BrowserTab>;
-  pressKey(tabId: string, key: string): Promise<BrowserTab>;
+  pressKey(tabId: string, key: string, modifiers?: readonly BrowserModifier[]): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
   uploadFile(tabId: string, options: { ref?: string; path: string }): Promise<void>;
   createTab(url: string): Promise<BrowserTab>;
@@ -608,19 +608,24 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     }
   };
 
-  const dispatchMouseClick = async (sessionId: string, x: number, y: number): Promise<void> => {
+  const dispatchMouseClick = async (
+    sessionId: string,
+    x: number,
+    y: number,
+    button: 'left' | 'right' = 'left',
+  ): Promise<void> => {
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
     await prepareInput(sessionId);
     await live.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId);
     await live.send(
       'Input.dispatchMouseEvent',
-      { type: 'mousePressed', x, y, button: 'left', clickCount: 1 },
+      { type: 'mousePressed', x, y, button, clickCount: 1 },
       sessionId,
     );
     await live.send(
       'Input.dispatchMouseEvent',
-      { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 },
+      { type: 'mouseReleased', x, y, button, clickCount: 1 },
       sessionId,
     );
   };
@@ -674,7 +679,12 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId, url: page.url, title: page.title };
   };
 
-  const clickAt = async (tabId: string, x: number, y: number): Promise<BrowserTab> => {
+  const clickAt = async (
+    tabId: string,
+    x: number,
+    y: number,
+    button: 'left' | 'right' = 'left',
+  ): Promise<BrowserTab> => {
     const sessionId = await attach(tabId);
     const bounds = asObject(
       await evaluate(sessionId, '({ width: window.innerWidth, height: window.innerHeight })'),
@@ -690,7 +700,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         `The coordinates ${Math.round(x)},${Math.round(y)} are outside the viewport (${width}x${height}); take a fresh browser_screenshot and use its coordinates`,
       );
     }
-    await dispatchMouseClick(sessionId, x, y);
+    await dispatchMouseClick(sessionId, x, y, button);
     await waitForReady(sessionId);
     const page = await readPage(sessionId);
     lastUrl = page.url;
@@ -700,21 +710,32 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const type = (tabId: string, ref: string, text: string): Promise<BrowserTab> =>
     runInteraction(tabId, typeScript(ref, text));
 
-  const pressKey = async (tabId: string, key: string): Promise<BrowserTab> => {
+  const pressKey = async (
+    tabId: string,
+    key: string,
+    modifiers: readonly BrowserModifier[] = [],
+  ): Promise<BrowserTab> => {
     const { text, ...definition } = browserKey(key);
+    const mask = modifierMask(modifiers);
+    const chord = (mask & 0b110) !== 0;
     const sessionId = await attach(tabId);
     const live = client;
     if (!live) throw new Error('Bot Browser is not connected');
     await prepareInput(sessionId);
     const release = (): Promise<Record<string, unknown>> =>
-      live.send('Input.dispatchKeyEvent', { type: 'keyUp', ...definition }, sessionId);
+      live.send(
+        'Input.dispatchKeyEvent',
+        { type: 'keyUp', ...definition, ...(mask === 0 ? {} : { modifiers: mask }) },
+        sessionId,
+      );
     try {
       await live.send(
         'Input.dispatchKeyEvent',
         {
-          type: text ? 'keyDown' : 'rawKeyDown',
+          type: text !== undefined && !chord ? 'keyDown' : 'rawKeyDown',
           ...definition,
-          ...(text ? { text, unmodifiedText: text } : {}),
+          ...(mask === 0 ? {} : { modifiers: mask }),
+          ...(text !== undefined && !chord ? { text, unmodifiedText: text } : {}),
         },
         sessionId,
       );

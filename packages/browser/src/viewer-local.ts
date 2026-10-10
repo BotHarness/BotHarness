@@ -30,14 +30,19 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #cursor{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;pointer-events:none;display:none}
 #scrollRow{display:flex;gap:8px;padding:8px 2px}
 .scrollBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:14px;padding:8px;cursor:pointer}
-#kbdRow{position:sticky;bottom:0;display:flex;gap:8px;padding:8px 2px;background:#101014}
+#kbdRow{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;padding:8px 2px;background:#101014}
+#modRow{display:flex;gap:8px}
+.modBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:15px;padding:8px 4px;cursor:pointer}
+.modBtn.armed{background:#356;border-color:#6af;color:#fff}
+#typeRow{display:flex;gap:8px}
+#ghost{position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;border:0;padding:0;pointer-events:none}
 #kbd{flex:1;border:1px solid #555;border-radius:14px;background:#1a1a1f;color:#fff;font-size:14px;padding:8px 12px;min-width:0}
 .keyBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:8px 12px;cursor:pointer}
 #status{font-size:12px;opacity:.7;padding:8px 2px;min-height:16px}
 </style>
 </head>
 <body>
-<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button><button class="keyBtn" id="enterBtn" type="button">Enter</button><button class="keyBtn" id="tabBtn" type="button">Tab</button><button class="keyBtn" id="escBtn" type="button">Esc</button></div><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button><button class="keyBtn" id="hideBtn" type="button">⌨</button></div><div id="typeRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1"><div id="status"></div></div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
@@ -51,10 +56,20 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const upBtn = document.getElementById('upBtn');
   const downBtn = document.getElementById('downBtn');
   const kbd = document.getElementById('kbd');
+  const ghost = document.getElementById('ghost');
+  const ghostField = ghost instanceof HTMLInputElement ? ghost : null;
   const sendBtn = document.getElementById('sendBtn');
   const enterBtn = document.getElementById('enterBtn');
-  const tabBtn = document.getElementById('tabBtn');
-  const escBtn = document.getElementById('escBtn');
+  const backBtn = document.getElementById('backBtn');
+  const hideBtn = document.getElementById('hideBtn');
+  const scrollRow = document.getElementById('scrollRow');
+  const kbdRow = document.getElementById('kbdRow');
+  const modBtns = {
+    meta: document.getElementById('modMeta'),
+    ctrl: document.getElementById('modCtrl'),
+    alt: document.getElementById('modAlt'),
+    shift: document.getElementById('modShift'),
+  };
   const handoffBox = document.getElementById('handoff');
   const handoffText = document.getElementById('handoffText');
   const doneBtn = document.getElementById('doneBtn');
@@ -104,6 +119,32 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   if (failBtn) failBtn.addEventListener('click', () => void finishHandoff('failed'));
   let mode = window.innerWidth < 768 && window.matchMedia('(pointer: coarse)').matches ? 'trackpad' : 'direct';
   if (modeOverride !== undefined) mode = modeOverride;
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+  const armed = { meta: false, ctrl: false, alt: false, shift: false };
+  function armedMods() {
+    const out = [];
+    if (armed.meta) out.push('meta');
+    if (armed.ctrl) out.push('ctrl');
+    if (armed.alt) out.push('alt');
+    if (armed.shift) out.push('shift');
+    return out;
+  }
+  function disarm() {
+    armed.meta = false;
+    armed.ctrl = false;
+    armed.alt = false;
+    armed.shift = false;
+    for (const key of Object.keys(modBtns)) {
+      const btn = modBtns[key];
+      if (btn) btn.classList.remove('armed');
+    }
+  }
+  function layoutRows() {
+    const bare = mode === 'direct' && finePointer;
+    if (scrollRow) scrollRow.style.display = bare ? 'none' : '';
+    if (kbdRow) kbdRow.style.display = bare ? 'none' : '';
+    return bare;
+  }
   let cx = 0;
   let cy = 0;
   let viewW = 0;
@@ -115,8 +156,9 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   function paint() {
     if (modeBtn) modeBtn.textContent = mode === 'trackpad' ? 'Trackpad: on' : 'Direct tap';
-    if (hint) hint.textContent = mode === 'trackpad' ? 'Swipe moves the cursor, tap clicks' : 'Tap clicks, swipe scrolls';
+    if (hint) hint.textContent = mode === 'trackpad' ? 'Swipe moves the cursor, tap clicks, long-press right-clicks' : 'Tap clicks, long-press right-clicks, swipe scrolls, type on your keyboard';
     if (cursor) cursor.style.display = mode === 'trackpad' ? 'block' : 'none';
+    layoutRows();
     place();
   }
   function place() {
@@ -212,28 +254,110 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   });
   if (upBtn) upBtn.addEventListener('click', () => void send({ kind: 'scroll', direction: 'up', amount: 600 }));
   if (downBtn) downBtn.addEventListener('click', () => void send({ kind: 'scroll', direction: 'down', amount: 600 }));
+  function focusGhost() {
+    if (ghostField) {
+      try {
+        ghostField.focus({ preventScroll: true });
+      } catch {
+        ghostField.focus();
+      }
+    }
+  }
   async function sendText() {
     if (!kbd || !(kbd instanceof HTMLInputElement)) return;
     const value = kbd.value;
     if (value === '') return;
     kbd.value = '';
+    const mods = armedMods();
+    disarm();
+    if (mods.length > 0 && value.length === 1) {
+      await send({ kind: 'key', key: value, modifiers: mods });
+      return;
+    }
     await send({ kind: 'type', text: value });
   }
+  async function pressControl(key) {
+    const mods = armedMods();
+    disarm();
+    await send(mods.length === 0 ? { kind: 'key', key } : { kind: 'key', key, modifiers: mods });
+  }
   if (sendBtn) sendBtn.addEventListener('click', () => void sendText());
-  if (kbd) kbd.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
+  if (kbd) {
+    kbd.addEventListener('input', (event) => {
+      if (event.isComposing) return;
       void sendText();
+    });
+    kbd.addEventListener('compositionend', () => void sendText());
+    kbd.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const mods = armedMods();
+        disarm();
+        if (mods.length === 0) void sendText();
+        else void send({ kind: 'key', key: 'Enter', modifiers: mods });
+      }
+    });
+  }
+  if (ghostField) {
+    ghostField.addEventListener('input', (event) => {
+      if (event.isComposing) return;
+      const value = ghostField.value;
+      if (value === '') return;
+      ghostField.value = '';
+      void send({ kind: 'type', text: value });
+    });
+    ghostField.addEventListener('compositionend', () => {
+      const value = ghostField.value;
+      if (value === '') return;
+      ghostField.value = '';
+      void send({ kind: 'type', text: value });
+    });
+  }
+  const deadKeys = ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'Fn', 'FnLock', 'Hyper', 'Super', 'Symbol', 'SymbolLock', 'Process', 'Unidentified'];
+  document.addEventListener('keydown', (event) => {
+    if (layoutRows()) {
+      const target = event.target;
+      const inField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+      if (deadKeys.includes(event.key)) return;
+      const mods = [];
+      if (event.ctrlKey) mods.push('ctrl');
+      if (event.metaKey) mods.push('meta');
+      if (event.altKey) mods.push('alt');
+      const control = event.key.length > 1 || mods.length > 0;
+      if (!control) {
+        if (!inField) focusGhost();
+        return;
+      }
+      event.preventDefault();
+      const full = [...mods];
+      if (event.shiftKey && !full.includes('shift') && (event.key.length > 1 || mods.length > 0)) full.push('shift');
+      void send(full.length === 0 ? { kind: 'key', key: event.key } : { kind: 'key', key: event.key, modifiers: full });
     }
   });
-  if (enterBtn) enterBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Enter' }));
-  if (tabBtn) tabBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Tab' }));
-  if (escBtn) escBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Escape' }));
+  for (const key of Object.keys(modBtns)) {
+    const btn = modBtns[key];
+    if (btn) btn.addEventListener('click', () => {
+      armed[key] = !armed[key];
+      btn.classList.toggle('armed', armed[key]);
+    });
+  }
+  if (enterBtn) enterBtn.addEventListener('click', () => void pressControl('Enter'));
+  if (backBtn) backBtn.addEventListener('click', () => void pressControl('Backspace'));
+  if (hideBtn) hideBtn.addEventListener('click', () => {
+    disarm();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  let suppressClick = false;
   if (surface) {
     surface.addEventListener('click', (event) => {
+      if (suppressClick) {
+        suppressClick = false;
+        return;
+      }
       if (mode !== 'direct') return;
       const point = pagePoint(event.clientX, event.clientY);
       if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+      if (layoutRows()) focusGhost();
     });
     surface.addEventListener('wheel', (event) => {
       event.preventDefault();
@@ -253,22 +377,30 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     let startT = 0;
     let moved = 0;
     let tracking = false;
+    let downType = '';
     stage.addEventListener('pointerdown', (event) => {
-      if (mode !== 'trackpad') return;
       tracking = true;
+      downType = event.pointerType;
       startX = event.clientX;
       startY = event.clientY;
       startCx = cx;
       startCy = cy;
       startT = Date.now();
       moved = 0;
-      stage.setPointerCapture(event.pointerId);
+      if (mode === 'trackpad') {
+        try {
+          stage.setPointerCapture(event.pointerId);
+        } catch {
+          void 0;
+        }
+      }
     });
     stage.addEventListener('pointermove', (event) => {
-      if (!tracking || mode !== 'trackpad') return;
+      if (!tracking) return;
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
       moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+      if (mode !== 'trackpad') return;
       cx = startCx + dx;
       cy = startCy + dy;
       place();
@@ -276,43 +408,34 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     stage.addEventListener('pointerup', (event) => {
       if (!tracking) return;
       tracking = false;
-      if (mode !== 'trackpad') return;
-      if (moved < 12 && Date.now() - startT < 400) {
-        const point = cursorPoint();
-        if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+      const held = Date.now() - startT;
+      const still = moved < 12;
+      if (mode === 'trackpad') {
+        if (still && held < 400) {
+          const point = cursorPoint();
+          if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+        } else if (still && held >= 500) {
+          const point = cursorPoint();
+          if (point !== null) void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
+        }
+        return;
       }
-    });
-    let touchX = 0;
-    let touchY = 0;
-    let touchT = 0;
-    let touchMoved = 0;
-    stage.addEventListener('touchstart', (event) => {
-      if (mode !== 'direct' || event.touches.length !== 1) return;
-      const touch = event.touches[0];
-      if (!touch) return;
-      touchX = touch.clientX;
-      touchY = touch.clientY;
-      touchT = Date.now();
-      touchMoved = 0;
-    }, { passive: true });
-    stage.addEventListener('touchmove', (event) => {
-      if (mode !== 'direct' || event.touches.length !== 1) return;
-      const touch = event.touches[0];
-      if (!touch) return;
-      touchMoved = Math.max(touchMoved, Math.abs(touch.clientX - touchX) + Math.abs(touch.clientY - touchY));
-    }, { passive: true });
-    stage.addEventListener('touchend', (event) => {
-      if (mode !== 'direct') return;
-      const touch = event.changedTouches[0];
-      if (!touch) return;
-      if (touchMoved < 12 && Date.now() - touchT < 400) {
-        const point = pagePoint(touch.clientX, touch.clientY);
-        if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
-      } else if (touchMoved >= 24) {
-        const dy = touchY - touch.clientY;
+      if (still && held >= 500) {
+        const point = pagePoint(event.clientX, event.clientY);
+        if (point !== null) {
+          suppressClick = true;
+          void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
+        }
+        return;
+      }
+      if (!still && moved >= 24 && downType !== 'mouse') {
+        const dy = startY - event.clientY;
         const amount = Math.max(100, Math.min(1500, Math.round(Math.abs(dy) * 2)));
         void send({ kind: 'scroll', direction: dy > 0 ? 'down' : 'up', amount });
       }
+    });
+    stage.addEventListener('pointercancel', () => {
+      tracking = false;
     });
   }
   window.addEventListener('resize', place);
@@ -540,9 +663,17 @@ export function registerLocalViewer(options: {
               response.end('x and y are required');
               return;
             }
+            const button = body['button'];
+            if (button !== undefined && button !== 'left' && button !== 'right') {
+              response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+              response.end('button must be left or right');
+              return;
+            }
             options.touch(slug);
-            const page = await runtime.clickAt(tabId, x, y);
-            options.note(`viewer click slug=${slug}`);
+            const page = await runtime.clickAt(tabId, x, y, button === 'right' ? 'right' : 'left');
+            options.note(
+              `viewer click slug=${slug} button=${button === 'right' ? 'right' : 'left'}`,
+            );
             options.takeover.recordInput(slug, `click x=${x} y=${y}`);
             response.writeHead(200, {
               'content-type': 'application/json',
@@ -591,9 +722,16 @@ export function registerLocalViewer(options: {
               return;
             }
             options.touch(slug);
-            const page = await runtime.pressKey(tabId, key);
-            options.note(`viewer key slug=${slug} key=${key.slice(0, 32)}`);
-            options.takeover.recordInput(slug, `key ${key.slice(0, 32)}`);
+            const modifiers = Array.isArray(body['modifiers'])
+              ? body['modifiers'].filter(
+                  (entry): entry is 'alt' | 'ctrl' | 'meta' | 'shift' =>
+                    entry === 'alt' || entry === 'ctrl' || entry === 'meta' || entry === 'shift',
+                )
+              : [];
+            const page = await runtime.pressKey(tabId, key, modifiers);
+            const modText = modifiers.length === 0 ? '' : `+${modifiers.join('+')}`;
+            options.note(`viewer key slug=${slug} key=${key.slice(0, 32)}${modText}`);
+            options.takeover.recordInput(slug, `key ${key.slice(0, 32)}${modText}`);
             response.writeHead(200, {
               'content-type': 'application/json',
               'cache-control': 'no-store',

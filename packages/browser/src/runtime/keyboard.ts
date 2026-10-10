@@ -36,6 +36,19 @@ const PUNCTUATION: readonly [string, string, number][] = [
   ['\'"', 'Quote', 222],
 ];
 
+export type BrowserModifier = 'alt' | 'ctrl' | 'meta' | 'shift';
+
+export function modifierMask(modifiers: readonly string[]): number {
+  let mask = 0;
+  for (const modifier of modifiers) {
+    if (modifier === 'alt') mask |= 1;
+    else if (modifier === 'ctrl') mask |= 2;
+    else if (modifier === 'meta') mask |= 4;
+    else if (modifier === 'shift') mask |= 8;
+  }
+  return mask;
+}
+
 export function browserKey(input: string): BrowserKey {
   const named = Object.hasOwn(NAMED_KEYS, input) ? NAMED_KEYS[input] : undefined;
   if (named !== undefined) {
