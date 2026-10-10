@@ -24,6 +24,8 @@ Real Feishu credential acceptance and a phone verification challenge were not ex
 
 ## Regression and repeat path
 
+Cancelling the already ready WeChat attempt preserved `ready` and `connected: true`, confirming native account retention. Independent Standards/Spec review found two gaps before publication: connection/login failures lost the known attempt receipt, and a shape-valid Provider response could echo a submitted secret in an allowed identity field. Both were fixed with regression coverage, including Host-down/refused login and credential/code echoes. The existing Messaging apps RPC test also leaked its directly created database owner, causing Windows cleanup `EPERM`; it now registers that owner with the existing teardown helper, and both tests pass.
+
 Targeted CLI tests cover existing P1 creation and P2 send behavior alongside the new Provider-owned flow, including protocol mismatch, unsupported capability, cross-invocation polling, terminal failures, bounded deadlines and same-attempt/platform correlation. Typecheck, lint/source policy, bilingual ledgers, formatting and production build are required before publication.
 
 After a verified isolated Host launch and `pnpm build`, run `im-apps`, `im-authorize weixin`, display `authorization.qrDataUrl`, and scan/confirm on a phone. Poll the returned ID; do not start another attempt on a command timeout. Feishu uses `im-authorize feishu` followed by private JSON stdin with `appId`, `appSecret` and `domain`. Do not put credentials or phone codes in arguments or chat. The Provider expiry is at most ten minutes and can be shortened by native provisioning.

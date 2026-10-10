@@ -215,7 +215,20 @@ export async function runLiveCli(
   if (IM_COMMANDS.some((entry) => entry.command === command)) {
     const operation = await prepareImAuthorization(command, rest, values, io);
     const signal = AbortSignal.timeout(timeoutMs(values.timeout));
-    return runImAuthorization(operation, await connect(values, io, signal), signal);
+    try {
+      return await runImAuthorization(operation, await connect(values, io, signal), signal);
+    } catch (error) {
+      if (
+        error instanceof CliLiveError &&
+        !error.authorization &&
+        command !== 'im-apps' &&
+        command !== 'im-authorize'
+      )
+        throw new CliLiveError(error.code, error.message, undefined, {
+          attemptId: operation.target,
+        });
+      throw error;
+    }
   }
   const noTarget = command === 'release-info' || command === 'workspace-options';
   if (rest.length !== (noTarget ? 0 : 1))

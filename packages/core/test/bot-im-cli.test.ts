@@ -75,11 +75,11 @@ async function host(handler: (method: string, payload: Record<string, unknown>) 
   return { url: `http://127.0.0.1:${address.port}`, calls };
 }
 
-async function invoke(argv: string[], url?: string, stdin = '') {
+async function invoke(argv: string[], url?: string, stdin = '', token = 'private-host-token') {
   const stdout: string[] = [];
   const stderr: string[] = [];
   const code = await runBotCreateCli(argv, {
-    env: { DEEPSEEKBOT_HOST: url, DEEPSEEKBOT_HOST_TOKEN: 'private-host-token' },
+    env: { DEEPSEEKBOT_HOST: url, DEEPSEEKBOT_HOST_TOKEN: token },
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     readStdin: async () => stdin,
@@ -94,6 +94,74 @@ async function invoke(argv: string[], url?: string, stdin = '') {
 }
 
 describe('Provider-owned IM application authorization CLI', () => {
+  it.each(['pairing-status', 'im-cancel'])(
+    'retains an attempt when the Host is down: %s',
+    async (command) => {
+      const result = await invoke([command, 'attempt-1', '--timeout', '0.1'], 'http://127.0.0.1:1');
+      expect(result.json).toMatchObject({
+        error: { code: 'host-unreachable' },
+        authorization: { attemptId: 'attempt-1' },
+      });
+    },
+  );
+
+  it('retains an attempt when Host authority is missing', async () => {
+    const result = await invoke(['pairing-status', 'attempt-1'], 'http://127.0.0.1:1', '', '');
+    expect(result.json).toMatchObject({
+      error: { code: 'host-unauthorized' },
+      authorization: { attemptId: 'attempt-1' },
+    });
+  });
+
+  it('retains an attempt when Host login refuses its token', async () => {
+    const server = createServer((_req, res) => res.writeHead(403).end());
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('missing address');
+    const result = await invoke(
+      ['pairing-status', 'attempt-1'],
+      `http://127.0.0.1:${address.port}`,
+    );
+    expect(result.json).toMatchObject({
+      error: { code: 'host-unauthorized' },
+      authorization: { attemptId: 'attempt-1' },
+    });
+  });
+
+  it.each([
+    'private-app-secret',
+    'account-private-app-secret',
+    'account-private-app-secret%20suffix',
+  ])('refuses secret echoes in otherwise valid account identity: %s', async (accountRef) => {
+    const value = ready('feishu');
+    value.accountRef = accountRef;
+    value.description.botId = accountRef;
+    const live = await host(() => ({ ok: true, value }));
+    const result = await invoke(
+      ['im-credentials', 'attempt-1', '--credentials-stdin'],
+      live.url,
+      JSON.stringify({ appId: 'cli_test', appSecret: 'private-app-secret', domain: 'feishu' }),
+    );
+    expect(result.json).toMatchObject({
+      error: { code: 'host-protocol-error' },
+      authorization: { attemptId: 'attempt-1' },
+    });
+  });
+
+  it('refuses verification echoes in allowed success fields', async () => {
+    const value = ready();
+    value.accountRef = 'account-593827';
+    value.description.botId = value.accountRef;
+    const live = await host(() => ({ ok: true, value }));
+    const result = await invoke(
+      ['im-verify', 'attempt-1', '--verification-stdin'],
+      live.url,
+      '593827',
+    );
+    expect(result.json.error.code).toBe('host-protocol-error');
+  });
+
   it('discovers qualified flows without passing Provider endpoint names from argv', async () => {
     const live = await host(() => ({
       ok: true,

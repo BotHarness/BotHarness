@@ -254,11 +254,29 @@ export async function runImAuthorization(
         : undefined;
   const call = async (name: string, input: Record<string, unknown>): Promise<Authorization> => {
     try {
-      return project(
+      const authorization = project(
         await rpc('dsh-im/app-setup', { method: name, payload: input }),
         knownId,
         platform,
       );
+      const secrets = [operation.credentials?.appSecret, operation.verifyCode].filter(
+        (value): value is string => value !== undefined,
+      );
+      const exposed = [
+        authorization.attemptId,
+        authorization.accountRef,
+        authorization.fingerprint,
+        authorization.qrDataUrl,
+      ];
+      if (
+        exposed.some((value) =>
+          secrets.some(
+            (secret) => value?.includes(secret) || value?.includes(encodeURIComponent(secret)),
+          ),
+        )
+      )
+        invalidResponse();
+      return authorization;
     } catch (error) {
       const allowed = [
         'usage',
