@@ -1,13 +1,13 @@
 import { join } from 'node:path';
 
-const BASE_BUNDLES = [
-  '@deepseek-ai/dsh-base',
-  '@deepseek-ai/dsh-web-app',
-  'deepseekbot',
-  '@botharness/computer',
+const BASE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'deepseekbot'];
+const OWNED_BUNDLES = new Set([
+  ...BASE_BUNDLES,
   '@botharness/browser',
-];
-const OWNED_BUNDLES = new Set([...BASE_BUNDLES, '@botharness/core', '@botharness/ui']);
+  '@botharness/computer',
+  '@botharness/core',
+  '@botharness/ui',
+]);
 
 export function developmentProfileManifest(manifest, worktree) {
   const packages = join(worktree, 'packages');

@@ -40,7 +40,7 @@ function fixture(productVersion = '0.1.0-alpha.1') {
       manifest.dsh = { bundle: { patch: './cordis.im.patch.yml' } };
       writeFileSync(
         join(dir, 'package/cordis.im.patch.yml'),
-        "- insert:\n    - id: xmanrui-dsh-im\n      name: '@botharness/im-provider'\n    - id: botharness-core\n      name: '@botharness/core'\n    - id: botharness-client\n      name: '@botharness/ui'\n",
+        "- insert:\n    - id: xmanrui-dsh-im\n      name: '@botharness/im-provider'\n    - id: botharness-core\n      name: '@botharness/core'\n    - id: botharness-client\n      name: '@botharness/ui'\n    - id: botharness-browser\n      name: '@botharness/browser'\n    - id: computer-use\n      name: '@deepseek-ai/dsh-computer-use'\n    - id: botharness-computer\n      name: '@botharness/computer'\n",
       );
     }
     if (name === productImProvider.name)

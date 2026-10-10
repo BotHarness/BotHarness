@@ -16,6 +16,8 @@ export const publicationOrder = [
   productImProvider.name,
   '@botharness/core',
   '@botharness/ui',
+  '@botharness/browser',
+  '@botharness/computer',
   'deepseekbot',
 ];
 const registry = 'https://registry.npmjs.org';

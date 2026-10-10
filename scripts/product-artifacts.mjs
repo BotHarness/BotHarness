@@ -57,6 +57,8 @@ export function productManifest(manifest, version) {
     publishConfig: { access: 'public' },
     dependencies: {
       ...manifest.dependencies,
+      '@botharness/browser': version,
+      '@botharness/computer': version,
       '@botharness/core': version,
       '@botharness/ui': version,
       [productImProvider.name]: productImProvider.version,
@@ -237,7 +239,7 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
   mkdirSync(staging);
   const artifacts = [];
   const packageDirectories = [];
-  for (const name of ['core', 'client']) {
+  for (const name of ['core', 'client', 'browser', 'computer']) {
     const source = join(repoRoot, 'packages', name);
     const target = join(staging, name);
     mkdirSync(target);
