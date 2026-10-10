@@ -155,7 +155,7 @@ describe('online CLI management', () => {
     expect(live.calls[0]).toEqual({
       method: 'bot-zip/import',
       args: {
-        name: 'shared',
+        name: 'shared.zip',
         displayName: 'Override',
         roles: '["QA"]',
         description: 'Imported',

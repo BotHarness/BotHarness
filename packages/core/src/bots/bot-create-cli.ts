@@ -9,7 +9,7 @@ import {
   writeFileSync,
   unlinkSync,
 } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 import { isMap, isScalar, parseDocument } from 'yaml';
 import { parseCredentialsDocument } from '@deepseek-ai/dsh-credentials-local';
@@ -2428,9 +2428,7 @@ export async function runBotCreateCli(
         const contents = readZipBundle(input.source.path);
         bundle = {
           archive: contents.archive,
-          ...(zipStem(input.source.path) === undefined
-            ? {}
-            : { name: zipStem(input.source.path)! }),
+          name: basename(input.source.path),
           historySkipped: contents.historySkipped,
         };
       } else if (input?.source.kind === 'dir') {

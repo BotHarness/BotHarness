@@ -49,6 +49,10 @@ export function runCliSmoke({
     return result;
   };
   try {
+    if (!env.DEEPSEEKBOT_HOST?.trim())
+      throw new Error('Set DEEPSEEKBOT_HOST to a disposable running Host before smoke testing.');
+    if (!env.DEEPSEEKBOT_HOST_TOKEN?.trim())
+      throw new Error('Set DEEPSEEKBOT_HOST_TOKEN before smoke testing.');
     if (!preset) {
       if (!provider || !model)
         throw new Error('Specify an existing preset, or provider and model.');

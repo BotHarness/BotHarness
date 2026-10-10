@@ -279,6 +279,18 @@ describe('Bot Zip import', () => {
     });
     expect(registry.get('minted')).toBeDefined();
   });
+  it('strips the supplied archive suffix only once for the fallback name', async () => {
+    const registry = registryAt(tempRoot());
+    const response = await httpFor(registry)(
+      importRequest(
+        writeZip([{ path: 'SOUL.md', data: Buffer.from('# Persona') }]),
+        'project.zip.zip',
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(registry.list()[0]?.displayName).toBe('project.zip');
+  });
+
   it('reads a re-zipped folder, skipping macOS metadata and Git internals', () => {
     const contents = readBotZip(
       writeZip([
