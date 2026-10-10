@@ -1,14 +1,29 @@
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { dmChannelId } from '../channels/channel.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../database/schema-plan.js';
-import { mountOperationalDatabase, type OperationalDatabaseOwner } from '../database/owner.js';
+import {
+  attachOperationalModule,
+  mountOperationalDatabase,
+  OperationalDatabaseError,
+  type OperationalDatabaseOwner,
+} from '../database/owner.js';
 import { resolveDshHome } from '../im/config-store.js';
 import { cloneMemoryRepository, parseMemoryGitUrl, type HttpsFallback } from '../memory/clone.js';
 import { ensureMemoryRepository } from '../memory/repository.js';
+import {
+  MemoryAcceptError,
+  type MemoryAcceptedCommit,
+  type MemoryAcceptedSnapshot,
+} from '../memory/accepted.js';
+import { MemoryFileError } from '../memory/file-actions.js';
+import { MemoryPathError } from '../memory/jail.js';
+import { createMemoryService, type MemoryService } from '../memory/service.js';
+import { createSessionOwnership } from '../sessions/ownership.js';
 import {
   createModelPresetStore,
   type ModelPreset,
@@ -72,6 +87,12 @@ Usage:
                                   --assignment-model <m> [--assignment-effort <e>] [--home <dsh-home>]
   deepseekbot model-preset-apply <id> --preset <preset-id> [--home <dsh-home>]
   deepseekbot model-plan <id> [--home <dsh-home>]
+  deepseekbot memory-snapshot <id> [--home <dsh-home>]
+  deepseekbot memory-file <id> --path <file> [--home <dsh-home>]
+  deepseekbot memory-history <id> [--limit <n>] [--home <dsh-home>]
+  deepseekbot memory-diff <id> --sha <commit> [--home <dsh-home>]
+  deepseekbot memory-save <id> --path <file> (--body <text> | --body-stdin)
+                             [--expected-head <sha>] [--edit-id <id>] [--home <dsh-home>]
   deepseekbot --help | deepseekbot create --help
 
 Sources (exactly one per create):
@@ -89,7 +110,8 @@ Machine contract:
   exits non-zero with {"error": {"code", "message"}} using a stable code
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
   unknown-bot, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
-  memory-unavailable, invalid-input). Human-readable lines go to stderr only.
+  memory-unavailable, lease-unavailable, invalid-input). Human-readable lines go to stderr only.
+  Stop the Host before targeting its home: the writer lease is exclusive.
 
 Models:
   model-presets lists the profile presets; model-preset-create mints one from
@@ -97,6 +119,14 @@ Models:
   write the bot record directly. Routes are shape-checked plus
   provider-existence-checked offline; catalog liveness and readiness
   inspection stay Host-side, and model-plan reports readiness deferred.
+
+Memory:
+  memory-snapshot/file/history/diff read the bot memory store; memory-save
+  writes one file and commits it. --expected-head defaults to the current
+  HEAD (pass it explicitly for compare-and-swap); --edit-id defaults to a
+  fresh UUID and makes repeat submissions idempotent. Conflicts, missing
+  files, and bad shas fail coded (memory-conflict, not-found,
+  memory-unknown-commit).
 
 Identity:
   The bot name is a label. Every create mints a new bot id, so reusing a name
@@ -123,6 +153,8 @@ const STATIC_CATALOG_PROVIDER_IDS: ReadonlySet<string> = new Set([
   'cloudflare-ai-gateway',
   'cloudflare-workers-ai',
   'deepseek',
+  'deepseek-account',
+  'deepseek-official',
   'fireworks',
   'github-copilot',
   'google',
@@ -205,6 +237,13 @@ const CREATE_OPTIONS = {
   'assignment-provider': { type: 'string' },
   'assignment-model': { type: 'string' },
   'assignment-effort': { type: 'string' },
+  path: { type: 'string' },
+  body: { type: 'string' },
+  'body-stdin': { type: 'boolean' },
+  'expected-head': { type: 'string' },
+  'edit-id': { type: 'string' },
+  limit: { type: 'string' },
+  sha: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -362,7 +401,24 @@ function openRegistry(dshHome: string): {
   owner: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
 } {
-  const owner = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  let owner: OperationalDatabaseOwner;
+  try {
+    owner = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  } catch (error) {
+    if (error instanceof OperationalDatabaseError) {
+      throw new CliFailure(error.code, error.message, 1);
+    }
+    throw error;
+  }
+  if (owner.mode !== 'ready') {
+    const recovery = owner.recovery;
+    owner.close();
+    throw new CliFailure(
+      recovery?.code ?? 'recovery-mode',
+      recovery?.message ?? 'The operational database is unavailable.',
+      1,
+    );
+  }
   const registry = createPersonaBotRegistry({
     rootDir: join(dshHome, 'botharness', 'bots'),
     database: owner,
@@ -925,6 +981,204 @@ function runModelPresetApply(
   }
 }
 
+const SHA_RE = /^[0-9a-f]{40}$/u;
+
+function callMemory<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof MemoryAcceptError || error instanceof MemoryFileError) {
+      throw new CliFailure(error.code, error.message, 1);
+    }
+    if (error instanceof MemoryPathError) {
+      throw new CliFailure('invalid-input', error.message, 1);
+    }
+    throw error;
+  }
+}
+
+interface MemoryScope {
+  owner: OperationalDatabaseOwner;
+  registry: PersonaBotRegistry;
+  record: PersonaBotRecord;
+  memory: MemoryService;
+}
+
+function openMemory(id: string, values: CreateValues, io: BotCreateCliIo): MemoryScope {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('A bot id is required.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = registry.get(slug);
+    if (record === undefined) {
+      throw new CliFailure('unknown-bot', `Unknown bot: ${slug}`, 1);
+    }
+    const ownership = createSessionOwnership(attachOperationalModule(owner, 'session-ownership'));
+    const memory = createMemoryService({ registry, ownership, database: owner });
+    return { owner, registry, record, memory };
+  } catch (error) {
+    owner.close();
+    throw error;
+  }
+}
+
+function memoryBot(record: PersonaBotRecord): { id: string; name: string } {
+  return { id: record.slug, name: record.displayName };
+}
+
+function runMemorySnapshot(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; snapshot: MemoryAcceptedSnapshot } {
+  const opened = openMemory(id, values, io);
+  try {
+    return {
+      bot: memoryBot(opened.record),
+      snapshot: callMemory(() => opened.memory.snapshot(opened.record.slug)),
+    };
+  } finally {
+    opened.owner.close();
+  }
+}
+
+function runMemoryFile(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): {
+  bot: { id: string; name: string };
+  file: { path: string; body: string; head: string; binary: boolean | undefined } | null;
+} {
+  const path = trimmed(values.path);
+  if (path === undefined) throw usageError('--path is required for memory-file.');
+  const opened = openMemory(id, values, io);
+  try {
+    const file = callMemory(() => opened.memory.readAccepted(opened.record.slug, path));
+    return {
+      bot: memoryBot(opened.record),
+      file:
+        file === undefined
+          ? null
+          : { path: file.path, body: file.body, head: file.head, binary: file.binary },
+    };
+  } finally {
+    opened.owner.close();
+  }
+}
+
+function runMemoryHistory(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; commits: MemoryAcceptedCommit[] } {
+  const rawLimit = trimmed(values.limit);
+  let limit: number | undefined;
+  if (rawLimit !== undefined) {
+    if (!/^[0-9]+$/u.test(rawLimit) || Number(rawLimit) < 1) {
+      throw usageError('--limit must be a positive whole number.');
+    }
+    limit = Number(rawLimit);
+  }
+  const opened = openMemory(id, values, io);
+  try {
+    return {
+      bot: memoryBot(opened.record),
+      commits: callMemory(() => opened.memory.history(opened.record.slug, limit)),
+    };
+  } finally {
+    opened.owner.close();
+  }
+}
+
+function runMemoryDiff(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; sha: string; diff: string } {
+  const sha = trimmed(values.sha);
+  if (sha === undefined || !SHA_RE.test(sha)) {
+    throw new CliFailure(
+      'invalid-input',
+      'A 40-character lowercase commit sha is required for memory-diff.',
+      1,
+    );
+  }
+  const opened = openMemory(id, values, io);
+  try {
+    const result = callMemory(() => opened.memory.diff(opened.record.slug, sha));
+    return { bot: memoryBot(opened.record), sha: result.sha, diff: result.diff };
+  } finally {
+    opened.owner.close();
+  }
+}
+
+function currentHead(dataDir: string): string {
+  try {
+    return execFileSync('git', ['-C', dataDir, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    }).trim();
+  } catch {
+    throw new CliFailure('memory-unavailable', 'The Bot memory history could not be read.', 1);
+  }
+}
+
+async function runMemorySave(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+  readStdin: () => Promise<string>,
+): Promise<{ bot: { id: string; name: string }; commit: MemoryAcceptedCommit }> {
+  const path = trimmed(values.path);
+  if (path === undefined) throw usageError('--path is required for memory-save.');
+  const body = values.body;
+  const bodyStdin = values['body-stdin'] === true;
+  if (body !== undefined && bodyStdin) {
+    throw usageError('Pass --body or --body-stdin, not both.');
+  }
+  if (body === undefined && !bodyStdin) {
+    throw usageError('Pass --body or --body-stdin for memory-save.');
+  }
+  const text = bodyStdin ? await readStdin() : body!;
+  const expectedHead = trimmed(values['expected-head']);
+  if (expectedHead !== undefined && !SHA_RE.test(expectedHead)) {
+    throw new CliFailure(
+      'invalid-input',
+      'A 40-character lowercase commit sha is required for --expected-head.',
+      1,
+    );
+  }
+  const editId = trimmed(values['edit-id']) ?? randomUUID();
+  if (editId.length > 100) {
+    throw new CliFailure('invalid-input', '--edit-id must be at most 100 characters.', 1);
+  }
+  const opened = openMemory(id, values, io);
+  try {
+    const dataDir =
+      opened.registry.memoryDirFor(opened.record.slug) ??
+      join(resolveHome(values, io), 'botharness', 'bots', opened.record.slug, 'memory');
+    const head = expectedHead ?? currentHead(dataDir);
+    const commit = callMemory(() =>
+      opened.memory.saveHuman({
+        botSlug: opened.record.slug,
+        path,
+        body: text,
+        expectedHead: head,
+        editId,
+      }),
+    );
+    io.stderr(
+      `deepseekbot: committed ${path} as ${commit.sha.slice(0, 7)} for ${opened.record.slug}`,
+    );
+    return { bot: memoryBot(opened.record), commit };
+  } finally {
+    opened.owner.close();
+  }
+}
+
 function runModelPlan(
   id: string,
   values: CreateValues,
@@ -1005,6 +1259,31 @@ export async function runBotCreateCli(
       io.stdout(JSON.stringify(runModelPlan(rest[0]!, values, io), null, 2));
       return 0;
     }
+    if (command === 'memory-snapshot') {
+      if (rest.length !== 1) throw usageError('memory-snapshot needs exactly one bot id.');
+      io.stdout(JSON.stringify(runMemorySnapshot(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'memory-file') {
+      if (rest.length !== 1) throw usageError('memory-file needs exactly one bot id.');
+      io.stdout(JSON.stringify(runMemoryFile(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'memory-history') {
+      if (rest.length !== 1) throw usageError('memory-history needs exactly one bot id.');
+      io.stdout(JSON.stringify(runMemoryHistory(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'memory-diff') {
+      if (rest.length !== 1) throw usageError('memory-diff needs exactly one bot id.');
+      io.stdout(JSON.stringify(runMemoryDiff(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'memory-save') {
+      if (rest.length !== 1) throw usageError('memory-save needs exactly one bot id.');
+      io.stdout(JSON.stringify(await runMemorySave(rest[0]!, values, io, readStdin), null, 2));
+      return 0;
+    }
     if (command !== 'create') throw usageError('Unknown command.');
     if (rest.length > 0) throw usageError('create takes no positional arguments.');
     const startedAt = performance.now();
@@ -1039,6 +1318,14 @@ export async function runBotCreateCli(
       io.stdout(JSON.stringify(failure, null, 2));
       io.stderr(`deepseekbot: ${error.message}`);
       return 2;
+    }
+    if (error instanceof OperationalDatabaseError) {
+      const failure: BotCreateFailure = {
+        error: { code: error.code, message: error.message },
+      };
+      io.stdout(JSON.stringify(failure, null, 2));
+      io.stderr(`deepseekbot: ${error.message}`);
+      return 1;
     }
     const failure: BotCreateFailure = {
       error: { code: 'internal-error', message: 'The command failed before producing a result.' },

@@ -437,6 +437,29 @@ describe('deepseekbot model', () => {
     expect(listed.json).toEqual({ presets: [] });
   });
 
+  it('accepts Host-declared provider routes alongside catalog providers', async () => {
+    const home = createTempRoot('botharness-model-host-routes-');
+    for (const provider of ['deepseek-official', 'deepseek-account']) {
+      const created = await invoke(
+        [
+          'model-preset-create',
+          '--name',
+          `Host ${provider}`,
+          '--orchestrator-provider',
+          provider,
+          '--orchestrator-model',
+          'x',
+          '--assignment-provider',
+          provider,
+          '--assignment-model',
+          'x',
+        ],
+        home,
+      );
+      expect(created.code).toBe(0);
+    }
+  });
+
   it('refuses to apply a preset with an unknown provider and leaves the bot untouched', async () => {
     const home = createTempRoot('botharness-model-apply-provider-');
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
@@ -498,5 +521,137 @@ describe('deepseekbot model', () => {
     const result = await invoke(['model-presets'], home, { DEEPSEEK_API_KEY: 'sk-env-secret-7' });
     expect(result.code).toBe(0);
     expect(result.stdout).not.toContain('sk-env-secret-7');
+  });
+});
+
+describe('deepseekbot memory', () => {
+  it('reads snapshot, file, and history on a fresh bot', async () => {
+    const home = createTempRoot('botharness-memory-read-');
+    const bot = await invoke(['create', '--name', 'Ada', '--persona', 'You are a scout.'], home);
+    const id = bot.json.bot.id as string;
+    const snapshot = await invoke(['memory-snapshot', id], home);
+    expect(snapshot.code).toBe(0);
+    expect(snapshot.json.bot).toMatchObject({ id, name: 'Ada' });
+    expect(snapshot.json.snapshot).toBeDefined();
+    const file = await invoke(['memory-file', id, '--path', 'SOUL.md'], home);
+    expect(file.code).toBe(0);
+    expect(file.json.file.body).toContain('You are a scout.');
+    const missing = await invoke(['memory-file', id, '--path', 'absent.md'], home);
+    expect(missing.code).toBe(0);
+    expect(missing.json.file).toBeNull();
+    const history = await invoke(['memory-history', id], home);
+    expect(history.code).toBe(0);
+    expect(history.json.commits).toEqual([]);
+  });
+
+  it('saves a file, shows it in history, and diffs the commit', async () => {
+    const home = createTempRoot('botharness-memory-save-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const saved = await invoke(
+      ['memory-save', id, '--path', 'notes.md', '--body', '# notes\n'],
+      home,
+    );
+    expect(saved.code).toBe(0);
+    expect(saved.json.commit.sha).toMatch(/^[0-9a-f]{40}$/u);
+    const file = await invoke(['memory-file', id, '--path', 'notes.md'], home);
+    expect(file.json.file.body).toBe('# notes\n');
+    const history = await invoke(['memory-history', id], home);
+    expect(history.json.commits[0].sha).toBe(saved.json.commit.sha);
+    const limited = await invoke(['memory-history', id, '--limit', '1'], home);
+    expect(limited.json.commits).toHaveLength(1);
+    const diff = await invoke(['memory-diff', id, '--sha', saved.json.commit.sha], home);
+    expect(diff.code).toBe(0);
+    expect(diff.json.diff).toContain('notes.md');
+  });
+
+  it('reads the save body from stdin', async () => {
+    const home = createTempRoot('botharness-memory-stdin-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const saved = await invoke(
+      ['memory-save', bot.json.bot.id, '--path', 'piped.md', '--body-stdin'],
+      home,
+      {},
+      '# piped\n',
+    );
+    expect(saved.code).toBe(0);
+    const file = await invoke(['memory-file', bot.json.bot.id, '--path', 'piped.md'], home);
+    expect(file.json.file.body).toBe('# piped\n');
+  });
+
+  it('rejects stale heads and no-change saves as conflicts', async () => {
+    const home = createTempRoot('botharness-memory-conflict-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const stale = await invoke(
+      [
+        'memory-save',
+        id,
+        '--path',
+        'notes.md',
+        '--body',
+        '# notes\n',
+        '--expected-head',
+        '0'.repeat(40),
+      ],
+      home,
+    );
+    expect(stale.code).toBe(1);
+    expect(stale.json.error.code).toBe('memory-conflict');
+    const first = await invoke(
+      ['memory-save', id, '--path', 'notes.md', '--body', '# notes\n'],
+      home,
+    );
+    expect(first.code).toBe(0);
+    const same = await invoke(
+      ['memory-save', id, '--path', 'notes.md', '--body', '# notes\n'],
+      home,
+    );
+    expect(same.code).toBe(1);
+    expect(same.json.error.code).toBe('memory-conflict');
+  });
+
+  it('reports unknown bots and bad shas with coded errors', async () => {
+    const home = createTempRoot('botharness-memory-errors-');
+    for (const argv of [
+      ['memory-snapshot', 'bot-absent'],
+      ['memory-file', 'bot-absent', '--path', 'a.md'],
+      ['memory-history', 'bot-absent'],
+      ['memory-diff', 'bot-absent', '--sha', '0'.repeat(40)],
+      ['memory-save', 'bot-absent', '--path', 'a.md', '--body', 'x'],
+    ]) {
+      const result = await invoke(argv, home);
+      expect(result.code).toBe(1);
+      expect(result.json.error.code).toBe('unknown-bot');
+    }
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const badSha = await invoke(['memory-diff', bot.json.bot.id, '--sha', 'xyz'], home);
+    expect(badSha.code).toBe(1);
+    expect(badSha.json.error.code).toBe('invalid-input');
+    const badLimit = await invoke(['memory-history', bot.json.bot.id, '--limit', '0'], home);
+    expect(badLimit.code).toBe(2);
+    expect(badLimit.json.error.code).toBe('usage');
+    const noPath = await invoke(['memory-file', bot.json.bot.id], home);
+    expect(noPath.code).toBe(2);
+    expect(noPath.json.error.code).toBe('usage');
+  });
+});
+
+describe('deepseekbot writer lease', () => {
+  it('fails coded while the Host holds the writer lease', async () => {
+    const home = createTempRoot('botharness-lease-');
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    try {
+      const listed = await invoke(['model-presets'], home);
+      expect(listed.code).toBe(1);
+      expect(listed.json.error.code).toBe('lease-unavailable');
+      const created = await invoke(['create', '--name', 'Ada'], home);
+      expect(created.code).toBe(1);
+      expect(created.json.error.code).toBe('lease-unavailable');
+    } finally {
+      owner.close();
+    }
+    const after = await invoke(['create', '--name', 'Ada'], home);
+    expect(after.code).toBe(0);
   });
 });
