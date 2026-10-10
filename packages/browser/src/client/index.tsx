@@ -402,6 +402,11 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     (observation?.target === 'container' || observation?.target === 'local')
       ? (observation.viewerUrl ?? undefined)
       : undefined;
+  const narrowViewer = typeof window !== 'undefined' && window.innerWidth < 700;
+  const viewerDesign =
+    observation?.target === 'local' && (inputMode === 'trackpad' || narrowViewer)
+      ? { width: 390, height: 700 }
+      : { width: 1024, height: 768 };
   const identity = `${botSlug ?? ''}:${profileOverride ?? info.browserProfile ?? ''}:${observation?.target ?? ''}`;
   const scope = `${identity}:${viewerUrl ?? ''}`;
   const previous = previousViewer.current;
@@ -686,7 +691,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           t={viewerTranslate}
           title={takeoverTitle}
           src={`${viewerUrl}${viewerUrl.includes('?') ? '&' : '?'}mode=${inputMode}`}
-          design={{ width: 1024, height: 768 }}
+          design={viewerDesign}
           notice={
             error === undefined ? undefined : (
               <div role="alert" className="bh-browser-error">

@@ -51,6 +51,14 @@ export interface ChannelSidebarRegistry {
   subscribe(listener: () => void): () => void;
 }
 
+export function resolveSidebarBotSlug(state: ClientState): string | undefined {
+  const selection = state.selection;
+  if (selection?.kind === 'bot') return selection.slug;
+  if (selection?.kind !== 'channel') return undefined;
+  const channel = state.conversation?.channel;
+  return channel?.id === selection.channelId && channel.type === 'dm' ? channel.botSlug : undefined;
+}
+
 function compareEntries(left: ChannelSidebarEntry, right: ChannelSidebarEntry): number {
   return (left.order ?? 0) - (right.order ?? 0) || left.id.localeCompare(right.id);
 }

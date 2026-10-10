@@ -16,6 +16,7 @@ import type {
   ChannelSidebarRegistry,
   ChannelSidebarScope,
 } from './channel-sidebar.js';
+import { resolveSidebarBotSlug } from './channel-sidebar.js';
 import {
   NARROW_CHANNEL_SIDEBAR_QUERY,
   resolveChannelSidebarMode,
@@ -76,9 +77,10 @@ export function useChannelSidebar(
 ): ChannelSidebarController {
   const narrow = useNarrowChannelSidebar();
   const selection = state.selection;
+  const sidebarBotSlug = resolveSidebarBotSlug(state);
   const scopeKey =
-    selection?.kind === 'bot'
-      ? channelSidebarScopeKey('personabot', selection.slug, selection.slug)
+    sidebarBotSlug !== undefined
+      ? channelSidebarScopeKey('personabot', sidebarBotSlug, sidebarBotSlug)
       : selection?.kind === 'channel'
         ? channelSidebarScopeKey('channel', selection.channelId, undefined)
         : undefined;
@@ -635,6 +637,7 @@ export function ChannelSidebar({
   selectedMemoryWorking?: import('./bridge.js').MemoryWorkingChange | undefined;
 }): ReactElement | null {
   const selection = state.selection;
+  const sidebarBotSlug = resolveSidebarBotSlug(state);
   const channel =
     state.conversation.channel ??
     (selection?.kind === 'channel'
@@ -644,7 +647,7 @@ export function ChannelSidebar({
             (candidate) => candidate.type === 'dm' && candidate.botSlug === selection.slug,
           )
         : undefined);
-  const scope: ChannelSidebarScope = selection?.kind === 'bot' ? 'personabot' : 'channel';
+  const scope: ChannelSidebarScope = sidebarBotSlug !== undefined ? 'personabot' : 'channel';
   const entries = useSyncExternalStore(
     registry.subscribe,
     () => registry.entries(scope),
@@ -678,7 +681,7 @@ export function ChannelSidebar({
           scope,
           channelId: channel.id,
           conversationRevision: state.conversation.revision,
-          botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
+          botSlug: sidebarBotSlug,
           actions,
           t,
           onMemoryCommitSelect,

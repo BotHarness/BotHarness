@@ -2462,6 +2462,14 @@ window.__ModuleLoader__.load({
 			const visibleError = cleanupRequired ? t("entry.view.cleanupFailed") : error;
 			const paused = observation?.takeover === true;
 			const viewerUrl = observation?.running === true && (observation?.target === "container" || observation?.target === "local") ? observation.viewerUrl ?? void 0 : void 0;
+			const narrowViewer = typeof window !== "undefined" && window.innerWidth < 700;
+			const viewerDesign = observation?.target === "local" && (inputMode === "trackpad" || narrowViewer) ? {
+				width: 390,
+				height: 700
+			} : {
+				width: 1024,
+				height: 768
+			};
 			const identity = `${botSlug ?? ""}:${profileOverride ?? info.browserProfile ?? ""}:${observation?.target ?? ""}`;
 			const scope = `${identity}:${viewerUrl ?? ""}`;
 			const previous = previousViewer.current;
@@ -2707,10 +2715,7 @@ window.__ModuleLoader__.load({
 						t: viewerTranslate,
 						title: takeoverTitle,
 						src: `${viewerUrl}${viewerUrl.includes("?") ? "&" : "?"}mode=${inputMode}`,
-						design: {
-							width: 1024,
-							height: 768
-						},
+						design: viewerDesign,
 						notice: error === void 0 ? void 0 : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							role: "alert",
 							className: "bh-browser-error",
