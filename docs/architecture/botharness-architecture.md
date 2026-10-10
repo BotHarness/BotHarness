@@ -373,6 +373,8 @@ Orchestrator 的应用定义 channel_list 工具从当前 PersonaBot 的 Session
 
 应用定义的在线 CLI 依照 ADR-0159，每次从当前 Host 启动令牌换取内存 cookie，经既有 DSH HTTP unary carrier 调用 Typert Bridge；不另设监听器、凭据缓存或数据库旁路。发送先由 Registry 查询确认 Bot，再由 Channel owner 建立 DM，使用 `human-UUID` 消息 ID 提交；重试去重仍归 Host。新增 `channelSendStatus` 只读查询复用 `source_events`、`inbox_admissions`、`channel_output_origins` 和 `session_ownership`，按原请求 Source Event、同一 DM 与 Bot 所有的 Session 返回已提交回复和当前处理状态，不以时间窗口或最新一条消息猜测对应关系。问题／审批卡片、通知及失败不算回复；超时保留回执供查询，不自动重发。工具审批、正式问题、工作区授权和发布状态沿用各自 Host owner；无新增耐久表或权限权威。见 [CLI 指南](../bot-cli.zh.md) 与 [#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)。
 
+依照 [ADR-0162](../adr/0162-online-cli-management-keeps-explicit-host-authority.md)，显式 Host 选择扩展到 Registry 创建／查询、Model Preset／Plan 与 Channel 发现。Zip／目录由 CLI 上传调用者本地字节，经已有 authenticated Bot Zip import owner 验证和创建；Git 获取仍在 Host 执行。创建和模型应用是分阶段 owner 操作，部分失败保留已知身份，未知结果不自动重试；连接失败不切换到离线 Profile。attention、Session 与 activity 查询只读既有投影，提供有界调试摘要；测试脚本经同一业务 CLI 驱动精确请求与持久回复，并可显式调用删除 owner 的 preview/confirm/retry 清理本轮身份，保留 Memory。writer lease 不构成 RPC 全局串行锁，各 owner 的版本／HEAD 与幂等契约保持独立。见 [#1363](https://github.com/BotHarness/DeepSeekBot/issues/1363)。
+
 ### CLI 的 IM 应用授权
 
 应用定义的 CLI Consumer 通过既有 Messaging Service 的 `messagingApps` 发现已资格验证的 Provider setup descriptor，再经同一个已认证 DSH HTTP carrier 调用原生 Connection Fetch Registry 的 `dsh-im/app-setup` endpoint。该 Provider 拥有授权 attempt、过期和原生账号／凭据持久化；CLI 只保留一次调用的内存 cookie，不创建额外 store 或生命周期。飞书凭据和微信验证码仅从 stdin 进入目的明确的 `setup.credentials`／`setup.verify` payload；stdout 只投影经过校验的非敏感状态、二维码、账号引用与指纹。微信扫码由 Human 在手机确认，再用同一 attempt 查询；IM 应用授权不选择 PersonaBot 或建立 Messaging Grant。见 [ADR-0161](../adr/0161-cli-im-authorization-keeps-provider-attempt-authority.md) 与 [#1318](https://github.com/BotHarness/DeepSeekBot/issues/1318)。

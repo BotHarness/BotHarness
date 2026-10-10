@@ -50,6 +50,29 @@ Exactly one source per create. `--name` is required for blank and GitHub bots; f
 
 Set `DEEPSEEKBOT_HOST` to the running Host's loopback origin, or a tailnet HTTPS origin. Supply its current launch token through `DEEPSEEKBOT_HOST_TOKEN` or `--token-file <private-file>`, never a token argument. `--host <origin>` overrides the environment. Login happens per invocation, cookies remain in memory, and restarting the Host requires its new token. Live commands never open the profile database. See [ADR-0159](adr/0159-live-cli-verbs-ride-the-dsh-http-carrier.md).
 
+### Online creation and headless debugging
+
+With that Host selection, `create`, `list`, `show`, `model-presets`, `model-preset-create`, `model-preset-apply`, `model-plan` and `channels` call the existing Host owners. Blank, GitHub/Git, Zip and directory creation use the same source/metadata flags above. Zip/directory inputs are packed/read on the caller and uploaded to the existing Bot Zip import endpoint; Git cloning uses the Host's Git environment and credentials. Do not combine explicit `--home` and an online target. Failed Host calls never fall back to local data; database commands without an online adapter refuse a selected Host instead of silently opening an offline owner. Secret file commands and pure search/schedule preview remain independent.
+
+```bash
+deepseekbot create --name QA --preset <preset-id>
+deepseekbot create --from-zip ./shared.zip --name Imported --preset <preset-id>
+deepseekbot create --name GitBot --from-git owner/repo --preset <preset-id>
+deepseekbot model-plan <bot-id>
+deepseekbot channels
+deepseekbot bot-attention <bot-id> --limit 20 --state handled
+deepseekbot bot-sessions <bot-id> --limit 20
+deepseekbot bot-activity <bot-id> --limit 20
+```
+
+Creation returns `bot`, `dm`, the Host's Memory `dataDir`, completed/deferred `steps` and `next`. The model preset is applied through its owner, never forwarded as a native Agent preset. A missing specified preset is rejected before creation; other model failures after creation preserve the Bot and return its known identity and steps with `outcome: created`. A lost creation/import response can return `outcome: unknown`: inspect the Host before creating again; no automatic mutation retry is provided. A created Bot alone does not prove model usability: use `send` and its exact correlated committed reply.
+
+`bot-attention` supports `--cursor` and the Host's pending/processing/observed/deferred/needs-repair/handled states; it limits pages to 1–100. Session summaries are newest-first and limited to 1–100 (default 50), with `total`; activity limits its session details and reports `sessionCount`. These are bounded summaries, not full tool-call logs or streaming drafts.
+
+For explicit cleanup, `bot-delete-preview <bot-id>` returns the owner's current scope and `preview.token`. Review it, then pipe `{"token":"<preview.token>"}` to `bot-delete-confirm <bot-id> --confirmation-stdin`. This command always retains Memory. Inspect `deletion.phase`; an incomplete cleanup can be continued with `bot-delete-retry <bot-id>`. Scope changes remain owner refusals; deletion is not content purge or complete data erasure.
+
+From a built checkout, `node scripts/cli-smoke.mjs --preset <id> [--zip ./shared.zip] [--git owner/repo] [--cleanup]` drives the business CLI against the selected Host, checks a real reply for each source and returns owned IDs. Without an existing preset, provide `--provider <id> --model <id>`. Successful `--cleanup` deletes only that run's Bot identities through preview/confirmation, retaining Memory and any created preset; failed runs retain their resources for diagnosis. Use a disposable isolated Profile. The script does not authorize external messaging or verify UI rendering. See [ADR-0162](adr/0162-online-cli-management-keeps-explicit-host-authority.md).
+
 ```bash
 deepseekbot send <bot-id> --body "Reply with QA_OK" --timeout 60
 deepseekbot send <bot-id> --body-stdin --message-id human-<UUID>

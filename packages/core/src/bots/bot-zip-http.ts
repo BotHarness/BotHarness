@@ -5,6 +5,7 @@ import { syncBotDescriptor } from './bot-descriptor-sync.js';
 import { BOT_ZIP_MAX_BYTES, exportBotZip, listBotZipFiles, readBotZip } from './bot-zip.js';
 import type { PersonaBotRegistry } from './registry.js';
 import { ZipArchiveError } from './zip-archive.js';
+import { parseBotDescriptor } from '../marketplace/descriptor.js';
 
 export const BOT_ZIP_EXPORT_PATH = '/api/botharness/bot-zip';
 export const BOT_ZIP_IMPORT_PATH = '/api/botharness/bot-zip/import';
@@ -166,6 +167,19 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
   };
 
   const importZip = async (request: Request): Promise<Response> => {
+    const params = new URL(request.url).searchParams;
+    const metadata: Record<string, unknown> = {};
+    if (params.has('displayName')) metadata['name'] = params.get('displayName');
+    if (params.has('description')) metadata['bio'] = params.get('description');
+    if (params.has('roles')) {
+      try {
+        metadata['tags'] = JSON.parse(params.get('roles')!);
+      } catch {
+        return failure(400, 'invalid-input', 'Invalid import metadata');
+      }
+    }
+    const overrides = parseBotDescriptor(JSON.stringify(metadata));
+    if (overrides === undefined) return failure(400, 'invalid-input', 'Invalid import metadata');
     const type = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
     if (type !== 'application/octet-stream' && type !== 'application/zip') {
       return failure(415, 'invalid-input', 'content type must be application/zip');
@@ -189,14 +203,16 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
     }
     const slug = deps.createBotId?.() ?? 'bot-' + randomUUID().replaceAll('-', '');
     const displayName =
-      contents.descriptor?.name ?? fileStem(new URL(request.url).searchParams.get('name')) ?? 'Bot';
+      overrides.name ?? contents.descriptor?.name ?? fileStem(params.get('name')) ?? 'Bot';
+    const roles = overrides.tags ?? (params.has('roles') ? [] : contents.descriptor?.tags);
+    const description = overrides.bio ?? contents.descriptor?.bio;
     const result = await deps.registry.createFromFiles({
       slug,
       displayName,
       files: contents.files,
       ...(contents.history === undefined ? {} : { history: contents.history }),
-      ...(contents.descriptor?.tags === undefined ? {} : { roles: contents.descriptor.tags }),
-      ...(contents.descriptor?.bio === undefined ? {} : { description: contents.descriptor.bio }),
+      ...(roles === undefined ? {} : { roles }),
+      ...(description === undefined ? {} : { description }),
     });
     if (!result.ok) {
       deps.log?.(`bot-zip-import-failed reason=${result.reason}`);
@@ -212,7 +228,15 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
       `bot-zip-import slug=${slug} files=${contents.files.length} history=${contents.history !== undefined} durationMs=${Math.round(performance.now() - startedAt)}`,
     );
     const detail = deps.detail(slug);
-    if (!detail.ok) return failure(500, detail.error.code, detail.error.message);
+    if (!detail.ok)
+      return Response.json(
+        {
+          error: detail.error,
+          bot: { id: slug, name: result.record.displayName },
+          outcome: 'created',
+        },
+        { status: 500, headers: NO_STORE },
+      );
     return Response.json(detail.value, { headers: NO_STORE });
   };
 
