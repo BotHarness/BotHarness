@@ -44,6 +44,10 @@ export const styles =
 .bh-browser-tab .bh-browser-tab-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tabs .bh-card-main { padding: 7px 10px; }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+.bh-viewer-btn-content { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 560px) {
+  [data-bh-viewer-btn-label] { display: none; }
+}
 .bh-browser-progress { display: grid; gap: 4px; color: var(--bh-browser-secondary); }
 .bh-browser-progress-bar { width: 100%; height: 6px; accent-color: var(--dsw-alias-state-business-primary); }
 .bh-browser-failure { display: grid; gap: 4px; overflow-wrap: anywhere; }

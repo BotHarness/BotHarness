@@ -310,6 +310,8 @@ export interface ViewerTitleBarProps {
   readonly onToggleInteractive: () => void;
   readonly onStop: () => void;
   readonly onCollapse: () => void;
+  readonly hideStop?: boolean | undefined;
+  readonly hideInteractiveToggle?: boolean | undefined;
 }
 
 function StopButton({
@@ -343,6 +345,8 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
     onToggleInteractive,
     onStop,
     onCollapse,
+    hideStop,
+    hideInteractiveToggle,
   } = props;
   return (
     <div
@@ -359,24 +363,39 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
       }}
     >
       <StateDot state={dotStateFor(phase)} />
-      <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
+      <strong
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {title}
+      </strong>
       <span style={{ fontSize: 12, opacity: 0.65 }}>{t(statusKeyFor(phase, reconnecting))}</span>
       {interactive ? null : (
         <span style={{ fontSize: 12, opacity: 0.65 }}>{t('entry.watchOnly')}</span>
       )}
       <span style={{ flex: 1 }} />
       {extraControls}
-      <Button
-        variant={interactive ? 'ghost' : 'primary'}
-        size="sm"
-        aria-pressed={interactive}
-        onClick={onToggleInteractive}
-        disabled={busy || stopping}
-        title={t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
-      >
-        {t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
-      </Button>
-      <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
+      {hideInteractiveToggle ? null : (
+        <Button
+          variant={interactive ? 'ghost' : 'primary'}
+          size="sm"
+          aria-pressed={interactive}
+          onClick={onToggleInteractive}
+          disabled={busy || stopping}
+          title={t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+        >
+          {t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+        </Button>
+      )}
+      {hideStop === true ? null : (
+        <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
+      )}
       <Button
         variant="ghost"
         size="sm"
@@ -407,6 +426,9 @@ export interface RemoteViewerProps {
   readonly onDisableInteraction?: () => void;
   readonly expanded?: boolean;
   readonly onExpandedChange?: (expanded: boolean) => void;
+  readonly hideStop?: boolean | undefined;
+  readonly hideInteractiveToggle?: boolean | undefined;
+  readonly allowFrameInput?: boolean | undefined;
 }
 
 export function RemoteViewer({
@@ -426,6 +448,9 @@ export function RemoteViewer({
   onDisableInteraction,
   expanded: controlledExpanded,
   onExpandedChange,
+  hideStop,
+  hideInteractiveToggle,
+  allowFrameInput,
 }: RemoteViewerProps): ReactElement {
   const entryRef = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
@@ -619,6 +644,8 @@ export function RemoteViewer({
           }
           onStop={onStop}
           onCollapse={collapseViewer}
+          hideStop={hideStop}
+          hideInteractiveToggle={hideInteractiveToggle}
         />
       ) : null}
       {notice}
@@ -650,7 +677,7 @@ export function RemoteViewer({
           src={src}
           title={title}
           design={design}
-          interactive={expanded && (interactive ?? inputEnabled)}
+          interactive={allowFrameInput === true ? true : expanded && (interactive ?? inputEnabled)}
           fit={expanded ? 'contain' : 'width'}
           iframeRef={streamRef}
         />
@@ -670,14 +697,16 @@ export function RemoteViewer({
             {title}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              disabled={busy || stopping}
-              onClick={onStop}
-              style={rowButton(busy || stopping)}
-            >
-              {stopLabel}
-            </button>
+            {hideStop === true ? null : (
+              <button
+                type="button"
+                disabled={busy || stopping}
+                onClick={onStop}
+                style={rowButton(busy || stopping)}
+              >
+                {stopLabel}
+              </button>
+            )}
             <button
               type="button"
               onClick={reconnect}

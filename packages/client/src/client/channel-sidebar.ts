@@ -76,13 +76,11 @@ export interface ChannelSidebarEntry {
   badge?: ComponentType<ChannelSidebarEntryProps>;
   visible?: (state: ClientState) => boolean;
 }
-
 export interface ChannelSidebarRegistry {
   register(entry: ChannelSidebarEntry): () => void;
   entries(scope: ChannelSidebarScope): readonly ChannelSidebarEntry[];
   subscribe(listener: () => void): () => void;
 }
-
 function compareEntries(left: ChannelSidebarEntry, right: ChannelSidebarEntry): number {
   return (left.order ?? 0) - (right.order ?? 0) || left.id.localeCompare(right.id);
 }

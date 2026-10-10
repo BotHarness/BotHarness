@@ -9,8 +9,15 @@ import {
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Button, Switch, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  IconFullscreenOutlineRegular,
+  Switch,
+  Tag,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import { ChannelSidebarIcon } from '../../../client/src/client/channel-sidebar-icon.js';
+import { useMountedResource } from '../../../client/src/client/mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
@@ -39,6 +46,7 @@ const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
 
 import { AccessPowerIcon } from './access-power-icon.js';
+import { TakeoverIcon, TrackpadIcon } from './viewer-icons.js';
 
 export const name = 'botharness-browser-client';
 
@@ -108,6 +116,7 @@ interface BrowserObservation {
   readonly frame: string | null;
   readonly focused: string | null;
   readonly takeover: boolean;
+  readonly handoffPending?: boolean;
   readonly provisioning?: { downloadedBytes: number; totalBytes: number } | null;
   readonly tabs: readonly BrowserTabView[];
   readonly profiles?: readonly string[];
@@ -396,6 +405,19 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     viewerRequest.current += 1;
     setInteraction(false);
   }, []);
+  const [inputMode, setInputMode] = useState<'direct' | 'trackpad'>(() =>
+    typeof window !== 'undefined' &&
+    window.innerWidth < 768 &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+      ? 'trackpad'
+      : 'direct',
+  );
+  const finePointer =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: fine)').matches;
+  const showHeaderTakeover = inputMode === 'direct' && finePointer;
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
@@ -413,9 +435,15 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const provisioning = observation?.provisioning ?? null;
   const paused = observation?.takeover === true;
   const viewerUrl =
-    observation?.target === 'container' && observation.running
+    observation?.running === true &&
+    (observation?.target === 'container' || observation?.target === 'local')
       ? (observation.viewerUrl ?? undefined)
       : undefined;
+  const narrowViewer = typeof window !== 'undefined' && window.innerWidth < 700;
+  const viewerDesign =
+    observation?.target === 'local' && (inputMode === 'trackpad' || narrowViewer)
+      ? { width: 390, height: 700 }
+      : { width: 1024, height: 768 };
   const identity = `${botSlug ?? ''}:${profileOverride ?? info.browserProfile ?? ''}:${observation?.target ?? ''}`;
   const scope = `${identity}:${viewerUrl ?? ''}`;
   const previous = previousViewer.current;
@@ -429,12 +457,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   }
   if (!paused && interaction) setInteraction(false);
   const viewerTranslate: ViewerTranslate = (key) => t(key);
-  const toggleInteraction = (): void => {
-    if (interaction) {
-      disableInteraction();
-      return;
-    }
-    if (busy || botSlug === undefined || viewerUrl === undefined) return;
+  const postTakeoverEnable = (): void => {
+    if (botSlug === undefined || viewerUrl === undefined) return;
     const request = ++viewerRequest.current;
     const expectedScope = viewerScope.current;
     setBusy(true);
@@ -464,6 +488,62 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         }
       });
   };
+  const toggleTakeover = (): void => {
+    if (interaction) {
+      disableInteraction();
+      if (observation?.handoffPending !== true) invoke(TAKEOVER_ENDPOINT, { active: false });
+      return;
+    }
+    if (busy || botSlug === undefined || viewerUrl === undefined) return;
+    postTakeoverEnable();
+  };
+  const botName = info.displayName ?? botSlug ?? '';
+  const takeoverTitle =
+    interaction && paused
+      ? `${t('entry.view.browserTitle', { name: botName })} · ${t('entry.takeover.active')}`
+      : t('entry.view.browserTitle', { name: botName });
+  const toggleRef = useRef(toggleTakeover);
+  toggleRef.current = toggleTakeover;
+  const messageResource = useMountedResource<HTMLDivElement>(() => {
+    const onMessage = (event: MessageEvent): void => {
+      const data = event.data as { type?: unknown } | null;
+      if (typeof window === 'undefined' || event.origin !== window.location.origin) return;
+      if (data === null || typeof data !== 'object' || data.type !== 'bh-takeover-toggle') return;
+      const ours = [...document.querySelectorAll('iframe')].some(
+        (frame) =>
+          frame.contentWindow === event.source &&
+          (frame.getAttribute('src') ?? '').includes('/botharness-browser/viewer/'),
+      );
+      if (!ours) return;
+      toggleRef.current();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  const takeoverNote = useRef<boolean | undefined>(undefined);
+  const wantTakeoverNote = interaction && paused;
+  if (takeoverNote.current !== wantTakeoverNote && typeof document !== 'undefined') {
+    takeoverNote.current = wantTakeoverNote;
+    try {
+      for (const frame of Array.from(document.querySelectorAll('iframe'))) {
+        if ((frame.getAttribute('src') ?? '').includes('/botharness-browser/viewer/')) {
+          frame.contentWindow?.postMessage(
+            { type: 'bh-takeover-state', active: wantTakeoverNote },
+            window.location.origin,
+          );
+        }
+      }
+    } catch {
+      void 0;
+    }
+  }
+  const bodyResource = useCallback(
+    (node: HTMLDivElement | null): void => {
+      interactionResource(node);
+      messageResource(node);
+    },
+    [interactionResource, messageResource],
+  );
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
@@ -602,7 +682,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     );
 
   return (
-    <div ref={interactionResource} className="bh-browser-body bh-browser-local">
+    <div ref={bodyResource} className="bh-browser-body bh-browser-local">
       <SidebarCardList className="bh-browser-cards">
         <SidebarCardRow
           icon="globe"
@@ -643,16 +723,33 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                 </div>
               ) : null}
               <div className="bh-browser-actions">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={busy || cleanupRequired}
-                  onClick={() =>
-                    invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
-                  }
-                >
-                  {t(busy ? 'entry.view.opening' : 'entry.view.open')}
-                </Button>
+                {viewerUrl === undefined ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy || cleanupRequired}
+                    onClick={() =>
+                      invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
+                    }
+                  >
+                    {t(busy ? 'entry.view.opening' : 'entry.view.open')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy || cleanupRequired}
+                    title={t('entry.view.fullscreen')}
+                    onClick={() => {
+                      if (viewerUrl !== undefined) setViewer(viewerUrl);
+                    }}
+                  >
+                    <span className="bh-viewer-btn-content">
+                      <IconFullscreenOutlineRegular size={14} />
+                      <span data-bh-viewer-btn-label>{t('entry.view.fullscreen')}</span>
+                    </span>
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -661,7 +758,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                 >
                   {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
                 </Button>
-                {(observation?.running === true || cleanupRequired) && viewerUrl === undefined ? (
+                {observation?.running === true || cleanupRequired ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -688,9 +785,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <RemoteViewer
           key={scope}
           t={viewerTranslate}
-          title={t('entry.view.container')}
-          src={viewerUrl}
-          design={{ width: 1024, height: 768 }}
+          title={takeoverTitle}
+          src={`${viewerUrl}${viewerUrl.includes('?') ? '&' : '?'}mode=${inputMode}`}
+          design={viewerDesign}
           notice={
             failure === undefined ? undefined : (
               <div role="alert" className="bh-browser-error">
@@ -700,9 +797,12 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           }
           busy={busy}
           stopping={false}
+          hideStop
+          hideInteractiveToggle
+          allowFrameInput
           onStop={() => invoke(STOP_ENDPOINT)}
           interactive={interaction && paused}
-          onToggleInteractive={toggleInteraction}
+          onToggleInteractive={toggleTakeover}
           onDisableInteraction={disableInteraction}
           expanded={viewer === viewerUrl}
           onExpandedChange={(next) => {
@@ -710,9 +810,40 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
             if (!next) disableInteraction();
           }}
           extraControls={
-            <Button size="sm" variant="outline" disabled={busy} onClick={onPause}>
-              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-            </Button>
+            <>
+              {showHeaderTakeover ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  aria-pressed={false}
+                  title={t('entry.view.inputMode.trackpad')}
+                  onClick={() => setInputMode('trackpad')}
+                >
+                  <span className="bh-viewer-btn-content">
+                    <TrackpadIcon />
+                    <span data-bh-viewer-btn-label>{t('entry.view.inputMode.trackpad')}</span>
+                  </span>
+                </Button>
+              ) : null}
+              {showHeaderTakeover ? (
+                <Button
+                  size="sm"
+                  variant={interaction ? 'ghost' : 'primary'}
+                  disabled={busy}
+                  aria-pressed={interaction}
+                  title={t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                  onClick={toggleTakeover}
+                >
+                  <span className="bh-viewer-btn-content">
+                    <TakeoverIcon />
+                    <span data-bh-viewer-btn-label>
+                      {t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                    </span>
+                  </span>
+                </Button>
+              ) : null}
+            </>
           }
         />
       )}
