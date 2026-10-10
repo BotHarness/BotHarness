@@ -24,6 +24,21 @@ deepseekbot resume <id> [--home <dsh-home>]
 deepseekbot update <id> [--name <name>] [--description <text>] [--role <tag> ...] [--home <dsh-home>]
 deepseekbot human-name-set (--name <text> | --clear) [--home <dsh-home>]
 deepseekbot channel-human-name-set <channel> (--nickname <text> | --clear) [--home <dsh-home>]
+deepseekbot channels [--home <dsh-home>]
+deepseekbot channel-messages <channel> [--limit <n>] [--before <id>] [--home <dsh-home>]
+deepseekbot grants <id> [--home <dsh-home>]
+deepseekbot grant-revoke <id> --grant <grant> [--home <dsh-home>]
+deepseekbot grant-write-set <id> --grant <grant> (--enabled | --disabled) [--home <dsh-home>]
+deepseekbot schedules <id> [--home <dsh-home>]
+deepseekbot schedule-create <id> --title <t> --prompt <p> (--every <s> | --daily <HH:MM> |
+                                --weekly <HH:MM> --weekdays <0-6,..> | --once-date <d> --once-time <t> |
+                                --cron <expr>) [--timezone <tz>] [--enabled|--disabled] [--locked] [--home <dsh-home>]
+deepseekbot schedule-update <id> --sid <schedule> [--title ...] [--prompt ...] [trigger ...] [--home <dsh-home>]
+deepseekbot schedule-delete <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-history <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-run-now <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-preview (--every <s> | --daily ... | ...) [--home <dsh-home>]
+deepseekbot pairings <id> [--home <dsh-home>]
 ```
 
 Exactly one source per create. `--name` is required for blank and GitHub bots; for bundle imports it overrides the name from `.botharness/bot.json` (or the file name). A `--from-git` value accepts a full Git URL (`https://`, `ssh://`, `git@host:path`) or an `owner/repo` shorthand for `https://github.com/owner/repo.git`, which also covers Bot Marketplace entries through their clone URL. A `--from-dir` bundle skips `.git` as files but packs it as history when present.
@@ -63,6 +78,10 @@ The model verbs manage the same records afterwards: `model-presets` lists the pr
 ## Lifecycle and human naming
 
 `pause` and `resume` gate a Bot's execution; `update` relabels it (`--name`, `--description`, `--role`, within the profile tag/bio limits). `human-name-set` writes the Human display name (`--clear` resets it) and `channel-human-name-set` writes the per-channel Human nickname, using the CONTEXT.md terms. Unknown bots and channels fail coded (`unknown-bot`, `unknown-channel`).
+
+## Channels, grants, schedules, pairings
+
+`channels` lists channels and `channel-messages` reads one page newest-first (`--limit`, `--before`). `grants` lists a Bot's workspace grants while `grant-revoke` and `grant-write-set` manage them; creating a grant needs the Host workspace registry and stays a Host-side action. `schedules` lists a Bot's schedules; `schedule-create` takes `--title`, `--prompt`, and exactly one trigger (`--every` seconds, `--daily`/`--weekly` time plus `--weekdays`, `--once-date` plus `--once-time`, or `--cron`), with `--timezone` required for calendar triggers; `schedule-update`/`schedule-delete`/`schedule-history` address a schedule by `--sid`; `schedule-run-now` records a manual firing that the Host executes on start; `schedule-preview` renders upcoming occurrences for a trigger without a bot. `pairings` lists a Bot's IM pairing requests. Missing schedules fail `unknown-schedule`; deleting one reports `removed`.
 
 ## Memory
 
