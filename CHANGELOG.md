@@ -77,6 +77,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - CLI secret edits validate actual YAML on disk and restore the original file on failure; empty inline refs and multiline values work, and secret-bearing arguments fail without echoing their values ([#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)).
 
+- App sidebar conversation titles show the latest message time and leave it blank when there are no messages. Bot Channel header chips no longer show PersonaBot tags; tags remain in the Profile ([#1354](https://github.com/BotHarness/DeepSeekBot/issues/1354)).
+
 - Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).

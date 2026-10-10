@@ -19,7 +19,6 @@ import {
   IconCopyOutlineRegular,
   IconPanelLeftOutlineRegular,
   Menu,
-  Tag,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -1320,15 +1319,6 @@ function ConversationView({
                     </span>
                   )}
                   <span className="bh-title">{title}</span>
-                  {bot === undefined || bot.roles.length === 0 ? null : (
-                    <span className="bh-role-badges">
-                      {bot.roles.map((role) => (
-                        <Tag key={role} tone="neutral">
-                          {role}
-                        </Tag>
-                      ))}
-                    </span>
-                  )}
                 </button>
                 {bot && companion ? (
                   <CompanionPin
@@ -1361,15 +1351,6 @@ function ConversationView({
                     indicator={false}
                   />
                   <span className="bh-title">{title}</span>
-                  {profileBot.roles.length === 0 ? null : (
-                    <span className="bh-role-badges">
-                      {profileBot.roles.map((role) => (
-                        <Tag key={role} tone="neutral">
-                          {role}
-                        </Tag>
-                      ))}
-                    </span>
-                  )}
                 </button>
                 {companion ? (
                   <CompanionPin
