@@ -164,6 +164,13 @@ function ensureProfile(options) {
   const base = options.productArtifacts
     ? packagedProfileManifest(manifest, options.productArtifacts)
     : developmentProfileManifest(manifest, options.worktree);
+  if (options.productArtifacts) {
+    const before = new Set(manifest.dsh?.profile?.bundles ?? []);
+    const after = new Set(base.dsh?.profile?.bundles ?? []);
+    const migrated = [...before].filter((bundle) => !after.has(bundle) && bundle !== 'deepseekbot');
+    if (migrated.length > 0 && !options.json)
+      console.log(`Migrated into the deepseekbot umbrella: ${migrated.join(', ')}`);
+  }
   if (options.imProvider && installedDshVersion(options.worktree) !== qualifiedImProvider.dsh)
     throw new Error(`Qualified IM provider requires DSH ${qualifiedImProvider.dsh}`);
   const composed = options.imProvider ? withQualifiedImProvider(base) : base;

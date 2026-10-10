@@ -117,20 +117,26 @@ export function verifiedProductArtifacts(directory) {
   return { ...manifest, directory: root };
 }
 
+// Owned umbrella members: a standalone Bundle entry for one of these is a
+// pre-umbrella leftover, migrated into deepseekbot on upgrade. The two IM
+// identities stay refusal-only: upstream vs product provider needs human eyes.
+const ownedStandaloneBundles = new Set([
+  '@botharness/browser',
+  '@botharness/computer',
+  '@botharness/core',
+  '@botharness/ui',
+]);
+
 export function packagedProfileManifest(manifest, directory) {
   const bundles = manifest.dsh?.profile?.bundles ?? [];
-  for (const standalone of [
-    '@xmanrui/dsh-im',
-    productImProvider.name,
-    '@botharness/browser',
-    '@botharness/computer',
-    '@botharness/core',
-    '@botharness/ui',
-  ])
+  for (const standalone of ['@xmanrui/dsh-im', productImProvider.name])
     if (bundles.includes(standalone))
       throw new Error(
         `Standalone Bundle ${standalone} conflicts with the product; remove its Bundle entry, retain credentials/history, then retry`,
       );
+  // Owned umbrella members migrate into deepseekbot on upgrade: dropping the
+  // now-duplicate Bundle entry keeps stored data, matching the dev launcher.
+  const retained = bundles.filter((bundle) => !ownedStandaloneBundles.has(bundle));
   const artifacts = verifiedProductArtifacts(directory);
   const product = artifacts.artifacts.find((artifact) => artifact.name === 'deepseekbot');
   return {
@@ -147,7 +153,7 @@ export function packagedProfileManifest(manifest, directory) {
           '@deepseek-ai/dsh-base',
           '@deepseek-ai/dsh-web-app',
           'deepseekbot',
-          ...bundles.filter(
+          ...retained.filter(
             (bundle) =>
               !['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'deepseekbot'].includes(
                 bundle,
