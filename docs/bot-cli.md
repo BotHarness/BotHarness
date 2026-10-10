@@ -13,6 +13,12 @@ deepseekbot create [--name <name>] --from-zip <file> [...]
 deepseekbot create [--name <name>] --from-dir <directory> [...]
 deepseekbot list [--home <dsh-home>]
 deepseekbot show <id> [--home <dsh-home>]
+deepseekbot model-presets [--home <dsh-home>]
+deepseekbot model-preset-create --name <preset> --orchestrator-provider <p> --orchestrator-model <m>
+                                [--orchestrator-effort <e>] --assignment-provider <p>
+                                --assignment-model <m> [--assignment-effort <e>] [--home <dsh-home>]
+deepseekbot model-preset-apply <id> --preset <preset-id> [--home <dsh-home>]
+deepseekbot model-plan <id> [--home <dsh-home>]
 ```
 
 Exactly one source per create. `--name` is required for blank and GitHub bots; for bundle imports it overrides the name from `.botharness/bot.json` (or the file name). A `--from-git` value accepts a full Git URL (`https://`, `ssh://`, `git@host:path`) or an `owner/repo` shorthand for `https://github.com/owner/repo.git`, which also covers Bot Marketplace entries through their clone URL. A `--from-dir` bundle skips `.git` as files but packs it as history when present.
@@ -46,3 +52,5 @@ Never pass secrets as arguments: any `--api-key` / `--token` / `--secret` / `--p
 ## Models
 
 Without `--preset`, creation still succeeds and the `model` step reports `no-model-yet`: authorize a model in Bot-mode Settings, then message the Bot to verify a live reply. With `--preset <model-preset-id>`, that preset is applied at creation; an unknown id fails with `unknown-preset` before any bot is minted.
+
+The model verbs manage the same records afterwards: `model-presets` lists the profile presets, `model-preset-create` mints one from explicit provider/model routes, `model-preset-apply` puts it on a Bot, and `model-plan` shows the active plan. Routes are shape-checked plus provider-existence-checked offline (unknown providers fail fast); catalog liveness and readiness inspection stay Host-side, so `model-plan` reports readiness deferred. See ADR-0157.

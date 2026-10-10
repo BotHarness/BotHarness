@@ -9,7 +9,12 @@ import { mountOperationalDatabase, type OperationalDatabaseOwner } from '../data
 import { resolveDshHome } from '../im/config-store.js';
 import { cloneMemoryRepository, parseMemoryGitUrl, type HttpsFallback } from '../memory/clone.js';
 import { ensureMemoryRepository } from '../memory/repository.js';
-import { createModelPresetStore } from '../models/presets.js';
+import {
+  createModelPresetStore,
+  type ModelPreset,
+  type ModelRoute,
+  type PersonaBotModelPlan,
+} from '../models/presets.js';
 import {
   BOT_DESCRIPTOR_PATH,
   parseBotDescriptor,
@@ -61,6 +66,12 @@ Usage:
   deepseekbot create [--name <name>] --from-dir <directory> [...]
   deepseekbot list [--home <dsh-home>]
   deepseekbot show <id> [--home <dsh-home>]
+  deepseekbot model-presets [--home <dsh-home>]
+  deepseekbot model-preset-create --name <preset> --orchestrator-provider <p> --orchestrator-model <m>
+                                  [--orchestrator-effort <e>] --assignment-provider <p>
+                                  --assignment-model <m> [--assignment-effort <e>] [--home <dsh-home>]
+  deepseekbot model-preset-apply <id> --preset <preset-id> [--home <dsh-home>]
+  deepseekbot model-plan <id> [--home <dsh-home>]
   deepseekbot --help | deepseekbot create --help
 
 Sources (exactly one per create):
@@ -77,8 +88,15 @@ Machine contract:
   DM channel, data directory, per-step statuses, and next actions. Failure
   exits non-zero with {"error": {"code", "message"}} using a stable code
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
-  unknown-bot, git-not-found, git-clone-failed, git-clone-timeout,
+  unknown-bot, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
   memory-unavailable, invalid-input). Human-readable lines go to stderr only.
+
+Models:
+  model-presets lists the profile presets; model-preset-create mints one from
+  explicit provider/model routes; model-preset-apply and model-plan read and
+  write the bot record directly. Route catalog validation and readiness
+  inspection stay Host-side: offline apply skips catalog validation and plan
+  reports readiness deferred.
 
 Identity:
   The bot name is a label. Every create mints a new bot id, so reusing a name
@@ -94,6 +112,63 @@ Home:
   --home points at the target DSH_HOME (a fresh directory works with zero
   clicks); without it, DSH_HOME from the environment is used.
 `;
+
+const STATIC_CATALOG_PROVIDER_IDS: ReadonlySet<string> = new Set([
+  'amazon-bedrock',
+  'ant-ling',
+  'anthropic',
+  'azure-openai-responses',
+  'baseten',
+  'cerebras',
+  'cloudflare-ai-gateway',
+  'cloudflare-workers-ai',
+  'deepseek',
+  'fireworks',
+  'github-copilot',
+  'google',
+  'google-vertex',
+  'groq',
+  'huggingface',
+  'kimi-coding',
+  'minimax',
+  'minimax-cn',
+  'mistral',
+  'moonshotai',
+  'moonshotai-cn',
+  'nvidia',
+  'openai',
+  'openai-codex',
+  'opencode',
+  'opencode-go',
+  'openrouter',
+  'qwen-token-plan',
+  'qwen-token-plan-cn',
+  'qwen-token-plan-individual',
+  'together',
+  'vercel-ai-gateway',
+  'xai',
+  'xiaomi',
+  'xiaomi-token-plan-ams',
+  'xiaomi-token-plan-cn',
+  'xiaomi-token-plan-sgp',
+  'zai',
+  'zai-coding-cn',
+]);
+
+function assertKnownProvider(
+  provider: string,
+  carry?: { steps: BotCreateStep[]; bot?: { id: string; name: string } },
+): void {
+  if (!STATIC_CATALOG_PROVIDER_IDS.has(provider)) {
+    throw new CliFailure(
+      'invalid-input',
+      `Unknown provider: ${provider}. Check the spelling; purely dynamic providers validate at the Host.`,
+      1,
+      carry?.steps ?? [],
+      carry?.bot,
+    );
+  }
+}
 
 const SECRET_ARGV = new Set([
   'api-key',
@@ -124,6 +199,12 @@ const CREATE_OPTIONS = {
   'from-dir': { type: 'string' },
   'from-git': { type: 'string' },
   home: { type: 'string' },
+  'orchestrator-provider': { type: 'string' },
+  'orchestrator-model': { type: 'string' },
+  'orchestrator-effort': { type: 'string' },
+  'assignment-provider': { type: 'string' },
+  'assignment-model': { type: 'string' },
+  'assignment-effort': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -671,6 +752,9 @@ async function finishCreate(
         name: record.displayName,
       });
     }
+    const minted = { id: slug, name: record.displayName };
+    assertKnownProvider(preset.orchestrator.provider, { steps, bot: minted });
+    assertKnownProvider(preset.assignmentDefault.provider, { steps, bot: minted });
     const applied = registry.applyModelPreset(slug, preset);
     if (!applied.ok) {
       throw new CliFailure('unknown-preset', `Unknown model preset: ${presetId}`, 1, steps, {
@@ -747,6 +831,125 @@ function runShow(id: string, values: CreateValues, io: BotCreateCliIo): BotCreat
   }
 }
 
+function modelStore(dshHome: string, owner: OperationalDatabaseOwner) {
+  return createModelPresetStore({ rootDir: join(dshHome, 'botharness'), database: owner });
+}
+
+function runModelPresets(values: CreateValues, io: BotCreateCliIo): { presets: ModelPreset[] } {
+  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const { owner } = openRegistry(dshHome);
+  try {
+    return { presets: modelStore(dshHome, owner).list() };
+  } finally {
+    owner.close();
+  }
+}
+
+function parseRoute(values: CreateValues, prefix: 'orchestrator' | 'assignment'): ModelRoute {
+  const provider = trimmed(values[`${prefix}-provider`]);
+  const model = trimmed(values[`${prefix}-model`]);
+  const effort = trimmed(values[`${prefix}-effort`]);
+  if (provider === undefined || model === undefined) {
+    throw usageError(`--${prefix}-provider and --${prefix}-model are required.`);
+  }
+  return { provider, model, ...(effort === undefined ? {} : { reasoningEffort: effort }) };
+}
+
+function runModelPresetCreate(values: CreateValues, io: BotCreateCliIo): { preset: ModelPreset } {
+  const name = trimmed(values.name);
+  if (name === undefined) throw usageError('--name is required for a model preset.');
+  const orchestrator = parseRoute(values, 'orchestrator');
+  const assignmentDefault = parseRoute(values, 'assignment');
+  assertKnownProvider(orchestrator.provider);
+  assertKnownProvider(assignmentDefault.provider);
+  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const { owner } = openRegistry(dshHome);
+  try {
+    try {
+      const preset = modelStore(dshHome, owner).create({ name, orchestrator, assignmentDefault });
+      io.stderr(`deepseekbot: created model preset ${preset.id} ("${preset.name}")`);
+      return { preset };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        throw new CliFailure('duplicate-preset', `Model preset already exists: ${name}`, 1);
+      }
+      throw new CliFailure(
+        'invalid-input',
+        error instanceof Error ? error.message : 'The model preset could not be created.',
+        1,
+      );
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runModelPresetApply(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; plan: PersonaBotModelPlan | null } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('model-preset-apply needs exactly one bot id.');
+  const presetId = trimmed(values.preset);
+  if (presetId === undefined) throw usageError('--preset is required to apply a model preset.');
+  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = registry.get(slug);
+    if (record === undefined) throw new CliFailure('unknown-bot', `Unknown bot: ${slug}`, 1);
+    const preset = modelStore(dshHome, owner).get(presetId);
+    if (preset === undefined) {
+      throw new CliFailure('unknown-preset', `Unknown model preset: ${presetId}`, 1);
+    }
+    assertKnownProvider(preset.orchestrator.provider);
+    assertKnownProvider(preset.assignmentDefault.provider);
+    const applied = registry.applyModelPreset(slug, preset);
+    if (!applied.ok) {
+      throw new CliFailure('unknown-preset', `Unknown model preset: ${presetId}`, 1);
+    }
+    io.stderr(`deepseekbot: applied model preset "${preset.name}" to ${slug}`);
+    return {
+      bot: { id: slug, name: applied.record.displayName },
+      plan: applied.record.modelPlan ?? null,
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runModelPlan(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): {
+  bot: { id: string; name: string };
+  plan: PersonaBotModelPlan | null;
+  revision: number;
+  readiness: { status: 'deferred'; code: string; detail: string };
+} {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('model-plan needs exactly one bot id.');
+  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = registry.get(slug);
+    if (record === undefined) throw new CliFailure('unknown-bot', `Unknown bot: ${slug}`, 1);
+    return {
+      bot: { id: slug, name: record.displayName },
+      plan: record.modelPlan ?? null,
+      revision: record.modelPlan?.revision ?? record.modelPlanRevision ?? 0,
+      readiness: {
+        status: 'deferred',
+        code: 'host-only',
+        detail: 'Model readiness inspection needs a running Host.',
+      },
+    };
+  } finally {
+    owner.close();
+  }
+}
+
 export async function runBotCreateCli(
   argv: readonly string[],
   io: BotCreateCliIo,
@@ -773,6 +976,26 @@ export async function runBotCreateCli(
     if (command === 'show') {
       if (rest.length !== 1) throw usageError('show needs exactly one bot id.');
       io.stdout(JSON.stringify(runShow(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'model-presets') {
+      if (rest.length > 0) throw usageError('model-presets takes no bot id.');
+      io.stdout(JSON.stringify(runModelPresets(values, io), null, 2));
+      return 0;
+    }
+    if (command === 'model-preset-create') {
+      if (rest.length > 0) throw usageError('model-preset-create takes no positional arguments.');
+      io.stdout(JSON.stringify(runModelPresetCreate(values, io), null, 2));
+      return 0;
+    }
+    if (command === 'model-preset-apply') {
+      if (rest.length !== 1) throw usageError('model-preset-apply needs exactly one bot id.');
+      io.stdout(JSON.stringify(runModelPresetApply(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'model-plan') {
+      if (rest.length !== 1) throw usageError('model-plan needs exactly one bot id.');
+      io.stdout(JSON.stringify(runModelPlan(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command !== 'create') throw usageError('Unknown command.');
