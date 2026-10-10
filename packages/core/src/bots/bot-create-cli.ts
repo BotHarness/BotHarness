@@ -134,7 +134,12 @@ Usage:
   deepseekbot secret-put <NAME> [--home <dsh-home>]            secret value arrives on stdin only
   deepseekbot secret-list [--home <dsh-home>]                  names, sources, writability; never values
   deepseekbot secret-unset <NAME> [--home <dsh-home>]
+  deepseekbot search <words>                                   find commands by words
   deepseekbot --help | deepseekbot create --help
+
+Output:
+  stdout carries JSON, pretty by default; --compact condenses it to one line
+  for agents. Human-readable lines go to stderr only.
 
 Sources (exactly one per create):
   (none)       blank bot; --preset applies a model preset, otherwise the model
@@ -304,6 +309,7 @@ const CREATE_OPTIONS = {
   'once-time': { type: 'string' },
   cron: { type: 'string' },
   timezone: { type: 'string' },
+  compact: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -2183,11 +2189,93 @@ function runSecretUnset(
   return { secret: secretRecord(rawName, io.env, false) };
 }
 
+const SEARCH_INDEX: ReadonlyArray<{ command: string; description: string }> = [
+  { command: 'create', description: 'create a PersonaBot blank, from a bundle, or from git' },
+  { command: 'list', description: 'list PersonaBots' },
+  { command: 'show', description: 'inspect one PersonaBot' },
+  { command: 'model-presets', description: 'list model presets' },
+  { command: 'model-preset-create', description: 'create a model preset from provider routes' },
+  { command: 'model-preset-apply', description: 'apply a model preset to a bot' },
+  { command: 'model-plan', description: 'show a bot model plan' },
+  { command: 'memory-snapshot', description: 'read a bot memory snapshot' },
+  { command: 'memory-file', description: 'read one bot memory file' },
+  { command: 'memory-history', description: 'list bot memory commits' },
+  { command: 'memory-diff', description: 'diff a bot memory commit' },
+  { command: 'memory-save', description: 'write and commit one bot memory file' },
+  { command: 'pause', description: 'pause a bot' },
+  { command: 'resume', description: 'resume a bot' },
+  { command: 'update', description: 'update bot name description roles' },
+  { command: 'human-name-set', description: 'set the Human display name' },
+  { command: 'channel-human-name-set', description: 'set the per-channel Human nickname' },
+  { command: 'channels', description: 'list channels' },
+  { command: 'channel-messages', description: 'read channel messages' },
+  { command: 'grants', description: 'list bot workspace grants' },
+  { command: 'grant-revoke', description: 'revoke a workspace grant' },
+  { command: 'grant-write-set', description: 'set grant orchestrator write' },
+  { command: 'schedules', description: 'list bot schedules' },
+  { command: 'schedule-create', description: 'create a bot schedule' },
+  { command: 'schedule-update', description: 'update a bot schedule' },
+  { command: 'schedule-delete', description: 'delete a bot schedule' },
+  { command: 'schedule-history', description: 'list schedule firings' },
+  { command: 'schedule-run-now', description: 'record a manual schedule firing' },
+  { command: 'schedule-preview', description: 'preview trigger occurrences' },
+  { command: 'pairings', description: 'list bot IM pairing requests' },
+  { command: 'secret-put', description: 'store a secret from stdin' },
+  { command: 'secret-list', description: 'list secret names without values' },
+  { command: 'secret-unset', description: 'delete a secret' },
+  { command: 'search', description: 'search CLI commands by words' },
+];
+
+function runSearch(rest: readonly string[]): {
+  query: string;
+  matches: Array<{ command: string; description: string }>;
+} {
+  const query = rest.join(' ').trim();
+  if (query.length === 0) throw usageError('search needs words to look for.');
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter((token) => token.length > 0);
+  if (tokens.length === 0) throw usageError('search needs words to look for.');
+  const scored = SEARCH_INDEX.filter((entry) => {
+    const text = `${entry.command} ${entry.description}`.toLowerCase();
+    return tokens.every((token) => text.includes(token));
+  }).map((entry) => {
+    const name = entry.command.toLowerCase().replaceAll('-', ' ');
+    return {
+      entry,
+      score:
+        tokens.filter((token) => name.includes(token)).length +
+        (entry.command === tokens.join('-') ? 1000 : 0),
+    };
+  });
+  scored.sort(
+    (left, right) =>
+      right.score - left.score || left.entry.command.localeCompare(right.entry.command),
+  );
+  return { query, matches: scored.map((item) => item.entry) };
+}
+
+function compactJson(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text));
+  } catch {
+    return text;
+  }
+}
+
 export async function runBotCreateCli(
   argv: readonly string[],
   io: BotCreateCliIo,
 ): Promise<number> {
   const readStdin = io.readStdin ?? (async () => '');
+  let compactOutput = false;
+  const out: BotCreateCliIo = {
+    ...io,
+    stdout: (text: string): void => {
+      io.stdout(compactOutput ? compactJson(text) : text);
+    },
+  };
   try {
     rejectSecretArgv(argv);
     const { values, positionals } = parseArgs({
@@ -2197,171 +2285,176 @@ export async function runBotCreateCli(
       strict: true,
     });
     const [command, ...rest] = positionals;
+    compactOutput = values.compact === true;
     if (values.help === true || command === undefined || command === 'help') {
-      io.stdout(BOT_CREATE_HELP.trimEnd());
+      out.stdout(BOT_CREATE_HELP.trimEnd());
       return 0;
     }
     if (command === 'list') {
       if (rest.length > 0) throw usageError('list takes no bot id.');
-      io.stdout(JSON.stringify(runList(values, io), null, 2));
+      out.stdout(JSON.stringify(runList(values, io), null, 2));
       return 0;
     }
     if (command === 'show') {
       if (rest.length !== 1) throw usageError('show needs exactly one bot id.');
-      io.stdout(JSON.stringify(runShow(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runShow(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'model-presets') {
       if (rest.length > 0) throw usageError('model-presets takes no bot id.');
-      io.stdout(JSON.stringify(runModelPresets(values, io), null, 2));
+      out.stdout(JSON.stringify(runModelPresets(values, io), null, 2));
       return 0;
     }
     if (command === 'model-preset-create') {
       if (rest.length > 0) throw usageError('model-preset-create takes no positional arguments.');
-      io.stdout(JSON.stringify(runModelPresetCreate(values, io), null, 2));
+      out.stdout(JSON.stringify(runModelPresetCreate(values, io), null, 2));
       return 0;
     }
     if (command === 'model-preset-apply') {
       if (rest.length !== 1) throw usageError('model-preset-apply needs exactly one bot id.');
-      io.stdout(JSON.stringify(runModelPresetApply(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runModelPresetApply(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'model-plan') {
       if (rest.length !== 1) throw usageError('model-plan needs exactly one bot id.');
-      io.stdout(JSON.stringify(runModelPlan(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runModelPlan(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'channel-human-name-set') {
       if (rest.length !== 1)
         throw usageError('channel-human-name-set needs exactly one channel id.');
-      io.stdout(JSON.stringify(runChannelHumanNameSet(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runChannelHumanNameSet(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'channels') {
       if (rest.length > 0) throw usageError('channels takes no bot id.');
-      io.stdout(JSON.stringify(runChannels(values, io), null, 2));
+      out.stdout(JSON.stringify(runChannels(values, io), null, 2));
       return 0;
     }
     if (command === 'channel-messages') {
       if (rest.length !== 1) throw usageError('channel-messages needs exactly one channel id.');
-      io.stdout(JSON.stringify(runChannelMessages(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runChannelMessages(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'grants') {
       if (rest.length !== 1) throw usageError('grants needs exactly one bot id.');
-      io.stdout(JSON.stringify(runGrants(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runGrants(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'grant-revoke') {
       if (rest.length !== 1) throw usageError('grant-revoke needs exactly one bot id.');
-      io.stdout(JSON.stringify(runGrantRevoke(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runGrantRevoke(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'grant-write-set') {
       if (rest.length !== 1) throw usageError('grant-write-set needs exactly one bot id.');
-      io.stdout(JSON.stringify(runGrantWriteSet(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runGrantWriteSet(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedules') {
       if (rest.length !== 1) throw usageError('schedules needs exactly one bot id.');
-      io.stdout(JSON.stringify(runSchedules(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runSchedules(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-create') {
       if (rest.length !== 1) throw usageError('schedule-create needs exactly one bot id.');
-      io.stdout(JSON.stringify(runScheduleCreate(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runScheduleCreate(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-update') {
       if (rest.length !== 1) throw usageError('schedule-update needs exactly one bot id.');
-      io.stdout(JSON.stringify(runScheduleUpdate(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runScheduleUpdate(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-delete') {
       if (rest.length !== 1) throw usageError('schedule-delete needs exactly one bot id.');
-      io.stdout(JSON.stringify(runScheduleDelete(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runScheduleDelete(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-history') {
       if (rest.length !== 1) throw usageError('schedule-history needs exactly one bot id.');
-      io.stdout(JSON.stringify(runScheduleHistory(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runScheduleHistory(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-run-now') {
       if (rest.length !== 1) throw usageError('schedule-run-now needs exactly one bot id.');
-      io.stdout(JSON.stringify(runScheduleRunNow(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runScheduleRunNow(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'schedule-preview') {
       if (rest.length > 0) throw usageError('schedule-preview takes no bot id.');
-      io.stdout(JSON.stringify(runSchedulePreview(values), null, 2));
+      out.stdout(JSON.stringify(runSchedulePreview(values), null, 2));
       return 0;
     }
     if (command === 'pairings') {
       if (rest.length !== 1) throw usageError('pairings needs exactly one bot id.');
-      io.stdout(JSON.stringify(runPairings(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runPairings(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'secret-put') {
       if (rest.length !== 1) throw usageError('secret-put needs exactly one secret name.');
-      io.stdout(JSON.stringify(await runSecretPut(rest[0]!, values, io, readStdin), null, 2));
+      out.stdout(JSON.stringify(await runSecretPut(rest[0]!, values, io, readStdin), null, 2));
       return 0;
     }
     if (command === 'secret-list') {
       if (rest.length > 0) throw usageError('secret-list takes no secret name.');
-      io.stdout(JSON.stringify(runSecretList(values, io), null, 2));
+      out.stdout(JSON.stringify(runSecretList(values, io), null, 2));
       return 0;
     }
     if (command === 'secret-unset') {
       if (rest.length !== 1) throw usageError('secret-unset needs exactly one secret name.');
-      io.stdout(JSON.stringify(runSecretUnset(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runSecretUnset(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'search') {
+      out.stdout(JSON.stringify(runSearch(rest), null, 2));
       return 0;
     }
     if (command === 'pause' || command === 'resume') {
       if (rest.length !== 1) throw usageError('pause and resume need exactly one bot id.');
-      io.stdout(JSON.stringify(runPause(rest[0]!, command === 'pause', values, io), null, 2));
+      out.stdout(JSON.stringify(runPause(rest[0]!, command === 'pause', values, io), null, 2));
       return 0;
     }
     if (command === 'update') {
       if (rest.length !== 1) throw usageError('update needs exactly one bot id.');
-      io.stdout(JSON.stringify(runUpdate(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runUpdate(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'human-name-set') {
       if (rest.length > 0) throw usageError('human-name-set takes no positional arguments.');
-      io.stdout(JSON.stringify(runHumanNameSet(values, io), null, 2));
+      out.stdout(JSON.stringify(runHumanNameSet(values, io), null, 2));
       return 0;
     }
     if (command === 'memory-snapshot') {
       if (rest.length !== 1) throw usageError('memory-snapshot needs exactly one bot id.');
-      io.stdout(JSON.stringify(runMemorySnapshot(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runMemorySnapshot(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'memory-file') {
       if (rest.length !== 1) throw usageError('memory-file needs exactly one bot id.');
-      io.stdout(JSON.stringify(runMemoryFile(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runMemoryFile(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'memory-history') {
       if (rest.length !== 1) throw usageError('memory-history needs exactly one bot id.');
-      io.stdout(JSON.stringify(runMemoryHistory(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runMemoryHistory(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'memory-diff') {
       if (rest.length !== 1) throw usageError('memory-diff needs exactly one bot id.');
-      io.stdout(JSON.stringify(runMemoryDiff(rest[0]!, values, io), null, 2));
+      out.stdout(JSON.stringify(runMemoryDiff(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'memory-save') {
       if (rest.length !== 1) throw usageError('memory-save needs exactly one bot id.');
-      io.stdout(JSON.stringify(await runMemorySave(rest[0]!, values, io, readStdin), null, 2));
+      out.stdout(JSON.stringify(await runMemorySave(rest[0]!, values, io, readStdin), null, 2));
       return 0;
     }
     if (command !== 'create') throw usageError('Unknown command.');
     if (rest.length > 0) throw usageError('create takes no positional arguments.');
     const startedAt = performance.now();
     const result = await runCreate(values, io, readStdin);
-    io.stdout(JSON.stringify(result, null, 2));
+    out.stdout(JSON.stringify(result, null, 2));
     io.stderr(
       `deepseekbot: created ${result.bot.id} ("${result.bot.name}") in ${Math.round(performance.now() - startedAt)}ms`,
     );
@@ -2373,7 +2466,7 @@ export async function runBotCreateCli(
         ...(error.steps.length === 0 ? {} : { steps: error.steps }),
         ...(error.bot === undefined ? {} : { bot: error.bot }),
       };
-      io.stdout(JSON.stringify(failure, null, 2));
+      out.stdout(JSON.stringify(failure, null, 2));
       io.stderr(`deepseekbot: ${error.message}`);
       return error.exitCode;
     }
@@ -2388,7 +2481,7 @@ export async function runBotCreateCli(
           message: `${error.message} Run deepseekbot create --help for usage.`,
         },
       };
-      io.stdout(JSON.stringify(failure, null, 2));
+      out.stdout(JSON.stringify(failure, null, 2));
       io.stderr(`deepseekbot: ${error.message}`);
       return 2;
     }
@@ -2396,14 +2489,14 @@ export async function runBotCreateCli(
       const failure: BotCreateFailure = {
         error: { code: error.code, message: error.message },
       };
-      io.stdout(JSON.stringify(failure, null, 2));
+      out.stdout(JSON.stringify(failure, null, 2));
       io.stderr(`deepseekbot: ${error.message}`);
       return 1;
     }
     const failure: BotCreateFailure = {
       error: { code: 'internal-error', message: 'The command failed before producing a result.' },
     };
-    io.stdout(JSON.stringify(failure, null, 2));
+    out.stdout(JSON.stringify(failure, null, 2));
     io.stderr(`deepseekbot: ${error instanceof Error ? error.message : String(error)}`);
     return 1;
   }
