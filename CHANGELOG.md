@@ -47,6 +47,7 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - External coding agents can create PersonaBots without clicking: `deepseekbot create` covers blank, bundle (directory or zip), and GitHub sources against any DSH_HOME, printing machine-readable JSON (bot id, DM channel, data directory, step statuses, next actions) to stdout; names are labels so repeats mint new bots, and secrets travel only via environment or stdin. See the [bot CLI guide](docs/bot-cli.md) ([#1304](https://github.com/BotHarness/DeepSeekBot/issues/1304), [ADR-0156](docs/adr/0156-programmatic-bot-creation-is-a-machine-first-cli-over-registry-creation.md)).
 - The same CLI now manages models headlessly: `model-presets` lists profile presets, `model-preset-create` mints one from explicit routes, `model-preset-apply` puts it on a Bot, and `model-plan` shows the active plan with deferred readiness; routes are shape- plus provider-existence-checked offline while key validity stays Host-side. See the [bot CLI guide](docs/bot-cli.md) ([#1310](https://github.com/BotHarness/DeepSeekBot/issues/1310), [ADR-0157](docs/adr/0157-cli-model-validation-is-tiered-key-validity-stays-host-side.md)).
 - The same CLI now covers Bot lifecycle and human naming: `pause`/`resume`, `update` for name, description, and roles, `human-name-set` for the Human display name, and `channel-human-name-set` for the per-channel Human nickname, all offline with coded errors. See the [bot CLI guide](docs/bot-cli.md) ([#1312](https://github.com/BotHarness/DeepSeekBot/issues/1312)).
+- The same CLI now reads and writes Bot Memory headlessly: `memory-snapshot`, `memory-file`, `memory-history`, and `memory-diff` read the memory store, and `memory-save` writes one file and commits it with compare-and-swap heads and idempotent edit ids; conflicts and bad shas fail coded. See the [bot CLI guide](docs/bot-cli.md) ([#1311](https://github.com/BotHarness/DeepSeekBot/issues/1311)).
 
 ### Changed
 
@@ -70,6 +71,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
+
+- In Bot Settings, Computer **Import…** stays closed when the directory holds no archives, and a Combobox with nothing to pick renders no floating box, so an empty dropdown no longer reads as a broken select ([#1309](https://github.com/BotHarness/DeepSeekBot/issues/1309)).
 
 ### Documentation
 
