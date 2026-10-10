@@ -3,8 +3,18 @@ import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { dmChannelId } from '../channels/channel.js';
 import type { BotCreateCliIo } from './bot-create-cli.js';
+import { CliLiveError } from './cli-live-error.js';
+import {
+  IM_COMMANDS,
+  IM_OPTIONS,
+  prepareImAuthorization,
+  runImAuthorization,
+  type ImValues,
+} from './cli-im-authorization.js';
+export { CliLiveError } from './cli-live-error.js';
 
 export const LIVE_OPTIONS = {
+  ...IM_OPTIONS,
   host: { type: 'string' },
   'token-file': { type: 'string' },
   timeout: { type: 'string' },
@@ -16,6 +26,7 @@ export const LIVE_OPTIONS = {
 } as const;
 
 export const LIVE_COMMANDS = [
+  ...IM_COMMANDS,
   {
     command: 'send',
     description: 'send a Human DM and collect its committed Bot reply from a live Host',
@@ -39,7 +50,7 @@ export const LIVE_COMMANDS = [
   { command: 'grant-create', description: 'authorize a Bot workspace through the live Host' },
 ] as const;
 
-interface LiveValues {
+interface LiveValues extends ImValues {
   host?: string;
   'token-file'?: string;
   timeout?: string;
@@ -52,16 +63,6 @@ interface LiveValues {
   workspace?: string;
   limit?: string;
   before?: string;
-}
-
-export class CliLiveError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly receipt?: { channelId: string; messageId: string },
-  ) {
-    super(message);
-  }
 }
 
 function usage(message: string): never {
@@ -153,7 +154,7 @@ async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSign
   if (!cookie)
     throw new CliLiveError('host-unauthorized', 'Host login did not issue an authority cookie.');
   return async <T>(method: string, args: Record<string, unknown>): Promise<T> => {
-    const name = `botharness/${method}`;
+    const name = method === 'dsh-im/app-setup' ? method : `botharness/${method}`;
     const response = await request(new URL(`/api/${name}`, base), {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie },
@@ -161,7 +162,7 @@ async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSign
         type: 'client-request',
         rpcId: randomUUID(),
         method: name,
-        payload: { args },
+        payload: method === 'dsh-im/app-setup' ? args : { args },
       }),
     });
     if (response.status === 401 || response.status === 403) {
@@ -211,6 +212,24 @@ export async function runLiveCli(
   values: LiveValues,
   io: BotCreateCliIo,
 ): Promise<unknown> {
+  if (IM_COMMANDS.some((entry) => entry.command === command)) {
+    const operation = await prepareImAuthorization(command, rest, values, io);
+    const signal = AbortSignal.timeout(timeoutMs(values.timeout));
+    try {
+      return await runImAuthorization(operation, await connect(values, io, signal), signal);
+    } catch (error) {
+      if (
+        error instanceof CliLiveError &&
+        !error.authorization &&
+        command !== 'im-apps' &&
+        command !== 'im-authorize'
+      )
+        throw new CliLiveError(error.code, error.message, undefined, {
+          attemptId: operation.target,
+        });
+      throw error;
+    }
+  }
   const noTarget = command === 'release-info' || command === 'workspace-options';
   if (rest.length !== (noTarget ? 0 : 1))
     usage(

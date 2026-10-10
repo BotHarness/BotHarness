@@ -21,6 +21,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- The CLI can authorize Feishu and WeChat IM applications through the existing Provider, return a phone-scannable QR, submit credentials or verification codes through stdin and poll or cancel the same authorization attempt. See the [CLI guide](docs/bot-cli.md) ([#1318](https://github.com/BotHarness/DeepSeekBot/issues/1318)).
+
 - The CLI can send a DM and collect its exact committed reply, inspect receipts, answer formal questions, decide tool approvals once, read release state and create workspace grants through a running authenticated Host. See the [CLI guide](docs/bot-cli.md) ([#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)).
 
 - PersonaBots can use `inbox_history` to search their own admitted messages and handled self-records across Sessions, in English and Chinese, filtered by kind, Channel, cause and time; bounded history reads never change attention. Text searches require at least three characters, and ranked cursors last ten minutes or until Host restart ([#1278](https://github.com/BotHarness/DeepSeekBot/issues/1278), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
