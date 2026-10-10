@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Button, Switch, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import { ChannelSidebarIcon } from '../../../client/src/client/channel-sidebar-icon.js';
+import { useMountedResource } from '../../../client/src/client/mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
@@ -388,6 +389,11 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       ? 'trackpad'
       : 'direct',
   );
+  const finePointer =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: fine)').matches;
+  const showHeaderTakeover = inputMode === 'direct' && finePointer;
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
@@ -465,6 +471,48 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     interaction && paused
       ? `${t('entry.view.browserTitle', { name: botName })} · ${t('entry.takeover.active')}`
       : t('entry.view.browserTitle', { name: botName });
+  const toggleRef = useRef(toggleTakeover);
+  toggleRef.current = toggleTakeover;
+  const messageResource = useMountedResource<HTMLDivElement>(() => {
+    const onMessage = (event: MessageEvent): void => {
+      const data = event.data as { type?: unknown } | null;
+      if (typeof window === 'undefined' || event.origin !== window.location.origin) return;
+      if (data === null || typeof data !== 'object' || data.type !== 'bh-takeover-toggle') return;
+      const ours = [...document.querySelectorAll('iframe')].some(
+        (frame) =>
+          frame.contentWindow === event.source &&
+          (frame.getAttribute('src') ?? '').includes('/botharness-browser/viewer/'),
+      );
+      if (!ours) return;
+      toggleRef.current();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  const takeoverNote = useRef<boolean | undefined>(undefined);
+  const wantTakeoverNote = interaction && paused;
+  if (takeoverNote.current !== wantTakeoverNote && typeof document !== 'undefined') {
+    takeoverNote.current = wantTakeoverNote;
+    try {
+      for (const frame of Array.from(document.querySelectorAll('iframe'))) {
+        if ((frame.getAttribute('src') ?? '').includes('/botharness-browser/viewer/')) {
+          frame.contentWindow?.postMessage(
+            { type: 'bh-takeover-state', active: wantTakeoverNote },
+            window.location.origin,
+          );
+        }
+      }
+    } catch {
+      void 0;
+    }
+  }
+  const bodyResource = useCallback(
+    (node: HTMLDivElement | null): void => {
+      interactionResource(node);
+      messageResource(node);
+    },
+    [interactionResource, messageResource],
+  );
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
@@ -603,7 +651,10 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     );
 
   return (
-    <div ref={interactionResource} className="bh-browser-body bh-browser-local">
+    <div
+      ref={bodyResource}
+      className="bh-browser-body bh-browser-local"
+    >
       <SidebarCardList className="bh-browser-cards">
         <SidebarCardRow
           icon="globe"
@@ -737,21 +788,23 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                   </span>
                 </span>
               </Button>
-              <Button
-                size="sm"
-                variant={interaction ? 'ghost' : 'primary'}
-                disabled={busy}
-                aria-pressed={interaction}
-                title={t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
-                onClick={toggleTakeover}
-              >
+              {showHeaderTakeover ? (
+                <Button
+                  size="sm"
+                  variant={interaction ? 'ghost' : 'primary'}
+                  disabled={busy}
+                  aria-pressed={interaction}
+                  title={t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                  onClick={toggleTakeover}
+                >
                 <span className="bh-viewer-btn-content">
                   <TakeoverIcon />
                   <span data-bh-viewer-btn-label>
                     {t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
                   </span>
                 </span>
-              </Button>
+                </Button>
+              ) : null}
             </>
           }
         />

@@ -2454,6 +2454,8 @@ window.__ModuleLoader__.load({
 				setInteraction(false);
 			}, []);
 			const [inputMode, setInputMode] = (0, react.useState)(() => typeof window !== "undefined" && window.innerWidth < 768 && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches ? "trackpad" : "direct");
+			const finePointer = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: fine)").matches;
+			const showHeaderTakeover = inputMode === "direct" && finePointer;
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
 			const currentTab = tabs.find((tab) => tab.current);
@@ -2523,6 +2525,34 @@ window.__ModuleLoader__.load({
 			};
 			const botName = info.displayName ?? botSlug ?? "";
 			const takeoverTitle = interaction && paused ? `${t("entry.view.browserTitle", { name: botName })} · ${t("entry.takeover.active")}` : t("entry.view.browserTitle", { name: botName });
+			const toggleRef = (0, react.useRef)(toggleTakeover);
+			toggleRef.current = toggleTakeover;
+			const messageResource = useMountedResource(() => {
+				const onMessage = (event) => {
+					const data = event.data;
+					if (typeof window === "undefined" || event.origin !== window.location.origin) return;
+					if (data === null || typeof data !== "object" || data.type !== "bh-takeover-toggle") return;
+					if (![...document.querySelectorAll("iframe")].some((frame) => frame.contentWindow === event.source && (frame.getAttribute("src") ?? "").includes("/botharness-browser/viewer/"))) return;
+					toggleRef.current();
+				};
+				window.addEventListener("message", onMessage);
+				return () => window.removeEventListener("message", onMessage);
+			}, []);
+			const takeoverNote = (0, react.useRef)(void 0);
+			const wantTakeoverNote = interaction && paused;
+			if (takeoverNote.current !== wantTakeoverNote && typeof document !== "undefined") {
+				takeoverNote.current = wantTakeoverNote;
+				try {
+					for (const frame of Array.from(document.querySelectorAll("iframe"))) if ((frame.getAttribute("src") ?? "").includes("/botharness-browser/viewer/")) frame.contentWindow?.postMessage({
+						type: "bh-takeover-state",
+						active: wantTakeoverNote
+					}, window.location.origin);
+				} catch {}
+			}
+			const bodyResource = (0, react.useCallback)((node) => {
+				interactionResource(node);
+				messageResource(node);
+			}, [interactionResource, messageResource]);
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
 				setBusy(true);
@@ -2632,7 +2662,7 @@ window.__ModuleLoader__.load({
 				refresh: store.refresh
 			}, botSlug);
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				ref: interactionResource,
+				ref: bodyResource,
 				className: "bh-browser-body bh-browser-local",
 				children: [
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
@@ -2748,7 +2778,7 @@ window.__ModuleLoader__.load({
 									children: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct")
 								})]
 							})
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						}), showHeaderTakeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
 							variant: interaction ? "ghost" : "primary",
 							disabled: busy,
@@ -2762,7 +2792,7 @@ window.__ModuleLoader__.load({
 									children: t(interaction ? "entry.takeover.stop" : "entry.takeover.start")
 								})]
 							})
-						})] })
+						}) : null] })
 					}, scope),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: "bh-browser-note",
