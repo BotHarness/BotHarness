@@ -1061,3 +1061,66 @@ describe('deepseekbot secrets', () => {
     ]);
   });
 });
+
+describe('deepseekbot search and compact', () => {
+  it('finds commands by words with exact names first', async () => {
+    const home = createTempRoot('botharness-search-');
+    const schedules = await invoke(['search', 'schedule'], home);
+    expect(schedules.code).toBe(0);
+    const names = schedules.json.matches.map((match: { command: string }) => match.command);
+    for (const command of [
+      'schedules',
+      'schedule-create',
+      'schedule-update',
+      'schedule-delete',
+      'schedule-history',
+      'schedule-run-now',
+      'schedule-preview',
+    ]) {
+      expect(names).toContain(command);
+    }
+    expect(names).not.toContain('create');
+    const exact = await invoke(['search', 'model', 'preset', 'apply'], home);
+    expect(exact.json.matches[0].command).toBe('model-preset-apply');
+    const none = await invoke(['search', 'zzzznothing'], home);
+    expect(none.code).toBe(0);
+    expect(none.json.matches).toEqual([]);
+    const empty = await invoke(['search'], home);
+    expect(empty.code).toBe(2);
+    expect(empty.json.error.code).toBe('usage');
+  });
+
+  it('keeps the search index in sync with the dispatch table', async () => {
+    const source = readFileSync(new URL('../src/bots/bot-create-cli.ts', import.meta.url), 'utf8');
+    const dispatched = new Set<string>();
+    for (const match of source.matchAll(/if \(command === '([a-z-]+)'\)/gu)) {
+      dispatched.add(match[1]!);
+    }
+    const home = createTempRoot('botharness-search-sync-');
+    expect(dispatched.size).toBeGreaterThan(30);
+    for (const command of [...dispatched].sort()) {
+      const found = await invoke(['search', command], home);
+      expect(found.code).toBe(0);
+      expect(found.json.matches.length).toBeGreaterThan(0);
+      expect(found.json.matches[0].command).toBe(command);
+    }
+  });
+
+  it('condenses stdout JSON with --compact and leaves help text alone', async () => {
+    const home = createTempRoot('botharness-compact-');
+    const pretty = await invoke(['model-presets'], home);
+    expect(pretty.stdout.includes('\n')).toBe(true);
+    const compact = await invoke(['--compact', 'model-presets'], home);
+    expect(compact.code).toBe(0);
+    expect(compact.stdout.includes('\n')).toBe(false);
+    expect(JSON.parse(compact.stdout)).toEqual(JSON.parse(pretty.stdout));
+    const out: string[] = [];
+    const code = await runBotCreateCli(['--compact', '--help'], {
+      env: { ...process.env },
+      stdout: (text) => out.push(text),
+      stderr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join('\n').includes('\n')).toBe(true);
+  });
+});
