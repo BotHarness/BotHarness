@@ -50,7 +50,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 </style>
 </head>
 <body>
-<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="padRow"><button class="padBtn" id="padLeft" type="button">Left Click</button><button class="padBtn" id="padRight" type="button">Right Click</button><button class="padBtn" id="padUp" type="button">▲ Scroll</button><button class="padBtn" id="padDown" type="button">▼ Scroll</button><button class="padBtn wide" id="padKbd" type="button">⌨ Keyboard</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1" enterkeyhint="go"><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="padRow"><button class="padBtn" id="padLeft" type="button">Left Click</button><button class="padBtn" id="padRight" type="button">Right Click</button><button class="padBtn" id="padUp" type="button">▲ Scroll</button><button class="padBtn" id="padDown" type="button">▼ Scroll</button><button class="padBtn wide" id="padKbd" type="button">⌨ Keyboard</button><button class="padBtn wide" id="padTakeover" type="button">Take over</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1" enterkeyhint="go"><div id="status"></div></div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
@@ -66,6 +66,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const padUp = document.getElementById('padUp');
   const padDown = document.getElementById('padDown');
   const padKbd = document.getElementById('padKbd');
+  const padTakeover = document.getElementById('padTakeover');
   const ghost = document.getElementById('ghost');
   const ghostField = ghost instanceof HTMLInputElement ? ghost : null;
   const enterBtn = document.getElementById('enterBtn');
@@ -270,6 +271,93 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   });
   if (padUp) padUp.addEventListener('click', () => void send({ kind: 'scroll', direction: 'up', amount: 600 }));
   if (padDown) padDown.addEventListener('click', () => void send({ kind: 'scroll', direction: 'down', amount: 600 }));
+  function paintTakeover(active) {
+    if (!padTakeover) return;
+    padTakeover.textContent = active ? 'Release' : 'Take over';
+    padTakeover.classList.toggle('armed', active);
+  }
+  if (typeof window !== 'undefined' && window.parent !== window) {
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data !== null && typeof data === 'object' && data.type === 'bh-takeover-state') {
+        paintTakeover(data.active === true);
+      }
+    });
+  }
+  if (padTakeover) padTakeover.addEventListener('click', () => {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
+    }
+    void (async () => {
+      const readTakeover = async () => {
+        try {
+          const response = await fetch('/api/browser/observation?slug=' + encodeURIComponent(slug), {
+            cache: 'no-store',
+          });
+          if (!response.ok) return undefined;
+          const state = await response.json();
+          if (state === null || typeof state !== 'object') return undefined;
+          return {
+            taken: state.takeover === true,
+            pending: state.handoffPending === true,
+          };
+        } catch {
+          return undefined;
+        }
+      };
+      const flipTakeover = async (active) => {
+        try {
+          const response = await fetch('/api/browser/takeover', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ slug, active }),
+          });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      };
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const before = await readTakeover();
+      if (before === undefined) return;
+      if (!before.taken) {
+        await sleep(1500);
+        const current = await readTakeover();
+        if (current === undefined || current.taken) {
+          if (current !== undefined) paintTakeover(true);
+          return;
+        }
+        if (await flipTakeover(true)) paintTakeover(true);
+        else say('takeover unavailable');
+        return;
+      }
+      if (before.pending) {
+        say('handoff in progress, finishing keeps pause');
+        return;
+      }
+      await sleep(1500);
+      const current = await readTakeover();
+      if (current === undefined || !current.taken) {
+        if (current !== undefined) paintTakeover(false);
+        return;
+      }
+      if (await flipTakeover(false)) paintTakeover(false);
+      else say('release unavailable');
+    })();
+  });
+  void (async () => {
+    try {
+      const response = await fetch('/api/browser/observation?slug=' + encodeURIComponent(slug), {
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const state = await response.json();
+      if (state !== null && typeof state === 'object') paintTakeover(state.takeover === true);
+    } catch {
+      void 0;
+    }
+  })();
   if (padKbd) padKbd.addEventListener('click', () => {
     if (document.activeElement === ghostField) {
       disarm();

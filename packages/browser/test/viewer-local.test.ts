@@ -127,6 +127,9 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('Direct tap');
     expect(page).not.toContain('id="kbd"');
     expect(page).not.toContain('sendBtn');
+    expect(page).toContain('/api/browser/observation?slug=');
+    expect(page).toContain('/api/browser/takeover');
+    expect(page).toContain('handoff in progress');
     f.dispose();
     expect(f.release).toHaveBeenCalledOnce();
   });
