@@ -1143,7 +1143,7 @@ function ConversationView({
   return (
     <div ref={conversationMount} className="bh-root bh-main">
       <span ref={allBotPreviewMount} hidden />
-      <div className="bh-chat-layout">
+      <div className="bh-chat-layout" data-sidebar={sidebar.mode}>
         <section
           className="bh-chat-pane"
           data-activity-concealed={composerActivityConcealed ? 'true' : undefined}

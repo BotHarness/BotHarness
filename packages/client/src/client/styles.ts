@@ -6828,6 +6828,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-channel-options{position:absolute;right:12px;top:11px;pointer-events:auto}
+.bh-chat-layout[data-sidebar='hidden'] .bh-channel-options{right:44px}
+.bh-chat-layout[data-sidebar='hidden'] .bh-topbar{padding-right:84px}
 .bh-human-nickname-dialog p{margin:0}
 .bh-messaging-defaults{display:flex;flex-direction:column;gap:12px;margin-top:24px}
 .bh-messaging-defaults p{margin:0}
