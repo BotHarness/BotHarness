@@ -42,7 +42,7 @@ node scripts/product-artifacts.mjs \
   --version 0.0.0-test.878
 ```
 
-Choose a fresh output directory. `artifacts.json` records the four actual tarballs,
+Choose a fresh output directory. `artifacts.json` records the six actual tarballs,
 exact versions, DSH revision and integrity. The test SemVer is for local
 qualification only. Provider changes require their own version increment and
 new behavioral qualification; do not silently replace the same published version.
@@ -61,7 +61,8 @@ The helper installs an official fixed CLI in that task-owned home, verifies
 tarball integrity and installed Provider runtime, and probes the authenticated
 BotHarness API. Open its private login URL locally; never publish that URL or
 raw credential logs. Plugins → deepseekbot must show the selected test version
-and **three running components**. Settings → IM bots must show the scoped
+and **six running components** (IM Provider, Core, Client, Browser, the
+computer-use seam and Computer). Settings → IM bots must show the scoped
 Provider version and **Updates with BotHarness**, with no connected accounts.
 
 This is a real package install with local tarball substitutions for versions not
@@ -79,7 +80,8 @@ stop that Host and pass the new directory while retaining the home. The installe
 preserves unrelated workspace/build settings, account state and canonical data.
 
 If the Profile separately enables `@xmanrui/dsh-im`, `@botharness/im-provider`,
-`@botharness/core` or `@botharness/ui`, the helper refuses and names the offending
+`@botharness/browser`, `@botharness/computer`, `@botharness/core` or
+`@botharness/ui`, the helper refuses and names the offending
 Bundle. Stop its owning Host and remove only that duplicate Bundle entry before
 retrying. Keep the stored credentials, account settings and source/Outbox history.
 An incompatible Provider replacement requires requalification, not a version

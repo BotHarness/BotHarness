@@ -50,6 +50,7 @@
 - 同一 CLI 现在可读 Channel、管理授权与计划、查看配对：`channels` 与 `channel-messages` 看历史，授权的列出/撤销/写开关，计划的增删改查、历史、手动触发与预渲染，`pairings` 看 IM 配对状态；新建授权仍是 Host 侧动作。见 [Bot 命令行指南](docs/bot-cli.md)（[#1313](https://github.com/BotHarness/DeepSeekBot/issues/1313)）。
 - 同一 CLI 现在可零点击配置密钥：`secret-put` 只从标准输入读值，以行级编辑写入 `$DSH_HOME/.credentials.yaml`（备份加回读校验），`secret-list` 只列名字不返回值，`secret-unset` 删除条目。见 [Bot 命令行指南](docs/bot-cli.md)（[#1314](https://github.com/BotHarness/DeepSeekBot/issues/1314)，[ADR-0158](docs/adr/0158-secret-put-writes-credential-refs-by-line-edit.md)）。
 - 同一 CLI 现在可无界面读写 Bot 记忆：`memory-snapshot`、`memory-file`、`memory-history`、`memory-diff` 读取记忆库，`memory-save` 写一个文件并提交（支持 compare-and-swap head 与幂等 edit id）；冲突与非法 sha 按错误码失败。见 [Bot 命令行指南](docs/bot-cli.md)（[#1311](https://github.com/BotHarness/DeepSeekBot/issues/1311)）。
+- 全新安装的 `deepseekbot` 现在随 Core、Client 和已验证的 IM Provider 默认附带 Browser 与 Computer Bundle，新 Profile 无需额外安装即可浏览网页和操作电脑；IM 账号在添加应用凭据前保持未连接，每个 Bot 的 Browser／Computer Access 在显式开启前保持关闭。已有 Profile 升级后即获得新的默认 Bundle；如曾单独启用 Browser 或 Computer Bundle，请先移除其独立 Bundle 条目，保留已存数据（[#1328](https://github.com/BotHarness/DeepSeekBot/issues/1328)，[ADR-0159](docs/adr/0159-deepseekbot-default-bundles-browser-computer-and-im-provider.md)）。
 
 ### Changed
 

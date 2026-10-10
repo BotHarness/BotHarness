@@ -106,8 +106,8 @@ dsh web
 
 ## Package notes
 
-This product Bundle combines BotHarness Core (`@botharness/core`), Client (`@botharness/ui`) and the independently versioned, qualified IM Provider (`@botharness/im-provider`, maintained from [dsh-im](https://github.com/xmanrui/dsh-im) under its MIT license). The Provider updates with the product, without an independent upstream auto-update. The optional Computer and Browser Bundles are not part of this package; they are available from source.
+This product Bundle combines BotHarness Core (`@botharness/core`), Client (`@botharness/ui`), Browser (`@botharness/browser`), Computer (`@botharness/computer`) and the independently versioned, qualified IM Provider (`@botharness/im-provider`, maintained from [dsh-im](https://github.com/xmanrui/dsh-im) under its MIT license). The Provider updates with the product, without an independent upstream auto-update. Browser and Computer ship present but gated: each Bot still needs its own Browser/Computer Access, and IM accounts start disconnected until you add app credentials in Settings → IM bots.
 
-If an existing Profile enables standalone `@xmanrui/dsh-im` or `@botharness/im-provider` as another Bundle, remove that separate Bundle before enabling DeepSeekBot. Removing a Bundle keeps its stored account configuration and credentials; revalidate the retained Bot bindings and group authorization afterwards.
+If an existing Profile enables standalone `@xmanrui/dsh-im`, `@botharness/im-provider`, `@botharness/browser` or `@botharness/computer` as another Bundle, remove that separate Bundle before enabling DeepSeekBot. Removing a Bundle keeps its stored account configuration and credentials; revalidate the retained Bot bindings and group authorization afterwards.
 
 MIT © BotHarness

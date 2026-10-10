@@ -1,13 +1,17 @@
 import { join } from 'node:path';
 
-const BASE_BUNDLES = [
-  '@deepseek-ai/dsh-base',
-  '@deepseek-ai/dsh-web-app',
-  'deepseekbot',
-  '@botharness/computer',
+const BASE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'deepseekbot'];
+// The deepseekbot umbrella Patch inserts every owned Plugin (core, client,
+// browser, computer); promoting a member to a top-level Bundle fails boot
+// with a duplicate loader entry. Keep former separate entries in the owned
+// set so reopening an older dev Profile migrates them into the umbrella.
+const OWNED_BUNDLES = new Set([
+  ...BASE_BUNDLES,
   '@botharness/browser',
-];
-const OWNED_BUNDLES = new Set([...BASE_BUNDLES, '@botharness/core', '@botharness/ui']);
+  '@botharness/computer',
+  '@botharness/core',
+  '@botharness/ui',
+]);
 
 export function developmentProfileManifest(manifest, worktree) {
   const packages = join(worktree, 'packages');

@@ -652,6 +652,12 @@ importers:
 
   packages/deepseekbot:
     dependencies:
+      '@botharness/browser':
+        specifier: link:../browser
+        version: link:../browser
+      '@botharness/computer':
+        specifier: link:../computer
+        version: link:../computer
       '@botharness/core':
         specifier: link:../core
         version: link:../core
