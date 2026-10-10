@@ -80,7 +80,17 @@ The separately reported DM sidebar scope mismatch is tracked in
 Launch this branch through `scripts/dev-instance.mjs` with a new isolated home and a free
 port, then enter Bot mode. To replay, open Bot settings → General → Continue tutorial.
 Click the mask through all eight steps and once more on the last step. Separately verify
-that Skip tutorial, the close button and Escape still retain their existing behavior.
+that Skip, the close button and Escape still retain their existing behavior.
+
+## Short label follow-up
+
+English now uses exactly `Skip`; Chinese uses `跳过`. The English regression reads
+the production locale value and asserts the rendered button text. All eight dark
+steps, the light final step and Done completion were recaptured after integrating
+main `51058d54`. The measured viewport remains 1402 × 877 CSS pixels, captured at
+1280 × 800 pixels. The nine focused files still pass all 83 tests; typecheck, lint,
+build and scoped formatting pass. The Human has authorized merging both UI PRs
+after verification; that authorization does not include deployment.
 
 No merge, deployment, external IM action or live model request is part of this proof.
 The PR stops for Human QA.
