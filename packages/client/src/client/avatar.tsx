@@ -392,6 +392,7 @@ export function PersonaBotAvatar({
     >
       {composed || seededRecipe ? (
         <IllustratedAvatar
+          personaBotId={personaBotId}
           recipe={composed ? appearance.recipe : seededRecipe!}
           state={state}
           effect={resolvedEffect ?? 'generic-working'}
