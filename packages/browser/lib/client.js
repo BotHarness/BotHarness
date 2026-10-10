@@ -1285,6 +1285,8 @@ window.__ModuleLoader__.load({
 			"entry.borrow.cancel": "取消配对",
 			"entry.borrow.instructions": "在扩展中输入此地址和配对码，再选择借出当前页面。配对码 5 分钟内有效，仅可使用一次。",
 			"entry.view.interaction": "允许 Human 操作",
+			"entry.view.inputMode.direct": "直接点按",
+			"entry.view.inputMode.trackpad": "触控板",
 			"entry.view.close": "关闭",
 			"entry.view.container": "容器浏览器",
 			"entry.label": "浏览器",
@@ -1367,6 +1369,8 @@ window.__ModuleLoader__.load({
 			"entry.borrow.cancel": "Cancel pairing",
 			"entry.borrow.instructions": "Enter this address and code in the extension, then share the current page. The code expires in 5 minutes and can be used once.",
 			"entry.view.interaction": "Enable Human interaction",
+			"entry.view.inputMode.direct": "Direct tap",
+			"entry.view.inputMode.trackpad": "Trackpad",
 			"entry.view.close": "Close",
 			"entry.view.container": "Container Browser",
 			"entry.label": "Browser",
@@ -2377,6 +2381,7 @@ window.__ModuleLoader__.load({
 				viewerRequest.current += 1;
 				setInteraction(false);
 			}, []);
+			const [inputMode, setInputMode] = (0, react.useState)(() => typeof window !== "undefined" && window.innerWidth < 768 && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches ? "trackpad" : "direct");
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
 			const currentTab = tabs.find((tab) => tab.current);
@@ -2400,12 +2405,8 @@ window.__ModuleLoader__.load({
 			}
 			if (!paused && interaction) setInteraction(false);
 			const viewerTranslate = (key) => t(key);
-			const toggleInteraction = () => {
-				if (interaction) {
-					disableInteraction();
-					return;
-				}
-				if (busy || botSlug === void 0 || viewerUrl === void 0) return;
+			const postTakeoverEnable = () => {
+				if (botSlug === void 0 || viewerUrl === void 0) return;
 				const request = ++viewerRequest.current;
 				const expectedScope = viewerScope.current;
 				setBusy(true);
@@ -2431,6 +2432,14 @@ window.__ModuleLoader__.load({
 					}
 				});
 			};
+			const toggleInteraction = () => {
+				if (interaction) {
+					disableInteraction();
+					return;
+				}
+				if (busy || botSlug === void 0 || viewerUrl === void 0) return;
+				postTakeoverEnable();
+			};
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
 				setBusy(true);
@@ -2448,6 +2457,7 @@ window.__ModuleLoader__.load({
 					if (endpoint === OPEN_ENDPOINT && result.viewerUrl !== void 0 && result.viewerUrl !== null) {
 						setViewer(result.viewerUrl);
 						setInteraction(false);
+						postTakeoverEnable();
 					}
 					if (endpoint === STOP_ENDPOINT) {
 						setViewer(void 0);
@@ -2622,7 +2632,7 @@ window.__ModuleLoader__.load({
 					}) }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
 						t: viewerTranslate,
 						title: t(observation?.target === "container" ? "entry.view.container" : "settings.local"),
-						src: viewerUrl,
+						src: `${viewerUrl}${viewerUrl.includes("?") ? "&" : "?"}mode=${inputMode}`,
 						design: {
 							width: 1024,
 							height: 768
@@ -2642,14 +2652,23 @@ window.__ModuleLoader__.load({
 						onExpandedChange: (next) => {
 							setViewer(next ? viewerUrl : void 0);
 							if (!next) disableInteraction();
+							else if (!interaction) toggleInteraction();
 						},
-						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							variant: "outline",
+							disabled: busy,
+							"aria-pressed": inputMode === "trackpad",
+							title: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct"),
+							onClick: () => setInputMode((mode) => mode === "direct" ? "trackpad" : "direct"),
+							children: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
 							variant: "outline",
 							disabled: busy,
 							onClick: onPause,
 							children: t(paused ? "entry.view.resume" : "entry.view.pause")
-						})
+						})] })
 					}, scope),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: "bh-browser-note",

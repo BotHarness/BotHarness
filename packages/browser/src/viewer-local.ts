@@ -60,6 +60,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const doneBtn = document.getElementById('doneBtn');
   const failBtn = document.getElementById('failBtn');
   const handoffToken = params.get('takeover') ?? '';
+  const toolbar = document.getElementById('toolbar');
+  const forcedMode = params.get('mode');
+  let modeOverride;
+  if ((forcedMode === 'direct' || forcedMode === 'trackpad') && window.parent !== window) {
+    modeOverride = forcedMode;
+    if (toolbar) toolbar.style.display = 'none';
+  }
   async function finishHandoff(reason) {
     if (handoffToken === '') return;
     try {
@@ -95,9 +102,12 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   if (doneBtn) doneBtn.addEventListener('click', () => void finishHandoff('done'));
   if (failBtn) failBtn.addEventListener('click', () => void finishHandoff('failed'));
-  let mode = window.innerWidth < 768 ? 'trackpad' : 'direct';
+  let mode = window.innerWidth < 768 && window.matchMedia('(pointer: coarse)').matches ? 'trackpad' : 'direct';
+  if (modeOverride !== undefined) mode = modeOverride;
   let cx = 0;
   let cy = 0;
+  let viewW = 0;
+  let viewH = 0;
   let cursorInit = false;
   let lastScroll = 0;
   function say(text) {
@@ -127,13 +137,17 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     const dx = clientX - rect.left;
     const dy = clientY - rect.top;
     if (dx < 0 || dy < 0 || dx > rect.width || dy > rect.height || rect.width === 0 || rect.height === 0) return null;
-    const sx = surfaceCanvas.width / rect.width;
-    const sy = surfaceCanvas.height / rect.height;
+    const baseW = viewW > 0 ? viewW : surfaceCanvas.width;
+    const baseH = viewH > 0 ? viewH : surfaceCanvas.height;
+    const sx = baseW / rect.width;
+    const sy = baseH / rect.height;
     return { x: Math.round(dx * sx), y: Math.round(dy * sy) };
   }
   function cursorPoint() {
     if (!surface || !surfaceCanvas || surface.clientWidth === 0 || surfaceCanvas.width === 0) return null;
-    return { x: Math.round(cx * (surfaceCanvas.width / surface.clientWidth)), y: Math.round(cy * (surfaceCanvas.height / surface.clientHeight)) };
+    const baseW = viewW > 0 ? viewW : surfaceCanvas.width;
+    const baseH = viewH > 0 ? viewH : surfaceCanvas.height;
+    return { x: Math.round(cx * (baseW / surface.clientWidth)), y: Math.round(cy * (baseH / surface.clientHeight)) };
   }
   async function send(body) {
     try {
@@ -147,7 +161,12 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         return;
       }
       if (!response.ok) {
-        say('input failed (' + response.status + ')');
+        try {
+          const reason = await response.text();
+          say(reason === '' ? 'input failed (' + response.status + ')' : reason.slice(0, 160));
+        } catch {
+          say('input failed (' + response.status + ')');
+        }
         return;
       }
       say('');
@@ -168,6 +187,10 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         return;
       }
       const blob = await response.blob();
+      const headerW = Number(response.headers.get('x-viewport-width'));
+      const headerH = Number(response.headers.get('x-viewport-height'));
+      if (Number.isFinite(headerW) && headerW > 0) viewW = headerW;
+      if (Number.isFinite(headerH) && headerH > 0) viewH = headerH;
       if (surfaceCanvas) {
         const bitmap = await createImageBitmap(blob);
         if (surfaceCanvas.width !== bitmap.width || surfaceCanvas.height !== bitmap.height) {
@@ -627,6 +650,12 @@ export function registerLocalViewer(options: {
           'content-type': shot.mimeType,
           'content-length': String(body.length),
           'cache-control': 'no-store',
+          ...(shot.viewport === undefined
+            ? {}
+            : {
+                'x-viewport-width': String(shot.viewport.width),
+                'x-viewport-height': String(shot.viewport.height),
+              }),
         });
         response.end(body);
         return;

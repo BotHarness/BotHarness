@@ -16,6 +16,7 @@ function fixture(options?: {
   const shot = options?.shot ?? {
     data: Buffer.from('frame').toString('base64'),
     mimeType: 'image/jpeg',
+    viewport: { width: 1200, height: 800 },
   };
   const clickAt = vi.fn(async (tabId: string, x: number, y: number) => ({
     tabId,
@@ -110,6 +111,8 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('frame?slug=');
     expect(page).toContain('id="videoCanvas"');
     expect(page).toContain('createImageBitmap');
+    expect(page).toContain('x-viewport-width');
+    expect(page).toContain("get('mode')");
     expect(page).toContain('Trackpad');
     expect(page).toContain('Direct tap');
     expect(page).toContain('id="kbd"');
@@ -123,7 +126,12 @@ describe('local browser viewer stream', () => {
     const response = await f.call(`${LOCAL_VIEWER_PREFIX}/frame?slug=qa`);
     expect(response.writeHead).toHaveBeenCalledWith(
       200,
-      expect.objectContaining({ 'content-type': 'image/jpeg', 'cache-control': 'no-store' }),
+      expect.objectContaining({
+        'content-type': 'image/jpeg',
+        'cache-control': 'no-store',
+        'x-viewport-width': '1200',
+        'x-viewport-height': '800',
+      }),
     );
     expect(Buffer.isBuffer(response.end.mock.calls[0]?.[0])).toBe(true);
     f.dispose();

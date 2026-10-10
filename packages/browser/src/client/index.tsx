@@ -378,6 +378,14 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     viewerRequest.current += 1;
     setInteraction(false);
   }, []);
+  const [inputMode, setInputMode] = useState<'direct' | 'trackpad'>(() =>
+    typeof window !== 'undefined' &&
+    window.innerWidth < 768 &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+      ? 'trackpad'
+      : 'direct',
+  );
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
@@ -405,12 +413,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   }
   if (!paused && interaction) setInteraction(false);
   const viewerTranslate: ViewerTranslate = (key) => t(key);
-  const toggleInteraction = (): void => {
-    if (interaction) {
-      disableInteraction();
-      return;
-    }
-    if (busy || botSlug === undefined || viewerUrl === undefined) return;
+  const postTakeoverEnable = (): void => {
+    if (botSlug === undefined || viewerUrl === undefined) return;
     const request = ++viewerRequest.current;
     const expectedScope = viewerScope.current;
     setBusy(true);
@@ -440,6 +444,14 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         }
       });
   };
+  const toggleInteraction = (): void => {
+    if (interaction) {
+      disableInteraction();
+      return;
+    }
+    if (busy || botSlug === undefined || viewerUrl === undefined) return;
+    postTakeoverEnable();
+  };
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
@@ -460,6 +472,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         ) {
           setViewer(result.viewerUrl);
           setInteraction(false);
+          postTakeoverEnable();
         }
         if (endpoint === STOP_ENDPOINT) {
           setViewer(undefined);
@@ -665,7 +678,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           key={scope}
           t={viewerTranslate}
           title={t(observation?.target === 'container' ? 'entry.view.container' : 'settings.local')}
-          src={viewerUrl}
+          src={`${viewerUrl}${viewerUrl.includes('?') ? '&' : '?'}mode=${inputMode}`}
           design={{ width: 1024, height: 768 }}
           notice={
             error === undefined ? undefined : (
@@ -684,11 +697,32 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           onExpandedChange={(next) => {
             setViewer(next ? viewerUrl : undefined);
             if (!next) disableInteraction();
+            else if (!interaction) toggleInteraction();
           }}
           extraControls={
-            <Button size="sm" variant="outline" disabled={busy} onClick={onPause}>
-              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                aria-pressed={inputMode === 'trackpad'}
+                title={t(
+                  inputMode === 'direct'
+                    ? 'entry.view.inputMode.trackpad'
+                    : 'entry.view.inputMode.direct',
+                )}
+                onClick={() => setInputMode((mode) => (mode === 'direct' ? 'trackpad' : 'direct'))}
+              >
+                {t(
+                  inputMode === 'direct'
+                    ? 'entry.view.inputMode.trackpad'
+                    : 'entry.view.inputMode.direct',
+                )}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onPause}>
+                {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+              </Button>
+            </>
           }
         />
       )}

@@ -49,6 +49,8 @@ export const zh = {
   'entry.borrow.instructions':
     '在扩展中输入此地址和配对码，再选择借出当前页面。配对码 5 分钟内有效，仅可使用一次。',
   'entry.view.interaction': '允许 Human 操作',
+  'entry.view.inputMode.direct': '直接点按',
+  'entry.view.inputMode.trackpad': '触控板',
   'entry.view.close': '关闭',
   'entry.view.container': '容器浏览器',
   'entry.label': '浏览器',
@@ -138,6 +140,8 @@ export const en: Record<BrowserKey, string> = {
   'entry.borrow.instructions':
     'Enter this address and code in the extension, then share the current page. The code expires in 5 minutes and can be used once.',
   'entry.view.interaction': 'Enable Human interaction',
+  'entry.view.inputMode.direct': 'Direct tap',
+  'entry.view.inputMode.trackpad': 'Trackpad',
   'entry.view.close': 'Close',
   'entry.view.container': 'Container Browser',
   'entry.label': 'Browser',
