@@ -81,6 +81,8 @@
 
 ### Fixed
 
+- 窗口伙伴说话时全张嘴改为更平的开口，保留半张嘴、原有表情、头像和说话节奏（[#1241](https://github.com/BotHarness/DeepSeekBot/issues/1241)）。
+
 - 窗口伙伴在拖拽、键盘移动与减少动效下松手时，同步更新人物和气泡来源锚点，无需等待下一动画帧（[#1248](https://github.com/BotHarness/DeepSeekBot/issues/1248)）。
 
 - 用键盘阅读窗口伙伴气泡或调整窗口尺寸时，不再滚动外层舞台、让人物悬在底部上方；气泡内部仍可滚动（[#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)）。

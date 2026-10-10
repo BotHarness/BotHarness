@@ -14,7 +14,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@botharness/pixel-avatar": "0.10.0",
+    "@botharness/pixel-avatar": "0.10.1",
     "@botharness/pixel-banner": "0.1.0",
     "@resvg/resvg-js": "2.6.2",
     "silk-wasm": "3.7.1"

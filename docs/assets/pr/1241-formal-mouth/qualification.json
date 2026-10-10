@@ -1,0 +1,55 @@
+{
+  "before": {
+    "source": "50b44535a8180a138268c4f52a7fb5581f61de13",
+    "formalVersion": "0.8.0"
+  },
+  "after": {
+    "source": "a009678599dcc7913e0c3a26de00a856a71f2e7d",
+    "formalVersion": "0.10.1"
+  },
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "locale": "zh-CN",
+  "theme": "light",
+  "sameProfileAndBot": true,
+  "recipeHash": "3fab67b8fd87ba27e391eacee28ca87c1991c9cd58e1670d85ff13640378cb3b",
+  "portraitHash": "285a563c4c0114e7ef9bd08224c81b6481738096e525bf5eac3ecffbb8b17677",
+  "bodyHash": "2e87c36b8c19dc01ee18caeb3a57cd0a343dd9cf52ffaeb16b13597989e9f334",
+  "identicalPortrait": true,
+  "identicalSavedClosedHalfOpenAllFiveLayers": true,
+  "changedFullOpeningAllFiveLayers": true,
+  "capturesAreUnfrozenSpeakingSamples": true,
+  "speechStates": {
+    "before": ["saved", "half-open", "closed", "open"],
+    "after": ["saved", "closed", "half-open", "open"]
+  },
+  "captureObservedStates": {
+    "before": {
+      "half-open": {
+        "before": ["closed"],
+        "after": ["closed"]
+      },
+      "open": {
+        "before": ["half-open"],
+        "after": ["half-open"]
+      }
+    },
+    "after": {
+      "half-open": {
+        "before": ["closed"],
+        "after": ["closed"]
+      },
+      "open": {
+        "before": ["half-open"],
+        "after": ["closed"]
+      }
+    }
+  },
+  "canonicalNewReplyBoth": true,
+  "dismissRestoresSavedSameDocument": true,
+  "historicalCardsOnFreshMount": [0, 0],
+  "consoleErrors": [0, 0],
+  "ownedBrowsersClosed": true
+}

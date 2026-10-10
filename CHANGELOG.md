@@ -81,6 +81,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Window Companions use a flatter full speech opening, preserving the half-open mouth, saved expression, portraits and speaking rhythm ([#1241](https://github.com/BotHarness/DeepSeekBot/issues/1241)).
+
 - Window Companion bubbles update their origin together with the character during dragging, keyboard movement and reduced-motion release, without waiting for another animation frame ([#1248](https://github.com/BotHarness/DeepSeekBot/issues/1248)).
 
 - Reading a Window Companion bubble with the keyboard or resizing the window no longer scrolls the outer stage and leaves the character above the floor; the bubble itself still scrolls ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
