@@ -428,6 +428,7 @@ export interface RemoteViewerProps {
   readonly onExpandedChange?: (expanded: boolean) => void;
   readonly hideStop?: boolean | undefined;
   readonly hideInteractiveToggle?: boolean | undefined;
+  readonly allowFrameInput?: boolean | undefined;
 }
 
 export function RemoteViewer({
@@ -449,6 +450,7 @@ export function RemoteViewer({
   onExpandedChange,
   hideStop,
   hideInteractiveToggle,
+  allowFrameInput,
 }: RemoteViewerProps): ReactElement {
   const entryRef = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
@@ -675,7 +677,7 @@ export function RemoteViewer({
           src={src}
           title={title}
           design={design}
-          interactive={expanded && (interactive ?? inputEnabled)}
+          interactive={allowFrameInput === true ? true : expanded && (interactive ?? inputEnabled)}
           fit={expanded ? 'contain' : 'width'}
           iframeRef={streamRef}
         />

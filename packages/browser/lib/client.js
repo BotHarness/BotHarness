@@ -536,7 +536,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle }) {
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle, allowFrameInput }) {
 			const entryRef = (0, react.useRef)(null);
 			const mounted = (0, react.useRef)(false);
 			const [hovered, setHovered] = (0, react.useState)(false);
@@ -760,7 +760,7 @@ window.__ModuleLoader__.load({
 							src,
 							title,
 							design,
-							interactive: expanded && (interactive ?? inputEnabled),
+							interactive: allowFrameInput === true ? true : expanded && (interactive ?? inputEnabled),
 							fit: expanded ? "contain" : "width",
 							iframeRef: streamRef
 						}, reloadKey), overlay]
@@ -2179,14 +2179,6 @@ window.__ModuleLoader__.load({
 				"aria-hidden": true
 			};
 		}
-		function DirectTapIcon({ size = 14 }) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
-				...baseProps(size),
-				fill: "currentColor",
-				stroke: "none",
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M6.5 3.8 18.6 11l-6.9 1.7-2.6 6.5z" })
-			});
-		}
 		function TrackpadIcon({ size = 14 }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
 				...baseProps(size),
@@ -2755,6 +2747,7 @@ window.__ModuleLoader__.load({
 						stopping: false,
 						hideStop: true,
 						hideInteractiveToggle: true,
+						allowFrameInput: true,
 						onStop: () => invoke(STOP_ENDPOINT),
 						interactive: interaction && paused,
 						onToggleInteractive: toggleTakeover,
@@ -2764,21 +2757,21 @@ window.__ModuleLoader__.load({
 							setViewer(next ? viewerUrl : void 0);
 							if (!next) disableInteraction();
 						},
-						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [showHeaderTakeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
 							variant: "outline",
 							disabled: busy,
-							"aria-pressed": inputMode === "trackpad",
-							title: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct"),
-							onClick: () => setInputMode((mode) => mode === "direct" ? "trackpad" : "direct"),
+							"aria-pressed": false,
+							title: t("entry.view.inputMode.trackpad"),
+							onClick: () => setInputMode("trackpad"),
 							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 								className: "bh-viewer-btn-content",
-								children: [inputMode === "direct" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(TrackpadIcon, {}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DirectTapIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(TrackpadIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 									"data-bh-viewer-btn-label": true,
-									children: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct")
+									children: t("entry.view.inputMode.trackpad")
 								})]
 							})
-						}), showHeaderTakeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						}) : null, showHeaderTakeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
 							variant: interaction ? "ghost" : "primary",
 							disabled: busy,

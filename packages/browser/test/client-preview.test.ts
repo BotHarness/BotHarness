@@ -90,14 +90,11 @@ beforeEach(async () => {
       disconnect(): void {}
     },
   );
-  vi.stubGlobal(
-    'matchMedia',
-    (query: string) => ({
-      matches: query === '(pointer: fine)',
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }),
-  );
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(pointer: fine)',
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
   current = 'work';
   target = 'local';
   takeover = false;
@@ -117,7 +114,11 @@ beforeEach(async () => {
   root = createRoot(host);
   Body = undefined;
   apply({
-    locale: { bind: () => (key) => en[key], register: () => () => {} },
+    locale: {
+      bind: () => (key: string, params?: Record<string, string | number>) =>
+        (en[key as keyof typeof en] ?? key).replace('{name}', String(params?.name ?? '')),
+      register: () => () => {},
+    },
     effect: (callback) => {
       callback();
     },
@@ -233,8 +234,8 @@ describe('Container Human viewer', () => {
     viewer = true;
     await poll();
     const frame = host.querySelector('iframe')!;
-    expect(frame.style.pointerEvents).toBe('none');
-    expect(frame.tabIndex).toBe(-1);
+    expect(frame.style.pointerEvents).toBe('auto');
+    expect(frame.tabIndex).toBe(0);
     await act(async () =>
       [...host.querySelectorAll('button')]
         .find((b) => b.textContent === 'Open Bot Browser')!
@@ -243,7 +244,7 @@ describe('Container Human viewer', () => {
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     expect(takeover).toBe(false);
     expect(host.querySelector('iframe')).toBe(frame);
-    expect(frame.style.pointerEvents).toBe('none');
+    expect(frame.style.pointerEvents).toBe('auto');
     return frame;
   }
   async function takeOver(): Promise<void> {
@@ -251,8 +252,10 @@ describe('Container Human viewer', () => {
       [...host.querySelectorAll('button')].find((b) => b.textContent === 'Take over')!.click(),
     );
     expect(takeover).toBe(true);
-    console.log('DIALOG:', host.querySelector('[role="dialog"]') !== null, 'IFRAMES:', host.querySelectorAll('iframe').length);
-
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Release')).toBe(
+      true,
+    );
+    expect(host.textContent).toContain('Taking over');
   }
   async function release(): Promise<void> {
     await act(async () =>
@@ -263,21 +266,20 @@ describe('Container Human viewer', () => {
     const frame = await expand();
     await takeOver();
     expect(host.querySelector('iframe')).toBe(frame);
-    expect(frame.style.pointerEvents).toBe('auto');
     await release();
     expect(takeover).toBe(false);
-    expect(frame.style.pointerEvents).toBe('none');
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Take over')).toBe(
+      true,
+    );
     await takeOver();
     await click('[aria-label="Leave fullscreen"]');
     expect(host.querySelector('[role="dialog"]')).toBeNull();
     expect(host.querySelector('iframe')).toBe(frame);
-    expect(frame.style.pointerEvents).toBe('none');
     expect(takeover).toBe(true);
     await act(async () =>
       [...host.querySelectorAll('button')].find((b) => b.textContent === 'Resume')!.click(),
     );
     expect(takeover).toBe(false);
-    expect(frame.style.pointerEvents).toBe('none');
   });
   it('keeps the takeover paused while a handoff link is pending', async () => {
     await expand();
@@ -329,8 +331,8 @@ describe('Container Human viewer', () => {
         await vi.advanceTimersByTimeAsync(5000);
       });
       expect(host.querySelector('iframe')).toBe(frame);
-      expect(frame.style.pointerEvents).toBe('none');
-      expect(frame.inert).toBe(true);
+      expect(frame.style.pointerEvents).toBe('auto');
+      expect(frame.inert).toBe(false);
     } finally {
       context.mockRestore();
     }
@@ -351,16 +353,15 @@ describe('Container Human viewer', () => {
     await act(async () =>
       [...host.querySelectorAll('button')].find((b) => b.textContent === 'Take over')!.click(),
     );
-    expect(frame.style.pointerEvents).toBe('none');
+    expect(frame.style.pointerEvents).toBe('auto');
     await click('[aria-label="Leave fullscreen"]');
     await act(async () => {
       takeover = true;
       resolve({ ok: true, json: async () => observation('/observation') } as Response);
     });
-    expect(frame.style.pointerEvents).toBe('none');
     expect(host.querySelector('[role="dialog"]')).toBeNull();
   });
-  it('shows a failed takeover in fullscreen and keeps input disabled', async () => {
+  it('shows a failed takeover in fullscreen and stays in watch mode', async () => {
     const frame = await expand();
     vi.mocked(fetch).mockImplementation(async (url) => {
       if (url === '/api/browser/takeover') throw new Error('Pause failed');
@@ -369,7 +370,7 @@ describe('Container Human viewer', () => {
     await act(async () =>
       [...host.querySelectorAll('button')].find((b) => b.textContent === 'Take over')!.click(),
     );
-    expect(frame.style.pointerEvents).toBe('none');
+    expect(frame.style.pointerEvents).toBe('auto');
     expect(host.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain(
       'Pause failed',
     );
@@ -381,35 +382,38 @@ describe('Container Human viewer', () => {
     expect(host.querySelector('iframe')).toBeNull();
     viewer = true;
     await poll();
-    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('none');
+    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('auto');
   });
   it('hides the header takeover switch on touch devices', async () => {
-    vi.stubGlobal(
-      'matchMedia',
-      (query: string) => ({
-        matches: query === '(pointer: coarse)',
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }),
-    );
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
     Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true });
+    const host2 = document.createElement('div');
+    document.body.append(host2);
+    const root2 = createRoot(host2);
     target = 'container';
     viewer = true;
-    await act(async () => root.render(createElement(Body!, { botSlug: 'qa', key: 'mobile' } as never)));
+    await act(async () => root2.render(createElement(Body!, { botSlug: 'qa' })));
     await poll();
     await act(async () =>
-      [...host.querySelectorAll('button')]
+      [...host2.querySelectorAll('button')]
         .find((b) => b.textContent === 'Open Bot Browser')!
         .click(),
     );
-    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
-
+    expect(host2.querySelector('[role="dialog"]')).not.toBeNull();
+    expect([...host2.querySelectorAll('button')].some((b) => b.textContent === 'Take over')).toBe(
+      false,
+    );
     expect(
-      [...host.querySelectorAll('button')].some((b) => b.textContent === 'Take over'),
+      [...host2.querySelectorAll('button')].some(
+        (b) => b.textContent === 'Trackpad' || b.textContent === 'Direct tap',
+      ),
     ).toBe(false);
-    expect(
-      [...host.querySelectorAll('button')].some((b) => b.textContent === 'Direct tap'),
-    ).toBe(true);
+    await act(async () => root2.unmount());
+    host2.remove();
     Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
   });
   it('toggles takeover from viewer messages and ignores foreign origins', async () => {
@@ -445,10 +449,11 @@ describe('Container Human viewer', () => {
     );
     expect(host.querySelector('iframe')).toBe(frame);
     expect(frame.getAttribute('src')).toContain('mode=trackpad');
-    await act(async () =>
-      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Direct tap')!.click(),
-    );
-    expect(frame.getAttribute('src')).toContain('mode=direct');
+    expect(
+      [...host.querySelectorAll('button')].some(
+        (b) => b.textContent === 'Trackpad' || b.textContent === 'Direct tap',
+      ),
+    ).toBe(false);
   });
   it('coalesces slow observation polls while Human Open remains available', async () => {
     let resolve!: (response: object) => void;
@@ -481,8 +486,8 @@ describe('Local Human viewer', () => {
     await poll();
     const frame = host.querySelector('iframe')!;
     expect(frame.getAttribute('src')).toBe('/viewer/qa/?mode=direct');
-    expect(frame.style.pointerEvents).toBe('none');
-    expect(host.textContent).toContain('Local Browser');
+    expect(frame.style.pointerEvents).toBe('auto');
+    expect(host.textContent).toContain("qa's Browser");
   });
 
   it('opens watch-only without pausing the bot', async () => {
@@ -496,7 +501,7 @@ describe('Local Human viewer', () => {
     );
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     expect(takeover).toBe(false);
-    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('none');
+    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('auto');
     expect(host.querySelector('iframe')!.getAttribute('src')).toContain('mode=direct');
   });
 });

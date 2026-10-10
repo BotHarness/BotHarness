@@ -539,7 +539,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle }) {
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle, allowFrameInput }) {
 			const entryRef = (0, react.useRef)(null);
 			const mounted = (0, react.useRef)(false);
 			const [hovered, setHovered] = (0, react.useState)(false);
@@ -763,7 +763,7 @@ window.__ModuleLoader__.load({
 							src,
 							title,
 							design,
-							interactive: expanded && (interactive ?? inputEnabled),
+							interactive: allowFrameInput === true ? true : expanded && (interactive ?? inputEnabled),
 							fit: expanded ? "contain" : "width",
 							iframeRef: streamRef
 						}, reloadKey), overlay]

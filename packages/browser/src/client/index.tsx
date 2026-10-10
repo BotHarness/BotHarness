@@ -32,7 +32,7 @@ const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
 
 import { AccessPowerIcon } from './access-power-icon.js';
-import { DirectTapIcon, TakeoverIcon, TrackpadIcon } from './viewer-icons.js';
+import { TakeoverIcon, TrackpadIcon } from './viewer-icons.js';
 
 export const name = 'botharness-browser-client';
 
@@ -651,10 +651,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     );
 
   return (
-    <div
-      ref={bodyResource}
-      className="bh-browser-body bh-browser-local"
-    >
+    <div ref={bodyResource} className="bh-browser-body bh-browser-local">
       <SidebarCardList className="bh-browser-cards">
         <SidebarCardRow
           icon="globe"
@@ -754,6 +751,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           stopping={false}
           hideStop
           hideInteractiveToggle
+          allowFrameInput
           onStop={() => invoke(STOP_ENDPOINT)}
           interactive={interaction && paused}
           onToggleInteractive={toggleTakeover}
@@ -765,29 +763,21 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           }}
           extraControls={
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                aria-pressed={inputMode === 'trackpad'}
-                title={t(
-                  inputMode === 'direct'
-                    ? 'entry.view.inputMode.trackpad'
-                    : 'entry.view.inputMode.direct',
-                )}
-                onClick={() => setInputMode((mode) => (mode === 'direct' ? 'trackpad' : 'direct'))}
-              >
-                <span className="bh-viewer-btn-content">
-                  {inputMode === 'direct' ? <TrackpadIcon /> : <DirectTapIcon />}
-                  <span data-bh-viewer-btn-label>
-                    {t(
-                      inputMode === 'direct'
-                        ? 'entry.view.inputMode.trackpad'
-                        : 'entry.view.inputMode.direct',
-                    )}
+              {showHeaderTakeover ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  aria-pressed={false}
+                  title={t('entry.view.inputMode.trackpad')}
+                  onClick={() => setInputMode('trackpad')}
+                >
+                  <span className="bh-viewer-btn-content">
+                    <TrackpadIcon />
+                    <span data-bh-viewer-btn-label>{t('entry.view.inputMode.trackpad')}</span>
                   </span>
-                </span>
-              </Button>
+                </Button>
+              ) : null}
               {showHeaderTakeover ? (
                 <Button
                   size="sm"
@@ -797,12 +787,12 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                   title={t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
                   onClick={toggleTakeover}
                 >
-                <span className="bh-viewer-btn-content">
-                  <TakeoverIcon />
-                  <span data-bh-viewer-btn-label>
-                    {t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                  <span className="bh-viewer-btn-content">
+                    <TakeoverIcon />
+                    <span data-bh-viewer-btn-label>
+                      {t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                    </span>
                   </span>
-                </span>
                 </Button>
               ) : null}
             </>
