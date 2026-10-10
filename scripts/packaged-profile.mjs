@@ -12,6 +12,9 @@ export function verifyProductComposition(entries) {
     ['xmanrui-dsh-im', productImProvider.name],
     ['botharness-core', '@botharness/core'],
     ['botharness-client', '@botharness/ui'],
+    ['botharness-browser', '@botharness/browser'],
+    ['computer-use', '@deepseek-ai/dsh-computer-use'],
+    ['botharness-computer', '@botharness/computer'],
   ]);
   const found = new Map();
   const names = new Set(expected.values());
@@ -42,7 +45,7 @@ export function verifyProductComposition(entries) {
   }
   visit(entries);
   if (found.size !== expected.size)
-    throw new Error('Product Patch did not activate all three qualified components');
+    throw new Error('Product Patch did not activate all six qualified components');
 }
 
 export function parseProductComposition(source) {
@@ -53,10 +56,24 @@ export function parseProductComposition(source) {
 
 const PRODUCT_PACKAGES = new Set([
   'deepseekbot',
+  '@botharness/browser',
+  '@botharness/computer',
   '@botharness/core',
   '@botharness/ui',
   productImProvider.name,
 ]);
+
+export const productAllowBuilds = {
+  esbuild: true,
+  workerd: true,
+  puppeteer: true,
+  '@deepseek-ai/dsh-subprocess-local': true,
+  '@google/genai': false,
+  koffi: true,
+  'node-pty': true,
+  protobufjs: false,
+  'agent-browser': false,
+};
 
 export function verifiedProductArtifacts(directory) {
   const root = resolve(directory);
@@ -97,18 +114,21 @@ export function verifiedProductArtifacts(directory) {
   return { ...manifest, directory: root };
 }
 
+const ownedStandaloneBundles = new Set([
+  '@botharness/browser',
+  '@botharness/computer',
+  '@botharness/core',
+  '@botharness/ui',
+]);
+
 export function packagedProfileManifest(manifest, directory) {
   const bundles = manifest.dsh?.profile?.bundles ?? [];
-  for (const standalone of [
-    '@xmanrui/dsh-im',
-    productImProvider.name,
-    '@botharness/core',
-    '@botharness/ui',
-  ])
+  for (const standalone of ['@xmanrui/dsh-im', productImProvider.name])
     if (bundles.includes(standalone))
       throw new Error(
         `Standalone Bundle ${standalone} conflicts with the product; remove its Bundle entry, retain credentials/history, then retry`,
       );
+  const retained = bundles.filter((bundle) => !ownedStandaloneBundles.has(bundle));
   const artifacts = verifiedProductArtifacts(directory);
   const product = artifacts.artifacts.find((artifact) => artifact.name === 'deepseekbot');
   return {
@@ -125,7 +145,7 @@ export function packagedProfileManifest(manifest, directory) {
           '@deepseek-ai/dsh-base',
           '@deepseek-ai/dsh-web-app',
           'deepseekbot',
-          ...bundles.filter(
+          ...retained.filter(
             (bundle) =>
               !['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'deepseekbot'].includes(
                 bundle,
@@ -182,5 +202,6 @@ export function packagedWorkspaceSettings(source, directory) {
     overrides[`${artifact.name}@${artifact.version}`] =
       `file:${join(artifacts.directory, artifact.filename)}`;
   document.set('overrides', overrides);
+  document.set('allowBuilds', { ...productAllowBuilds, ...previous?.allowBuilds });
   return document.toString();
 }

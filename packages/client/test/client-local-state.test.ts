@@ -31,7 +31,7 @@ import { useChannelSidebar } from '../src/client/channel-sidebar-view.js';
 import { useDelayedSearch } from '../src/client/delayed-search.js';
 import { HiddenChannelsModal } from '../src/client/hidden-channels.js';
 import { zhTranslate } from '../src/client/locale.js';
-import type { ClientState } from '../src/client/store.js';
+import { createStore } from '../src/client/store.js';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -120,7 +120,7 @@ it('filters hidden Channels only after the current query delay', async () => {
 
 function SidebarHarness({ channelId }: { channelId: string }): ReactElement {
   const controller = useChannelSidebar(
-    { selection: { kind: 'channel', channelId } } as ClientState,
+    { ...createStore().getSnapshot(), selection: { kind: 'channel', channelId } },
     sidebarPrefs,
   );
   return createElement(

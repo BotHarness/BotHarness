@@ -795,7 +795,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               action.id,
               '',
               action.at,
-              eventPayload(action),
+              JSON.stringify({
+                ...JSON.parse(eventPayload(action)),
+                causeSourceEventId: durable.botCausation?.parentSourceEventId,
+              }),
             );
             db.prepare(`
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
@@ -1830,7 +1833,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               channel.id,
               message.id,
               message.at,
-              eventPayload(message),
+              JSON.stringify({
+                ...JSON.parse(eventPayload(message)),
+                causeSourceEventId: input.causeSourceEventId,
+              }),
             );
             db.prepare(`
               INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
@@ -1963,6 +1969,50 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const messages = allMessages(id);
       const found = messages.find((item) => item.id === messageId);
       return found === undefined ? undefined : project(messages, found);
+    },
+    humanSendStatus(id, messageId) {
+      const channel = readRecord(id);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined) return undefined;
+      const botSlug = channel.botSlug;
+      return database.read((db) => {
+        const request = db
+          .prepare(`
+          SELECT e.source_event_id, a.attempt_state
+          FROM source_events e
+          JOIN inbox_admissions a ON a.source_event_id = e.source_event_id AND a.bot_slug = ?
+          WHERE e.channel_id = ? AND e.message_id = ? AND e.source_kind = 'human-message'
+        `)
+          .get(botSlug, id, messageId) as
+          | { source_event_id: string; attempt_state: string }
+          | undefined;
+        if (!request) return undefined;
+        const rows = db
+          .prepare(`
+          SELECT output.payload_json, output.body, output.message_id
+          FROM channel_output_origins origin
+          JOIN source_events output ON output.source_event_id = origin.source_event_id
+          JOIN session_ownership owner ON owner.session_id = origin.session_id AND owner.bot_slug = output.bot_slug
+          WHERE origin.request_source_event_id = ? AND output.channel_id = ?
+            AND output.source_kind = 'bot-message' AND output.bot_slug = ?
+          ORDER BY output.rowid
+        `)
+          .all(request.source_event_id, id, botSlug) as Pick<
+          PlacementRow,
+          'payload_json' | 'body' | 'message_id'
+        >[];
+        const replies = rows.flatMap((row) => {
+          const message = parseMessage(row.payload_json, row.body, row.message_id);
+          return message &&
+            !isChannelNotice(message) &&
+            !message.toolApprovalRequest &&
+            !message.userQuestionRequest &&
+            !message.sessionFailure &&
+            !message.grantRequest
+            ? [message]
+            : [];
+        });
+        return { sourceEventId: request.source_event_id, state: request.attempt_state, replies };
+      });
     },
     observeOutput(id, messageId) {
       const channel = readRecord(id);

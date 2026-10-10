@@ -31,7 +31,7 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
-  /* @bh-onboarding-aliases:start — native separator for the tutorial strip. */
+  /* @bh-onboarding-aliases:start — native surfaces for the floating onboarding notice and card. */
   --bh-onboarding-border: var(--dsw-alias-border-l2);
   --bh-onboarding-surface: var(--dsw-alias-bg-base);
   --bh-onboarding-label: var(--dsw-alias-label-primary);
@@ -103,13 +103,26 @@ export const CSS =
   font: inherit;
 }
 
-.bh-onboarding { padding: 8px 16px; border-bottom: 1px solid var(--bh-onboarding-border); }
+.bh-onboarding-notice { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100vw - 32px)); padding: 8px 12px; border: 1px solid var(--bh-onboarding-border); border-radius: 12px; background: var(--bh-onboarding-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
+.bh-onboarding-notice-text { min-width: 0; overflow-wrap: anywhere; }
 .bh-onboarding-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bh-onboarding-actions > span { flex: 1; }
-.bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; }
-.bh-onboarding-welcome-heading { display: grid; gap: 4px; }
+.bh-bubble:has(> .bh-onboarding-welcome) { padding: 0; background: transparent; }
+.bh-onboarding-welcome { display: grid; gap: 12px; width: 380px; max-width: 100%; white-space: normal; line-height: 20px; border: 1px solid var(--bh-onboarding-border); border-radius: 16px; background: var(--dsw-alias-bg-module-platform); overflow: hidden; }
+.bh-onboarding-welcome > :not(.bh-welcome-banner) { margin-inline: 14px; }
+.bh-onboarding-welcome > :last-child { margin-bottom: 14px; }
+.bh-welcome-banner { aspect-ratio: 4 / 1; background: var(--dsw-alias-bg-base); }
+.bh-welcome-banner .bh-banner-art { display: block; width: 100%; height: 100%; }
+.bh-welcome-identity { position: relative; z-index: 1; display: flex; align-items: flex-end; gap: 10px; margin-top: -42px; }
+.bh-welcome-avatar { padding: 3px; border-radius: 17px; background: var(--dsw-alias-bg-module-platform); line-height: 0; }
+.bh-welcome-identity-text { display: grid; gap: 4px; min-width: 0; padding-bottom: 2px; }
+.bh-welcome-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-welcome-roles { display: flex; flex-wrap: wrap; gap: 4px; }
+.bh-welcome-letter { display: grid; gap: 6px; }
+.bh-welcome-letter strong { font-size: 15px; }
+.bh-welcome-letter p { margin: 0; }
+.bh-welcome-signature { color: var(--dsw-alias-label-secondary); }
+.bh-welcome-provenance { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
 .bh-onboarding-welcome p, .bh-onboarding-model-form p { margin: 0; }
-.bh-onboarding-welcome > button { justify-self: start; }
 .bh-onboarding-welcome .bh-card-title { white-space: normal; }
 .bh-onboarding-welcome .bh-onboarding-create { color: color-mix(in srgb, var(--bh-accent) 80%, var(--bh-onboarding-label)); background: color-mix(in srgb, var(--bh-accent) 10%, var(--bh-onboarding-surface)); border-color: color-mix(in srgb, var(--bh-accent) 35%, transparent); }
 .bh-onboarding-welcome .bh-onboarding-create:hover:not(:disabled) { background: color-mix(in srgb, var(--bh-accent) 18%, var(--bh-onboarding-surface)); }
@@ -1147,6 +1160,15 @@ html[data-botharness-motion='reduce'] .bh-avatar-botui i {
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-channel-message-time {
+  margin-left: auto;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .bh-role-badges {
@@ -2812,6 +2834,9 @@ canvas.bh-banner-art { image-rendering: pixelated; }
   gap: 8px;
 }
 .bh-profile-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
@@ -3544,6 +3569,9 @@ html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animatio
 .bh-message-group-me .bh-bubble-author {
   margin: 0 2px 0 0;
 }
+.bh-message-group-me .bh-message-identity {
+  flex-direction: row-reverse;
+}
 .bh-bubble-wrap {
   position: relative;
   display: flex;
@@ -3680,25 +3708,39 @@ html[data-botharness-motion='reduce'] .bh-timeline-working-ellipsis i { animatio
 
 /* Files stay part of the same message grouping as their text. */
 .bh-bubble-content { min-width: 0; }
-.bh-message-attachment { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bh-message-attachment { position: relative; min-width: 0; }
 .bh-message-file-more { flex: none; color: inherit; }
-button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
-.bh-message-file:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
+.bh-message-attachments { display: grid; gap: 8px; margin-top: 8px; }
 .bh-bridge-media-content { white-space: pre-wrap; }
-.bh-bridge-image { max-width: min(100%, 360px); }
+.bh-bridge-image { max-width: min(100%, 320px); }
 .bh-bridge-image-button { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 12px; }
 .bh-bridge-image-button:focus-visible { outline: 2px solid var(--bh-bridge-media-focus); outline-offset: 2px; }
 .bh-bridge-image-state { display: flex; align-items: center; gap: 8px; min-height: 96px; color: var(--bh-bridge-media-muted); }
 .bh-bridge-image-expanded { display: block; max-width: 100%; max-height: 75vh; margin: auto; object-fit: contain; }
-.bh-message-image-link { display: block; max-width: min(100%, 360px); }
+.bh-message-image-link { display: block; width: fit-content; max-width: 320px; min-width: 0; }
+.bh-message-image-row { display: flex; align-items: flex-start; gap: 4px; width: fit-content; max-width: 100%; min-width: 0; }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
-.bh-message-file { display: inline-flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 42px; padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; text-decoration: none; }
-.bh-bubble-me .bh-message-file { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+/* File and audio pills share one card rhythm: icon, stacked name/size, divider, action. */
+.bh-message-file, .bh-message-audio { display: flex; align-items: center; gap: 10px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 52px; padding: 8px 8px 8px 12px; border: 0; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; }
+.bh-message-file-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-decoration: none; }
+button.bh-message-file-main { cursor: pointer; }
+.bh-message-file-main:focus-visible, .bh-message-file-download:focus-visible, .bh-message-audio-play:focus-visible, .bh-message-audio-spectrum:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-file-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; }
-.bh-message-file-copy { display: flex; align-items: baseline; flex: 1; gap: 4px; min-width: 0; }
-.bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
-.bh-message-file-size { flex: none; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; white-space: nowrap; }
+.bh-message-file-copy { display: flex; flex-direction: column; flex: 1; gap: 2px; min-width: 0; }
+.bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 500; line-height: 18px; }
+.bh-message-file-size { color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; line-height: 14px; white-space: nowrap; }
+.bh-message-file-divider { flex: none; align-self: stretch; width: 1px; margin-block: 2px; background: var(--dsw-alias-border-l2); }
+.bh-message-file-download { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; color: inherit; text-decoration: none; }
+a.bh-message-file-download:hover, button.bh-message-file-download:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.bh-message-audio-play { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.bh-message-audio-play:hover:not(:disabled) { background: color-mix(in srgb, currentColor 8%, transparent); }
+.bh-message-audio-play:disabled { opacity: 0.5; cursor: default; }
+.bh-message-audio-meta { display: flex; align-items: center; gap: 4px; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; line-height: 14px; white-space: nowrap; }
+.bh-message-audio-spectrum { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; height: 28px; margin-top: 4px; padding: 0; border-radius: 4px; cursor: pointer; touch-action: none; }
+.bh-message-audio-spectrum[aria-disabled='true'] { cursor: default; }
+.bh-message-audio-bar { flex: 1 1 0; min-width: 2px; max-width: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 28%, transparent); }
+.bh-message-audio-bar[data-played] { background: var(--dsw-alias-state-business-primary); }
+.bh-message-audio-element { display: none; }
 .bh-bubble-body {
   white-space: pre-wrap;
   word-break: break-word;
@@ -3811,6 +3853,13 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   .bh-bubble-time {
     opacity: 1;
     pointer-events: auto;
+  }
+}
+/* Narrow screens: inline copy/reply actions crowd the bubble, so they move
+   into the long-press message menu and the bubble keeps the full width. */
+@media (max-width: 640px) {
+  .bh-bubble-meta {
+    display: none;
   }
 }
 .bh-timeline-new {
@@ -6259,13 +6308,33 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-view-icon-button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .bh-memory-view-icon-button:focus-visible, .bh-memory-diff-file-header:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
 .bh-memory-commit-header > .bh-memory-view-icon-button:last-child { margin-left: auto; }
-.bh-memory-continue-open { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .bh-memory-continue-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .bh-memory-continue-form label { color: var(--dsw-alias-label-secondary); }
 .bh-memory-continue-form input { min-width: 180px; max-width: 320px; }
 .bh-memory-commit-header div { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .bh-memory-commit-header strong { min-width: 0; overflow-wrap: anywhere; }
 .bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-memory-commit-header .bh-memory-commit-title {
+  flex: 0 1 auto;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  max-width: calc(100% - 96px);
+  white-space: nowrap;
+}
+.bh-memory-graph-list > .bh-memory-continue-form { margin: 6px 0 10px 24px; }
+.bh-topbar[data-memory-diff='true'] .bh-channel-island-wrap { display: none; }
+.bh-memory-commit-title code { flex: none; font-family: var(--bh-memory-font-code); font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-memory-commit-header .bh-memory-commit-title span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
 .bh-memory-commit-files-count { margin: 0 0 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 600; }
 .bh-memory-diff-file { overflow: hidden; margin: 0 0 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-card); background: var(--dsw-alias-bg-base); box-shadow: 0 1px 2px color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent); }
 .bh-memory-diff-file-header { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 12px; background: var(--dsw-specific-sidebar-fill); color: var(--dsw-alias-label-primary); cursor: pointer; list-style: none; }
@@ -6778,6 +6847,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-channel-options{position:absolute;right:12px;top:11px;pointer-events:auto}
+.bh-chat-layout[data-sidebar='hidden'] .bh-channel-options{right:44px}
+.bh-chat-layout[data-sidebar='hidden'] .bh-topbar{padding-right:84px}
 .bh-human-nickname-dialog p{margin:0}
 .bh-messaging-defaults{display:flex;flex-direction:column;gap:12px;margin-top:24px}
 .bh-messaging-defaults p{margin:0}

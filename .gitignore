@@ -19,6 +19,7 @@ apps/docs/src/content/docs-zh/docs/lark-connection.mdx
 .env
 .env.*
 !.env.example
+vps.local.env
 .dev.vars
 *.pem
 *.key
@@ -64,6 +65,8 @@ apps/docs/src/content/docs/docs/soul-and-core-memory.mdx
 apps/docs/src/content/docs-zh/docs/soul-and-core-memory.mdx
 apps/docs/src/content/docs/docs/bot-zip.mdx
 apps/docs/src/content/docs-zh/docs/bot-zip.mdx
+apps/docs/src/content/docs/docs/bot-cli.mdx
+apps/docs/src/content/docs-zh/docs/bot-cli.mdx
 apps/docs/src/content/docs/docs/share-bot.mdx
 apps/docs/src/content/docs-zh/docs/share-bot.mdx
 apps/docs/src/content/docs/docs/update-deepseekbot.mdx

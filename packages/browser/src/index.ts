@@ -12,6 +12,7 @@ import { createBorrowService } from './borrow.js';
 import { registerBorrowHttp } from './borrow-http.js';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
+import { toBrowserErrorBody } from './runtime/provision.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
 import { createBotBrowserRuntimes, listStoredProfileNames } from './runtimes.js';
 import {
@@ -525,7 +526,7 @@ export function apply(
             viewerUrl: runtimes.for(slug).viewerUrl?.() ?? null,
           });
         } catch (error) {
-          return json({ ok: false, error: String(error) }, 500);
+          return json(toBrowserErrorBody(error), 500);
         }
       },
     };
@@ -633,6 +634,7 @@ export function apply(
           profiles,
           target: target(),
           viewerUrl: runtime.viewerUrl?.() ?? null,
+          provisioning: runtimes.installProgress(slug) ?? null,
         });
       },
     };

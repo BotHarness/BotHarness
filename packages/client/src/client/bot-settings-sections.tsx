@@ -16,7 +16,7 @@ import type { BridgeCall } from './bridge.js';
 import { GitSettings } from './git-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
 import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
-import { DefaultModelSettings } from './onboarding-view.js';
+import { DefaultModelSettings, OnboardingSetting } from './onboarding-view.js';
 import { ProfileBackupSettings } from './profile-backup.js';
 import type { ReleaseNotesController } from './release-notes.js';
 import { ReleaseSettings } from './release-notes-view.js';
@@ -35,6 +35,8 @@ export type GeneralSectionFace = BotModePrefsFace & {
   call: BridgeCall;
   store: ClientStore;
   onSaved(): Promise<void>;
+  actions: BridgeActions;
+  closeBotSettings(): void;
 };
 
 export function GeneralSection(props: SectionProps<GeneralSectionFace>): ReactElement {
@@ -49,6 +51,11 @@ export function GeneralSection(props: SectionProps<GeneralSectionFace>): ReactEl
       <BotIconSetting {...props} />
       <MotionSetting {...props} />
       <SortSetting {...props} />
+      <OnboardingSetting
+        actions={props.actions}
+        closeBotSettings={props.closeBotSettings}
+        t={props.t}
+      />
     </Rows>
   );
 }

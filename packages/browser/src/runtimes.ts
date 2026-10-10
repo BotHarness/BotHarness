@@ -11,10 +11,12 @@ import {
   type BotBrowserRuntime,
   type BotBrowserRuntimeOptions,
 } from './runtime/browser.js';
+import type { BrowserInstallProgress } from './failure-kinds.js';
 
 export interface BotBrowserRuntimes {
   for(slug: string): BotBrowserRuntime;
   touch(slug: string): void;
+  installProgress(slug: string): BrowserInstallProgress | undefined;
   closeIdle(idleMs: number): Promise<void>;
   stop(slug: string): Promise<void>;
   stopAll(): Promise<void>;
@@ -62,7 +64,12 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
   const create = options.create ?? createBotBrowserRuntime;
   const entries = new Map<
     string,
-    { runtime: BotBrowserRuntime; lastActivity: number; profile: string }
+    {
+      runtime: BotBrowserRuntime;
+      lastActivity: number;
+      profile: string;
+      progress: BrowserInstallProgress | undefined;
+    }
   >();
 
   const profileOf = (slug: string): string => sanitizeProfileName(options.profileOf(slug));
@@ -81,32 +88,49 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
 
   const entryFor = (
     slug: string,
-  ): { runtime: BotBrowserRuntime; lastActivity: number; profile: string } => {
+  ): {
+    runtime: BotBrowserRuntime;
+    lastActivity: number;
+    profile: string;
+    progress: BrowserInstallProgress | undefined;
+  } => {
     const { profile, target, driver, key } = identityFor(slug);
     const existing = entries.get(key);
     if (existing !== undefined) return existing;
-    const created = {
+    const created: {
+      runtime: BotBrowserRuntime;
+      lastActivity: number;
+      profile: string;
+      progress: BrowserInstallProgress | undefined;
+    } = {
       profile,
-      runtime: (driver === 'agent-browser' ? createAgentBrowserRuntime : create)({
-        ...(options.browserPath === undefined ? {} : { browserPath: options.browserPath }),
-        userDataDir: directoryFor(profile),
-        ...(target === 'container'
-          ? {
-              execution: createContainerBrowserExecution({
-                profileDirectory: directoryFor(profile),
-                onEvent: (detail) =>
-                  options.onEvent?.(`[${profile === '' ? 'default' : profile}] ${detail}`),
-                ...(options.onViewer === undefined ? {} : { onViewer: options.onViewer }),
-              }),
-            }
-          : {}),
-        installDir: options.installDir,
-        ...(options.headless === true ? { headless: true } : {}),
-        onEvent: (detail) =>
-          options.onEvent?.(`[${profile === '' ? 'default' : profile}] ${detail}`),
-      }),
+      runtime: undefined as never,
       lastActivity: Date.now(),
+      progress: undefined,
     };
+    created.runtime = (driver === 'agent-browser' ? createAgentBrowserRuntime : create)({
+      ...(options.browserPath === undefined ? {} : { browserPath: options.browserPath }),
+      userDataDir: directoryFor(profile),
+      ...(target === 'container'
+        ? {
+            execution: createContainerBrowserExecution({
+              profileDirectory: directoryFor(profile),
+              onEvent: (detail) =>
+                options.onEvent?.(`[${profile === '' ? 'default' : profile}] ${detail}`),
+              ...(options.onViewer === undefined ? {} : { onViewer: options.onViewer }),
+            }),
+          }
+        : {}),
+      installDir: options.installDir,
+      ...(options.headless === true ? { headless: true } : {}),
+      onEvent: (detail) => options.onEvent?.(`[${profile === '' ? 'default' : profile}] ${detail}`),
+      onInstallProgress: (downloadedBytes, totalBytes) => {
+        created.progress = { downloadedBytes, totalBytes };
+      },
+      onInstallSettled: () => {
+        created.progress = undefined;
+      },
+    });
     entries.set(key, created);
     return created;
   };
@@ -117,6 +141,10 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
     },
     touch(slug) {
       entryFor(slug).lastActivity = Date.now();
+    },
+    installProgress(slug) {
+      const { key } = identityFor(slug);
+      return entries.get(key)?.progress;
     },
     async closeIdle(idleMs) {
       for (const entry of entries.values()) {

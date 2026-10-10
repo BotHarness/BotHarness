@@ -207,6 +207,7 @@ export function BotPanelIcon({
             <button
               type="button"
               className="bh-root bh-human-inbox-entry bh-panel-activity"
+              data-bh-tour="inbox"
               data-wide={wide ? 'true' : 'false'}
               data-unread={state.humanInbox.unreadCount > 0 ? 'true' : 'false'}
               data-active={active ? 'true' : 'false'}
@@ -246,6 +247,7 @@ export function BotPanelIcon({
               {wide ? (
                 <span
                   className="bh-panel-gear"
+                  data-bh-tour="bot-settings"
                   role="button"
                   tabIndex={0}
                   aria-label={t('panel.settings')}
@@ -337,6 +339,18 @@ function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | nul
         </Tag>
       ))}
     </span>
+  );
+}
+
+function ChannelMessageTime({ channel }: { channel: ChannelSummary }): ReactElement | null {
+  const at = channel.latestMessage?.at;
+  if (at === undefined) return null;
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return null;
+  return (
+    <time className="bh-channel-message-time" dateTime={at} title={date.toLocaleString()}>
+      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+    </time>
   );
 }
 
@@ -473,6 +487,7 @@ function BotRow({
               <span className="bh-unread" title={t('roster.needsYou')} />
             ) : null}
             <PersonaBotStatusBadges state={activity} attention={bot?.attention} />
+            <ChannelMessageTime channel={channel} />
           </span>
           <span className="bh-msg">{preview}</span>
         </span>
@@ -590,6 +605,7 @@ function ChannelRow({
       <span className="bh-body">
         <span className="bh-top">
           <span className="bh-name">{channel.name}</span>
+          <ChannelMessageTime channel={channel} />
         </span>
         <span className="bh-msg">{preview}</span>
       </span>
@@ -1498,7 +1514,11 @@ export function BotSidebar({
       );
     };
     return (
-      <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
+      <div
+        className="bh-root bh-region bh-region-rail"
+        aria-label={t('rail.label')}
+        data-bh-tour="roster"
+      >
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1549,6 +1569,7 @@ export function BotSidebar({
     <div
       ref={rosterMount}
       className="bh-root bh-region"
+      data-bh-tour="roster"
       onDragOver={(event) => {
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;

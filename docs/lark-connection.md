@@ -25,7 +25,7 @@ You need:
 - Membership in a Lark / Feishu organization and permission to create and publish a company-built application, or an administrator who can help.
 - A test group and a Human account that can send messages in it.
 - A running BotHarness, a working model and a PersonaBot. Confirm the Bot can answer a local DM first.
-- A BotHarness product containing the qualified IM Provider. The product installs Core, Client and Provider together; **do not separately install a Lark SDK, Human lark-cli or an arbitrary dsh-im version**.
+- A BotHarness product containing the qualified IM Provider. The product installs Core, Client, Browser, Computer and Provider together; **do not separately install a Lark SDK, Human lark-cli or an arbitrary dsh-im version**.
 
 **The public npm product has not been published.** The reproducible path currently builds local product packages; these test versions are not npm installation commands. If you already have the #823 qualified artifacts, start the same Profile and continue to the next section.
 

@@ -15,6 +15,14 @@ import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/side
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
+import {
+  BrowserApiError,
+  BrowserFailureNotice,
+  BrowserProvisionProgress,
+  readFailure,
+  type BrowserFailure,
+} from './browser-failure.js';
+import { isBrowserFailureKind } from '../failure-kinds.js';
 import { ProfileCombobox } from './profile-combobox.js';
 import { registerBrowserSettings } from './settings.js';
 import { ProfileBrowserControl } from './profile-browser.js';
@@ -100,15 +108,25 @@ interface BrowserObservation {
   readonly frame: string | null;
   readonly focused: string | null;
   readonly takeover: boolean;
+  readonly provisioning?: { downloadedBytes: number; totalBytes: number } | null;
   readonly tabs: readonly BrowserTabView[];
   readonly profiles?: readonly string[];
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: 'no-store', ...init });
-  const body = (await response.json()) as T & { ok?: boolean; error?: string };
+  const body = (await response.json()) as T & {
+    ok?: boolean;
+    error?: string;
+    code?: string;
+    detail?: string;
+  };
   if (!response.ok || body.ok === false) {
-    throw new Error(body.error ?? `HTTP ${String(response.status)}`);
+    throw new BrowserApiError(
+      body.error ?? `HTTP ${String(response.status)}`,
+      body.code,
+      body.detail,
+    );
   }
   return body;
 }
@@ -360,7 +378,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const errorId = useId();
   const [profileInvalid, setProfileInvalid] = useState(false);
   const [profileOverride, setProfileOverride] = useState<string | undefined>(undefined);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [failure, setFailure] = useState<BrowserFailure | undefined>(undefined);
   const [viewer, setViewer] = useState<string | undefined>();
   const [interaction, setInteraction] = useState(false);
   const viewerScope = useRef('');
@@ -385,7 +403,14 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const orderedTabs =
     currentTab === undefined ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
   const cleanupRequired = observation?.cleanupRequired === true;
-  const visibleError = cleanupRequired ? t('entry.view.cleanupFailed') : error;
+  const failureNotice =
+    !cleanupRequired && failure !== undefined && isBrowserFailureKind(failure.code) ? (
+      <BrowserFailureNotice failure={failure} t={t} />
+    ) : null;
+  let visibleError: string | undefined = failure?.message;
+  if (cleanupRequired) visibleError = t('entry.view.cleanupFailed');
+  if (failureNotice !== null) visibleError = undefined;
+  const provisioning = observation?.provisioning ?? null;
   const paused = observation?.takeover === true;
   const viewerUrl =
     observation?.target === 'container' && observation.running
@@ -413,7 +438,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     const request = ++viewerRequest.current;
     const expectedScope = viewerScope.current;
     setBusy(true);
-    setError(undefined);
+    setFailure(undefined);
     void requestJson<{ takeover: boolean }>(TAKEOVER_ENDPOINT, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -430,7 +455,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         }
       })
       .catch((cause: unknown) => {
-        if (mounted.current && request === viewerRequest.current) setError(String(cause));
+        if (mounted.current && request === viewerRequest.current) setFailure(readFailure(cause));
       })
       .finally(() => {
         if (mounted.current) {
@@ -444,7 +469,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     if (busy || botSlug === undefined) return;
     setBusy(true);
     setProfileInvalid(false);
-    setError(undefined);
+    setFailure(undefined);
     void requestJson<{ ok: boolean; viewerUrl?: string | null; takeover?: boolean }>(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -465,7 +490,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           setInteraction(false);
         }
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause: unknown) => setFailure(readFailure(cause)))
       .finally(() => {
         setBusy(false);
         store.refresh();
@@ -504,20 +529,20 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     const next = trimmed === 'default' ? '' : trimmed;
     if (next === currentProfile) {
       setProfileInvalid(false);
-      setError(undefined);
+      setFailure(undefined);
       return;
     }
     disableInteraction();
     setViewer(undefined);
     setBusy(true);
     setProfileInvalid(false);
-    setError(undefined);
+    setFailure(undefined);
     void rpc
       .call('/api', 'botharness/browserProfileSet', { args: { slug: botSlug, profile: next } })
       .then((result) => {
         if (!result.ok) {
           setProfileInvalid(true);
-          setError(result.error?.message ?? t('entry.profile.failed'));
+          setFailure({ message: result.error?.message ?? t('entry.profile.failed') });
           return;
         }
         const value = result.value as { bot?: { browserProfile?: unknown } };
@@ -530,7 +555,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       })
       .catch((cause: unknown) => {
         setProfileInvalid(true);
-        setError(cause instanceof Error ? cause.message : String(cause));
+        setFailure(readFailure(cause));
       })
       .finally(() => {
         setBusy(false);
@@ -667,9 +692,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           src={viewerUrl}
           design={{ width: 1024, height: 768 }}
           notice={
-            error === undefined ? undefined : (
+            failure === undefined ? undefined : (
               <div role="alert" className="bh-browser-error">
-                {error}
+                {failure.message}
               </div>
             )
           }
@@ -723,6 +748,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           ))}
         </ul>
       )}
+      {provisioning !== null ? <BrowserProvisionProgress progress={provisioning} t={t} /> : null}
+      {failureNotice}
       {visibleError !== undefined ? (
         <div id={errorId} role="alert" className="bh-browser-error">
           {visibleError}

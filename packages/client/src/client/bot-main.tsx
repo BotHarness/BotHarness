@@ -1,18 +1,24 @@
 import { OnboardingMemoryNavigation } from './onboarding-memory.js';
-import { OnboardingSurface } from './onboarding-view.js';
+import { OnboardingOverlay } from './onboarding-view.js';
 import { GroupChannelHeader } from './group-channel-header.js';
 import { CompanionPin } from './window-companions-view.js';
 import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
-import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
   IconCopyOutlineRegular,
   IconPanelLeftOutlineRegular,
   Menu,
-  Tag,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -226,6 +232,98 @@ function ReplyIcon(): ReactElement {
   );
 }
 
+const BUBBLE_LONG_PRESS_MS = 500;
+const BUBBLE_LONG_PRESS_TOLERANCE_PX = 10;
+
+export function MessageBubbleWrap({
+  message,
+  focused,
+  onContextMenu,
+  children,
+}: {
+  message: ChannelMessage;
+  focused: boolean;
+  onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  children?: ReactNode;
+}): ReactElement {
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const origin = useRef<{ x: number; y: number } | undefined>(undefined);
+  const fired = useRef(false);
+  const clearTimer = useCallback(() => {
+    if (timer.current !== undefined) {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+    }
+  }, []);
+  const mount = useMountedResource<HTMLDivElement>(
+    () => () => {
+      if (timer.current !== undefined) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const cancel = (): void => {
+    clearTimer();
+    origin.current = undefined;
+  };
+  return (
+    <div
+      ref={mount}
+      className={`bh-bubble-wrap${focused ? ' bh-bubble-focused' : ''}${message.failed === undefined ? '' : ' bh-bubble-wrap-failed'}`}
+      data-message-id={message.id}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onContextMenu(message, event.clientX, event.clientY);
+      }}
+      onTouchStart={(event) => {
+        if (event.touches.length !== 1) {
+          cancel();
+          return;
+        }
+        const touch = event.touches[0];
+        if (touch === undefined) {
+          cancel();
+          return;
+        }
+        const x = touch.clientX;
+        const y = touch.clientY;
+        clearTimer();
+        origin.current = { x, y };
+        fired.current = false;
+        timer.current = setTimeout(() => {
+          timer.current = undefined;
+          fired.current = true;
+          try {
+            if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+          } catch {}
+          onContextMenu(message, x, y);
+        }, BUBBLE_LONG_PRESS_MS);
+      }}
+      onTouchMove={(event) => {
+        const start = origin.current;
+        const touch = event.touches[0];
+        if (start === undefined || touch === undefined || timer.current === undefined) return;
+        if (
+          Math.abs(touch.clientX - start.x) > BUBBLE_LONG_PRESS_TOLERANCE_PX ||
+          Math.abs(touch.clientY - start.y) > BUBBLE_LONG_PRESS_TOLERANCE_PX
+        )
+          cancel();
+      }}
+      onTouchEnd={(event) => {
+        const wasFired = fired.current;
+        cancel();
+        fired.current = false;
+        if (wasFired) event.preventDefault();
+      }}
+      onTouchCancel={() => {
+        cancel();
+        fired.current = false;
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function MessageGroupView({
   humanMembers = [],
   group,
@@ -270,42 +368,49 @@ function MessageGroupView({
   const human = author.kind === 'human';
   const authorBot =
     author.kind === 'bot' ? bots.find((candidate) => candidate.slug === author.slug) : undefined;
+  const welcomeBot =
+    first.onboardingWelcome === undefined || currentDmBotSlug === undefined
+      ? undefined
+      : bots.find((candidate) => candidate.slug === currentDmBotSlug);
+  const displayBot = authorBot ?? welcomeBot;
   const avatar =
-    author.kind === 'bot' ? (
+    displayBot === undefined ? undefined : (
       <PersonaBotAvatar
         t={t}
-        personaBotId={author.slug}
-        name={authorBot?.displayName ?? author.slug}
-        src={authorBot?.avatar}
-        appearance={authorBot?.appearance}
-        avatarSeed={authorBot?.avatarSeed}
+        personaBotId={displayBot.slug}
+        name={displayBot.displayName}
+        src={displayBot.avatar}
+        appearance={displayBot.appearance}
+        avatarSeed={displayBot.avatarSeed}
         size={28}
         indicator={false}
       />
-    ) : undefined;
+    );
   return (
     <div
       className={`bh-message-group${human ? ' bh-message-group-me' : ''}`}
       data-group-size={group.messages.length}
     >
-      {author.kind !== 'bot' || avatar === undefined ? null : currentDmBotSlug === author.slug ? (
-        <span className="bh-message-group-avatar">{avatar}</span>
-      ) : (
+      {avatar === undefined ? null : author.kind === 'bot' && currentDmBotSlug !== author.slug ? (
         <button
           type="button"
           className="bh-message-group-avatar bh-message-group-avatar-link"
-          aria-label={t('message.mention.openDm', { bot: authorBot?.displayName ?? author.slug })}
+          aria-label={t('message.mention.openDm', { bot: displayBot?.displayName ?? '' })}
           onClick={() => void actions.openBot(author.slug)}
         >
           {avatar}
         </button>
+      ) : (
+        <span className="bh-message-group-avatar">{avatar}</span>
       )}
       <div className="bh-message-stack">
         <div className="bh-message-identity">
           {first.bridgeOrigin ? (
             <BridgeSourceAuthor origin={first.bridgeOrigin} t={t} />
           ) : (
-            <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
+            <div className="bh-bubble-author">
+              {welcomeBot?.displayName ?? authorLabel(first, bots, t, humanName)}
+            </div>
           )}
           <time className="bh-bubble-time" dateTime={first.at}>
             {clockTime(first.at)}
@@ -321,14 +426,11 @@ function MessageGroupView({
                   ? 'last'
                   : 'middle';
           return (
-            <div
+            <MessageBubbleWrap
               key={message.id}
-              className={`bh-bubble-wrap${focusMessageId === message.id ? ' bh-bubble-focused' : ''}${message.failed === undefined ? '' : ' bh-bubble-wrap-failed'}`}
-              data-message-id={message.id}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                onContextMenu(message, event.clientX, event.clientY);
-              }}
+              message={message}
+              focused={focusMessageId === message.id}
+              onContextMenu={onContextMenu}
             >
               <div
                 className={`bh-bubble-surface${message.failed === undefined ? '' : ' bh-bubble-surface-failed'}`}
@@ -402,7 +504,7 @@ function MessageGroupView({
                   </div>
                 </div>
               </div>
-            </div>
+            </MessageBubbleWrap>
           );
         })}
       </div>
@@ -1136,12 +1238,21 @@ function ConversationView({
   return (
     <div ref={conversationMount} className="bh-root bh-main">
       <span ref={allBotPreviewMount} hidden />
-      <div className="bh-chat-layout">
+      <div className="bh-chat-layout" data-sidebar={sidebar.mode}>
         <section
           className="bh-chat-pane"
           data-activity-concealed={composerActivityConcealed ? 'true' : undefined}
         >
-          <div ref={profileMount} className="bh-topbar">
+          <div
+            ref={profileMount}
+            className="bh-topbar"
+            data-bh-tour="topbar"
+            data-memory-diff={
+              activeMemoryView?.kind === 'commit' || activeMemoryView?.kind === 'working'
+                ? 'true'
+                : undefined
+            }
+          >
             {channel === undefined ? null : (
               <HumanChannelNameMenu key={channel.id} channel={channel} actions={actions} t={t} />
             )}
@@ -1208,15 +1319,6 @@ function ConversationView({
                     </span>
                   )}
                   <span className="bh-title">{title}</span>
-                  {bot === undefined || bot.roles.length === 0 ? null : (
-                    <span className="bh-role-badges">
-                      {bot.roles.map((role) => (
-                        <Tag key={role} tone="neutral">
-                          {role}
-                        </Tag>
-                      ))}
-                    </span>
-                  )}
                 </button>
                 {bot && companion ? (
                   <CompanionPin
@@ -1249,15 +1351,6 @@ function ConversationView({
                     indicator={false}
                   />
                   <span className="bh-title">{title}</span>
-                  {profileBot.roles.length === 0 ? null : (
-                    <span className="bh-role-badges">
-                      {profileBot.roles.map((role) => (
-                        <Tag key={role} tone="neutral">
-                          {role}
-                        </Tag>
-                      ))}
-                    </span>
-                  )}
                 </button>
                 {companion ? (
                   <CompanionPin
@@ -1814,7 +1907,7 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
-      <OnboardingSurface actions={actions} companion={companion} t={t} />
+      <OnboardingOverlay actions={actions} companion={companion} t={t} />
       {releaseNotes === undefined ? null : (
         <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
       )}

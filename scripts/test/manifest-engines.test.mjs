@@ -5,7 +5,7 @@ import semver from 'semver';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const packages = ['core', 'client', 'computer', 'deepseekbot'];
+const packages = ['core', 'client', 'browser', 'computer', 'deepseekbot'];
 
 function manifest(packageName) {
   return JSON.parse(readFileSync(join(root, 'packages', packageName, 'package.json'), 'utf8'));
