@@ -1,0 +1,120 @@
+{
+  "baselineRuntime": "4dbaa0ad07e1d00b9e3d51ad4e2427552bfa509c",
+  "correctedRuntime": "fbb29752abb56c02ece77c9e99c4c68285ec6fb7",
+  "equivalentFollowupCommit": "426167c98efe09c2f9c1bbe85f0d8ea0aba02979",
+  "followupBase": "85e9dfbee4e966049eea4a5e847b114764008e80",
+  "originalIntegratedMain": "66d2767a065af49afb999f3792d8754a50fc66ff",
+  "formalPixelAvatar": "0.8.0",
+  "viewport": [1559, 865],
+  "locale": "zh-CN",
+  "themes": ["light", "dark"],
+  "before": {
+    "phases": [
+      {
+        "label": "light-reduced-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "keyboard-moved-reduced",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "dark-reduced-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "native-reduced-release-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      }
+    ],
+    "firstObservedFrameAfterRelease": {
+      "policy": "reduce",
+      "phase": "rest",
+      "reading": "true",
+      "characterBottom": 865,
+      "viewportHeight": 865,
+      "expectedScreenPoint": {
+        "x": 745.484375,
+        "y": 769
+      },
+      "connectorScreenPoint": {
+        "x": 745.484375,
+        "y": 32
+      },
+      "originErrorPx": 737,
+      "visibleCards": 2,
+      "actualTrustedPointerup": true
+    },
+    "closedOwnedBrowser": true
+  },
+  "after": {
+    "phases": [
+      {
+        "label": "light-reduced-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "keyboard-moved-reduced",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "dark-reduced-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      },
+      {
+        "label": "native-reduced-release-reading",
+        "samples": 30,
+        "maxOriginErrorPx": 0,
+        "allCardsUpright": true
+      }
+    ],
+    "firstObservedFrameAfterRelease": {
+      "policy": "reduce",
+      "phase": "rest",
+      "reading": "true",
+      "characterBottom": 865,
+      "viewportHeight": 865,
+      "expectedScreenPoint": {
+        "x": 745.484375,
+        "y": 769
+      },
+      "connectorScreenPoint": {
+        "x": 745.484375,
+        "y": 769
+      },
+      "originErrorPx": 0,
+      "visibleCards": 2,
+      "actualTrustedPointerup": true
+    },
+    "exactCanonicalBotReplies": 2,
+    "originalAppearanceUnchanged": true,
+    "sameDocument": true,
+    "consoleErrors": 0,
+    "closedOwnedBrowser": true
+  },
+  "limits": [
+    "Native official MCP drag/release and keyboard operations; two newly generated canonical Bot replies, no synthetic presentation, replies or SSE.",
+    "Normal public character focus retains reading cards; walking paused through native controls; OS reduced-motion preference selected at browser startup.",
+    "Dark before/after PNGs are settled states and do not show the transient failure. The rAF observer catches the first observed callback after trusted pointerup, not every compositor frame.",
+    "Same Profile, identities, history, viewport, theme and scenario; reply marker and sidebar unread count differ. Initial light capture includes a genuine transient tool cover.",
+    "Before: 120 later samples passed despite a 737px first-release mismatch. After: 120 samples plus the first release observation pass. This is bounded geometry qualification, not performance or proof about unsampled frames.",
+    "An earlier initial-setup attempt timed out waiting for two visible cards. Its native replies and failed capture are retained privately; no root cause is claimed. The next baseline attempt added both live-stream preconditions and outside focus before arrival, so recovery does not establish which change mattered.",
+    "Before runtime 4dbaa was merged by PR1183 while the correction was being prepared. The correction was moved to a dedicated follow-up from that squash merge; complete tracked trees fbb29752 and 426167c9 are identical.",
+    "Continuous silent official MCP recordings, remux only; no audio, frame interpolation or invented first-frame screenshot.",
+    "Held/reversing drag, moving hover/grace and genuine background qualification remain under1177; performance remains under1167. This fix does not qualify those scenarios."
+  ]
+}
