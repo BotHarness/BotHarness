@@ -174,4 +174,18 @@ describe('browser profiles', () => {
     await another.runtimes.stopAll();
     expect(runtime.stop).toHaveBeenCalled();
   });
+
+  it('tracks in-flight install progress per profile and clears it on settle', () => {
+    const { runtimes, created } = setup({ a: '', b: '' });
+    runtimes.for('a');
+    expect(created).toHaveLength(1);
+    const options = created[0]!;
+    expect(runtimes.installProgress('a')).toBeUndefined();
+    expect(runtimes.installProgress('unknown')).toBeUndefined();
+    options.onInstallProgress?.(25, 100);
+    expect(runtimes.installProgress('a')).toEqual({ downloadedBytes: 25, totalBytes: 100 });
+    expect(runtimes.installProgress('b')).toEqual({ downloadedBytes: 25, totalBytes: 100 });
+    options.onInstallSettled?.();
+    expect(runtimes.installProgress('a')).toBeUndefined();
+  });
 });

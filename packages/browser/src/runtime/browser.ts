@@ -2,6 +2,19 @@ import { spawn, type ChildProcess } from 'node:child_process';
 
 import { jpegDimensions } from '../jpeg.js';
 import { browserKey } from './keyboard.js';
+import {
+  PROVISION_MIN_FREE_BYTES,
+  checkDiskSpace,
+  detectMissingSystemLibs,
+  diagnoseStartupExit,
+  diskSpaceFailure,
+  installFailure,
+  missingBinaryFailure,
+  missingLibsFailure,
+  missingLibsOfBinary,
+  startupTimeoutFailure,
+  type PreflightDeps,
+} from './provision.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -59,10 +72,16 @@ export interface BotBrowserRuntimeOptions {
   readonly browserPath?: string;
   readonly userDataDir: string;
   readonly installDir?: string;
-  readonly installFallback?: (installDir: string) => Promise<string>;
+  readonly installFallback?: (
+    installDir: string,
+    hooks?: { onProgress?: (downloadedBytes: number, totalBytes: number) => void },
+  ) => Promise<string>;
   readonly headless?: boolean;
   readonly launchTimeoutMs?: number;
   readonly onEvent?: (detail: string) => void;
+  readonly onInstallProgress?: (downloadedBytes: number, totalBytes: number) => void;
+  readonly onInstallSettled?: () => void;
+  readonly preflight?: PreflightDeps;
   readonly connect?: (url: string) => Promise<CdpClient>;
   readonly platform?: NodeJS.Platform;
   readonly env?: NodeJS.ProcessEnv;
@@ -162,12 +181,16 @@ export function discoverBrowserBinary(
 
 export const PINNED_CHROMIUM_VERSION = '154.0.8037.57';
 
-export async function installPinnedBrowser(cacheDir: string): Promise<string> {
+export async function installPinnedBrowser(
+  cacheDir: string,
+  hooks?: { onProgress?: (downloadedBytes: number, totalBytes: number) => void },
+): Promise<string> {
   const { Browser, install } = await import('@puppeteer/browsers');
   const installed = await install({
     browser: Browser.CHROME,
     buildId: PINNED_CHROMIUM_VERSION,
     cacheDir,
+    ...(hooks?.onProgress === undefined ? {} : { downloadProgressCallback: hooks.onProgress }),
   });
   return installed.executablePath;
 }
@@ -462,21 +485,48 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     if (binary === undefined) {
       const explicit = options.browserPath?.trim() ?? '';
       if (explicit !== '') {
-        throw new Error(`The configured Bot Browser binary does not exist: ${explicit}`);
+        throw missingBinaryFailure(explicit);
       }
       const installer = options.installFallback ?? installPinnedBrowser;
       if (options.installDir === undefined && options.installFallback === undefined) {
-        throw new Error(
-          'No Chrome, Edge, or Chromium was found for the Bot Browser; install one or set browserPath in the browser plugin configuration',
+        throw missingBinaryFailure('');
+      }
+      const cacheDir = options.installDir ?? options.userDataDir;
+      const disk = checkDiskSpace(cacheDir, PROVISION_MIN_FREE_BYTES);
+      if (!disk.ok) {
+        throw diskSpaceFailure(cacheDir, disk.availableBytes, PROVISION_MIN_FREE_BYTES);
+      }
+      const platform = options.platform ?? process.platform;
+      const missing = detectMissingSystemLibs(platform, options.preflight);
+      if (missing.length > 0) {
+        throw missingLibsFailure(
+          missing.map((entry) => entry.soname),
+          { beforeDownload: true },
         );
       }
       onEvent(`no system browser; installing Chrome for Testing ${PINNED_CHROMIUM_VERSION}`);
+      options.onInstallProgress?.(0, 0);
+      let lastBand = 0;
+      const startedInstall = Date.now();
       try {
-        binary = await installer(options.installDir ?? options.userDataDir);
+        binary = await installer(cacheDir, {
+          onProgress: (downloadedBytes, totalBytes) => {
+            options.onInstallProgress?.(downloadedBytes, totalBytes);
+            if (totalBytes > 0) {
+              const band = Math.floor((downloadedBytes / totalBytes) * 4);
+              if (band > lastBand) {
+                lastBand = band;
+                onEvent(
+                  `install progress ${String(band * 25)}% initiator=provisioning durationMs=${Date.now() - startedInstall}`,
+                );
+              }
+            }
+          },
+        });
       } catch (error) {
-        throw new Error(
-          `No Chrome, Edge, or Chromium was found and the pinned fallback could not be installed: ${error instanceof Error ? error.message : String(error)}; install a browser or set browserPath in the browser plugin configuration`,
-        );
+        throw installFailure(error, cacheDir);
+      } finally {
+        options.onInstallSettled?.();
       }
       onEvent(`installed ${binary}`);
     }
@@ -503,14 +553,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         action();
       };
       const timer = setTimeout(
-        () =>
-          settle(() =>
-            reject(
-              new Error(
-                `The Bot Browser did not report a DevTools endpoint within ${Math.round(launchTimeoutMs / 1000)}s`,
-              ),
-            ),
-          ),
+        () => settle(() => reject(startupTimeoutFailure(launchTimeoutMs))),
         launchTimeoutMs,
       );
       const onData = (chunk: Buffer): void => {
@@ -519,9 +562,23 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         if (url !== undefined) settle(() => resolve(url));
       };
       const onExit = (code: number | null): void =>
-        settle(() =>
-          reject(new Error(`The Bot Browser exited during startup (code ${code ?? 'unknown'})`)),
-        );
+        settle(() => {
+          const launchedBinary = binary;
+          const platform = options.platform ?? process.platform;
+          const missing =
+            launchedBinary === undefined || platform !== 'linux'
+              ? []
+              : missingLibsOfBinary(launchedBinary, options.preflight);
+          reject(
+            diagnoseStartupExit({
+              binary: launchedBinary ?? '',
+              code,
+              stderr,
+              platform,
+              missingLibs: missing,
+            }),
+          );
+        });
       const onError = (error: Error): void => settle(() => reject(error));
       proc.stderr?.on('data', onData);
       proc.on('exit', onExit);
