@@ -115,7 +115,7 @@ export default defineConfig([
   },
   clientBundleOptions,
   {
-    entry: ['packages/deepseekbot/src/profile-cli.mjs'],
+    entry: ['packages/deepseekbot/src/profile-cli.mjs', 'packages/deepseekbot/src/deepseekbot.mjs'],
     outDir: 'packages/deepseekbot/dist',
     format: ['esm'],
     platform: 'node',
