@@ -108,6 +108,8 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('name="viewport"');
     expect(page).toContain('width=device-width');
     expect(page).toContain('frame?slug=');
+    expect(page).toContain('id="videoCanvas"');
+    expect(page).toContain('createImageBitmap');
     expect(page).toContain('Trackpad');
     expect(page).toContain('Direct tap');
     expect(page).toContain('id="kbd"');

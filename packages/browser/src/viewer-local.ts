@@ -26,7 +26,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #modeBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:6px 12px;cursor:pointer}
 #hint{font-size:12px;opacity:.65}
 #stage{position:relative}
-#frame{width:100%;height:auto;display:block;background:#000;border-radius:8px;min-height:120px;touch-action:none}
+#videoCanvas{width:100%;height:auto;display:block;background:#000;border-radius:8px;min-height:120px;touch-action:none}
 #cursor{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;pointer-events:none;display:none}
 #scrollRow{display:flex;gap:8px;padding:8px 2px}
 .scrollBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:14px;padding:8px;cursor:pointer}
@@ -37,12 +37,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 </style>
 </head>
 <body>
-<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><img id="frame" alt="Bot Browser live view"><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button><button class="keyBtn" id="enterBtn" type="button">Enter</button><button class="keyBtn" id="tabBtn" type="button">Tab</button><button class="keyBtn" id="escBtn" type="button">Esc</button></div><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button><button class="keyBtn" id="enterBtn" type="button">Enter</button><button class="keyBtn" id="tabBtn" type="button">Tab</button><button class="keyBtn" id="escBtn" type="button">Esc</button></div><div id="status"></div></div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
   const slug = params.get('slug') ?? '';
-  const img = document.getElementById('frame');
+  const surface = document.getElementById('videoCanvas');
+  const surfaceCanvas = surface instanceof HTMLCanvasElement ? surface : null;
   const cursor = document.getElementById('cursor');
   const status = document.getElementById('status');
   const modeBtn = document.getElementById('modeBtn');
@@ -94,7 +95,6 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   if (doneBtn) doneBtn.addEventListener('click', () => void finishHandoff('done'));
   if (failBtn) failBtn.addEventListener('click', () => void finishHandoff('failed'));
-  let current = '';
   let mode = window.innerWidth < 768 ? 'trackpad' : 'direct';
   let cx = 0;
   let cy = 0;
@@ -110,30 +110,30 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     place();
   }
   function place() {
-    if (!img || !cursor || img.clientWidth === 0) return;
+    if (!surface || !cursor || surface.clientWidth === 0) return;
     if (!cursorInit) {
-      cx = img.clientWidth / 2;
-      cy = img.clientHeight / 2;
+      cx = surface.clientWidth / 2;
+      cy = surface.clientHeight / 2;
       cursorInit = true;
     }
-    cx = Math.max(0, Math.min(img.clientWidth, cx));
-    cy = Math.max(0, Math.min(img.clientHeight, cy));
+    cx = Math.max(0, Math.min(surface.clientWidth, cx));
+    cy = Math.max(0, Math.min(surface.clientHeight, cy));
     cursor.style.left = cx + 'px';
     cursor.style.top = cy + 'px';
   }
   function pagePoint(clientX, clientY) {
-    if (!img) return null;
-    const rect = img.getBoundingClientRect();
+    if (!surface || !surfaceCanvas) return null;
+    const rect = surface.getBoundingClientRect();
     const dx = clientX - rect.left;
     const dy = clientY - rect.top;
     if (dx < 0 || dy < 0 || dx > rect.width || dy > rect.height || rect.width === 0 || rect.height === 0) return null;
-    const sx = img.naturalWidth / rect.width;
-    const sy = img.naturalHeight / rect.height;
+    const sx = surfaceCanvas.width / rect.width;
+    const sy = surfaceCanvas.height / rect.height;
     return { x: Math.round(dx * sx), y: Math.round(dy * sy) };
   }
   function cursorPoint() {
-    if (!img || img.clientWidth === 0 || img.naturalWidth === 0) return null;
-    return { x: Math.round(cx * (img.naturalWidth / img.clientWidth)), y: Math.round(cy * (img.naturalHeight / img.clientHeight)) };
+    if (!surface || !surfaceCanvas || surface.clientWidth === 0 || surfaceCanvas.width === 0) return null;
+    return { x: Math.round(cx * (surfaceCanvas.width / surface.clientWidth)), y: Math.round(cy * (surfaceCanvas.height / surface.clientHeight)) };
   }
   async function send(body) {
     try {
@@ -168,10 +168,16 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         return;
       }
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      if (current !== '') URL.revokeObjectURL(current);
-      current = url;
-      if (img) img.src = url;
+      if (surfaceCanvas) {
+        const bitmap = await createImageBitmap(blob);
+        if (surfaceCanvas.width !== bitmap.width || surfaceCanvas.height !== bitmap.height) {
+          surfaceCanvas.width = bitmap.width;
+          surfaceCanvas.height = bitmap.height;
+        }
+        const context = surfaceCanvas.getContext('2d');
+        if (context) context.drawImage(bitmap, 0, 0);
+        if (typeof bitmap.close === 'function') bitmap.close();
+      }
       place();
     } catch {
       say('frame unavailable');
@@ -200,13 +206,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   if (enterBtn) enterBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Enter' }));
   if (tabBtn) tabBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Tab' }));
   if (escBtn) escBtn.addEventListener('click', () => void send({ kind: 'key', key: 'Escape' }));
-  if (img) {
-    img.addEventListener('click', (event) => {
+  if (surface) {
+    surface.addEventListener('click', (event) => {
       if (mode !== 'direct') return;
       const point = pagePoint(event.clientX, event.clientY);
       if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
     });
-    img.addEventListener('wheel', (event) => {
+    surface.addEventListener('wheel', (event) => {
       event.preventDefault();
       const now = Date.now();
       if (now - lastScroll < 250) return;
