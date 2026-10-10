@@ -6,8 +6,13 @@
     # Browser use (ADR-0089): the profile-scoped managed Bot Browser. No
     # official seam is composed; the plugin registers its own tools in the
     # session scopes where Browser Access is on.
+    # Headless by default so fresh installs work on windowless servers; a
+    # Host that needs the visible window (one-time Human login) overrides it
+    # in a later Patch layer or Settings.
     - id: botharness-browser
       name: '@botharness/browser'
+      config:
+        headless: true
     # Official computer-use seam (ADR-0079): one exclusive provider slot our
     # Computer Tool Provider registers. The service has no config.
     - id: computer-use

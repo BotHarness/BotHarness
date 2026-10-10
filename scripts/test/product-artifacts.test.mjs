@@ -91,19 +91,45 @@ describe('packaged product selection', () => {
     expect(saved.dependencies).toEqual({ other: '1.0.0' });
   });
 
-  it.each([
-    '@xmanrui/dsh-im',
-    productImProvider.name,
-    '@botharness/browser',
-    '@botharness/computer',
-    '@botharness/core',
-    '@botharness/ui',
-  ])('refuses a conflicting standalone %s before overwriting existing configuration', (name) => {
-    const saved = { dsh: { profile: { bundles: [name] } }, untouched: 'retain' };
-    expect(() => packagedProfileManifest(saved, '/not-needed')).toThrow(
-      /remove its Bundle entry, retain credentials\/history/,
-    );
-    expect(saved).toEqual({ dsh: { profile: { bundles: [name] } }, untouched: 'retain' });
+  it.each(['@xmanrui/dsh-im', productImProvider.name])(
+    'refuses a conflicting standalone %s before overwriting existing configuration',
+    (name) => {
+      const saved = { dsh: { profile: { bundles: [name] } }, untouched: 'retain' };
+      expect(() => packagedProfileManifest(saved, '/not-needed')).toThrow(
+        /remove its Bundle entry, retain credentials\/history/,
+      );
+      expect(saved).toEqual({ dsh: { profile: { bundles: [name] } }, untouched: 'retain' });
+    },
+  );
+
+  it('migrates standalone owned members into the umbrella while retaining data', () => {
+    const { root } = artifactSet();
+    const saved = {
+      dependencies: { other: '1.0.0' },
+      preferences: { retained: true },
+      dsh: {
+        profile: {
+          bundles: [
+            '@deepseek-ai/dsh-base',
+            '@botharness/browser',
+            '@botharness/computer',
+            '@botharness/core',
+            '@botharness/ui',
+            'other',
+          ],
+        },
+      },
+    };
+    const result = packagedProfileManifest(saved, root);
+    expect(result.dsh.profile.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      'deepseekbot',
+      'other',
+    ]);
+    expect(result.dependencies.other).toBe('1.0.0');
+    expect(result.preferences).toEqual({ retained: true });
+    expect(saved.dsh.profile.bundles).toContain('@botharness/browser');
   });
 
   it('refuses changed tarballs instead of installing an artifact with stale qualification', () => {
@@ -174,6 +200,17 @@ describe('packaged product selection', () => {
 });
 
 describe('release composition', () => {
+  it('ships headless Browser by default in both umbrella patches', () => {
+    for (const patch of ['cordis.patch.yml', 'cordis.im.patch.yml']) {
+      const rows = parse(
+        readFileSync(new URL(`../../packages/deepseekbot/${patch}`, import.meta.url), 'utf8'),
+      ).flatMap((row) => row.insert);
+      expect(rows.find((row) => row.id === 'botharness-browser')).toMatchObject({
+        name: '@botharness/browser',
+        config: { headless: true },
+      });
+    }
+  });
   it('refuses duplicates in a composed native Patch before a receiver can start', () => {
     const entries = [
       { id: 'xmanrui-dsh-im', name: productImProvider.name },

@@ -79,11 +79,13 @@ representative upgrade, pack a new product test version into a new directory,
 stop that Host and pass the new directory while retaining the home. The installer
 preserves unrelated workspace/build settings, account state and canonical data.
 
-If the Profile separately enables `@xmanrui/dsh-im`, `@botharness/im-provider`,
+If the Profile separately enables `@xmanrui/dsh-im` or `@botharness/im-provider`,
+the helper refuses and names the offending Bundle. Stop its owning Host and
+remove only that duplicate Bundle entry before retrying. Formerly separate
 `@botharness/browser`, `@botharness/computer`, `@botharness/core` or
-`@botharness/ui`, the helper refuses and names the offending
-Bundle. Stop its owning Host and remove only that duplicate Bundle entry before
-retrying. Keep the stored credentials, account settings and source/Outbox history.
+`@botharness/ui` entries instead migrate into the `deepseekbot` umbrella
+automatically; the helper names them as it does so. Keep the stored
+credentials, account settings and source/Outbox history.
 An incompatible Provider replacement requires requalification, not a version
 exemption or a second receiver. No restart/upgrade should backfill remote history
 or blindly repeat an unknown send. Apply the existing database backup/forward
