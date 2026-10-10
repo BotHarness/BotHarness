@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { en } from '../src/client/locale.js';
 import {
   resolveTourSteps,
   startInternalTour,
@@ -32,7 +33,7 @@ afterEach(async () => {
 function options(overrides: Partial<InternalTourOptions> = {}): InternalTourOptions {
   return {
     closeLabel: 'Close',
-    skipLabel: 'Skip tutorial',
+    skipLabel: en['onboarding.skip'],
     previousLabel: 'Previous',
     nextLabel: 'Next',
     doneLabel: 'Done',
@@ -80,7 +81,7 @@ it('drives a multi-step tour with progress, labels and a skip action', async () 
     'Close',
   );
   const skip = document.querySelector<HTMLButtonElement>('.bh-internal-tour-skip');
-  expect(skip?.textContent).toBe('Skip tutorial');
+  expect(skip?.textContent).toBe('Skip');
   skip?.click();
   expect(tourOptions.onSkip).toHaveBeenCalledOnce();
   expect(document.querySelector('.driver-popover')).toBeNull();
