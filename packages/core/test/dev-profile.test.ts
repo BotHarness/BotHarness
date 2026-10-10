@@ -15,8 +15,6 @@ it('retains installed optional Bundle composition and relinks only BotHarness pa
   const updated = developmentProfileManifest(manifest, '/worktree');
   expect(updated.dependencies['@xmanrui/dsh-im']).toBe('4.32.0');
   expect(updated.dependencies.deepseekbot).toBe('link:/worktree/packages/deepseekbot');
-  // The umbrella Patch owns every BotHarness Plugin; members stay linked
-  // but are never promoted to top-level Bundles (duplicate loader entry).
   expect(updated.dependencies['@botharness/browser']).toBe('link:/worktree/packages/browser');
   expect(updated.dependencies['@botharness/computer']).toBe('link:/worktree/packages/computer');
   expect(updated.dsh.profile.bundles).toEqual([

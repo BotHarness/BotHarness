@@ -239,11 +239,6 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
   mkdirSync(staging);
   const artifacts = [];
   const packageDirectories = [];
-  // Only DSH runtime Plugin packages ship in the product (each carries a
-  // dsh.bundle patch and/or dsh.client entry). The remaining workspace
-  // packages are separate deployables, not Profile composition: market,
-  // links and ingest are Cloudflare Workers and links-cli is a CLI, so they
-  // stay out of the install unit (#1328).
   for (const name of ['core', 'client', 'browser', 'computer']) {
     const source = join(repoRoot, 'packages', name);
     const target = join(staging, name);
