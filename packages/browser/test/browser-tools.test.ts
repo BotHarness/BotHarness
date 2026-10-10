@@ -87,6 +87,11 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       url: 'https://example.com/',
       title: 'Example Domain',
     })),
+    insertText: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
     scroll: vi.fn(async (tabId: string) => ({
       tabId,
       url: 'https://example.com/',

@@ -388,7 +388,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const visibleError = cleanupRequired ? t('entry.view.cleanupFailed') : error;
   const paused = observation?.takeover === true;
   const viewerUrl =
-    observation?.target === 'container' && observation.running
+    observation?.running === true &&
+    (observation?.target === 'container' || observation?.target === 'local')
       ? (observation.viewerUrl ?? undefined)
       : undefined;
   const identity = `${botSlug ?? ''}:${profileOverride ?? info.browserProfile ?? ''}:${observation?.target ?? ''}`;
@@ -663,7 +664,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <RemoteViewer
           key={scope}
           t={viewerTranslate}
-          title={t('entry.view.container')}
+          title={t(observation?.target === 'container' ? 'entry.view.container' : 'settings.local')}
           src={viewerUrl}
           design={{ width: 1024, height: 768 }}
           notice={

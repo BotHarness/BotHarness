@@ -41,6 +41,7 @@ let host: HTMLDivElement;
 let current: string;
 let target: 'local' | 'container';
 let takeover: boolean;
+let viewer: boolean;
 const urls: string[] = [];
 const tabs = [
   { targetId: 'home', title: 'Home', url: 'http://fixture/home' },
@@ -54,7 +55,7 @@ function observation(url: string): object {
     frame: `frame:${preview}`,
     takeover,
     target,
-    viewerUrl: target === 'container' ? '/viewer/qa/' : null,
+    viewerUrl: viewer ? '/viewer/qa/' : null,
     tabs: tabs.map((t) => ({ ...t, current: t.targetId === current })),
   };
 }
@@ -89,6 +90,7 @@ beforeEach(async () => {
   current = 'work';
   target = 'local';
   takeover = false;
+  viewer = false;
   urls.length = 0;
   vi.stubGlobal(
     'fetch',
@@ -216,6 +218,7 @@ describe('Browser current work versus Human preview', () => {
 describe('Container Human viewer', () => {
   async function expand(): Promise<HTMLIFrameElement> {
     target = 'container';
+    viewer = true;
     await poll();
     const frame = host.querySelector('iframe')!;
     expect(frame.style.pointerEvents).toBe('none');
@@ -319,13 +322,13 @@ describe('Container Human viewer', () => {
       'Pause failed',
     );
   });
-  it('revokes interaction when the target switches away from Container', async () => {
+  it('revokes interaction when the target switches away from a viewer target', async () => {
     await expand();
     await click('[aria-label="Enable interaction"]');
-    target = 'local';
+    viewer = false;
     await poll();
     expect(host.querySelector('iframe')).toBeNull();
-    target = 'container';
+    viewer = true;
     await poll();
     expect(host.querySelector('iframe')!.style.pointerEvents).toBe('none');
   });
@@ -350,5 +353,17 @@ describe('Container Human viewer', () => {
     expect(fetch.mock.calls.at(-1)?.[0]).toBe('/api/browser/open');
     await act(async () => resolve({ ok: true, json: async () => observation('/observation') }));
     expect(fetch.mock.calls.length).toBe(count + 2);
+  });
+});
+
+describe('Local Human viewer', () => {
+  it('renders the Host-served viewer for the local target', async () => {
+    target = 'local';
+    viewer = true;
+    await poll();
+    const frame = host.querySelector('iframe')!;
+    expect(frame.getAttribute('src')).toBe('/viewer/qa/');
+    expect(frame.style.pointerEvents).toBe('none');
+    expect(host.textContent).toContain('Local Browser');
   });
 });

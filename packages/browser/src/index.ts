@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
+import { LOCAL_VIEWER_PREFIX, localViewerUrl, registerLocalViewer } from './viewer-local.js';
 import type { ContainerBrowserOptions } from './runtime/container.js';
 import { createProfileControl } from './profile-control.js';
 import { registerProfileHttp } from './profile-http.js';
@@ -316,6 +317,32 @@ export function apply(
       return true;
     },
   });
+  ctx.inject(['connection', 'webServer'], (localViewerCtx) => {
+    const services = localViewerCtx as unknown as {
+      webServer: BrowserViewerHost;
+      connection: { requestRejection(request: { headers: Headers }): number | undefined };
+    };
+    const release = registerLocalViewer({
+      host: services.webServer,
+      runtimes,
+      currentTab: (slug) => provider.currentTab(slug),
+      isTakeover: (slug) => provider.isTakeover(slug),
+      touch: (slug) => {
+        runtimes.touch(slug);
+        provider.touch(slug);
+      },
+      hasAccess: (slug) =>
+        (
+          coreLookup()?.registry as
+            | { get(slug: string): { browserAccess?: boolean } | undefined }
+            | undefined
+        )?.get(slug)?.browserAccess === true,
+      note: (detail) => diagnostics.record('lifecycle', detail),
+      rejection: (headers) => services.connection.requestRejection({ headers }),
+    });
+    diagnostics.record('lifecycle', `local viewer ready prefix=${LOCAL_VIEWER_PREFIX}`);
+    return release;
+  });
   ctx.on('loader/volatile-update', (paths) => {
     if (
       !paths.some(
@@ -519,10 +546,13 @@ export function apply(
           const tab = await provider.openForHuman(slug, requested);
           if (scope !== previewScope(slug))
             throw new Error('Browser authority changed while opening');
+          const opened = runtimes.for(slug);
           return json({
             ok: true,
             tabId: tab.tabId,
-            viewerUrl: runtimes.for(slug).viewerUrl?.() ?? null,
+            viewerUrl:
+              opened.viewerUrl?.() ??
+              (target() === 'local' && opened.isRunning() ? localViewerUrl(slug) : null),
           });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
@@ -632,7 +662,9 @@ export function apply(
           tabs,
           profiles,
           target: target(),
-          viewerUrl: runtime.viewerUrl?.() ?? null,
+          viewerUrl:
+            runtime.viewerUrl?.() ??
+            (target() === 'local' && runtime.isRunning() ? localViewerUrl(slug) : null),
         });
       },
     };

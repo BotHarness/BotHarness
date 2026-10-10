@@ -223,6 +223,12 @@ export function createAgentBrowserRuntime(options: BotBrowserRuntimeOptions): Bo
     click: (tab, ref) => serial(() => act(tab, 'click', { selector: selector(tab, ref) })),
     type: (tab, ref, value) =>
       serial(() => act(tab, 'fill', { selector: selector(tab, ref), value })),
+    insertText: (tab, value) =>
+      serial(async () => {
+        await select(tab);
+        references.delete(tab);
+        return base.insertText(tab, value);
+      }),
     clickAt: (tab, x, y) =>
       serial(async () => {
         await select(tab);

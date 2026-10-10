@@ -90,6 +90,7 @@ export interface BotBrowserRuntime {
   click(tabId: string, ref: string): Promise<BrowserTab>;
   clickAt(tabId: string, x: number, y: number): Promise<BrowserTab>;
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
+  insertText(tabId: string, text: string): Promise<BrowserTab>;
   pressKey(tabId: string, key: string): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
   uploadFile(tabId: string, options: { ref?: string; path: string }): Promise<void>;
@@ -728,6 +729,21 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId, ...page };
   };
 
+  const insertText = async (tabId: string, text: string): Promise<BrowserTab> => {
+    if (text === '' || text.length > 4000) {
+      throw new Error('Viewer text must be 1-4000 characters');
+    }
+    const sessionId = await attach(tabId);
+    const live = client;
+    if (!live) throw new Error('Bot Browser is not connected');
+    await prepareInput(sessionId);
+    await live.send('Input.insertText', { text }, sessionId);
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, ...page };
+  };
+
   const scroll = async (
     tabId: string,
     direction: 'up' | 'down',
@@ -1138,6 +1154,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     click,
     clickAt,
     type,
+    insertText,
     pressKey,
     scroll,
     async uploadFile(tabId, upload) {
