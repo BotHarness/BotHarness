@@ -77,6 +77,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Clicking the tutorial mask advances to the next step instead of dismissing the tour; the final step uses the Done action. The footer keeps Skip as text and uses labeled icons for Previous, Next and Done so the controls and progress do not wrap ([#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)).
+
 - Profile token-usage cards keep missing-provider-usage explanations behind an info icon beside the title, available on hover, keyboard focus or click instead of taking up space in the card ([#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)).
 
 - CLI secret edits validate actual YAML on disk and restore the original file on failure; empty inline refs and multiline values work, and secret-bearing arguments fail without echoing their values ([#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)).
