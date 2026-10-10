@@ -63,9 +63,6 @@ const PRODUCT_PACKAGES = new Set([
   productImProvider.name,
 ]);
 
-// Mirrors the workspace root pnpm-workspace.yaml allowBuilds adjudication so
-// packaged Profiles install the same dependency tree with the same build
-// policy. scripts/test/product-artifacts.test.mjs fails on drift.
 export const productAllowBuilds = {
   esbuild: true,
   workerd: true,
@@ -117,9 +114,6 @@ export function verifiedProductArtifacts(directory) {
   return { ...manifest, directory: root };
 }
 
-// Owned umbrella members: a standalone Bundle entry for one of these is a
-// pre-umbrella leftover, migrated into deepseekbot on upgrade. The two IM
-// identities stay refusal-only: upstream vs product provider needs human eyes.
 const ownedStandaloneBundles = new Set([
   '@botharness/browser',
   '@botharness/computer',
@@ -134,8 +128,6 @@ export function packagedProfileManifest(manifest, directory) {
       throw new Error(
         `Standalone Bundle ${standalone} conflicts with the product; remove its Bundle entry, retain credentials/history, then retry`,
       );
-  // Owned umbrella members migrate into deepseekbot on upgrade: dropping the
-  // now-duplicate Bundle entry keeps stored data, matching the dev launcher.
   const retained = bundles.filter((bundle) => !ownedStandaloneBundles.has(bundle));
   const artifacts = verifiedProductArtifacts(directory);
   const product = artifacts.artifacts.find((artifact) => artifact.name === 'deepseekbot');
@@ -210,10 +202,6 @@ export function packagedWorkspaceSettings(source, directory) {
     overrides[`${artifact.name}@${artifact.version}`] =
       `file:${join(artifacts.directory, artifact.filename)}`;
   document.set('overrides', overrides);
-  // pnpm 12 refuses unapproved postinstall scripts. A packaged Profile
-  // installs the same dependency tree the workspace already adjudicated, so
-  // it carries the workspace build policy (agent-browser: false arrives with
-  // Browser); explicit Profile entries keep precedence.
   document.set('allowBuilds', { ...productAllowBuilds, ...previous?.allowBuilds });
   return document.toString();
 }

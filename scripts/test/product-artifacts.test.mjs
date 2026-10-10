@@ -138,7 +138,7 @@ describe('packaged product selection', () => {
     expect(() => verifiedProductArtifacts(root)).toThrow('Product artifact changed');
   });
 
-  it('places artifact substitution in pnpm 12 settings and preserves unrelated build policy', () => {
+  it('places artifact substitution and workspace build policy in pnpm 12 settings while preserving unrelated entries', () => {
     const { root } = artifactSet();
     const source =
       '# owned Profile\npackages: [.]\nautoInstallPeers: false\nallowBuilds:\n  reviewed: true\n  other: false\n  agent-browser: true\noverrides:\n  unrelated: 1.0.0\n';
@@ -150,9 +150,6 @@ describe('packaged product selection', () => {
       allowBuilds: { reviewed: true, other: false },
       overrides: { unrelated: '1.0.0' },
     });
-    // The packaged Profile carries the workspace build adjudication so pnpm
-    // 12 does not refuse the Browser dependency tree, while explicit Profile
-    // entries keep precedence.
     expect(settings.allowBuilds['agent-browser']).toBe(true);
     expect(settings.allowBuilds['esbuild']).toBe(true);
     expect(settings.allowBuilds['protobufjs']).toBe(false);
