@@ -72,6 +72,8 @@
 
 ### Fixed
 
+- Bot Browser 首次后台标签可在 Chrome 启动窗口尚未就绪时打开，本地 Web 首装期间也能看到下载进度；额外的开发刷新连接现在仅在 `?botharness-dev-reload=1` 时启用（[#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)）。
+
 - PersonaBot 刚发出回复、还在收尾时，工作状态行不再以「思考中」重新出现在回复下方；只有一条新消息时，「跳到最新」提示的英文改用单数（[#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)）。
 
 - 已静止的 Assignment 等待工具审批时释放运行名额，让其他事项继续；审批决定收到后，原调用先等待名额再继续，卡片分别显示两种等待。等待会话有独立上限，有后代的 root 保守占用名额，撤权或重启均不重放原调用（[#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)）。

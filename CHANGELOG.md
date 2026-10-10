@@ -72,6 +72,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
+
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).
 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
