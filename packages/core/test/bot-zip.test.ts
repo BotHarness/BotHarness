@@ -2,16 +2,13 @@ import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   readdirSync,
-  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { syncBotDescriptor } from '../src/bots/bot-descriptor-sync.js';
 import {
@@ -23,7 +20,8 @@ import {
 import { createBotZipHttp } from '../src/bots/bot-zip-http.js';
 import { readZip, writeZip, ZipArchiveError } from '../src/bots/zip-archive.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
-import { createTestRegistry } from './registry-fixture.js';
+import { createTestRegistry, registryDatabase } from './registry-fixture.js';
+import { createTempRoot, trackTestOwner } from './helpers.js';
 
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -32,16 +30,8 @@ const PNG = Buffer.from(
 const PNG_URL = `data:image/png;base64,${PNG.toString('base64')}`;
 const LIMITS = { maxEntries: 100, maxTotalBytes: 1024 * 1024 };
 
-const roots: string[] = [];
-
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
 function tempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'botharness-bot-zip-'));
-  roots.push(root);
-  return root;
+  return createTempRoot('botharness-bot-zip-');
 }
 
 function git(cwd: string, ...args: string[]): string {
@@ -61,6 +51,7 @@ function zipCodeOf(run: () => unknown): string | undefined {
 function registryAt(root: string) {
   return createTestRegistry({
     rootDir: join(root, 'bots'),
+    database: trackTestOwner(registryDatabase(join(root, 'bots'))),
     initializeMemory: (memoryDir) => ({ ok: ensureMemoryRepository({ memoryDir }).ok }),
     syncDescriptor: (memoryDir, record, options) => syncBotDescriptor(memoryDir, record, options),
   });
@@ -238,6 +229,56 @@ describe('Bot Zip file selection', () => {
 });
 
 describe('Bot Zip import', () => {
+  it('applies explicit import metadata over the descriptor and refuses invalid overrides before creation', async () => {
+    const registry = registryAt(tempRoot());
+    const http = httpFor(registry);
+    const archive = writeZip([
+      { path: 'SOUL.md', data: Buffer.from('# Persona') },
+      {
+        path: '.botharness/bot.json',
+        data: Buffer.from('{"name":"Original","tags":["original"],"bio":"Old"}'),
+      },
+    ]);
+    const request = new Request(
+      `http://host/api/botharness/bot-zip/import?${new URLSearchParams({ displayName: 'Override', roles: '["QA"]', description: 'New' })}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/zip' },
+        body: new Uint8Array(archive),
+      },
+    );
+    expect((await http(request)).status).toBe(200);
+    expect(registry.list()[0]).toMatchObject({
+      displayName: 'Override',
+      roles: ['QA'],
+      description: 'New',
+    });
+    const invalid = new Request('http://host/api/botharness/bot-zip/import?roles=42', {
+      method: 'POST',
+      headers: { 'content-type': 'application/zip' },
+      body: new Uint8Array(archive),
+    });
+    expect((await http(invalid)).status).toBe(400);
+    expect(registry.list()).toHaveLength(1);
+  });
+
+  it('returns the created identity when post-import detail readback fails', async () => {
+    const registry = registryAt(tempRoot());
+    const http = createBotZipHttp({
+      registry,
+      createBotId: () => 'minted',
+      detail: () => ({ ok: false, error: { code: 'unavailable', message: 'Cannot read detail' } }),
+    });
+    const response = await http(
+      importRequest(writeZip([{ path: 'SOUL.md', data: Buffer.from('# Persona') }])),
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      bot: { id: 'minted', name: 'Shared' },
+      outcome: 'created',
+    });
+    expect(registry.get('minted')).toBeDefined();
+  });
   it('reads a re-zipped folder, skipping macOS metadata and Git internals', () => {
     const contents = readBotZip(
       writeZip([

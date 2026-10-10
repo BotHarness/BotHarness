@@ -110,7 +110,7 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSignal) {
+export async function connectLiveHost(values: LiveValues, io: BotCreateCliIo, signal: AbortSignal) {
   const base = hostUrl(values.host ?? io.env['DEEPSEEKBOT_HOST']);
   let token = io.env['DEEPSEEKBOT_HOST_TOKEN'];
   if (values['token-file'] !== undefined) {
@@ -153,7 +153,32 @@ async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSign
   }
   if (!cookie)
     throw new CliLiveError('host-unauthorized', 'Host login did not issue an authority cookie.');
-  return async <T>(method: string, args: Record<string, unknown>): Promise<T> => {
+  const readResponse = async (response: Response): Promise<Record<string, unknown>> => {
+    if (response.status === 401 || response.status === 403) {
+      await response.body?.cancel();
+      throw new CliLiveError(
+        'host-unauthorized',
+        'The Host refused this authority cookie; refresh its launch token.',
+      );
+    }
+    try {
+      const body = await response.text();
+      try {
+        return record(JSON.parse(body));
+      } catch {
+        throw new CliLiveError('host-protocol-error', 'The Host did not return a JSON response.');
+      }
+    } catch (error) {
+      if (error instanceof CliLiveError) throw error;
+      throw new CliLiveError(
+        'host-unreachable',
+        'The Host response was interrupted before the command deadline.',
+      );
+    }
+  };
+  const scrub = (value: string) =>
+    value.replaceAll(secret, '[redacted]').replaceAll(encodeURIComponent(secret), '[redacted]');
+  const rpc = async <T>(method: string, args: Record<string, unknown>): Promise<T> => {
     const name = method === 'dsh-im/app-setup' ? method : `botharness/${method}`;
     const response = await request(new URL(`/api/${name}`, base), {
       method: 'POST',
@@ -165,28 +190,7 @@ async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSign
         payload: method === 'dsh-im/app-setup' ? args : { args },
       }),
     });
-    if (response.status === 401 || response.status === 403) {
-      await response.body?.cancel();
-      throw new CliLiveError(
-        'host-unauthorized',
-        'The Host refused this authority cookie; refresh its launch token.',
-      );
-    }
-    let payload: Record<string, unknown>;
-    let body: string;
-    try {
-      body = await response.text();
-    } catch {
-      throw new CliLiveError(
-        'host-unreachable',
-        'The Host response was interrupted before the command deadline.',
-      );
-    }
-    try {
-      payload = record(JSON.parse(body));
-    } catch {
-      throw new CliLiveError('host-protocol-error', 'The Host did not return a DSH RPC response.');
-    }
+    const payload = await readResponse(response);
     if (!response.ok || payload['type'] !== 'server-response')
       throw new CliLiveError('host-protocol-error', 'The Host did not return a DSH RPC response.');
     const result = record(payload['result']);
@@ -195,15 +199,49 @@ async function connect(values: LiveValues, io: BotCreateCliIo, signal: AbortSign
       const code = typeof error['code'] === 'string' ? error['code'] : 'host-protocol-error';
       const message =
         typeof error['message'] === 'string' ? error['message'] : 'The Host refused the command.';
-      throw new CliLiveError(
-        code,
-        message
-          .replaceAll(secret, '[redacted]')
-          .replaceAll(encodeURIComponent(secret), '[redacted]'),
-      );
+      throw new CliLiveError(code, scrub(message));
     }
     return result['value'] as T;
   };
+  const importBotZip = async <T>(
+    archive: Uint8Array,
+    metadata: { name?: string; displayName?: string; roles?: string[]; description?: string },
+  ): Promise<T> => {
+    const url = new URL('/api/botharness/bot-zip/import', base);
+    for (const key of ['name', 'displayName', 'description'] as const) {
+      if (metadata[key] !== undefined) url.searchParams.set(key, metadata[key]);
+    }
+    if (metadata.roles !== undefined) url.searchParams.set('roles', JSON.stringify(metadata.roles));
+    const response = await request(url, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/zip' },
+      body: new Uint8Array(archive),
+    });
+    const payload = await readResponse(response);
+    if (!response.ok) {
+      const error = record(payload['error']);
+      const bot = record(payload['bot']);
+      throw new CliLiveError(
+        typeof error['code'] === 'string' ? scrub(error['code']) : 'host-protocol-error',
+        scrub(
+          typeof error['message'] === 'string'
+            ? error['message']
+            : 'The Host refused this Bot Zip import.',
+        ),
+        undefined,
+        undefined,
+        typeof bot['id'] === 'string' && typeof bot['name'] === 'string'
+          ? {
+              bot: { id: bot['id'], name: bot['name'] },
+              steps: [{ name: 'create-bot', status: 'ok' }],
+              outcome: 'created',
+            }
+          : undefined,
+      );
+    }
+    return payload as T;
+  };
+  return { rpc, importBotZip };
 }
 
 export async function runLiveCli(
@@ -216,7 +254,11 @@ export async function runLiveCli(
     const operation = await prepareImAuthorization(command, rest, values, io);
     const signal = AbortSignal.timeout(timeoutMs(values.timeout));
     try {
-      return await runImAuthorization(operation, await connect(values, io, signal), signal);
+      return await runImAuthorization(
+        operation,
+        (await connectLiveHost(values, io, signal)).rpc,
+        signal,
+      );
     } catch (error) {
       if (
         error instanceof CliLiveError &&
@@ -296,7 +338,7 @@ export async function runLiveCli(
   const duration = timeoutMs(values.timeout);
   const deadline = Date.now() + duration;
   const signal = AbortSignal.timeout(duration);
-  const rpc = await connect(values, io, signal);
+  const { rpc } = await connectLiveHost(values, io, signal);
   if (command === 'send') {
     const channelId = dmChannelId(target);
     const receipt = { channelId, messageId: messageId ?? `human-${randomUUID()}` };

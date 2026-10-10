@@ -5,6 +5,7 @@ import {
   lstatSync,
   readdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
   unlinkSync,
 } from 'node:fs';
@@ -63,11 +64,23 @@ import {
   type BotDescriptor,
 } from '../marketplace/descriptor.js';
 import { syncBotDescriptor } from './bot-descriptor-sync.js';
-import { bundleBotHistory, readBotZip, BOT_ZIP_MAX_BYTES, BOT_ZIP_MAX_ENTRIES } from './bot-zip.js';
+import {
+  bundleBotHistory,
+  readBotZip,
+  BOT_ZIP_MAX_BYTES,
+  BOT_ZIP_MAX_ENTRIES,
+  BOT_ZIP_HISTORY_PATH,
+} from './bot-zip.js';
 import type { PersonaBotRecord } from './persona-bot.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './registry.js';
-import { ZipArchiveError, type ZipEntry } from './zip-archive.js';
+import { ZipArchiveError, writeZip, type ZipEntry } from './zip-archive.js';
 import { CliLiveError, LIVE_COMMANDS, LIVE_OPTIONS, runLiveCli } from './cli-live.js';
+import {
+  DIAGNOSTIC_COMMANDS,
+  LIFECYCLE_COMMANDS,
+  ONLINE_MANAGEMENT_COMMANDS,
+  runOnlineManagement,
+} from './cli-management.js';
 
 export interface BotCreateCliIo {
   env: NodeJS.ProcessEnv;
@@ -154,6 +167,12 @@ Usage:
   deepseekbot release-info [--since <version>]
   deepseekbot workspace-options
   deepseekbot grant-create <id> --workspace <workspace-id>
+  deepseekbot bot-attention <id> [--limit <1-100>] [--cursor <source-id>] [--state <state>]
+  deepseekbot bot-sessions <id> [--limit <1-100>]
+  deepseekbot bot-activity <id> [--limit <1-100>]
+  deepseekbot bot-delete-preview <id>
+  deepseekbot bot-delete-confirm <id> --confirmation-stdin
+  deepseekbot bot-delete-retry <id>
   deepseekbot im-apps
   deepseekbot im-authorize <feishu|weixin>
   deepseekbot im-credentials <attempt-id> --credentials-stdin
@@ -190,12 +209,19 @@ Live Host:
   Login is fresh per call; cookies stay in memory. --timeout defaults to 120 seconds (max 600).
   send returns its receipt and exact committed replies. Inspect send-status on timeout
   before retrying; send never automatically resubmits. channel-messages also accepts --host.
+  create (blank, Git, Zip and directory), list/show, model-presets/create/apply/plan
+  and channels use the Host when --host or DEEPSEEKBOT_HOST is set. Do not combine
+  --home with an online target; failures never fall back to local database access.
+  Zip/directory uploads contain local bytes; Git cloning uses the Host environment.
+  Creation errors retain known bot/steps; outcome unknown means inspect before retrying.
+  Bot diagnostics are bounded summaries, not full execution logs or live streams.
+  Deletion requires preview then stdin {"token":"<preview.token>"}; Memory is retained.
   Question stdin: {"answers":[{"id":"question-id","selected":["option"],"custom":"optional"}]}
 
 Models:
   model-presets lists the profile presets; model-preset-create mints one from
   explicit provider/model routes; model-preset-apply and model-plan read and
-  write the bot record directly. Routes are shape-checked plus
+  write through the Host when selected, otherwise directly offline. Routes are shape-checked plus
   provider-existence-checked offline; catalog liveness and readiness
   inspection stay Host-side, and model-plan reports readiness deferred.
 
@@ -328,6 +354,9 @@ const CREATE_OPTIONS = {
   limit: { type: 'string' },
   sha: { type: 'string' },
   before: { type: 'string' },
+  cursor: { type: 'string' },
+  state: { type: 'string' },
+  'confirmation-stdin': { type: 'boolean' },
   grant: { type: 'string' },
   enabled: { type: 'boolean' },
   disabled: { type: 'boolean' },
@@ -349,7 +378,7 @@ const CREATE_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const;
 
-type CreateValues = ReturnType<
+export type CreateValues = ReturnType<
   typeof parseArgs<{ options: typeof CREATE_OPTIONS; allowPositionals: true }>
 >['values'];
 
@@ -586,7 +615,7 @@ function failureOf(reason: string, detail?: string): CliFailure {
   }
 }
 
-interface ValidatedCreate {
+export interface ValidatedCreate {
   displayName: string | undefined;
   persona: string | undefined;
   roles: string[] | undefined;
@@ -857,6 +886,7 @@ async function runCreate(
 }
 
 function readZipBundle(path: string): {
+  archive: Buffer;
   files: ZipEntry[];
   descriptor: BotDescriptor | undefined;
   history: Buffer | undefined;
@@ -864,6 +894,7 @@ function readZipBundle(path: string): {
 } {
   let archive: Buffer;
   try {
+    if (statSync(path).size > BOT_ZIP_MAX_BYTES) throw new Error('too-large');
     archive = readFileSync(path);
   } catch {
     throw new CliFailure('bad-zip', `Cannot read zip file: ${path}`, 1);
@@ -871,6 +902,7 @@ function readZipBundle(path: string): {
   try {
     const contents = readBotZip(archive);
     return {
+      archive,
       files: contents.files,
       descriptor: contents.descriptor,
       history: contents.history,
@@ -2280,6 +2312,8 @@ function runSecretUnset(
 
 const SEARCH_INDEX: ReadonlyArray<{ command: string; description: string }> = [
   ...LIVE_COMMANDS,
+  ...DIAGNOSTIC_COMMANDS,
+  ...LIFECYCLE_COMMANDS,
   { command: 'create', description: 'create a PersonaBot blank, from a bundle, or from git' },
   { command: 'list', description: 'list PersonaBots' },
   { command: 'show', description: 'inspect one PersonaBot' },
@@ -2380,16 +2414,66 @@ export async function runBotCreateCli(
       out.stdout(BOT_CREATE_HELP.trimEnd());
       return 0;
     }
+    const online = values.host !== undefined || io.env['DEEPSEEKBOT_HOST'] !== undefined;
+    if (
+      DIAGNOSTIC_COMMANDS.some((entry) => entry.command === command) ||
+      LIFECYCLE_COMMANDS.some((entry) => entry.command === command) ||
+      (online && ONLINE_MANAGEMENT_COMMANDS.some((entry) => entry === command))
+    ) {
+      if (command === 'create' && rest.length > 0)
+        throw usageError('create takes no positional arguments.');
+      const input = command === 'create' ? await validatedCreate(values, readStdin) : undefined;
+      let bundle;
+      if (input?.source.kind === 'zip') {
+        const contents = readZipBundle(input.source.path);
+        bundle = {
+          archive: contents.archive,
+          ...(zipStem(input.source.path) === undefined
+            ? {}
+            : { name: zipStem(input.source.path)! }),
+          historySkipped: contents.historySkipped,
+        };
+      } else if (input?.source.kind === 'dir') {
+        const contents = readDirBundle(input.source.path);
+        const archive = writeZip([
+          ...contents.files.map((file) => ({ ...file, path: `bot-bundle/${file.path}` })),
+          ...(contents.history === undefined
+            ? []
+            : [{ path: `bot-bundle/${BOT_ZIP_HISTORY_PATH}`, data: contents.history }]),
+        ]);
+        readBotZip(archive);
+        bundle = { archive, historySkipped: contents.historySkipped };
+      }
+      out.stdout(
+        JSON.stringify(
+          await runOnlineManagement(command, rest, values, io, input, bundle),
+          null,
+          2,
+        ),
+      );
+      return 0;
+    }
     if (
       LIVE_COMMANDS.some((entry) => entry.command === command) ||
       (command === 'channel-messages' &&
         (values.host !== undefined || io.env['DEEPSEEKBOT_HOST'] !== undefined))
     ) {
+      if (values.home !== undefined)
+        throw usageError('Do not combine --home and an online Host target.');
       out.stdout(JSON.stringify(await runLiveCli(command, rest, values, io), null, 2));
       return 0;
     }
-    if (values.host !== undefined || values['token-file'] !== undefined)
-      throw usageError('--host is supported only by live commands and channel-messages.');
+    if (
+      values.host !== undefined ||
+      values['token-file'] !== undefined ||
+      (online &&
+        !['search', 'schedule-preview', 'secret-put', 'secret-list', 'secret-unset'].includes(
+          command,
+        ))
+    )
+      throw usageError(
+        'This command has no online adapter yet; use its explicit offline maintenance mode.',
+      );
     if (command === 'list') {
       if (rest.length > 0) throw usageError('list takes no bot id.');
       out.stdout(JSON.stringify(runList(values, io), null, 2));
@@ -2573,6 +2657,7 @@ export async function runBotCreateCli(
             error: { code: error.code, message: error.message },
             ...(error.receipt === undefined ? {} : { receipt: error.receipt }),
             ...(error.authorization === undefined ? {} : { authorization: error.authorization }),
+            ...(error.creation === undefined ? {} : error.creation),
           },
           null,
           2,

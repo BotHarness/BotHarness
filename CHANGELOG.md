@@ -21,6 +21,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- The CLI can create blank, Zip/directory and GitHub/Git PersonaBots, configure models and inspect Channel, attention and Session summaries through a running Host, retaining known partial results and offering explicit identity cleanup with Memory preserved. See the [CLI guide](docs/bot-cli.md) ([#1363](https://github.com/BotHarness/DeepSeekBot/issues/1363)).
+
 - The CLI can authorize Feishu and WeChat IM applications through the existing Provider, return a phone-scannable QR, submit credentials or verification codes through stdin and poll or cancel the same authorization attempt. See the [CLI guide](docs/bot-cli.md) ([#1318](https://github.com/BotHarness/DeepSeekBot/issues/1318)).
 
 - The CLI can send a DM and collect its exact committed reply, inspect receipts, answer formal questions, decide tool approvals once, read release state and create workspace grants through a running authenticated Host. See the [CLI guide](docs/bot-cli.md) ([#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)).
