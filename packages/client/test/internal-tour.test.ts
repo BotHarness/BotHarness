@@ -86,6 +86,37 @@ it('drives a multi-step tour with progress, labels and a skip action', async () 
   expect(document.querySelector('.driver-popover')).toBeNull();
 });
 
+it('advances on mask clicks and finishes on the last step without closing or skipping', async () => {
+  const roster = document.createElement('div');
+  roster.setAttribute('data-bh-tour', 'roster');
+  const composer = document.createElement('button');
+  composer.setAttribute('data-bh-tour', 'composer');
+  document.body.append(roster, composer);
+  const tourOptions = options();
+  stop = startInternalTour(
+    [
+      { selector: '[data-bh-tour="roster"]', title: 'Roster', description: 'Conversations' },
+      { selector: '[data-bh-tour="composer"]', title: 'Message box', description: 'Type here' },
+    ],
+    tourOptions,
+  );
+  await vi.advanceTimersByTimeAsync(50);
+  const mask = document.querySelector('.driver-overlay path');
+  expect(mask).not.toBeNull();
+  mask!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  await vi.advanceTimersByTimeAsync(50);
+  expect(document.querySelector('.driver-popover-title')?.textContent).toBe('Message box');
+  expect(tourOptions.onClosed).not.toHaveBeenCalled();
+  expect(tourOptions.onSkip).not.toHaveBeenCalled();
+  expect(tourOptions.onFinished).not.toHaveBeenCalled();
+  mask!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  await vi.advanceTimersByTimeAsync(50);
+  expect(tourOptions.onFinished).toHaveBeenCalledOnce();
+  expect(tourOptions.onClosed).not.toHaveBeenCalled();
+  expect(tourOptions.onSkip).not.toHaveBeenCalled();
+  expect(document.querySelector('.driver-popover')).toBeNull();
+});
+
 it('waits for the first anchor before driving the tour', async () => {
   const tourOptions = options();
   stop = startInternalTour(

@@ -73,6 +73,8 @@
 
 ### Fixed
 
+- 点击教程遮罩会进入下一步，不再退出引导；在最后一步点击遮罩会完成教程（[#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)）。
+
 - Bot Browser 首次后台标签可在 Chrome 启动窗口尚未就绪时打开，本地 Web 首装期间也能看到下载进度；额外的开发刷新连接现在仅在 `?botharness-dev-reload=1` 时启用（[#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)）。
 
 - PersonaBot 刚发出回复、还在收尾时，工作状态行不再以「思考中」重新出现在回复下方；只有一条新消息时，「跳到最新」提示的英文改用单数（[#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)）。

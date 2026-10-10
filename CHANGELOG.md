@@ -73,6 +73,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Clicking the tutorial mask advances to the next step instead of dismissing the tour; on the final step, it completes the tutorial ([#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)).
+
 - Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).

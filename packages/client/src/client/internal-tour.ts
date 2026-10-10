@@ -75,6 +75,14 @@ export function startInternalTour(
       animate: !reduced,
       smoothScroll: false,
       allowKeyboardControl: false,
+      overlayClickBehavior: (_element, _step, { driver: activeTour }) => {
+        if (activeTour.isLastStep()) {
+          options.onFinished();
+          activeTour.destroy();
+        } else {
+          activeTour.moveNext();
+        }
+      },
       overlayColor: 'var(--dsw-alias-bg-mask-1)',
       overlayOpacity: 1,
       popoverClass: 'bh-internal-tour',
