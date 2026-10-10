@@ -131,6 +131,7 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('/api/browser/takeover');
     expect(page).toContain('handoff in progress');
     expect(page).toContain('requesting takeover');
+    expect(page).toContain('requesting takeover');
     f.dispose();
     expect(f.release).toHaveBeenCalledOnce();
   });

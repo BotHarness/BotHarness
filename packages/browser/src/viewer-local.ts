@@ -31,6 +31,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #padRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 2px}
 .padBtn{min-height:68px;border:1px solid #555;border-radius:18px;background:#222;color:#fff;font-size:17px;cursor:pointer;touch-action:manipulation}
 .padBtn:active{background:#3a3a42;border-color:#888;transform:scale(0.97)}
+.padBtn.armed{background:#356;border-color:#6af;color:#fff}
 .padBtn.wide{grid-column:1/-1}
 #kbdRow{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;padding:8px 2px;background:#101014}
 #modRow{display:flex;gap:8px}
@@ -289,6 +290,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     if (window.parent !== window) {
       window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
     }
+    padTakeover.classList.add('armed');
     void (async () => {
       say('requesting takeover…');
       const readTakeover = async () => {
@@ -323,6 +325,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       const before = await readTakeover();
       if (before === undefined) {
         say('takeover status unavailable');
+        if (padTakeover) padTakeover.classList.remove('armed');
         return;
       }
       if (!before.taken) {
@@ -337,7 +340,10 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         if (await flipTakeover(true)) {
           paintTakeover(true);
           say('');
-        } else say('takeover unavailable');
+        } else {
+          say('takeover unavailable');
+          if (padTakeover) padTakeover.classList.remove('armed');
+        }
         return;
       }
       if (before.pending) {
@@ -354,7 +360,10 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       if (await flipTakeover(false)) {
         paintTakeover(false);
         say('');
-      } else say('release unavailable');
+      } else {
+        say('release unavailable');
+        if (padTakeover) padTakeover.classList.remove('armed');
+      }
     })();
   });
   void (async () => {
