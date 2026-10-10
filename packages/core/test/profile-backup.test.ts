@@ -47,8 +47,6 @@ afterEach(async () => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 function root() {
-  // mkdtempSync keeps symlinked TMPDIR components (macOS /var -> /private/var);
-  // canonicalize so the managed-directory guard sees the real path.
   const value = realpathSync(mkdtempSync(join(tmpdir(), 'bh-profile-backup-')));
   roots.push(value);
   return value;
@@ -149,7 +147,6 @@ it('refuses a managed path reached through a symlink while canonical roots expor
   try {
     symlinkSync(target, link);
   } catch (error) {
-    // Windows symlink privilege; the guard is still covered on other platforms.
     if ((error as NodeJS.ErrnoException)?.code === 'EPERM') return;
     throw error;
   }
