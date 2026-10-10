@@ -1162,6 +1162,15 @@ html[data-botharness-motion='reduce'] .bh-avatar-botui i {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bh-channel-message-time {
+  margin-left: auto;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .bh-role-badges {
   display: inline-flex;
   align-items: center;
@@ -2825,6 +2834,9 @@ canvas.bh-banner-art { image-rendering: pixelated; }
   gap: 8px;
 }
 .bh-profile-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }

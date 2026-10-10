@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+} from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
+import { isMap, isScalar, parseDocument } from 'yaml';
+import { parseCredentialsDocument } from '@deepseek-ai/dsh-credentials-local';
 
 import { dmChannelId } from '../channels/channel.js';
 import { createSqliteChannelStore } from '../channels/sqlite-store.js';
@@ -58,6 +67,7 @@ import { bundleBotHistory, readBotZip, BOT_ZIP_MAX_BYTES, BOT_ZIP_MAX_ENTRIES } 
 import type { PersonaBotRecord } from './persona-bot.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './registry.js';
 import { ZipArchiveError, type ZipEntry } from './zip-archive.js';
+import { CliLiveError, LIVE_COMMANDS, LIVE_OPTIONS, runLiveCli } from './cli-live.js';
 
 export interface BotCreateCliIo {
   env: NodeJS.ProcessEnv;
@@ -135,6 +145,21 @@ Usage:
   deepseekbot secret-list [--home <dsh-home>]                  names, sources, writability; never values
   deepseekbot secret-unset <NAME> [--home <dsh-home>]
   deepseekbot search <words>                                   find commands by words
+  deepseekbot send <id> (--body <text> | --body-stdin) [--message-id human-<UUID>] [--timeout <seconds>]
+  deepseekbot send-status <id> --message-id <Human-message-id>
+  deepseekbot tool-approval-status <channel> --message-id <card-id>
+  deepseekbot tool-approval-decide <channel> --message-id <card-id> --outcome allowed-once|rejected
+  deepseekbot user-question-status <channel> --message-id <card-id>
+  deepseekbot user-question-answer <channel> --message-id <card-id> --answer-stdin
+  deepseekbot release-info [--since <version>]
+  deepseekbot workspace-options
+  deepseekbot grant-create <id> --workspace <workspace-id>
+  deepseekbot im-apps
+  deepseekbot im-authorize <feishu|weixin>
+  deepseekbot im-credentials <attempt-id> --credentials-stdin
+  deepseekbot im-verify <attempt-id> --verification-stdin
+  deepseekbot pairing-status <attempt-id> [--wait] [--timeout <seconds>]
+  deepseekbot im-cancel <attempt-id>
   deepseekbot --help | deepseekbot create --help
 
 Output:
@@ -157,7 +182,15 @@ Machine contract:
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
   unknown-bot, unknown-channel, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
   memory-unavailable, lease-unavailable, bad-credentials, invalid-input). Human-readable lines go to stderr only.
-  Stop the Host before targeting its home: the writer lease is exclusive.
+  Stop the Host before offline database commands: the writer lease is exclusive.
+
+Live Host:
+  Require --host <loopback-origin|tailnet-HTTPS-origin> or DEEPSEEKBOT_HOST.
+  Auth: DEEPSEEKBOT_HOST_TOKEN or --token-file <private-file>, never a token in argv.
+  Login is fresh per call; cookies stay in memory. --timeout defaults to 120 seconds (max 600).
+  send returns its receipt and exact committed replies. Inspect send-status on timeout
+  before retrying; send never automatically resubmits. channel-messages also accepts --host.
+  Question stdin: {"answers":[{"id":"question-id","selected":["option"],"custom":"optional"}]}
 
 Models:
   model-presets lists the profile presets; model-preset-create mints one from
@@ -264,6 +297,8 @@ const SECRET_ARGV = new Set([
   'access-token',
   'client-secret',
   'session-token',
+  'verify-code',
+  'verification-code',
 ]);
 
 const CREATE_OPTIONS = {
@@ -309,6 +344,7 @@ const CREATE_OPTIONS = {
   'once-time': { type: 'string' },
   cron: { type: 'string' },
   timezone: { type: 'string' },
+  ...LIVE_OPTIONS,
   compact: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
@@ -343,7 +379,10 @@ function rejectSecretArgv(argv: readonly string[]): void {
   for (const entry of argv) {
     if (!entry.startsWith('-')) continue;
     const bare = entry.replace(/^-+/, '').split('=')[0]?.toLowerCase() ?? '';
-    if (SECRET_ARGV.has(bare)) {
+    if (
+      SECRET_ARGV.has(bare) ||
+      /(?:^|[-_])(?:secret|token|password|credential|api[-_]key)$/u.test(bare)
+    ) {
       const flag = entry.split('=')[0];
       throw new CliFailure(
         'secret-in-argv',
@@ -1904,6 +1943,7 @@ const SECRET_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 interface CredentialRefs {
   lines: string[];
   spans: Map<string, { start: number; end: number }>;
+  valueRanges: Map<string, { start: number; end: number }>;
 }
 
 function credentialPath(dshHome: string): string {
@@ -1917,6 +1957,43 @@ function badCredentials(message: string): CliFailure {
 function parseCredentialRefs(path: string, text: string): CredentialRefs {
   const invalid = (detail: string): CliFailure =>
     badCredentials(`The credential file ${path} is invalid: ${detail}`);
+  try {
+    parseCredentialsDocument(text, path);
+  } catch {
+    throw invalid('the native credential schema rejected this document');
+  }
+  const document = parseDocument(text, { uniqueKeys: true });
+  if (document.errors.length > 0 || !isMap(document.contents))
+    throw invalid('expected valid YAML with a mapping root');
+  for (const pair of document.contents.items) {
+    if (!isScalar(pair.key) || !['version', 'refs', 'records'].includes(String(pair.key.value)))
+      throw invalid('unknown top-level key');
+  }
+  if (document.get('version') !== 1)
+    throw invalid('missing or unsupported version (want version: 1)');
+  const refs = document.get('refs', true);
+  const records = document.get('records', true);
+  if (records !== undefined && !(isScalar(records) && records.value === null) && !isMap(records))
+    throw invalid('records must be a mapping');
+  const valueRanges = new Map<string, { start: number; end: number }>();
+  if (refs !== undefined && !(isScalar(refs) && refs.value === null)) {
+    if (!isMap(refs)) throw invalid('refs must be a mapping');
+    if (refs.flow && refs.items.length > 0)
+      throw invalid('nonempty inline refs cannot be line-edited; use a block mapping');
+    for (const pair of refs.items) {
+      if (
+        !isScalar(pair.key) ||
+        typeof pair.key.value !== 'string' ||
+        !SECRET_NAME_RE.test(pair.key.value) ||
+        !isScalar(pair.value) ||
+        typeof pair.value.value !== 'string' ||
+        pair.value.value.trim().length === 0
+      )
+        throw invalid('refs require addressable keys and nonempty string values');
+      if (!pair.value.range) throw invalid('refs require source-addressable values');
+      valueRanges.set(pair.key.value, { start: pair.value.range[0], end: pair.value.range[1] });
+    }
+  }
   const lines = text.split('\n');
   const tops = new Map<string, number>();
   let section: string | undefined;
@@ -1930,7 +2007,6 @@ function parseCredentialRefs(path: string, text: string): CredentialRefs {
   };
   lines.forEach((line, index) => {
     if (line.trim().length === 0) {
-      closeEntry(index);
       return;
     }
     const indent = line.length - line.trimStart().length;
@@ -1977,35 +2053,11 @@ function parseCredentialRefs(path: string, text: string): CredentialRefs {
           .trim()
           .replace(/^(['"])(.*)\1$/u, '$2');
   if (versionLine !== '1') throw invalid('missing or unsupported version (want version: 1)');
-  return { lines, spans };
-}
-
-function extractBlockValue(lines: string[], start: number, end: number): string | undefined {
-  const head = /^(\s+)([^:\s][^:]*):(.*)$/u.exec(lines[start]!);
-  if (head === null) return undefined;
-  const rest = head[3]!.trim();
-  if (rest !== '|' && rest !== '|-' && rest !== '|+') {
-    return rest;
-  }
-  const body: string[] = [];
-  let contentIndent: number | undefined;
-  for (let index = start + 1; index < end; index += 1) {
-    const line = lines[index]!;
-    if (line.trim().length === 0) {
-      body.push('');
-      continue;
-    }
-    const indent = line.length - line.trimStart().length;
-    if (contentIndent === undefined) contentIndent = indent;
-    body.push(line.slice(contentIndent));
-  }
-  while (body.length > 0 && body[body.length - 1] === '') body.pop();
-  if (rest === '|') body.push('');
-  return body.join('\n');
+  return { lines, spans, valueRanges };
 }
 
 function renderSecretEntry(name: string, value: string): string[] {
-  return [`  ${name}: |-`, ...value.split('\n').map((line) => `    ${line}`)];
+  return [`  ${name}: ${JSON.stringify(value)}`];
 }
 
 function checkCredentialMode(path: string): void {
@@ -2044,10 +2096,12 @@ function readCredentialStore(dshHome: string): {
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
-  } catch {
-    return { path, exists: false, refs: undefined };
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')
+      return { path, exists: false, refs: undefined };
+    throw badCredentials('The credential file cannot be read.');
   }
-  if (text.trim().length === 0) return { path, exists: false, refs: undefined };
+  if (text.trim().length === 0) throw badCredentials('The credential file is empty.');
   checkCredentialMode(path);
   return { path, exists: true, refs: parseCredentialRefs(path, text) };
 }
@@ -2108,23 +2162,31 @@ async function runSecretPut(
   if (!store.exists || store.refs === undefined) {
     lines = ['version: 1', '', 'refs:'];
     spans = new Map();
-    writeCredentialFile(store.path, lines);
   } else {
     lines = [...store.refs.lines];
     spans = new Map(store.refs.spans);
     backupCredentialFile(store.path, lines);
   }
+  const original = store.exists ? readFileSync(store.path, 'utf8') : undefined;
   const entry = renderSecretEntry(rawName, value);
   const span = spans.get(rawName);
   let next: string[];
   if (span !== undefined) {
-    next = [...lines.slice(0, span.start), ...entry, ...lines.slice(span.end)];
+    const range = store.refs?.valueRanges.get(rawName);
+    if (!range || original === undefined)
+      throw badCredentials('The secret has no editable source range.');
+    const suffix = original.slice(range.end);
+    const separator = original.slice(range.start, range.end).endsWith('\n') ? '\n' : '';
+    next = (original.slice(0, range.start) + JSON.stringify(value) + separator + suffix).split(
+      '\n',
+    );
   } else {
     const refsLine = lines.findIndex((line) => /^refs:(.*)$/u.test(line));
     if (refsLine === -1) {
       const tail = lines.length > 0 && lines[lines.length - 1] !== '' ? [''] : [];
       next = [...lines, ...tail, 'refs:', ...entry];
     } else {
+      lines[refsLine] = lines[refsLine]!.replace(/^(refs:)\s*\{\s*\}/u, '$1');
       let end = refsLine + 1;
       while (end < lines.length) {
         const line = lines[end]!;
@@ -2139,15 +2201,32 @@ async function runSecretPut(
     }
   }
   if (next.length > 0 && next[next.length - 1] !== '') next.push('');
-  writeCredentialFile(store.path, next);
-  const reread = parseCredentialRefs(store.path, next.join('\n'));
-  const written = reread.spans.get(rawName);
-  const roundTrips =
-    written !== undefined && extractBlockValue(reread.lines, written.start, written.end) === value;
-  if (!roundTrips) {
-    const backup = backupCredentialFile(store.path, lines);
-    writeCredentialFile(store.path, lines);
-    throw badCredentials(`The write did not round-trip; restored the backup at ${backup}.`);
+  try {
+    parseCredentialRefs(store.path, next.join('\n'));
+    writeCredentialFile(store.path, next);
+    const text = readFileSync(store.path, 'utf8');
+    const reread = parseCredentialRefs(store.path, text);
+    if (!reread.spans.has(rawName) || parseDocument(text).getIn(['refs', rawName]) !== value)
+      throw badCredentials('The secret write did not round-trip.');
+  } catch {
+    if (original === undefined) {
+      try {
+        unlinkSync(store.path);
+      } catch (error) {
+        if (
+          !(
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            error.code === 'ENOENT'
+          )
+        )
+          throw badCredentials('The failed new credential file could not be removed.');
+      }
+    } else writeFileSync(store.path, original, { mode: 0o600 });
+    throw badCredentials(
+      'The secret write failed validation; the previous credential file was restored.',
+    );
   }
   io.stderr(`deepseekbot: saved secret ${rawName}`);
   return { secret: secretRecord(rawName, io.env, true) };
@@ -2177,19 +2256,30 @@ function runSecretUnset(
   }
   const lines = [...store.refs.lines];
   backupCredentialFile(store.path, lines);
-  const next = [...lines.slice(0, span.start), ...lines.slice(span.end)];
-  writeCredentialFile(store.path, next);
-  const reread = parseCredentialRefs(store.path, next.join('\n'));
-  if (reread.spans.has(rawName)) {
-    const backup = backupCredentialFile(store.path, lines);
-    writeCredentialFile(store.path, lines);
-    throw badCredentials(`The delete did not round-trip; restored the backup at ${backup}.`);
+  const original = readFileSync(store.path, 'utf8');
+  const range = store.refs.valueRanges.get(rawName);
+  if (!range) throw badCredentials('The secret has no editable source range.');
+  const entryStart = lines
+    .slice(0, span.start)
+    .reduce((offset, line) => offset + line.length + 1, 0);
+  const next = (original.slice(0, entryStart) + original.slice(range.end)).split('\n');
+  try {
+    parseCredentialRefs(store.path, next.join('\n'));
+    writeCredentialFile(store.path, next);
+    const reread = parseCredentialRefs(store.path, readFileSync(store.path, 'utf8'));
+    if (reread.spans.has(rawName)) throw badCredentials('The secret delete did not round-trip.');
+  } catch {
+    writeFileSync(store.path, original, { mode: 0o600 });
+    throw badCredentials(
+      'The secret delete failed validation; the previous credential file was restored.',
+    );
   }
   io.stderr(`deepseekbot: removed secret ${rawName}`);
   return { secret: secretRecord(rawName, io.env, false) };
 }
 
 const SEARCH_INDEX: ReadonlyArray<{ command: string; description: string }> = [
+  ...LIVE_COMMANDS,
   { command: 'create', description: 'create a PersonaBot blank, from a bundle, or from git' },
   { command: 'list', description: 'list PersonaBots' },
   { command: 'show', description: 'inspect one PersonaBot' },
@@ -2290,6 +2380,16 @@ export async function runBotCreateCli(
       out.stdout(BOT_CREATE_HELP.trimEnd());
       return 0;
     }
+    if (
+      LIVE_COMMANDS.some((entry) => entry.command === command) ||
+      (command === 'channel-messages' &&
+        (values.host !== undefined || io.env['DEEPSEEKBOT_HOST'] !== undefined))
+    ) {
+      out.stdout(JSON.stringify(await runLiveCli(command, rest, values, io), null, 2));
+      return 0;
+    }
+    if (values.host !== undefined || values['token-file'] !== undefined)
+      throw usageError('--host is supported only by live commands and channel-messages.');
     if (command === 'list') {
       if (rest.length > 0) throw usageError('list takes no bot id.');
       out.stdout(JSON.stringify(runList(values, io), null, 2));
@@ -2392,6 +2492,12 @@ export async function runBotCreateCli(
       return 0;
     }
     if (command === 'secret-put') {
+      if (rest.length > 1)
+        throw new CliFailure(
+          'secret-in-argv',
+          'secret-put values must arrive on stdin, never in arguments.',
+          2,
+        );
       if (rest.length !== 1) throw usageError('secret-put needs exactly one secret name.');
       out.stdout(JSON.stringify(await runSecretPut(rest[0]!, values, io, readStdin), null, 2));
       return 0;
@@ -2460,6 +2566,21 @@ export async function runBotCreateCli(
     );
     return 0;
   } catch (error) {
+    if (error instanceof CliLiveError) {
+      out.stdout(
+        JSON.stringify(
+          {
+            error: { code: error.code, message: error.message },
+            ...(error.receipt === undefined ? {} : { receipt: error.receipt }),
+            ...(error.authorization === undefined ? {} : { authorization: error.authorization }),
+          },
+          null,
+          2,
+        ),
+      );
+      io.stderr(`deepseekbot: ${error.message}`);
+      return error.code === 'usage' ? 2 : 1;
+    }
     if (error instanceof CliFailure) {
       const failure: BotCreateFailure = {
         error: { code: error.code, message: error.message },

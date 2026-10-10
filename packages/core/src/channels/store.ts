@@ -62,6 +62,12 @@ export interface ChannelMessageOrigin {
   sourceEventId?: string;
 }
 
+export interface ChannelSendStatus {
+  sourceEventId: string;
+  state: string;
+  replies: ChannelMessage[];
+}
+
 export interface ChannelMessageCommit {
   channelId: string;
   message: ChannelMessage;
@@ -265,6 +271,7 @@ export interface ChannelStore {
 
   hasMessage(id: string, messageId: string): boolean;
   message(id: string, messageId: string): ChannelMessage | undefined;
+  humanSendStatus?(id: string, messageId: string): ChannelSendStatus | undefined;
   observeOutput(id: string, messageId: string): ChannelOutputObservation | undefined;
   outputCheckpoint(): number | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;

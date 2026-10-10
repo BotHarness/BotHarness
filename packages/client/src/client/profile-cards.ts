@@ -22,6 +22,7 @@ export interface ProfileCardDescriptor {
   label: string;
   order?: number;
   visible?(bot: BotSummary): boolean;
+  help?(props: ProfileCardProps): string | undefined;
   render(props: ProfileCardViewProps): ReactElement;
 }
 

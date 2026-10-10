@@ -342,6 +342,18 @@ function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | nul
   );
 }
 
+function ChannelMessageTime({ channel }: { channel: ChannelSummary }): ReactElement | null {
+  const at = channel.latestMessage?.at;
+  if (at === undefined) return null;
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return null;
+  return (
+    <time className="bh-channel-message-time" dateTime={at} title={date.toLocaleString()}>
+      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+    </time>
+  );
+}
+
 function channelPreview(
   channel: ChannelSummary,
   bots: ReadonlyMap<string, BotSummary>,
@@ -475,6 +487,7 @@ function BotRow({
               <span className="bh-unread" title={t('roster.needsYou')} />
             ) : null}
             <PersonaBotStatusBadges state={activity} attention={bot?.attention} />
+            <ChannelMessageTime channel={channel} />
           </span>
           <span className="bh-msg">{preview}</span>
         </span>
@@ -592,6 +605,7 @@ function ChannelRow({
       <span className="bh-body">
         <span className="bh-top">
           <span className="bh-name">{channel.name}</span>
+          <ChannelMessageTime channel={channel} />
         </span>
         <span className="bh-msg">{preview}</span>
       </span>
