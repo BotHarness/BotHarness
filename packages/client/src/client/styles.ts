@@ -3846,6 +3846,13 @@ a.bh-message-file-download:hover, button.bh-message-file-download:hover { backgr
     pointer-events: auto;
   }
 }
+/* Narrow screens: inline copy/reply actions crowd the bubble, so they move
+   into the long-press message menu and the bubble keeps the full width. */
+@media (max-width: 640px) {
+  .bh-bubble-meta {
+    display: none;
+  }
+}
 .bh-timeline-new {
   position: absolute;
   z-index: 2;

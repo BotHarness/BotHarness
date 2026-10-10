@@ -21,6 +21,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- The CLI can send a DM and collect its exact committed reply, inspect receipts, answer formal questions, decide tool approvals once, read release state and create workspace grants through a running authenticated Host. See the [CLI guide](docs/bot-cli.md) ([#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)).
+
 - PersonaBots can use `inbox_history` to search their own admitted messages and handled self-records across Sessions, in English and Chinese, filtered by kind, Channel, cause and time; bounded history reads never change attention. Text searches require at least three characters, and ranked cursors last ten minutes or until Host restart ([#1278](https://github.com/BotHarness/DeepSeekBot/issues/1278), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
 
 - Each Memory commit a PersonaBot makes during a turn now appears as a line in the conversation that caused it, with the commit subject, short hash and changed files; clicking it opens the commit in that Bot's Memory history. The Bot's Inbox keeps the same commit as handled history ([#1277](https://github.com/BotHarness/DeepSeekBot/issues/1277), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
@@ -75,6 +77,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - Profile token-usage cards keep missing-provider-usage explanations behind an info icon beside the title, available on hover, keyboard focus or click instead of taking up space in the card ([#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)).
 
+- CLI secret edits validate actual YAML on disk and restore the original file on failure; empty inline refs and multiline values work, and secret-bearing arguments fail without echoing their values ([#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)).
+
 - Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
 
 - The working row no longer reappears as "Thinking" right under a PersonaBot's own reply while it finishes the turn, and the jump-to-latest pill says "1 new message" for a single message ([#1284](https://github.com/BotHarness/DeepSeekBot/issues/1284)).
@@ -82,6 +86,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - A quiescent Assignment waiting for tool approval releases its running slot, so other work can start; an accepted decision waits for a slot before the original call continues, and the approval card distinguishes both waits. Waiting Sessions are bounded separately, roots with descendants retain their slots, and revocation or restart never replays the call ([#1037](https://github.com/BotHarness/DeepSeekBot/issues/1037)).
 
 - In Bot Settings, Computer **Import…** stays closed when the directory holds no archives, and a Combobox with nothing to pick renders no floating box, so an empty dropdown no longer reads as a broken select ([#1309](https://github.com/BotHarness/DeepSeekBot/issues/1309)).
+
+- On narrow screens, message bubbles are no longer squeezed by the always-visible reply and copy buttons; those actions move into the long-press message menu, while desktop hover and right-click behavior is unchanged ([#1346](https://github.com/BotHarness/DeepSeekBot/issues/1346)).
 
 ### Documentation
 
