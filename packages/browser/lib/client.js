@@ -2384,7 +2384,7 @@ window.__ModuleLoader__.load({
 			const cleanupRequired = observation?.cleanupRequired === true;
 			const visibleError = cleanupRequired ? t("entry.view.cleanupFailed") : error;
 			const paused = observation?.takeover === true;
-			const viewerUrl = observation?.target === "container" && observation.running ? observation.viewerUrl ?? void 0 : void 0;
+			const viewerUrl = observation?.running === true && (observation?.target === "container" || observation?.target === "local") ? observation.viewerUrl ?? void 0 : void 0;
 			const identity = `${botSlug ?? ""}:${profileOverride ?? info.browserProfile ?? ""}:${observation?.target ?? ""}`;
 			const scope = `${identity}:${viewerUrl ?? ""}`;
 			const previous = previousViewer.current;
@@ -2621,7 +2621,7 @@ window.__ModuleLoader__.load({
 						alt: t("entry.label")
 					}) }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
 						t: viewerTranslate,
-						title: t("entry.view.container"),
+						title: t(observation?.target === "container" ? "entry.view.container" : "settings.local"),
 						src: viewerUrl,
 						design: {
 							width: 1024,
