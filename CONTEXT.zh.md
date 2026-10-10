@@ -262,11 +262,11 @@ _避免使用_：Browser Access、consent dialog、per-action approval
 Human 对某一个 PersonaBot 标签的暂停：停止该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 始终可以直接操作本地 Bot Browser 窗口。暂停期间仍可读取页面；「继续」恢复动作与模型截图，Bot 行动前需要重新观察。这与 Browser Access、Browser Authorization 相互独立。
 _避免使用_：Computer Takeover、handoff、screen sharing、access gate
 
-**Browser Takeover（接管）**：
+**Browser Takeover**：接管
 Human 经 Viewer 明确接管某一个 PersonaBot 的浏览器画面：暂停该 Bot 的动作并开放 Human 输入；释放后恢复 Bot，除非还有未完成的接管链接。它比 Browser Pause 更窄（是控制，不只是叫停），也比 Computer Takeover 更窄（只是一个 Bot 的画面，永远不是整台机器）。
 _避免使用_：Browser Pause、Computer Takeover、handoff、screen sharing
 
-**Browser Watch（观看）**：
+**Browser Watch**：观看
 打开某一个 PersonaBot 的浏览器画面但不暂停：Human 看直播，Bot 继续干活。观看从不打断；只有 Browser Takeover 会暂停。
 _避免使用_：Browser Pause、Browser Takeover、screen sharing
 
