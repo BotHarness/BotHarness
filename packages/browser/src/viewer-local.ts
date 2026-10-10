@@ -25,21 +25,27 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #handoffBtns{display:flex;gap:8px;margin-top:8px}
 #modeBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:6px 12px;cursor:pointer}
 #hint{font-size:12px;opacity:.65}
-#stage{position:sticky;top:0;z-index:1;background:#101014;padding-top:4px}
+#stage{position:sticky;top:0;z-index:1;background:#101014;padding-top:4px;touch-action:none}
 #videoCanvas{width:100%;height:auto;display:block;background:#000;border-radius:8px;min-height:120px;touch-action:none}
 #cursor{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;pointer-events:none;display:none}
 #padRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 2px}
 .padBtn{min-height:68px;border:1px solid #555;border-radius:18px;background:#222;color:#fff;font-size:17px;cursor:pointer;touch-action:manipulation}
-.padBtn:active{background:#333}
+.padBtn:active{background:#3a3a42;border-color:#888;transform:scale(0.97)}
 .padBtn.wide{grid-column:1/-1}
 #kbdRow{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;padding:8px 2px;background:#101014}
 #modRow{display:flex;gap:8px}
-.modBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:15px;padding:8px 4px;cursor:pointer}
+.modBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:15px;padding:8px 4px;cursor:pointer;touch-action:manipulation}
+.modBtn:active{background:#3a3a42;border-color:#888}
 .modBtn.armed{background:#356;border-color:#6af;color:#fff}
+#typeRow{display:flex;gap:8px}
+.ripple{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:2px solid #fff;opacity:.9;pointer-events:none;animation:rippleAnim .35s ease-out forwards}
+@keyframes rippleAnim{to{transform:scale(1.8);opacity:0}}
 #typeRow{display:flex;gap:8px}
 #ghost{position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;border:0;padding:0;pointer-events:none}
 #kbd{flex:1;border:1px solid #555;border-radius:14px;background:#1a1a1f;color:#fff;font-size:14px;padding:8px 12px;min-width:0}
-.keyBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:8px 12px;cursor:pointer}
+.keyBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:8px 12px;cursor:pointer;touch-action:manipulation}
+.keyBtn:active{background:#3a3a42;border-color:#888}
+#modeBtn:active{background:#3a3a42}
 #status{font-size:12px;opacity:.7;padding:8px 2px;min-height:16px}
 </style>
 </head>
@@ -376,7 +382,10 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       }
       if (mode !== 'direct') return;
       const point = pagePoint(event.clientX, event.clientY);
-      if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+      if (point !== null) {
+        ripple(event.clientX, event.clientY);
+        void send({ kind: 'click', x: point.x, y: point.y });
+      }
       if (surface) {
         const rect = surface.getBoundingClientRect();
         cx = event.clientX - rect.left;
@@ -396,6 +405,16 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     }, { passive: false });
   }
   const stage = document.getElementById('stage');
+  function ripple(clientX, clientY) {
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const dot = document.createElement('div');
+    dot.className = 'ripple';
+    dot.style.left = clientX - rect.left + 'px';
+    dot.style.top = clientY - rect.top + 'px';
+    stage.appendChild(dot);
+    setTimeout(() => dot.remove(), 380);
+  }
   if (stage) {
     let startX = 0;
     let startY = 0;
@@ -440,10 +459,16 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       if (mode === 'trackpad') {
         if (still && held < 400) {
           const point = cursorPoint();
-          if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+          if (point !== null) {
+            ripple(startX, startY);
+            void send({ kind: 'click', x: point.x, y: point.y });
+          }
         } else if (still && held >= 500) {
           const point = cursorPoint();
-          if (point !== null) void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
+          if (point !== null) {
+            ripple(startX, startY);
+            void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
+          }
         }
         return;
       }
@@ -451,6 +476,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         const point = pagePoint(event.clientX, event.clientY);
         if (point !== null) {
           suppressClick = true;
+          ripple(event.clientX, event.clientY);
           void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
         }
         return;

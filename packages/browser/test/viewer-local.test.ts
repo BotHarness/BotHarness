@@ -120,6 +120,9 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('id="padUp"');
     expect(page).toContain('id="padDown"');
     expect(page).toContain('id="padKbd"');
+    expect(page).toContain('touch-action:none');
+    expect(page).toContain('.padBtn:active');
+    expect(page).toContain('rippleAnim');
     expect(page).toContain('Trackpad');
     expect(page).toContain('Direct tap');
     expect(page).not.toContain('id="kbd"');
