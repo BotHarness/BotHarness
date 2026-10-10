@@ -21,6 +21,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- Window Companions offer optional, quiet text-paced babble and grab, fast-drag, throw and first-impact landing sounds, off by default for each Profile, and a damped angular spring makes drag reversals and settling continuous without adding model tools or TTS. Idle companions hide the empty status bubble and fade action controls in on hover or keyboard focus; pointer focus after dragging no longer keeps reading open. Long message bubbles follow the latest revealed text without scrollbars; scrolling upward preserves the reading position until returning to the bottom. Dismissing the final card shows waiting replies and lets later arrivals display even while the character retains keyboard focus ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+
 - The CLI can create blank, Zip/directory and GitHub/Git PersonaBots, configure models and inspect Channel, attention and Session summaries through a running Host, retaining known partial results and offering explicit identity cleanup with Memory preserved. See the [CLI guide](docs/bot-cli.md) ([#1363](https://github.com/BotHarness/DeepSeekBot/issues/1363)).
 
 - The CLI can authorize Feishu and WeChat IM applications through the existing Provider, return a phone-scannable QR, submit credentials or verification codes through stdin and poll or cancel the same authorization attempt. See the [CLI guide](docs/bot-cli.md) ([#1318](https://github.com/BotHarness/DeepSeekBot/issues/1318)).
@@ -78,6 +80,12 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - Your own message headers now mirror the bubble side: the name hugs the right edge with the timestamp to its left, matching the left-side Bot order ([#1298](https://github.com/BotHarness/DeepSeekBot/issues/1298)).
 
 ### Fixed
+
+- Window Companion bubbles update their origin together with the character during dragging, keyboard movement and reduced-motion release, without waiting for another animation frame ([#1248](https://github.com/BotHarness/DeepSeekBot/issues/1248)).
+
+- Reading a Window Companion bubble with the keyboard or resizing the window no longer scrolls the outer stage and leaves the character above the floor; the bubble itself still scrolls ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
+
+- Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause. Releasing immediately ends the drag, so a late pointer move cannot grab the character again; the release click remains suppressed. Visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - Opening a Bot DM by Channel ID, including the first Bot-mode entry, now shows that PersonaBot's Channel sidebar and shares its collapse/expansion preferences with Bot navigation; stale conversation metadata no longer selects another Channel's entries ([#1361](https://github.com/BotHarness/DeepSeekBot/issues/1361)).
 

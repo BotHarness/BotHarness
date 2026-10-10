@@ -1,0 +1,35 @@
+{
+  "source": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+  "main": "bcae2205d7562f3eec1d9b2f5e20c1b4fbb5a9da",
+  "formalAvatar": "0.10.0",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "locale": "zh",
+  "theme": "dark",
+  "method": "Official Chrome DevTools MCP native tool drag; ordinary lift/drop, not calibrated fast Human throw; silent continuous screencast",
+  "trustedRelease": true,
+  "postReleaseDrag": false,
+  "floorContactMs": 1313,
+  "restMs": 1538,
+  "final": {
+    "phase": "rest",
+    "bottom": "0px"
+  },
+  "consoleErrors": 0,
+  "observerRemoved": true,
+  "ownedBrowserClosed": true,
+  "humanAcceptance": {
+    "source": "0eb841dd1265d36a5f9c8399497347c2bf90ce67",
+    "loadedHandlerVerified": true,
+    "upwardThrowAccepted": true,
+    "videoRecorded": false
+  },
+  "before": {
+    "kind": "Before-lift state of the fixed runtime; not a pre-fix failure image",
+    "sourceIndependentlyVerified": true,
+    "matchedViewportAndTheme": true,
+    "comparison": "Within-version interaction states"
+  }
+}

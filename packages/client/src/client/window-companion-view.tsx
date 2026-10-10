@@ -23,6 +23,7 @@ import { CompanionMotion, type CompanionPoint } from './companion-motion.js';
 import { CompanionBubbles, type BubblePlacement } from './companion-bubbles.js';
 import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+import { companionBabble, type CompanionSound } from './companion-sound.js';
 import type { BridgeActions } from './actions.js';
 import { CompanionRequests } from './companion-requests-view.js';
 import type { AvatarAnchor } from './avatar-anchor.js';
@@ -36,11 +37,34 @@ function avatarLimitation(
 }
 const statusVisible = (state: CompanionViewState): boolean =>
   Boolean(
-    state.selection?.activity ||
+    (state.selection?.activity && state.activity && state.activity.state !== 'idle') ||
     state.bot?.paused ||
     avatarLimitation(state.bot) ||
     state.sync !== 'live',
   );
+
+function CompanionMessageText({ text, context }: { text: string; context: boolean }): ReactElement {
+  const following = useRef(true);
+  const viewport = useMountedResource<HTMLParagraphElement>(
+    (node) => {
+      if (following.current) node.scrollTop = Math.max(0, node.scrollHeight - node.clientHeight);
+    },
+    [text, context],
+  );
+  return (
+    <p
+      ref={viewport}
+      data-context={context}
+      tabIndex={0}
+      onScroll={(event) => {
+        const node = event.currentTarget;
+        following.current = node.scrollHeight - node.clientHeight - node.scrollTop <= 1;
+      }}
+    >
+      {text}
+    </p>
+  );
+}
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -51,6 +75,7 @@ export interface WindowCompanionViewProps {
   onRemove?(botId: string): void;
   bubbles?: CompanionBubbles | undefined;
   openSettings?(): void;
+  sound?: CompanionSound | undefined;
   actions?: BridgeActions | undefined;
 }
 export function WindowCompanionView({
@@ -62,13 +87,34 @@ export function WindowCompanionView({
   onRemove,
   bubbles,
   openSettings,
+  sound,
   actions,
 }: WindowCompanionViewProps): ReactElement | null {
   const view = useSyncExternalStore(companion.subscribe, companion.getSnapshot);
   const latest = useRef(view);
   latest.current = view;
-  const [motion] = useState(() => new CompanionMotion());
+  const audio = useRef(sound);
+  audio.current = sound;
+  const audible = useRef(false);
+  const [motion] = useState(
+    () =>
+      new CompanionMotion((event) => {
+        const state = latest.current;
+        if (
+          audible.current &&
+          !document.hidden &&
+          document.documentElement.dataset['botharnessMotion'] !== 'reduce' &&
+          state.selection &&
+          state.bot &&
+          !state.bot.paused &&
+          state.sync === 'live'
+        )
+          audio.current?.interact(state.selection.botId, event);
+      }),
+  );
   const [point, setPoint] = useState(motion.point);
+  const presentPoint = useRef<(next: CompanionPoint) => void>(setPoint);
+  const motionFrameAt = useRef(performance.now());
   const displayedPoint = useRef(point);
   displayedPoint.current = point;
   const anchor = useRef<AvatarAnchor | undefined>(undefined);
@@ -98,6 +144,7 @@ export function WindowCompanionView({
   const hovering = useRef(false);
   const exit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clickReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const suppressClick = useRef(false);
   const [menu, setMenu] = useState(false);
   const menuClass = `bh-companion-menu-${useId()}`;
   const menuTrigger = useRef<HTMLElement | null>(null);
@@ -119,11 +166,16 @@ export function WindowCompanionView({
   const reducedMotion = (): boolean =>
     document.documentElement.dataset['botharnessMotion'] === 'reduce';
   const persistPosition = (): void => companion.configure({ position: motion.position() });
+  const releaseMotion = (cancelled = false): void => {
+    const now = performance.now();
+    motionFrameAt.current = now;
+    presentPoint.current(motion.release(now, reducedMotion(), cancelled));
+  };
   const cancelDrag = (event: { pointerId: number }): void => {
     if (!pointer.current || pointer.current.id !== event.pointerId || motion.point.phase !== 'drag')
       return;
     pointer.current = undefined;
-    setPoint(motion.release(performance.now(), reducedMotion(), true));
+    releaseMotion(true);
     persistPosition();
   };
   const leave = (): void => {
@@ -131,7 +183,12 @@ export function WindowCompanionView({
     if (exit.current !== undefined) clearTimeout(exit.current);
     exit.current = setTimeout(() => {
       exit.current = undefined;
-      if (root.current?.contains(document.activeElement) || hovering.current || menuOpen.current)
+      if (
+        (root.current?.contains(document.activeElement) &&
+          document.activeElement?.matches(':focus-visible')) ||
+        hovering.current ||
+        menuOpen.current
+      )
         return;
       companion.reading(false);
     }, 800);
@@ -164,6 +221,14 @@ export function WindowCompanionView({
       let elapsed = 0;
       let measured = false;
       let visible = true;
+      let stageVisible = true;
+      const syncAudio = () => {
+        const state = companion.getSnapshot();
+        if (!state.selection || !state.bot || state.bot.paused || state.sync !== 'live')
+          sound?.stop(state.selection?.botId ?? view.selection?.botId);
+        else if (!state.cards.length) sound?.stopSpeech(state.selection.botId);
+      };
+      const unsubscribeAudio = companion.subscribe(syncAudio);
       const placeBubble = (next: CompanionPoint, sampled: ReturnType<AvatarAnchor['read']>) => {
         const state = latest.current;
         if (state.selection) {
@@ -202,6 +267,10 @@ export function WindowCompanionView({
           }
         }
       };
+      presentPoint.current = (next) => {
+        placeBubble(next, anchor.current?.read());
+        setPoint(next);
+      };
       const measure = () => {
         const box = node.getBoundingClientRect();
         const width = box.width;
@@ -225,23 +294,31 @@ export function WindowCompanionView({
           drag.originX = next.x;
           drag.originY = next.y;
         }
-        setPoint(next);
-        placeBubble(next, anchor.current?.read());
+        presentPoint.current(next);
       };
       const tick = (now: number) => {
         frame = 0;
-        const milliseconds = Math.min(100, Math.max(0, now - previous));
+        const milliseconds = Math.max(0, now - previous);
+        const motionMilliseconds = Math.max(0, now - motionFrameAt.current);
+        motionFrameAt.current = now;
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
-        if (!document.hidden && visible) {
-          elapsed += milliseconds;
+        if (!document.hidden && stageVisible) {
+          if (visible) elapsed += Math.min(100, milliseconds);
           if (elapsed >= 50) {
+            const before = companion.getSnapshot().cards;
             companion.advance(elapsed, reduced);
+            const after = companion.getSnapshot();
+            if (!reduced && after.sync === 'live' && after.bot && !after.bot.paused) {
+              const text = companionBabble(before, after.cards);
+              if (text) sound?.play(after.bot.slug, text);
+            }
             elapsed = 0;
           }
           const walking = Boolean(
             state.selection?.walking &&
+            visible &&
             state.bot?.paused !== true &&
             state.sync === 'live' &&
             !state.reading &&
@@ -254,33 +331,44 @@ export function WindowCompanionView({
             statusVisible(state) || state.cards.length || state.requests.length
               ? anchor.current?.read()
               : undefined;
-          const next = motion.advance(milliseconds, reduced, walking, direction.current);
+          const next = motion.advance(motionMilliseconds, reduced, walking, direction.current);
           placeBubble(next, sampled);
           if (walking && (next.x <= 8 || next.x >= Math.max(8, next.width - 104)))
             direction.current *= -1;
           if (next !== previousPoint) setPoint(next);
           if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
-        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
+        if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
       const visibility = () => {
+        audible.current = !document.hidden && stageVisible && visible;
+        if (document.hidden || !stageVisible || !visible)
+          sound?.stop(latest.current.selection?.botId);
         cancelAnimationFrame(frame);
         frame = 0;
         previous = performance.now();
+        motionFrameAt.current = previous;
         elapsed = 0;
-        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
+        if (!document.hidden && stageVisible) frame = requestAnimationFrame(tick);
       };
       const observer =
         typeof IntersectionObserver === 'undefined'
           ? undefined
           : new IntersectionObserver((entries) => {
-              visible = entries.some((entry) => entry.isIntersecting);
+              for (const entry of entries) {
+                if (entry.target === node) stageVisible = entry.isIntersecting;
+                else visible = entry.isIntersecting;
+              }
               visibility();
             });
+      observer?.observe(node);
       const target = node.querySelector('.bh-companion');
       if (target) observer?.observe(target);
       const policy = new MutationObserver(() => {
-        if (reducedMotion()) setPoint(motion.advance(0, true, false, direction.current));
+        if (reducedMotion()) {
+          sound?.stop(latest.current.selection?.botId);
+          presentPoint.current(motion.advance(0, true, false, direction.current));
+        }
       });
       policy.observe(document.documentElement, {
         attributes: true,
@@ -291,6 +379,9 @@ export function WindowCompanionView({
       window.addEventListener('resize', measure);
       document.addEventListener('visibilitychange', visibility);
       return () => {
+        audible.current = false;
+        unsubscribeAudio();
+        sound?.stop(latest.current.selection?.botId ?? view.selection?.botId);
         cancelAnimationFrame(frame);
         observer?.disconnect();
         policy.disconnect();
@@ -299,11 +390,12 @@ export function WindowCompanionView({
         if (exit.current !== undefined) clearTimeout(exit.current);
         if (clickReset.current !== undefined) clearTimeout(clickReset.current);
         pointer.current = undefined;
+        presentPoint.current = setPoint;
         if (latest.current.selection) bubbleOwner.remove(latest.current.selection.botId);
         root.current = null;
       };
     },
-    [companion, view.selection?.botId, bubbleOwner],
+    [companion, view.selection?.botId, bubbleOwner, sound],
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
@@ -372,7 +464,12 @@ export function WindowCompanionView({
         data-sync={view.sync}
         data-motion={point.phase}
         data-bot={bot.slug}
-        style={{ left: point.x, bottom: point.y, zIndex: view.reading ? 10 : 1 }}
+        style={{
+          left: 0,
+          bottom: 0,
+          transform: `translate3d(${point.x}px, ${-point.y}px, 0)`,
+          zIndex: view.reading ? 10 : 1,
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && menu) {
             event.preventDefault();
@@ -387,7 +484,9 @@ export function WindowCompanionView({
         }}
         onPointerEnter={enter}
         onPointerLeave={leave}
-        onFocusCapture={enter}
+        onFocusCapture={(event) => {
+          if (event.target.matches(':focus-visible')) enter();
+        }}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) leave();
         }}
@@ -525,13 +624,16 @@ export function WindowCompanionView({
                       <IconCloseFillRegular size={14} />
                     </button>
                   </header>
-                  <p data-context={Boolean(context)}>{card.body.slice(0, card.shown)}</p>
+                  <CompanionMessageText
+                    text={card.body.slice(0, card.shown)}
+                    context={Boolean(context)}
+                  />
                 </li>
               );
             })}
           </ol>
         ) : null}
-        <div className="bh-companion-toolbar" data-open={view.reading || menu}>
+        <div className="bh-companion-toolbar" data-open={menu}>
           <button
             type="button"
             aria-label={t('companion.openDm')}
@@ -608,11 +710,12 @@ export function WindowCompanionView({
           className="bh-companion-character"
           ref={character}
           style={{
-            transform: `rotate(${point.tilt}deg) scale(${1 + point.squash}, ${1 - point.squash})`,
+            rotate: `${point.tilt}deg`,
+            transform: `scale(${1 + point.squash}, ${1 - point.squash})`,
           }}
           aria-label={t('companion.drag', { name: bot.name })}
           onClick={() => {
-            if (!pointer.current?.moved) openDm(bot.slug);
+            if (!suppressClick.current) openDm(bot.slug);
           }}
           onKeyDown={(event) => {
             if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
@@ -622,13 +725,16 @@ export function WindowCompanionView({
             }
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
-              setPoint(motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)));
+              presentPoint.current(
+                motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)),
+              );
               persistPosition();
             }
           }}
           onPointerDown={(event) => {
             if (event.button !== 0 || pointer.current) return;
             if (clickReset.current !== undefined) clearTimeout(clickReset.current);
+            suppressClick.current = false;
             event.currentTarget.setPointerCapture(event.pointerId);
             pointer.current = {
               id: event.pointerId,
@@ -640,7 +746,7 @@ export function WindowCompanionView({
               originY: motion.point.y,
               moved: false,
             };
-            setPoint(motion.grab(performance.now(), reducedMotion()));
+            presentPoint.current(motion.grab(performance.now(), reducedMotion()));
           }}
           onPointerMove={(event) => {
             const drag = pointer.current;
@@ -651,25 +757,26 @@ export function WindowCompanionView({
             drag.lastY = event.clientY;
             drag.moved ||= Math.hypot(dx, dy) > 6;
             if (!drag.moved) return;
-            setPoint(
+            presentPoint.current(
               motion.drag(drag.originX + dx, drag.originY + dy, performance.now(), reducedMotion()),
             );
           }}
           onPointerUp={(event) => {
             const drag = pointer.current;
             if (!drag || drag.id !== event.pointerId) return;
+            pointer.current = undefined;
+            suppressClick.current = drag.moved;
             event.currentTarget.releasePointerCapture(event.pointerId);
             if (drag.moved) {
-              setPoint(motion.release(performance.now(), reducedMotion()));
+              releaseMotion();
               persistPosition();
               event.preventDefault();
               clickReset.current = setTimeout(() => {
                 clickReset.current = undefined;
-                pointer.current = undefined;
+                suppressClick.current = false;
               }, 0);
             } else {
-              pointer.current = undefined;
-              setPoint(motion.release(performance.now(), reducedMotion(), true));
+              releaseMotion(true);
             }
           }}
           onPointerCancel={cancelDrag}

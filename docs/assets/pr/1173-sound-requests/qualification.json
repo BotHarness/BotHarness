@@ -1,0 +1,54 @@
+{
+  "source": "50b44535a8180a138268c4f52a7fb5581f61de13",
+  "formalPixelAvatar": "0.8.0",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "locale": "zh-CN",
+  "questionCounts": [3, 1],
+  "canonicalResolutions": {
+    "A": 1,
+    "B": 1
+  },
+  "AContinuesOriginalBot": true,
+  "BContinuesOriginalBot": true,
+  "AAnswers": [
+    {
+      "id": "route",
+      "selected": ["体验版"]
+    },
+    {
+      "id": "checks",
+      "selected": ["拖拽", "气泡"]
+    },
+    {
+      "id": "note",
+      "selected": [],
+      "custom": "保持轻微音量，优先保证阅读稳定。"
+    }
+  ],
+  "BAnswers": [
+    {
+      "id": "scope",
+      "selected": ["只检查自己"]
+    }
+  ],
+  "unrelatedChannelPreserved": true,
+  "BCompanionDraftPreserved": true,
+  "sameDocument": true,
+  "lateDuplicateRejected": true,
+  "audioBeforeReplies": {
+    "events": 4,
+    "contextState": "running"
+  },
+  "audioAfterReplies": {
+    "events": 77,
+    "contextState": "running"
+  },
+  "observedSources": 77,
+  "outputSampleRate": 48000,
+  "consoleErrors": 0,
+  "originalSoundRestored": true,
+  "ownedBrowserClosed": true
+}

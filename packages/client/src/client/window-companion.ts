@@ -263,12 +263,15 @@ export class WindowCompanion {
     this.update({ cards });
   }
   dismiss(messageId: string, channelId?: string): void {
-    this.update({
-      cards: this.state.cards.filter(
-        (card) =>
-          card.messageId !== messageId || (channelId !== undefined && card.channelId !== channelId),
-      ),
-    });
+    const cards = this.state.cards.filter(
+      (card) =>
+        card.messageId !== messageId || (channelId !== undefined && card.channelId !== channelId),
+    );
+    if (!cards.length) {
+      const waiting = this.pendingCards;
+      this.pendingCards = [];
+      this.update({ cards: waiting, pending: 0 });
+    } else this.update({ cards });
   }
   private save(): void {
     this.deps.onSelection?.(this.state.selection);
@@ -419,7 +422,7 @@ export class WindowCompanion {
         shown: 0,
         remaining: 0,
       };
-      if (this.state.reading) {
+      if (this.state.reading && this.state.cards.length) {
         this.pendingCards.push(card);
         this.pendingCards = this.pendingCards.slice(-this.state.capacity.retention);
         this.update({ pending: this.pendingCards.length });

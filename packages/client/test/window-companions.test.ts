@@ -1,6 +1,48 @@
 import { expect, it, vi } from 'vitest';
 import { WindowCompanions } from '../src/client/window-companions.js';
 
+it('defaults to silent and restores only an explicit Profile-scoped speech-sound choice without changing subscriptions', async () => {
+  const stored = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      stored.set(key, value);
+    },
+  };
+  const source = vi.fn(() => ({ addEventListener() {}, close() {} }));
+  const create = (profileId: string) =>
+    new WindowCompanions({
+      storage,
+      context: async () => ({ profileId }),
+      source,
+      update: async () => {},
+    });
+  const first = create('one');
+  await first.start();
+  expect(first.getSnapshot().speechSound).toBe(false);
+  first.configureSpeechSound(true);
+  expect(first.getSnapshot().speechSound).toBe(true);
+  first.configureCapacity({ layers: 2, retention: 10 });
+  first.dispose();
+  const restored = create('one');
+  const other = create('two');
+  try {
+    await restored.start();
+    await other.start();
+    expect(restored.getSnapshot()).toMatchObject({
+      speechSound: true,
+      capacity: { layers: 2, retention: 10 },
+    });
+    expect(other.getSnapshot().speechSound).toBe(false);
+    restored.configureSpeechSound(false);
+    expect(JSON.parse(stored.get('botharness/companions/v2/one')!).speechSound).toBe(false);
+    expect(source).not.toHaveBeenCalled();
+  } finally {
+    restored.dispose();
+    other.dispose();
+  }
+});
+
 it('does not let an old Activity acknowledgement cancel a failed removal retry', async () => {
   vi.useFakeTimers();
   const events = new EventTarget();

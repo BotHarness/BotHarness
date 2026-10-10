@@ -210,6 +210,9 @@ export const zh = {
   'companion.scope.shared': '我与 Bot 都在的会话',
   'companion.scope.all-bot': 'Bot 加入的所有会话',
   'companion.settings': '窗口伙伴',
+  'companion.speechSound': '伙伴音效',
+  'companion.speechSoundHint':
+    '随新消息文字播放轻柔的叽咕声，并为抓起、快速拖动、抛出和落地添加音效。不朗读正文；默认关闭，适用于本 Profile 的所有窗口伙伴。',
   'companion.capacityHint':
     '本 Profile 的所有伙伴共用此设置。层叠层数不超过保留数量；阅读时的新消息也按保留数量排队。',
   'companion.capacityError': '层数须为 1–10，保留数量须为 1–100 的整数。',
@@ -2881,6 +2884,9 @@ export const en = {
   'companion.scope.shared': 'Channels shared with me',
   'companion.scope.all-bot': 'All channels the Bot joins',
   'companion.settings': 'Window Companions',
+  'companion.speechSound': 'Companion sounds',
+  'companion.speechSoundHint':
+    'Soft babble follows new message text, with sounds for grabbing, fast dragging, throwing and landing. No spoken narration. Off by default; applies to all Window Companions in this Profile.',
   'companion.capacityHint':
     'Shared by all companions in this Profile. Layers stay within retention; arrivals while reading use a queue bounded by retention too.',
   'companion.capacityError': 'Use integers: 1–10 layers and 1–100 retained cards.',
