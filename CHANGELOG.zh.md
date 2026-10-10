@@ -75,6 +75,8 @@
 
 ### Fixed
 
+- 通过 Channel ID 打开 Bot 私聊（包括首次进入 Bot 模式）时，现在显示对应 PersonaBot 的侧栏，并与 Bot 导航共享收起与展开偏好；旧对话元数据不会再导致侧栏显示其他 Channel 的条目（[#1361](https://github.com/BotHarness/DeepSeekBot/issues/1361)）。
+
 - Profile 的 Token 用量卡片将 Provider 未上报部分用量的说明收进标题旁的信息图标，悬停、键盘聚焦或点击时才显示，不再占用卡片正文空间（[#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)）。
 
 - CLI 密钥编辑验证磁盘上的真实 YAML，失败恢复原文件；支持空的内联 refs 和多行值，携带密钥值的参数不会在错误中回显（[#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)）。
