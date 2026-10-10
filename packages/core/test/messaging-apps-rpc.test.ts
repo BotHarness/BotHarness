@@ -4,7 +4,7 @@ import { createCore } from '../src/plugin.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { registerBridge } from '../src/bridge/rpc.js';
 import type { MessagingApp, OutboundMessaging } from '../src/messaging/outbound.js';
-import { createTempRoot } from './helpers.js';
+import { createTempRoot, trackTestOwner } from './helpers.js';
 
 const apps = [
   { providerId: 'dsh-im', platform: 'feishu', ref: 'cli_a', name: 'Lark A', boundBotSlug: 'ada' },
@@ -13,6 +13,7 @@ const apps = [
 
 it('lists every App, its PersonaBot and the App setups without naming a Bot', async () => {
   const core = createCore({ dshHome: createTempRoot('bh-messaging-apps-rpc-') });
+  trackTestOwner(core.operationalDatabase);
   const setups = [{ providerId: 'dsh-im', platform: 'feishu' }];
   const externalMessaging = {
     apps: async () => apps,
@@ -28,6 +29,7 @@ it('lists every App, its PersonaBot and the App setups without naming a Bot', as
 
 it('reports messaging as unavailable when no Provider is present', async () => {
   const core = createCore({ dshHome: createTempRoot('bh-messaging-apps-none-') });
+  trackTestOwner(core.operationalDatabase);
   const { externalMessaging: _present, ...withoutMessaging } = core;
   const methods = createBridgeMethods(withoutMessaging);
   expect(await methods.messagingApps()).toMatchObject({

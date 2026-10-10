@@ -21,6 +21,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Added
 
+- The CLI can authorize Feishu and WeChat IM applications through the existing Provider, return a phone-scannable QR, submit credentials or verification codes through stdin and poll or cancel the same authorization attempt. See the [CLI guide](docs/bot-cli.md) ([#1318](https://github.com/BotHarness/DeepSeekBot/issues/1318)).
+
 - The CLI can send a DM and collect its exact committed reply, inspect receipts, answer formal questions, decide tool approvals once, read release state and create workspace grants through a running authenticated Host. See the [CLI guide](docs/bot-cli.md) ([#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)).
 
 - PersonaBots can use `inbox_history` to search their own admitted messages and handled self-records across Sessions, in English and Chinese, filtered by kind, Channel, cause and time; bounded history reads never change attention. Text searches require at least three characters, and ranked cursors last ten minutes or until Host restart ([#1278](https://github.com/BotHarness/DeepSeekBot/issues/1278), [ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md)).
@@ -80,6 +82,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 - Profile token-usage cards keep missing-provider-usage explanations behind an info icon beside the title, available on hover, keyboard focus or click instead of taking up space in the card ([#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)).
 
 - CLI secret edits validate actual YAML on disk and restore the original file on failure; empty inline refs and multiline values work, and secret-bearing arguments fail without echoing their values ([#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)).
+
+- App sidebar conversation titles show the latest message time and leave it blank when there are no messages. Bot Channel header chips no longer show PersonaBot tags; tags remain in the Profile ([#1354](https://github.com/BotHarness/DeepSeekBot/issues/1354)).
 
 - Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
 

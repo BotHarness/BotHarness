@@ -154,6 +154,12 @@ Usage:
   deepseekbot release-info [--since <version>]
   deepseekbot workspace-options
   deepseekbot grant-create <id> --workspace <workspace-id>
+  deepseekbot im-apps
+  deepseekbot im-authorize <feishu|weixin>
+  deepseekbot im-credentials <attempt-id> --credentials-stdin
+  deepseekbot im-verify <attempt-id> --verification-stdin
+  deepseekbot pairing-status <attempt-id> [--wait] [--timeout <seconds>]
+  deepseekbot im-cancel <attempt-id>
   deepseekbot --help | deepseekbot create --help
 
 Output:
@@ -291,6 +297,8 @@ const SECRET_ARGV = new Set([
   'access-token',
   'client-secret',
   'session-token',
+  'verify-code',
+  'verification-code',
 ]);
 
 const CREATE_OPTIONS = {
@@ -2564,6 +2572,7 @@ export async function runBotCreateCli(
           {
             error: { code: error.code, message: error.message },
             ...(error.receipt === undefined ? {} : { receipt: error.receipt }),
+            ...(error.authorization === undefined ? {} : { authorization: error.authorization }),
           },
           null,
           2,

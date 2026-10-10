@@ -542,6 +542,45 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
+  it('shows only the latest message time at the right of DM and Group titles', () => {
+    const latestAt = '2026-10-10T14:25:00.000Z';
+    const latestMessage = {
+      id: 'latest',
+      at: latestAt,
+      author: { kind: 'human' as const },
+      body: '最新消息',
+    };
+    store.setRoster(
+      [BOT],
+      [{ ...DM_CHANNEL, latestMessage }, { ...SECTION_CHANNEL, latestMessage }, FLAT_CHANNEL],
+    );
+    const container = document.createElement('div');
+    container.innerHTML = renderSidebar();
+    for (const channelId of [DM_CHANNEL.id, SECTION_CHANNEL.id]) {
+      const titleRow = container.querySelector(`[data-channel-id="${channelId}"] .bh-top`)!;
+      const time = titleRow.querySelector('time')!;
+      expect(time.getAttribute('datetime')).toBe(latestAt);
+      expect(time.textContent).toBe(
+        new Date(latestAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      );
+      expect(titleRow.lastElementChild).toBe(time);
+      expect(time.getAttribute('title')).toBe(new Date(latestAt).toLocaleString());
+    }
+    expect(container.querySelector(`[data-channel-id="${FLAT_CHANNEL.id}"] time`)).toBeNull();
+  });
+
+  it('leaves the title time blank for invalid message dates', () => {
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...DM_CHANNEL,
+          latestMessage: { id: 'invalid', at: 'invalid', author: { kind: 'human' }, body: '消息' },
+        },
+      ],
+    );
+    expect(renderSidebar()).not.toContain('bh-channel-message-time');
+  });
   it('selects and removes a companion through the real DM context menu without changing Channel pins', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     store.setRoster([BOT], [DM_CHANNEL]);

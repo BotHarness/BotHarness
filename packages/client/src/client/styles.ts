@@ -1162,6 +1162,15 @@ html[data-botharness-motion='reduce'] .bh-avatar-botui i {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bh-channel-message-time {
+  margin-left: auto;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .bh-role-badges {
   display: inline-flex;
   align-items: center;
