@@ -73,6 +73,7 @@ import { createGroupProfileCards } from '../src/client/group-profile.js';
 import { loadGroupProfileActivity, type GroupProfileActivity } from '../src/client/bridge.js';
 import { createProfileCardBuiltins } from '../src/client/profile-cards-builtins.js';
 import { createProfileCardRegistry } from '../src/client/profile-cards.js';
+import { ProfilePopover } from '../src/client/personabot-profile.js';
 import { store } from '../src/client/store.js';
 
 function sidebarRegistry() {
@@ -540,6 +541,40 @@ describe('Profile activity windows', () => {
       expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
         '所选时间范围：155',
       );
+      const tokenCard = cards.find((card) => card.id === 'token-usage')!;
+      expect(tokenCard.help?.(props)).toBe(zhTranslate('profile.usage.partial'));
+      expect(tokenCard.help?.(partial)).toBe(zhTranslate('profile.usage.partial'));
+      expect(container.querySelector('.bh-profile-card-body > .bh-note')).toBeNull();
+      const registry = createProfileCardRegistry();
+      registry.register(tokenCard);
+      const popoverProps = {
+        bot: props.bot,
+        activity: partial.activity,
+        cards: registry,
+        pinned: ['token-usage'],
+        t: zhTranslate,
+        onExpand: vi.fn(),
+      };
+      await act(async () => root.render(createElement(ProfilePopover, popoverProps)));
+      const label = container.querySelector('.bh-profile-card-label');
+      expect(label?.textContent).toBe(tokenCard.label);
+      expect(label?.querySelector('button')?.getAttribute('aria-label')).toBe(
+        zhTranslate('im.infoFor', { title: tokenCard.label }),
+      );
+      expect(container.textContent).not.toContain(zhTranslate('profile.usage.partial'));
+      const completeActivity = {
+        ...partial.activity,
+        modelUsageRows: partial.activity.modelUsageRows.map((row) => ({
+          ...row,
+          cacheWriteTokens: 5,
+        })),
+      };
+      expect(tokenCard.help?.({ ...props, activity: completeActivity })).toBeUndefined();
+      expect(tokenCard.help?.({ ...props, activity: undefined })).toBeUndefined();
+      await act(async () =>
+        root.render(createElement(ProfilePopover, { ...popoverProps, activity: completeActivity })),
+      );
+      expect(container.querySelector('.bh-profile-card-label button')).toBeNull();
     } finally {
       await act(async () => root.unmount());
       container.remove();

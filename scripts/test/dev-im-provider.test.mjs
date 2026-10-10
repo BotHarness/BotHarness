@@ -43,15 +43,29 @@ describe('qualified optional IM provider adoption', () => {
   it('pins one optional Bundle without losing other dependencies or promoting umbrella members', () => {
     const previous = {
       dependencies: { another: '1.2.3' },
-      dsh: { profile: { bundles: ['another', '@botharness/core', '@botharness/ui'] } },
+      dsh: {
+        profile: {
+          bundles: [
+            'another',
+            '@botharness/browser',
+            '@botharness/computer',
+            '@botharness/core',
+            '@botharness/ui',
+          ],
+        },
+      },
     };
     const composed = withQualifiedImProvider(developmentProfileManifest(previous, '/fixture'));
     expect(composed.dependencies.another).toBe('1.2.3');
     expect(composed.dependencies[qualifiedImProvider.package]).toBe(qualifiedImProvider.spec);
     expect(composed.dsh.profile.bundles).toContain('another');
+    expect(composed.dsh.profile.bundles).not.toContain('@botharness/browser');
+    expect(composed.dsh.profile.bundles).not.toContain('@botharness/computer');
     expect(composed.dsh.profile.bundles).not.toContain('@botharness/core');
     expect(composed.dsh.profile.bundles).not.toContain('@botharness/ui');
     expect(withQualifiedImProvider(composed)).toEqual(composed);
+    expect(previous.dsh.profile.bundles).toContain('@botharness/browser');
+    expect(previous.dsh.profile.bundles).toContain('@botharness/computer');
     expect(previous.dsh.profile.bundles).toContain('@botharness/core');
   });
 

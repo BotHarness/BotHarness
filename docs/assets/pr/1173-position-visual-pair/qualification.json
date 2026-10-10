@@ -1,0 +1,335 @@
+{
+  "scope": "Matched one-Companion static floor and native portalled menu in light/dark themes; no performance or message/audio qualification",
+  "complete": true,
+  "checkout": "7b1eba8c76a68d2c30e05f1d0c1c7ab55dc01aa3",
+  "builtCode": "774d9f66796bdcec0dd7f6361fcb36e10e76fb32",
+  "runtimeDifference": "Parent restores original left/bottom positioning; candidate uses translate3d. No other production source difference.",
+  "formalAvatar": "0.10.0",
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "locale": "Chinese",
+  "fixture": {
+    "recipeHash": "ac7c02b1be96f5e52a3b1952a996f511f6e79126f9a5eb0d4c18300414f93e42",
+    "messagesHash": "b2f126019a89ef5f02663206aed41b87022161f6aadd1a0d8bdffb547473ee48",
+    "messageCount": 17
+  },
+  "method": "Same canonical DSH Profile; fresh Host and isolated native Chrome per revision; native header pin/pause, ArrowLeft alignment, Shift+F10 menu, native dark preference",
+  "geometryMatched": true,
+  "pairs": [
+    {
+      "label": "light-floor",
+      "parent": "parent-light-floor.png",
+      "candidate": "candidate-light-floor.png",
+      "rgbaIdentical": true
+    },
+    {
+      "label": "light-menu",
+      "parent": "parent-light-menu.png",
+      "candidate": "candidate-light-menu.png",
+      "rgbaIdentical": true
+    },
+    {
+      "label": "dark-floor",
+      "parent": "parent-dark-floor.png",
+      "candidate": "candidate-dark-floor.png",
+      "rgbaIdentical": true
+    },
+    {
+      "label": "dark-menu",
+      "parent": "parent-dark-menu.png",
+      "candidate": "candidate-dark-menu.png",
+      "rgbaIdentical": true
+    }
+  ],
+  "observations": [
+    {
+      "role": "parent",
+      "label": "light-floor",
+      "dark": false,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "0",
+      "menus": []
+    },
+    {
+      "role": "candidate",
+      "label": "light-floor",
+      "dark": false,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "0",
+      "menus": []
+    },
+    {
+      "role": "parent",
+      "label": "light-menu",
+      "dark": false,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "1",
+      "menus": [
+        {
+          "rect": {
+            "x": 72,
+            "y": 210,
+            "width": 161.609375,
+            "height": 297.5,
+            "top": 210,
+            "right": 233.609375,
+            "bottom": 507.5,
+            "left": 72
+          },
+          "insideCharacter": false
+        }
+      ]
+    },
+    {
+      "role": "candidate",
+      "label": "light-menu",
+      "dark": false,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "1",
+      "menus": [
+        {
+          "rect": {
+            "x": 72,
+            "y": 210,
+            "width": 161.609375,
+            "height": 297.5,
+            "top": 210,
+            "right": 233.609375,
+            "bottom": 507.5,
+            "left": 72
+          },
+          "insideCharacter": false
+        }
+      ]
+    },
+    {
+      "role": "parent",
+      "label": "dark-floor",
+      "dark": true,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "0",
+      "menus": []
+    },
+    {
+      "role": "candidate",
+      "label": "dark-floor",
+      "dark": true,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "0",
+      "menus": []
+    },
+    {
+      "role": "parent",
+      "label": "dark-menu",
+      "dark": true,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "1",
+      "menus": [
+        {
+          "rect": {
+            "x": 72,
+            "y": 210,
+            "width": 161.609375,
+            "height": 297.5,
+            "top": 210,
+            "right": 233.609375,
+            "bottom": 507.5,
+            "left": 72
+          },
+          "insideCharacter": false
+        }
+      ]
+    },
+    {
+      "role": "candidate",
+      "label": "dark-menu",
+      "dark": true,
+      "sync": "live",
+      "phase": "rest",
+      "rect": {
+        "x": 8,
+        "y": 544,
+        "width": 96,
+        "height": 96,
+        "top": 544,
+        "right": 104,
+        "bottom": 640,
+        "left": 8
+      },
+      "walkingPaused": true,
+      "toolbarOpacity": "1",
+      "menus": [
+        {
+          "rect": {
+            "x": 72,
+            "y": 210,
+            "width": 161.609375,
+            "height": 297.5,
+            "top": 210,
+            "right": 233.609375,
+            "bottom": 507.5,
+            "left": 72
+          },
+          "insideCharacter": false
+        }
+      ]
+    }
+  ],
+  "consoleErrors": {
+    "parent": 0,
+    "candidate": 0
+  },
+  "closedOwnedBrowsers": {
+    "parent": true,
+    "candidate": true
+  },
+  "parentHostStopped": true,
+  "candidateHostRestored": true,
+  "video": {
+    "file": "candidate-menu-and-theme.webm",
+    "durationSeconds": 26.233,
+    "silent": true,
+    "containerRemuxOnly": true
+  },
+  "files": {
+    "parent-light-floor.png": {
+      "bytes": 173887,
+      "sha256": "46732693e711e63c1db9030ba88748cd3878fb620e5c422de347dfd33e4216f7",
+      "rgbaSha256": "54b1edf2f71d022d6d1af9de804784abf7e4d62f5b0a79889a3ee530524cf953"
+    },
+    "candidate-light-floor.png": {
+      "bytes": 173887,
+      "sha256": "46732693e711e63c1db9030ba88748cd3878fb620e5c422de347dfd33e4216f7",
+      "rgbaSha256": "54b1edf2f71d022d6d1af9de804784abf7e4d62f5b0a79889a3ee530524cf953"
+    },
+    "parent-light-menu.png": {
+      "bytes": 183682,
+      "sha256": "3c0b6caf0162fe49ff9c942080a143480bee4166266163227be6aeba02700c25",
+      "rgbaSha256": "fedd8d290db45416d9a7e18936846eb18d924b1300c54a096bd96ad7cfef198f"
+    },
+    "candidate-light-menu.png": {
+      "bytes": 183682,
+      "sha256": "3c0b6caf0162fe49ff9c942080a143480bee4166266163227be6aeba02700c25",
+      "rgbaSha256": "fedd8d290db45416d9a7e18936846eb18d924b1300c54a096bd96ad7cfef198f"
+    },
+    "parent-dark-floor.png": {
+      "bytes": 177680,
+      "sha256": "e2f69e609a9e9dc47a1e0a0e86db57a72c5696d74a9b87dbe3c25fe3be9b9058",
+      "rgbaSha256": "09deda74a991b2a3a48723ecd110a0be39da6ee3869cae96ddeaeb57c7d99217"
+    },
+    "candidate-dark-floor.png": {
+      "bytes": 177680,
+      "sha256": "e2f69e609a9e9dc47a1e0a0e86db57a72c5696d74a9b87dbe3c25fe3be9b9058",
+      "rgbaSha256": "09deda74a991b2a3a48723ecd110a0be39da6ee3869cae96ddeaeb57c7d99217"
+    },
+    "parent-dark-menu.png": {
+      "bytes": 186943,
+      "sha256": "3834699b469f27e7d487027a7769cf47c5e2903ac6a805add8407185ae38375e",
+      "rgbaSha256": "0b52cfa13749358f3ddf8782ecad07d4059223e2446113949772c2e134dfe619"
+    },
+    "candidate-dark-menu.png": {
+      "bytes": 186943,
+      "sha256": "3834699b469f27e7d487027a7769cf47c5e2903ac6a805add8407185ae38375e",
+      "rgbaSha256": "0b52cfa13749358f3ddf8782ecad07d4059223e2446113949772c2e134dfe619"
+    },
+    "candidate-menu-and-theme.webm": {
+      "bytes": 2502058,
+      "sha256": "ea862c7a6ade406496b9a478970e40ef5ce748b85fea1b2b75ce52aedbdfec15"
+    }
+  },
+  "excluded": [
+    "Initial attempt1 failed the guard because Get-Process and CIM creation timestamps differ in sub-microsecond precision; no Host stopped or capture made.",
+    "Previous missing-dark-option setup is retained and excluded, superseded only for the states captured here."
+  ],
+  "remaining": [
+    "Five companions, live concurrent messages and reading, dynamic projected anchors, resize and calibrated fast-throw comparison for this candidate.",
+    "Genuine background and unsupported/autoplay runtime qualification.",
+    "Matched performance investigation and strict walking p95 budget."
+  ]
+}

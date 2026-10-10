@@ -2017,12 +2017,22 @@ window.__ModuleLoader__.load({
 				t
 			]);
 			const openImport = (0, react.useCallback)(() => {
+				if (importOpen) {
+					setImportOpen(false);
+					return;
+				}
 				listArchives().then((files) => {
 					setArchives(files);
-					setImportOpen(true);
-					if (files.length === 0) setTransferNote(t("rows.noArchives"));
+					if (files.length === 0) {
+						setImportOpen(false);
+						setTransferNote(t("rows.noArchives"));
+					} else setImportOpen(true);
 				}).catch((error) => setTransferNote(String(error)));
-			}, [listArchives, t]);
+			}, [
+				importOpen,
+				listArchives,
+				t
+			]);
 			const openDir = (0, react.useCallback)(() => {
 				openDirectory(exportDir).catch((error) => setDirNote(String(error)));
 			}, [exportDir, openDirectory]);

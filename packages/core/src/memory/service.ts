@@ -130,6 +130,9 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     prepareTurn: (botSlug, sessionId, options) =>
       requireAcceptance().prepareTurn(botSlug, sessionId, options),
     scanChanges: (botSlug) => requireAcceptance().scanChanges(botSlug),
+    pendingCommits: (botSlug) => requireAcceptance().pendingCommits(botSlug),
+    advanceCommitCursor: (botSlug, branch, head) =>
+      requireAcceptance().advanceCommitCursor(botSlug, branch, head),
     preparedObservation: (botSlug, sessionId) =>
       requireAcceptance().preparedObservation(botSlug, sessionId),
     reconcileTurn: (input) => requireAcceptance().reconcileTurn(input),

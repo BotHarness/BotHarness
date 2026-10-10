@@ -1,0 +1,762 @@
+{
+  "schemaVersion": 1,
+  "issue": 1167,
+  "status": "partial checkpoint; not performance acceptance",
+  "measuredAt": "2026-10-09T00:26:21.454Z",
+  "dsh": "0.2.0-rc.1",
+  "mcp": "1.10.1",
+  "viewport": {
+    "width": 960,
+    "height": 640,
+    "devicePixelRatio": 1
+  },
+  "theme": "native dark",
+  "locale": "Chinese",
+  "visibleCompanions": 5,
+  "visibleMessageCards": 0,
+  "foreground": "visible; focused-page emulation enabled by official MCP",
+  "budgetsAgreed": false,
+  "matchedSavedRecipesAndPortraits": true,
+  "roles": {
+    "parent": {
+      "source": {
+        "host": "75a236a56942f75c3ebbbe84b88bde2e6fc3abcb"
+      },
+      "avatarVersion": "0.1.0",
+      "chromeVersion": "154.0.8037.98",
+      "hardwareConcurrency": 16,
+      "coarsenedNavigatorDeviceMemoryGiB": 32,
+      "totalRosterCount": 5,
+      "existingMessagesPerTestDm": [4, 4, 4, 4, 4],
+      "appearances": [
+        {
+          "seed": "companion-performance-1",
+          "recipeHash": "c81674f304b30d2ee6bfa058e5d6722b82125ad0512b2dbf2230f580173f016e",
+          "portraitHash": "add6dc8e2bee863ca487cba3a226cb988b877fbc3fd42f5d4588bea63df25719",
+          "existingMessages": 4
+        },
+        {
+          "seed": "companion-performance-2",
+          "recipeHash": "9b34ee1f7414d792084e01cc9c489de10af0210158da0714571a4d37f749ca1a",
+          "portraitHash": "8705e78a7dfa339f89caef503133e8f06b6a0517df2257b5f663126f7ca68de2",
+          "existingMessages": 4
+        },
+        {
+          "seed": "companion-performance-3",
+          "recipeHash": "c40ceac3da62a04c6790a77cc38cb33fbbaee8863487d7643dc39724812d45b7",
+          "portraitHash": "79e30d8168508bded3d22d9e965d79ec1a7943b9038f6833080f5adccabcd4e1",
+          "existingMessages": 4
+        },
+        {
+          "seed": "companion-performance-4",
+          "recipeHash": "b2f988926a629e75c8f35c9a73fe37a2a7253c5348af5575067560550006a682",
+          "portraitHash": "cb46e47d28fedc170ab6c215a77432bec6cfa1efadc7ea240efb0812f2703e8d",
+          "existingMessages": 4
+        },
+        {
+          "seed": "companion-performance-5",
+          "recipeHash": "f5e03b924f89abfbab950bcf47f4f9d39ccddce679fc08a53e99b11ef20726c8",
+          "portraitHash": "6c25b5043058707da6787728e3cfc8c46108c5cadd81e5628fddcb517404e0a9",
+          "existingMessages": 4
+        }
+      ],
+      "assetCost": {
+        "bundleBytes": 2582922,
+        "gzipLevel6Bytes": 654047,
+        "sha256": "e5c0270718d02b32c3073609d24ce5ffc32254c51ecb6fc91d031c8838d33a49"
+      },
+      "scenarios": [
+        {
+          "name": "idle-1",
+          "traceSeconds": 15.423318,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1629,
+            "minMs": 0.875,
+            "meanMs": 9.26193492940455,
+            "p50Ms": 9.257,
+            "p95Ms": 9.671,
+            "p99Ms": 9.993,
+            "maxMs": 12.698,
+            "over8_333Ms": 1622,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1628,
+            "minMs": 0.88,
+            "meanMs": 9.36993058968059,
+            "p50Ms": 9.357,
+            "p95Ms": 9.801,
+            "p99Ms": 10.177,
+            "maxMs": 17.922,
+            "over8_333Ms": 1616,
+            "over16_667Ms": 6,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "idle-2",
+          "traceSeconds": 15.087333,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1592,
+            "minMs": 0.805,
+            "meanMs": 9.259667085427129,
+            "p50Ms": 9.243,
+            "p95Ms": 9.686,
+            "p99Ms": 9.997,
+            "maxMs": 12.859,
+            "over8_333Ms": 1586,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1591,
+            "minMs": 0.933,
+            "meanMs": 9.366962287869262,
+            "p50Ms": 9.346,
+            "p95Ms": 9.809,
+            "p99Ms": 10.203,
+            "maxMs": 17.858,
+            "over8_333Ms": 1580,
+            "over16_667Ms": 6,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "idle-3",
+          "traceSeconds": 15.082662,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1588,
+            "minMs": 0.728,
+            "meanMs": 9.265553526448361,
+            "p50Ms": 9.255,
+            "p95Ms": 9.704,
+            "p99Ms": 10.064,
+            "maxMs": 14.435,
+            "over8_333Ms": 1578,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1587,
+            "minMs": 0.786,
+            "meanMs": 9.379132325141779,
+            "p50Ms": 9.36,
+            "p95Ms": 9.848,
+            "p99Ms": 10.32,
+            "maxMs": 18.06,
+            "over8_333Ms": 1573,
+            "over16_667Ms": 6,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-1",
+          "traceSeconds": 15.080949,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1575,
+            "minMs": 2.769,
+            "meanMs": 7.933214603174592,
+            "p50Ms": 7.977,
+            "p95Ms": 8.875,
+            "p99Ms": 9.284,
+            "maxMs": 11.202,
+            "over8_333Ms": 417,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1571,
+            "minMs": 9.109,
+            "meanMs": 9.472568427753034,
+            "p50Ms": 9.474,
+            "p95Ms": 9.697,
+            "p99Ms": 9.987,
+            "maxMs": 10.493,
+            "over8_333Ms": 1571,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-2",
+          "traceSeconds": 15.101636,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1571,
+            "minMs": 3.104,
+            "meanMs": 7.980131763208153,
+            "p50Ms": 8.015,
+            "p95Ms": 9.01,
+            "p99Ms": 9.597,
+            "maxMs": 16.771,
+            "over8_333Ms": 456,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1567,
+            "minMs": 9.086,
+            "meanMs": 9.50005232929166,
+            "p50Ms": 9.512,
+            "p95Ms": 9.72,
+            "p99Ms": 9.996,
+            "maxMs": 10.424,
+            "over8_333Ms": 1567,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-3",
+          "traceSeconds": 15.085711,
+          "excludedBoundaryFrames": 2,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1573,
+            "minMs": 3.746,
+            "meanMs": 8.030305785123968,
+            "p50Ms": 8.061,
+            "p95Ms": 8.921,
+            "p99Ms": 9.431,
+            "maxMs": 10.557,
+            "over8_333Ms": 456,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1569,
+            "minMs": 9.105,
+            "meanMs": 9.484422562141496,
+            "p50Ms": 9.501,
+            "p95Ms": 9.703,
+            "p99Ms": 9.901,
+            "maxMs": 10.531,
+            "over8_333Ms": 1569,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-1",
+          "traceSeconds": 14.819697,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 1,
+          "animationFrameWallDuration": {
+            "count": 1554,
+            "minMs": 0.772,
+            "meanMs": 9.115666666666659,
+            "p50Ms": 9.183,
+            "p95Ms": 9.705,
+            "p99Ms": 10.06,
+            "maxMs": 14.787,
+            "over8_333Ms": 1455,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1552,
+            "minMs": 0.705,
+            "meanMs": 9.42083634020619,
+            "p50Ms": 9.4,
+            "p95Ms": 9.844,
+            "p99Ms": 10.445,
+            "maxMs": 27.557,
+            "over8_333Ms": 1534,
+            "over16_667Ms": 7,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-2",
+          "traceSeconds": 14.844507,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 1,
+          "animationFrameWallDuration": {
+            "count": 1558,
+            "minMs": 0.75,
+            "meanMs": 9.102700256739412,
+            "p50Ms": 9.193,
+            "p95Ms": 9.72,
+            "p99Ms": 10.05,
+            "maxMs": 13.522,
+            "over8_333Ms": 1448,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1556,
+            "minMs": 0.933,
+            "meanMs": 9.420467866323913,
+            "p50Ms": 9.413,
+            "p95Ms": 9.832,
+            "p99Ms": 10.288,
+            "maxMs": 18.885,
+            "over8_333Ms": 1545,
+            "over16_667Ms": 7,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-3",
+          "traceSeconds": 14.791619,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 1,
+          "animationFrameWallDuration": {
+            "count": 1556,
+            "minMs": 1.001,
+            "meanMs": 9.09079884318765,
+            "p50Ms": 9.16,
+            "p95Ms": 9.73,
+            "p99Ms": 10.058,
+            "maxMs": 12.828,
+            "over8_333Ms": 1438,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1554,
+            "minMs": 1.066,
+            "meanMs": 9.408234877734872,
+            "p50Ms": 9.39,
+            "p95Ms": 9.876,
+            "p99Ms": 10.496,
+            "maxMs": 19.023,
+            "over8_333Ms": 1538,
+            "over16_667Ms": 8,
+            "over50Ms": 0
+          }
+        }
+      ],
+      "heap": [
+        {
+          "label": "before-cycles",
+          "totalGraphBytes": 79948678,
+          "v8HeapBytes": 29200884,
+          "counts": {
+            "object:WindowCompanion": 5,
+            "native:EventSource": 5,
+            "object:WindowCompanions": 1,
+            "object:CompanionBubbles": 1,
+            "object:CompanionMotion": 5,
+            "native:EventListener": 550,
+            "native:V8EventListener": 493
+          },
+          "detachedCompanionNodes": 0
+        },
+        {
+          "label": "after-ten-cycles",
+          "totalGraphBytes": 80078111,
+          "v8HeapBytes": 29350928,
+          "counts": {
+            "object:WindowCompanions": 1,
+            "native:EventSource": 5,
+            "object:WindowCompanion": 5,
+            "object:CompanionBubbles": 1,
+            "object:CompanionMotion": 5,
+            "native:EventListener": 550,
+            "native:V8EventListener": 493
+          },
+          "detachedCompanionNodes": 0
+        }
+      ],
+      "consoleErrorCount": 0,
+      "boundedOwnerPathsInspected": 4,
+      "detachedCompanionQueryMatches": 0
+    },
+    "candidate": {
+      "source": {
+        "hostBase": "fc356883152ac5d86b11993216084dbda60be4d4",
+        "hostMain": "66d2767a",
+        "owner": "ac9e25740e7ef33d1409b124d9bab23d16732ced",
+        "localUncommittedChanges": "Companion speechMouthVersion2 and packed owner0.10.1 dependency, not published"
+      },
+      "avatarVersion": "0.10.1",
+      "chromeVersion": "154.0.8037.98",
+      "hardwareConcurrency": 16,
+      "coarsenedNavigatorDeviceMemoryGiB": 32,
+      "totalRosterCount": 6,
+      "existingMessagesPerTestDm": [1, 1, 1, 1, 1],
+      "appearances": [
+        {
+          "seed": "companion-performance-1",
+          "recipeHash": "c81674f304b30d2ee6bfa058e5d6722b82125ad0512b2dbf2230f580173f016e",
+          "portraitHash": "add6dc8e2bee863ca487cba3a226cb988b877fbc3fd42f5d4588bea63df25719",
+          "existingMessages": 1
+        },
+        {
+          "seed": "companion-performance-2",
+          "recipeHash": "9b34ee1f7414d792084e01cc9c489de10af0210158da0714571a4d37f749ca1a",
+          "portraitHash": "8705e78a7dfa339f89caef503133e8f06b6a0517df2257b5f663126f7ca68de2",
+          "existingMessages": 1
+        },
+        {
+          "seed": "companion-performance-3",
+          "recipeHash": "c40ceac3da62a04c6790a77cc38cb33fbbaee8863487d7643dc39724812d45b7",
+          "portraitHash": "79e30d8168508bded3d22d9e965d79ec1a7943b9038f6833080f5adccabcd4e1",
+          "existingMessages": 1
+        },
+        {
+          "seed": "companion-performance-4",
+          "recipeHash": "b2f988926a629e75c8f35c9a73fe37a2a7253c5348af5575067560550006a682",
+          "portraitHash": "cb46e47d28fedc170ab6c215a77432bec6cfa1efadc7ea240efb0812f2703e8d",
+          "existingMessages": 1
+        },
+        {
+          "seed": "companion-performance-5",
+          "recipeHash": "f5e03b924f89abfbab950bcf47f4f9d39ccddce679fc08a53e99b11ef20726c8",
+          "portraitHash": "6c25b5043058707da6787728e3cfc8c46108c5cadd81e5628fddcb517404e0a9",
+          "existingMessages": 1
+        }
+      ],
+      "assetCost": {
+        "bundleBytes": 2903626,
+        "gzipLevel6Bytes": 726168,
+        "sha256": "c39a639324a89effc1036ca154113c07912bdee0d90e6c6c9705d4f0140ff0b4"
+      },
+      "scenarios": [
+        {
+          "name": "idle-1",
+          "traceSeconds": 15.459779,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1633,
+            "minMs": 0.845,
+            "meanMs": 9.24771341090018,
+            "p50Ms": 9.24,
+            "p95Ms": 9.624,
+            "p99Ms": 9.889,
+            "maxMs": 12.809,
+            "over8_333Ms": 1625,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1632,
+            "minMs": 0.901,
+            "meanMs": 9.356414828431374,
+            "p50Ms": 9.34,
+            "p95Ms": 9.752,
+            "p99Ms": 10.202,
+            "maxMs": 18.054,
+            "over8_333Ms": 1620,
+            "over16_667Ms": 6,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "idle-2",
+          "traceSeconds": 15.085525,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1594,
+            "minMs": 0.63,
+            "meanMs": 9.254955457967384,
+            "p50Ms": 9.247,
+            "p95Ms": 9.664,
+            "p99Ms": 9.917,
+            "maxMs": 12.325,
+            "over8_333Ms": 1586,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1593,
+            "minMs": 0.82,
+            "meanMs": 9.364858129315742,
+            "p50Ms": 9.348,
+            "p95Ms": 9.784,
+            "p99Ms": 10.175,
+            "maxMs": 18.317,
+            "over8_333Ms": 1579,
+            "over16_667Ms": 7,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "idle-3",
+          "traceSeconds": 15.097777,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1594,
+            "minMs": 0.668,
+            "meanMs": 9.255702634880805,
+            "p50Ms": 9.241,
+            "p95Ms": 9.705,
+            "p99Ms": 9.99,
+            "maxMs": 12.795,
+            "over8_333Ms": 1588,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1593,
+            "minMs": 0.945,
+            "meanMs": 9.368016949152548,
+            "p50Ms": 9.343,
+            "p95Ms": 9.864,
+            "p99Ms": 10.175,
+            "maxMs": 18.015,
+            "over8_333Ms": 1582,
+            "over16_667Ms": 7,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-1",
+          "traceSeconds": 15.103051,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1578,
+            "minMs": 2.807,
+            "meanMs": 8.183005069708488,
+            "p50Ms": 8.212,
+            "p95Ms": 8.952,
+            "p99Ms": 9.334,
+            "maxMs": 14.1,
+            "over8_333Ms": 605,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1577,
+            "minMs": 2.408,
+            "meanMs": 9.459499682942294,
+            "p50Ms": 9.454,
+            "p95Ms": 16.18,
+            "p99Ms": 16.427,
+            "maxMs": 16.952,
+            "over8_333Ms": 1062,
+            "over16_667Ms": 4,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-2",
+          "traceSeconds": 15.890789,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1577,
+            "minMs": 3.009,
+            "meanMs": 8.216237793278381,
+            "p50Ms": 8.265,
+            "p95Ms": 8.905,
+            "p99Ms": 9.361,
+            "maxMs": 12.197,
+            "over8_333Ms": 675,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1575,
+            "minMs": 2.175,
+            "meanMs": 9.465827936507917,
+            "p50Ms": 9.49,
+            "p95Ms": 16.253,
+            "p99Ms": 16.533,
+            "maxMs": 17.162,
+            "over8_333Ms": 1052,
+            "over16_667Ms": 9,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "roam-3",
+          "traceSeconds": 15.091655,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1577,
+            "minMs": 2.808,
+            "meanMs": 8.172421052631574,
+            "p50Ms": 8.235,
+            "p95Ms": 8.864,
+            "p99Ms": 9.472,
+            "maxMs": 10.891,
+            "over8_333Ms": 606,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1575,
+            "minMs": 0.779,
+            "meanMs": 9.467276190476205,
+            "p50Ms": 9.487,
+            "p95Ms": 16.189,
+            "p99Ms": 16.512,
+            "maxMs": 18.148,
+            "over8_333Ms": 1086,
+            "over16_667Ms": 7,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-1",
+          "traceSeconds": 15.244141,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 0,
+          "animationFrameWallDuration": {
+            "count": 1601,
+            "minMs": 0.844,
+            "meanMs": 9.07296876951905,
+            "p50Ms": 9.165,
+            "p95Ms": 9.74,
+            "p99Ms": 10.305,
+            "maxMs": 15.282,
+            "over8_333Ms": 1466,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1600,
+            "minMs": 0.908,
+            "meanMs": 9.421652499999999,
+            "p50Ms": 9.422,
+            "p95Ms": 9.887,
+            "p99Ms": 11.787,
+            "maxMs": 27.558,
+            "over8_333Ms": 1570,
+            "over16_667Ms": 11,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-2",
+          "traceSeconds": 15.181931,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 2,
+          "animationFrameWallDuration": {
+            "count": 1587,
+            "minMs": 0.677,
+            "meanMs": 9.066943919344684,
+            "p50Ms": 9.169,
+            "p95Ms": 9.704,
+            "p99Ms": 10.21,
+            "maxMs": 15.538,
+            "over8_333Ms": 1449,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1584,
+            "minMs": 0.961,
+            "meanMs": 9.42132954545456,
+            "p50Ms": 9.408,
+            "p95Ms": 9.817,
+            "p99Ms": 10.342,
+            "maxMs": 27.372,
+            "over8_333Ms": 1567,
+            "over16_667Ms": 8,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "drag-3",
+          "traceSeconds": 14.95044,
+          "excludedBoundaryFrames": 1,
+          "excludedNonTargetFrames": 0,
+          "duplicatePresentationTimestamps": 1,
+          "animationFrameWallDuration": {
+            "count": 1572,
+            "minMs": 1.873,
+            "meanMs": 9.084236005089053,
+            "p50Ms": 9.163,
+            "p95Ms": 9.715,
+            "p99Ms": 10.162,
+            "maxMs": 15.212,
+            "over8_333Ms": 1463,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 1570,
+            "minMs": 0.873,
+            "meanMs": 9.416939490445857,
+            "p50Ms": 9.403,
+            "p95Ms": 9.839,
+            "p99Ms": 10.262,
+            "maxMs": 27.938,
+            "over8_333Ms": 1549,
+            "over16_667Ms": 11,
+            "over50Ms": 0
+          }
+        }
+      ],
+      "heap": [
+        {
+          "label": "before-cycles",
+          "totalGraphBytes": 81045615,
+          "v8HeapBytes": 28988144,
+          "counts": {
+            "object:WindowCompanion": 5,
+            "object:CompanionBubbles": 6,
+            "object:CompanionMotion": 5,
+            "native:EventSource": 5,
+            "object:WindowCompanions": 1,
+            "native:EventListener": 719,
+            "native:V8EventListener": 637
+          },
+          "detachedCompanionNodes": 0
+        },
+        {
+          "label": "after-ten-cycles",
+          "totalGraphBytes": 81227788,
+          "v8HeapBytes": 29223976,
+          "counts": {
+            "native:EventSource": 5,
+            "object:CompanionMotion": 5,
+            "object:CompanionBubbles": 6,
+            "object:WindowCompanions": 1,
+            "object:WindowCompanion": 5,
+            "native:EventListener": 719,
+            "native:V8EventListener": 637
+          },
+          "detachedCompanionNodes": 0
+        }
+      ],
+      "consoleErrorCount": 0,
+      "boundedOwnerPathsInspected": 4,
+      "detachedCompanionQueryMatches": 0
+    }
+  },
+  "limits": [
+    "Local whole-page totals include native shell and different QA Channel histories/roster sizes; no Companion-only retained-byte inference.",
+    "Parent is lifecycle baseline75a236a5; candidate includes later app/Avatar changes, so bundle and absolute heap deltas cannot be attributed solely to a companion feature.",
+    "Three sequential samples per role/scenario are not randomized repetitions or statistical equivalence. Other desktop workloads are not controlled.",
+    "Actual background/foreground, concurrent reveal/expanded reading and bounded reconnect cost remain outside these new traces.",
+    "Original candidate collection used light theme; retained privately and excluded. Candidate was repeated with native dark setting and explicit precondition. Parent dark theme verified from its actual screenshot.",
+    "Candidate setup opened and closed native General settings to select dark; parent already used dark. Absolute listener counts include different shell/setup state and are not a feature regression measurement.",
+    "Candidate CompanionBubbles depth16 query returned no path; depth32/nodes100 follow-up returned a React hook-state path while hitting depth, node and sibling caps. Queries are not exhaustive."
+  ]
+}

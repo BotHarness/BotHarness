@@ -23,6 +23,7 @@ function BannerCanvas({
 }): ReactElement {
   const paint = useMountedResource<HTMLCanvasElement>(
     (canvas) => {
+      if (typeof ImageData === 'undefined') return;
       const context = canvas.getContext('2d');
       if (context === null) return;
       const { data, width, height } = pixelBannerPixels(recipe);

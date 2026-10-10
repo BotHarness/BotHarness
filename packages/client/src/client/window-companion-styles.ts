@@ -9,7 +9,8 @@ export const WINDOW_COMPANION_CSS = `
   --bh-companion-attention: var(--dsw-alias-state-warn-primary);
   --bh-companion-font: var(--dsw-font-markdown-code-block-font-family);
   /* @bh-companion-aliases:end */
-  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  /* Focus may scroll hidden overflow; the presentation viewport must stay fixed. */
+  position: absolute; inset: 0; pointer-events: none; overflow: clip;
 }
 .bh-companion-chip { display: inline-flex; align-items: center; gap: 2px; }
 .bh-channel-island-wrap > .bh-companion-pin { margin-left: 2px; }

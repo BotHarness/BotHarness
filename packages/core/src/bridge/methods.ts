@@ -118,7 +118,7 @@ import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
-import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
+import type { ChannelReadPosition, ChannelStore, ChannelSendStatus } from '../channels/store.js';
 import { groupProfileActivity, type GroupProfileActivity } from '../channels/profile-activity.js';
 import { channelActivityToday, type ChannelActivityToday } from '../channels/activity-today.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
@@ -462,6 +462,7 @@ export interface BridgeMethods {
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelAllBotPreview(payload: unknown): BridgeResult<AllBotPreview>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
+  channelSendStatus(payload: unknown): BridgeResult<ChannelSendStatus>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
   botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
@@ -2944,6 +2945,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       } catch (error) {
         return invalidInput((error as Error).message);
       }
+    },
+    channelSendStatus(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (!channelId || !messageId) return invalidInput('channelId and messageId are required');
+      if (deps.channels.get(channelId) === undefined) return unknownChannel(channelId);
+      const value = deps.channels.humanSendStatus?.(channelId, messageId);
+      return value === undefined ? invalidInput('Unknown Human DM request') : { ok: true, value };
     },
     async channelSend(payload) {
       const source = asObject(payload);

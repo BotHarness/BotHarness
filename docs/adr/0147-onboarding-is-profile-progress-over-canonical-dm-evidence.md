@@ -1,6 +1,7 @@
 # ADR-0147: Onboarding is Profile progress over canonical DM evidence
 
 - Status: Accepted
+- Amended by: [ADR-0155](0155-onboarding-tutorial-is-a-floating-tour-replayed-from-bot-settings.md) — the tutorial surface is a floating driver.js tour auto-presented on first welcome-card entry; Continue/Restart replay moves to Bot Settings, with no persistent strip.
 - Date: 2026-10-08
 - Issues: [#1174](https://github.com/BotHarness/DeepSeekBot/issues/1174), [#1175](https://github.com/BotHarness/DeepSeekBot/issues/1175)
 

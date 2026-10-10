@@ -1056,8 +1056,54 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       displayName: departure['displayName'],
       departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
+  } else if (record['memoryCommit'] !== undefined) {
+    if (author.kind !== 'system') return undefined;
   } else if (author.kind === 'system' && asRecord(record['onboardingWelcome'])?.['version'] !== 1) {
     return undefined;
+  }
+  let memoryCommit: ChannelMessage['memoryCommit'];
+  if (record['memoryCommit'] !== undefined) {
+    const commit = asRecord(record['memoryCommit']);
+    const count = (value: unknown): number | null | undefined =>
+      value === null
+        ? null
+        : typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+          ? value
+          : undefined;
+    const files = Array.isArray(commit?.['files'])
+      ? commit['files'].flatMap((item: unknown) => {
+          const file = asRecord(item);
+          const added = count(file?.['added']);
+          const deleted = count(file?.['deleted']);
+          return file !== undefined &&
+            typeof file['path'] === 'string' &&
+            added !== undefined &&
+            deleted !== undefined
+            ? [{ path: file['path'], added, deleted }]
+            : [];
+        })
+      : undefined;
+    if (
+      commit === undefined ||
+      typeof commit['botSlug'] !== 'string' ||
+      typeof commit['sha'] !== 'string' ||
+      !/^[0-9a-f]{40}$/u.test(commit['sha']) ||
+      typeof commit['subject'] !== 'string' ||
+      typeof commit['authorName'] !== 'string' ||
+      typeof commit['authoredAt'] !== 'string' ||
+      files === undefined ||
+      count(commit['moreFiles']) == null
+    )
+      return undefined;
+    memoryCommit = {
+      botSlug: commit['botSlug'],
+      sha: commit['sha'],
+      subject: commit['subject'],
+      authorName: commit['authorName'],
+      authoredAt: commit['authoredAt'],
+      files,
+      moreFiles: commit['moreFiles'] as number,
+    };
   }
   let botDmAction: ChannelMessage['botDmAction'];
   if (record['botDmAction'] !== undefined) {
@@ -1367,6 +1413,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
     ...(assignmentReply === undefined ? {} : { assignmentReply }),
     ...(botDmAction === undefined ? {} : { botDmAction }),
+    ...(memoryCommit === undefined ? {} : { memoryCommit }),
     ...(memberDeparture === undefined ? {} : { memberDeparture }),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
@@ -3002,6 +3049,7 @@ export interface MemoryGitGraph {
 
 export interface MemoryGitCommitDiff {
   sha: string;
+  subject?: string;
   files: { path: string; status: string }[];
   diff: string;
 }

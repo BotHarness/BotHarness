@@ -1,0 +1,71 @@
+{
+  "dsh": "0.2.0-rc.1",
+  "model": "deepseek-official/deepseek-flash",
+  "verifiedAt": "2026-10-09T17:04:27Z",
+  "seedSession": "botharness-c3a562e1-7ad8-4577-a55c-6ff7279e9d4d",
+  "searchSession": "botharness-ec4ffea7-8377-4de2-ade3-053bae1601ed",
+  "sessionFixture": "After an actual handled DM, stopped the isolated Host and marked prior Session content unavailable through Session Ownership; canonical Inbox unchanged. Restart created a fresh Orchestrator.",
+  "initialFailure": "Generic operation approval because inbox_history was absent from BOT_TOOL_NAMES; fixed and retried in a fresh turn after exact Host restart.",
+  "freshTurnApprovalRequests": 0,
+  "calls": [
+    {
+      "name": "inbox_history",
+      "arguments": {
+        "kind": "dm",
+        "limit": 5,
+        "query": "Nova",
+        "until": "2026-10-09T16:58:00Z"
+      },
+      "result": {
+        "items": [
+          {
+            "sourceEventId": "57b4d433-40e3-48a9-bc87-743577d5a4d3",
+            "at": "2026-10-09T16:57:26.113Z",
+            "kind": "human-dm",
+            "sourceKind": "human-message",
+            "state": "handled",
+            "channelId": "dm-bot-c42a1273ca21488bbdbc80b905c76892",
+            "channelName": "History QA",
+            "snippet": "…星期五发布。Nova owns the launch checklist. 请只用 channel_send 回复「已收到 QA」，…"
+          }
+        ]
+      },
+      "isError": false
+    },
+    {
+      "name": "inbox_history",
+      "arguments": {
+        "kind": "dm",
+        "limit": 5,
+        "query": "星期五",
+        "until": "2026-10-09T16:58:00Z"
+      },
+      "result": {
+        "items": [
+          {
+            "sourceEventId": "57b4d433-40e3-48a9-bc87-743577d5a4d3",
+            "at": "2026-10-09T16:57:26.113Z",
+            "kind": "human-dm",
+            "sourceKind": "human-message",
+            "state": "handled",
+            "channelId": "dm-bot-c42a1273ca21488bbdbc80b905c76892",
+            "channelName": "History QA",
+            "snippet": "QA seed: 星期五发布。Nova owns the launch checklist. 请只用 channel_send 回复…"
+          }
+        ]
+      },
+      "isError": false
+    },
+    {
+      "name": "channel_send",
+      "arguments": {
+        "body": "旧记录 QA 报告（仅依据两次 inbox_history 查询结果，未读频道/文件）：\n\n- 发布时间：2026-10-09T16:57:26.113Z\n- 负责人：Nova（负责 launch checklist）\n- sourceEventId：57b4d433-40e3-48a9-bc87-743577d5a4d3\n- state：handled（已处理）\n- 渠道：History QA（human-dm）\n- 两次查询（\"Nova\" 与 \"星期五\"，kind=dm，until=2026-10-09T16:58:00.000Z，limit=5）返回的是同一条记录"
+      },
+      "result": {
+        "channelId": "dm-bot-c42a1273ca21488bbdbc80b905c76892",
+        "messageId": "d7e5036a-8c91-4c81-864c-c58e9330d527"
+      },
+      "isError": false
+    }
+  ]
+}

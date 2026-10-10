@@ -68,7 +68,7 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 | **Assignments**              | Grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report; the sidebar counts what needs your answer.           |
 | **Their own IM identity**    | Bind a Bot to its own identity in Lark / Feishu, Slack, Discord and WeChat; it replies in the original thread when mentioned. WeChat DMs carry files too.    |
 | **Update notes**             | After an install or update, Bot mode shows what changed; Bot settings show your version, check npm for a newer one, and install it and restart in one click. |
-| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Optional in source builds.                                 |
+| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Included by default.                                       |
 
 <a id="screenshots"></a>
 
@@ -146,12 +146,12 @@ After the first install, and the first time you open Bot mode after each update,
 
 ## Computer use and Browser use
 
-> Both Bundles are optional in source builds for now; they are not part of the `deepseekbot` npm package.
+> Both Bundles ship with the `deepseekbot` npm package; a new Bot still needs its Access explicitly enabled before it can use them.
 
-| Capability       | What is delivered                                                                                                                                                                             | Setup and boundary                                                                                                                                                                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Computer use** | Observe and act on a shared desktop through Cua Driver, with a VNC view and Computer Audit.                                                                                                   | Optional `@botharness/computer` Bundle; the current implementation runs a container desktop and requires Docker. Turn on Computer Access for each Bot; with Auto-allow off, the first action of a Session asks for authorization.                          |
-| **Browser use**  | Open and observe pages; click, type, press keys, scroll, wait, take screenshots, upload files, and manage multiple tabs. The sidebar shows the Bot's page and lets a Human pause its actions. | Optional `@botharness/browser` Bundle; runs a managed Bot Browser on the Host. Enable Browser Access per Bot; with Auto-allow off, authorize its Session. Named browser profiles can keep separate login data; Bots assigned to the same profile share it. |
+| Capability       | What is delivered                                                                                                                                                                             | Setup and boundary                                                                                                                                                                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Computer use** | Observe and act on a shared desktop through Cua Driver, with a VNC view and Computer Audit.                                                                                                   | Ships with `deepseekbot` by default; the current implementation runs a container desktop and requires Docker. Turn on Computer Access for each Bot; with Auto-allow off, the first action of a Session asks for authorization.                           |
+| **Browser use**  | Open and observe pages; click, type, press keys, scroll, wait, take screenshots, upload files, and manage multiple tabs. The sidebar shows the Bot's page and lets a Human pause its actions. | Ships with `deepseekbot` by default; runs a managed Bot Browser on the Host. Enable Browser Access per Bot; with Auto-allow off, authorize its Session. Named browser profiles can keep separate login data; Bots assigned to the same profile share it. |
 
 ![Existing DSH QA screenshot showing a named Bot Browser profile, a live page preview, and the Pause Bot control](docs/assets/pr/611-browser-profile-names/ui-completed.jpg)
 
@@ -159,7 +159,7 @@ _Reused from the [Browser profile verification](https://github.com/BotHarness/Bo
 
 Each Bundle's DSH Profile setting `autoAllowActions` defaults to off. Enabling it skips that Bundle's per-Session approval; per-Bot Access must still be enabled.
 
-Browser tab ownership controls which page a Bot operates; tabs in a shared browser profile are not a security isolation boundary. Computer and Browser Access are independent. The development launcher includes both optional Bundles, but neither gives a new Bot access until enabled. [Runtime design](docs/architecture/botharness-architecture.md) · [Computer contracts](docs/architecture/computer-runtime-contracts.md)
+Browser tab ownership controls which page a Bot operates; tabs in a shared browser profile are not a security isolation boundary. Computer and Browser Access are independent. Both Bundles are present after install, but neither gives a new Bot access until enabled. [Runtime design](docs/architecture/botharness-architecture.md) · [Computer contracts](docs/architecture/computer-runtime-contracts.md)
 
 <a id="im-identities"></a>
 
@@ -218,7 +218,7 @@ pnpm build
 node scripts/dev-instance.mjs --home /tmp/botharness-demo --port 31967
 ```
 
-Choose a fresh `--home` directory for an isolated DSH Profile. The helper uses the worktree's pinned CLI, links the local Bundles (including the optional Computer and Browser), verifies the authenticated API, and prints the local login URL. Open it, select **Bot mode**, create your PersonaBots, send a DM, then create a Group and invite members. Open **Memory files** or **Memory evolution** from a Bot's DM sidebar.
+Choose a fresh `--home` directory for an isolated DSH Profile. The helper uses the worktree's pinned CLI, links the local Bundles (Computer and Browser ship inside the `deepseekbot` umbrella), verifies the authenticated API, and prints the local login URL. Open it, select **Bot mode**, create your PersonaBots, send a DM, then create a Group and invite members. Open **Memory files** or **Memory evolution** from a Bot's DM sidebar.
 
 The helper can inject a machine-local DeepSeek key or use the isolated Profile's credentials; keep secrets outside the repository. For model setup, optional IM installation, and the Client/Host development loop, use [the local-instance guide](docs/client-bridge.md#7-本地开发环路dsh-020-rc1).
 

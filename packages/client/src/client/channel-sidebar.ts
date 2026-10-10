@@ -2,10 +2,42 @@ import type { ComponentType } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { ClientState } from './store.js';
+import type { ChannelSummary, ClientState } from './store.js';
 import type { MemoryWorkingChange } from './bridge.js';
+import { channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 
 export type ChannelSidebarScope = 'channel' | 'personabot';
+
+export function resolveChannelSidebarContext(state: ClientState):
+  | {
+      channel: ChannelSummary | undefined;
+      scope: ChannelSidebarScope;
+      botSlug: string | undefined;
+      scopeKey: string;
+    }
+  | undefined {
+  const selection = state.selection;
+  if (selection?.kind !== 'bot' && selection?.kind !== 'channel') return undefined;
+  const matches = (candidate: ChannelSummary): boolean =>
+    selection.kind === 'bot'
+      ? candidate.type === 'dm' && candidate.botSlug === selection.slug
+      : candidate.id === selection.channelId;
+  const currentChannel = state.conversation.channel;
+  const channel =
+    currentChannel !== undefined && matches(currentChannel)
+      ? currentChannel
+      : state.channels.find(matches);
+  const botSlug =
+    selection.kind === 'bot'
+      ? selection.slug
+      : channel?.type === 'dm'
+        ? channel.botSlug
+        : undefined;
+  const scope = botSlug === undefined ? 'channel' : 'personabot';
+  const channelId =
+    channel?.id ?? (selection.kind === 'channel' ? selection.channelId : selection.slug);
+  return { channel, scope, botSlug, scopeKey: channelSidebarScopeKey(scope, channelId, botSlug) };
+}
 
 export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;

@@ -122,6 +122,7 @@ export interface MemoryGitGraph {
 
 export interface MemoryGitCommitDiff {
   sha: string;
+  subject: string;
   files: { path: string; status: string }[];
   diff: string;
 }
@@ -163,6 +164,8 @@ export interface MemoryAcceptance {
     options?: { coordinateBranchSwitch?: boolean },
   ): MemoryChangeDelta | undefined;
   scanChanges(botSlug: string): MemoryChangeScan;
+  pendingCommits(botSlug: string): MemoryPendingCommits;
+  advanceCommitCursor(botSlug: string, branch: string, head: string): void;
   preparedObservation(botSlug: string, sessionId: string): MemoryChangeScan;
   reconcileTurn(input: {
     botSlug: string;
@@ -301,6 +304,58 @@ function repository(registry: PersonaBotRegistry, botSlug: string): string {
     throw new MemoryAcceptError('memory-unavailable', `Memory Repository unavailable: ${botSlug}`);
   }
   return verifiedRepository(root, botSlug);
+}
+
+export interface MemoryCommitFile {
+  path: string;
+  added: number | null;
+  deleted: number | null;
+}
+
+export interface MemoryCommitSummary {
+  sha: string;
+  subject: string;
+  authorName: string;
+  authoredAt: string;
+  files: MemoryCommitFile[];
+  moreFiles: number;
+}
+
+export interface MemoryPendingCommits {
+  branch: string;
+  head: string;
+  commits: MemoryCommitSummary[];
+}
+
+const MAX_RECORDED_COMMITS = 20;
+const MAX_RECORDED_PATHS = 20;
+
+function commitSummary(root: string, sha: string): MemoryCommitSummary {
+  const [fullSha = sha, subject = '', authorName = '', authoredAt = ''] = output(root, [
+    'show',
+    '--no-patch',
+    '--format=%H%x1f%s%x1f%an%x1f%aI',
+    sha,
+  ]).split('\x1f');
+  const files = output(root, ['show', '--numstat', '--no-renames', '--format=', sha])
+    .split('\n')
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const [added = '-', deleted = '-', ...path] = line.split('\t');
+      return {
+        path: path.join('\t'),
+        added: added === '-' ? null : Number(added),
+        deleted: deleted === '-' ? null : Number(deleted),
+      };
+    });
+  return {
+    sha: fullSha,
+    subject: subject.slice(0, 200),
+    authorName: authorName.slice(0, 100),
+    authoredAt,
+    files: files.slice(0, MAX_RECORDED_PATHS),
+    moreFiles: Math.max(0, files.length - MAX_RECORDED_PATHS),
+  };
 }
 
 function head(root: string): string {
@@ -742,6 +797,7 @@ export function createMemoryAcceptance(options: {
 }): MemoryAcceptance {
   const { registry, ownership, database } = options;
   const now = options.now ?? (() => new Date());
+  const warn = options.warn;
   const recovery = createMemoryRecovery({
     database,
     now,
@@ -1046,6 +1102,45 @@ export function createMemoryAcceptance(options: {
     }
   };
 
+  const commitCursor = (botSlug: string): { branch: string; head: string } | undefined =>
+    database.read(
+      (db) =>
+        db
+          .prepare('SELECT branch, head FROM memory_commit_cursors WHERE bot_slug = ?')
+          .get(botSlug) as { branch: string; head: string } | undefined,
+    );
+  const advanceCommitCursor = (botSlug: string, branch: string, sha: string): void => {
+    database.transaction((db) => {
+      db.prepare(`
+        INSERT INTO memory_commit_cursors (bot_slug, branch, head, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(bot_slug) DO UPDATE SET
+          branch = excluded.branch, head = excluded.head, updated_at = excluded.updated_at
+      `).run(botSlug, branch, sha, now().toISOString());
+    });
+  };
+  const pendingCommits = (botSlug: string): MemoryPendingCommits => {
+    const root = repository(registry, botSlug);
+    const branch = branchOf(root);
+    const current = head(root);
+    const cursor = commitCursor(botSlug);
+    if (cursor === undefined || cursor.branch !== branch || cursor.head === current)
+      return { branch, head: current, commits: [] };
+    let shas: string[];
+    try {
+      shas = output(root, ['rev-list', '--reverse', current, `^${cursor.head}`])
+        .split('\n')
+        .filter((sha) => /^[0-9a-f]{40}$/u.test(sha));
+    } catch {
+      return { branch, head: current, commits: [] };
+    }
+    return {
+      branch,
+      head: current,
+      commits: shas.slice(-MAX_RECORDED_COMMITS).map((sha) => commitSummary(root, sha)),
+    };
+  };
+
   const prepareTurn = (
     botSlug: string,
     sessionId: string,
@@ -1062,6 +1157,13 @@ export function createMemoryAcceptance(options: {
     }
     void options;
     const observation = scanChanges(botSlug);
+    try {
+      advanceCommitCursor(botSlug, branchOf(root), head(root));
+    } catch (error) {
+      warn?.(
+        `memory-commit-cursor-failed phase=prepare bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+      );
+    }
     inFlight.set(botSlug, {
       sessionId,
       branch: JSON.parse(observation.observationJson).branch as string,
@@ -1243,6 +1345,8 @@ export function createMemoryAcceptance(options: {
     },
     prepareTurn,
     scanChanges,
+    pendingCommits,
+    advanceCommitCursor,
     preparedObservation(botSlug, sessionId) {
       const flight = inFlight.get(botSlug);
       if (flight?.sessionId !== sessionId || flight.observation === undefined) {
@@ -1423,6 +1527,7 @@ export function createMemoryAcceptance(options: {
       }
       return {
         sha,
+        subject: output(root, ['show', '--no-patch', '--format=%s', sha]).slice(0, 200),
         files,
         diff: output(
           root,

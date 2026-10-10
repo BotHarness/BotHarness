@@ -1,0 +1,15 @@
+# Matched static floor and menu comparison
+
+The before control and candidate both use checkout `7b1eba8c`, with built production code `774d9f66` and formal Avatar 0.10.0. Only the control's wrapper position is restored to the old left/bottom implementation; the candidate uses translate3d. A test-only geometry adapter also differs in the control and is not bundled. Source and compiled-bundle hashes were checked against the prepared pair. No newer main changes or artwork changes are included.
+
+Both revisions were launched sequentially through the isolated DSH helper with the same canonical Profile and existing Ada DM. Fresh native Chrome contexts pinned the actual Bot through the Channel header, paused movement and used native ArrowLeft keys to align x=8. Both share the same Avatar recipe hash and the same17message ID/body hash. No new message was injected or replay qualified. Chinese UI,960×640 and actual native light/dark themes match each screenshot pair.
+
+The static Avatar wrapper measures x8/y544/96×96, ending at the640px viewport floor. Off-character focus lets the toolbar fade to zero opacity. Shift+F10 opens the actual menu in its portal, with matching measured bounds inside the viewport. These checks cover one paused idle Bot and its menu; no general visual-equivalence or other interaction claim. Decoded RGBA hashes in qualification.json describe the captured screenshots only. Natural Avatar blink phase is not artificially controlled.
+
+The26.233s silent candidate recording continuously shows native menu opening/closing and the theme change. It is container-remuxed only. Raw browser reports and Host authentication remain private. Both owned browsers were closed, the old-layout Host stopped and the candidate Host restored to the same Profile. Console error count is zero in both captures.
+
+Attempt1 stopped at a conservative process guard: Get-Process reports100ns creation ticks while CIM truncates to microseconds. No Host was stopped and no capture from that attempt is used. The previous failed dark Settings selector remains retained/excluded; the successful capture verifies actual dark rendering directly. No performance profiling was started while the machine was busy.
+
+To reproduce, start the original-layout control and candidate with the same isolated Profile, using separate fresh browser contexts. At960×640 in Chinese, open Ada's DM, pin through the header, pause walking, focus the character and move left using ArrowLeft until x8. Focus the header Profile chip and check the toolbar fades out, then use Shift+F10 on the character and inspect the menu. Repeat with native dark preference. The source control's exact diff is the wrapper position plus the unbundled test adapter.
+
+Remaining: five companions, concurrent live messages/reading, dynamic projected anchors, resize, calibrated fast throw comparison, genuine background, unsupported/autoplay and matched performance with the stricter walking budget. Earlier Human motion and sound feedback stays separate. This artifact set does not finish issue1173 or1167 and grants no merge approval.

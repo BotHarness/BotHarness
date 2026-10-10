@@ -1,0 +1,87 @@
+{
+  "source": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+  "formalAvatar": "0.10.0",
+  "viewport": {
+    "width": 1559,
+    "height": 865,
+    "deviceScaleFactor": 1
+  },
+  "theme": "dark",
+  "locale": "zh-CN",
+  "method": "Actual DSH canonical Bot reply, native pin/sound UI and owning Host pause/resume; bounded observation of actual Web Audio calls during real Bot archive/resume, not audible playback or background qualification",
+  "canonicalReply": {
+    "characters": 2921,
+    "bodySha256": "ddf338096648fda6a71a2a4e9e872164d1f8cd848ea55b60484e67b34d621f7c",
+    "exactRequestedText": true
+  },
+  "playing": {
+    "archived": false,
+    "sync": "live",
+    "cards": 1,
+    "mouth": ["closed"],
+    "sourceStarts": 5,
+    "immediateStops": 0
+  },
+  "archived": {
+    "archived": true,
+    "sync": "live",
+    "cards": 0,
+    "mouth": ["saved"],
+    "sourceStarts": 11,
+    "immediateStops": 1
+  },
+  "archivedHeld": {
+    "archived": true,
+    "sync": "live",
+    "cards": 0,
+    "mouth": ["saved"],
+    "sourceStarts": 11,
+    "immediateStops": 1
+  },
+  "archivedObservedMilliseconds": 6165.0999999996275,
+  "archivedSamples": 120,
+  "resumed": {
+    "archived": false,
+    "sync": "live",
+    "cards": 0,
+    "mouth": ["saved"],
+    "sourceStarts": 11,
+    "immediateStops": 1
+  },
+  "resumedHeld": {
+    "archived": false,
+    "sync": "live",
+    "cards": 0,
+    "mouth": ["saved"],
+    "sourceStarts": 11,
+    "immediateStops": 1
+  },
+  "resumedObservedMilliseconds": 4231.300000000745,
+  "audioObservation": {
+    "events": 23,
+    "cap": 2500,
+    "outputModified": false,
+    "audiblePlaybackQualified": false
+  },
+  "sameDocument": true,
+  "cleanup": {
+    "botResumed": true,
+    "soundRestored": true,
+    "observerRemoved": true,
+    "browserClosed": true
+  },
+  "consoleErrors": 0,
+  "video": {
+    "seconds": 31.066,
+    "frames": 466,
+    "codec": "VP9",
+    "silent": true,
+    "containerRemuxOnly": true
+  },
+  "limits": [
+    "Actual foreground Host archive/resume, not genuine background, unsupported AudioContext or autoplay failure.",
+    "Native audio starts/stops are observed without modifying output; acoustic listening and complete retained-resource disposal are not inferred.",
+    "Screenshots are successive states of one fixed runtime, not a matched revision before/after pair.",
+    "No performance trace or heap snapshot was recorded during this flow."
+  ]
+}

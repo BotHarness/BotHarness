@@ -18,10 +18,12 @@ export interface TimelineWorkingRows {
 export function timelineWorkingRows(
   activity: ChannelComposerActivity | undefined,
   streamingBotSlugs: ReadonlySet<string>,
+  latestAuthorBotSlug?: string | undefined,
 ): TimelineWorkingRows {
   const active = (activity?.items ?? []).filter(
     (item) =>
-      (item.state === 'thinking' || item.state === 'working') &&
+      (item.state === 'working' ||
+        (item.state === 'thinking' && item.personaBotId !== latestAuthorBotSlug)) &&
       attentionCount(item.attention) === 0 &&
       !streamingBotSlugs.has(item.personaBotId),
   );
@@ -39,14 +41,18 @@ function rowActivity(
   return { ...rest, activeToolCount: 1 };
 }
 
-export function timelineWorkingRowsCover(activity: ChannelComposerActivity | undefined): boolean {
+export function timelineWorkingRowsCover(
+  activity: ChannelComposerActivity | undefined,
+  rows: TimelineWorkingRows,
+  streamingBotSlugs: ReadonlySet<string>,
+): boolean {
+  const shown = new Set(rows.items.map((item) => item.personaBotId));
   return (
     activity !== undefined &&
     activity.items.length > 0 &&
     activity.items.every(
       (item) =>
-        (item.state === 'thinking' || item.state === 'working') &&
-        attentionCount(item.attention) === 0 &&
+        (shown.has(item.personaBotId) || streamingBotSlugs.has(item.personaBotId)) &&
         (item.attention?.informationalCount ?? 0) === 0,
     )
   );

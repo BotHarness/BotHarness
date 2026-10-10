@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录 Windows 原生冷装中重复 localhost 开发刷新 SSE 导致进度不可见、显式刷新 opt-in、首窗口 CDP 就绪问题，以及 mark-of-web／隔离 binary 的实测结果，通过 DSH 0.2.0 RC1 与 Chrome 154.0.8037.57 核验（[#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)）。
+
 - 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录隔离 RC2 timed question 的前台／持续问题区别、原生稍后回答接口复验、原始应用卡片不兼容及实测发现的应用运行生命周期陷阱；生产 RC1、DSH／Cordis Context 与 Decision Tree 保持不变（[#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220), [report](../../../docs/research/1220-native-timed-question-experiment.md)）。
 
 - 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 RC1 原生 Human 等待持有当前 Agent Step、Inbox 接受与模型处理的区别，以及准确调用的决定／结果复验；DSH／Cordis Context 与 Decision Tree 保持不变（[#1036](https://github.com/BotHarness/DeepSeekBot/issues/1036), [#1220](https://github.com/BotHarness/DeepSeekBot/issues/1220)）。

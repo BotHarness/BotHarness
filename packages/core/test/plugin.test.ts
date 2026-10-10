@@ -409,6 +409,7 @@ describe('plugin entry', () => {
       'channelMarkAllRead',
       'channelAllBotPreview',
       'channelSend',
+      'channelSendStatus',
       'botAttention',
       'botSourcePolicies',
       'botSourcePolicySet',
