@@ -75,6 +75,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Profile token-usage cards keep missing-provider-usage explanations behind an info icon beside the title, available on hover, keyboard focus or click instead of taking up space in the card ([#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)).
+
 - CLI secret edits validate actual YAML on disk and restore the original file on failure; empty inline refs and multiline values work, and secret-bearing arguments fail without echoing their values ([#1347](https://github.com/BotHarness/DeepSeekBot/issues/1347)).
 
 - Bot Browser's first background tab can open before Chrome's startup window is ready, and local Web users see download progress while it installs; the extra development refresh connection now requires `?botharness-dev-reload=1` ([#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)).
