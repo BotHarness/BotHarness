@@ -11,6 +11,8 @@ BotHarness is a plugin layer inside DSH: unit tests do not cover the real boot. 
 
 After every isolated launch, Client reload and relevant UI action, read the real browser console and DOM yourself before accepting the result; do not wait for Human-copied errors. Read [the Client diagnostic loop](../../../docs/dev/guides/client-startup-diagnostics.md) for the agent-runnable reader, bounded attempt history, background-tab/freshness limits and native RC1 reproductions. Treat API health, Client shell evidence and browser-control failures as separate signals. Preserve first failure and each retry; recovery by reload does not establish a fix.
 
+Ordinary localhost pages do not open the application-defined development-refresh SSE. Add `?botharness-dev-reload=1` only while iterating on Client builds, then remove it for first-run or long-request UX verification.
+
 ## Prime directive: `/api` belongs to the API gateway
 
 The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). The route and its **single interceptor** are owned by `@deepseek-ai/dsh-api-gateway`, which claims endpoints from the **typert registry** (all native controllers register there).
@@ -29,7 +31,7 @@ node scripts/dev-instance.mjs --home /tmp/bh-020-web --port 31967 --json
 corepack pnpm dev:client
 ```
 
-The launch summary includes the Host PID and local login URL. For Client edits, open the local Web tab: tsdown rebuilds the linked Client bundle, and the local development listener refreshes the page when the RC publishes a rebuilt frame. The Desktop Client HMR stream replaces the linked `@botharness/ui` Fiber; BotHarness hands off the active Bot/Channel selection during replacement. The Web development listener retains a full-page refresh fallback. For Host edits, build, stop that exact PID, then start the helper again with the same home and port; Host hot replacement is disabled in the pinned RC. Follow `docs/client-bridge.md` §7 for the complete steps and measured timings.
+The launch summary includes the Host PID and local login URL. For Client edits, open the local Web tab with `?botharness-dev-reload=1`: tsdown rebuilds the linked Client bundle, and the opted-in development listener refreshes the page when the RC publishes a rebuilt frame. The Desktop Client HMR stream replaces the linked `@botharness/ui` Fiber; BotHarness hands off the active Bot/Channel selection during replacement. The Web development listener retains a full-page refresh fallback. For Host edits, build, stop that exact PID, then start the helper again with the same home and port; Host hot replacement is disabled in the pinned RC. Follow `docs/client-bridge.md` §7 for the complete steps and measured timings.
 
 The helper injects a shared machine-local DeepSeek key when available; `node scripts/dev-secret.mjs check` reports its source without a value. Existing Profile credentials are another DSH source. Confirm model access with a real DM reply. `node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>` copies only the DeepSeek reference into a private local file for later isolated Profiles.
 
@@ -144,5 +146,11 @@ Pre-execution refusal can leave an application-owned Session ID without a DSH Se
 ## Additional verified pitfall — #1138
 
 A new root overlay must budget its long-lived Connection Fetch streams with existing pages. In official DSH 0.2.0 RC1 Windows Web, adding a separate companion SSE alongside the Bot-mode Activity, Channel and roster consumers left real DM sending pending until Bot mode exited. Reusing the companion's full Activity snapshot for the shared Client Activity store and closing the redundant Activity SSE restored three genuine DM submissions within Bot mode. The symptom is consistent with the per-origin HTTP/1 connection limit; an exact wire connection count was not measured. Validate an actual DM reply while both the overlay and owning page remain visible. On removal, restore ordinary Activity demand; keep listener/frame/heartbeat disposal bounded and never weaken authentication to work around the symptom.
+
+## Additional verified pitfalls — #1339
+
+On native Windows 11 with DSH 0.2.0 RC1, a real pinned Chrome cold download produced Host progress while the panel's observation took about 81 seconds and showed only Opening. Separate authenticated observations returned bytes immediately. Making the duplicate localhost development-refresh SSE opt-in restored panel percent/MB and 4–5ms observation responses during another real cold download. Preserve ordinary Bot-mode streams and native admission; do not add another progress SSE or treat successful Host polling as Client evidence.
+
+Pinned Chrome 154.0.8037.57 can expose DevTools before its first window exists on a fresh Windows browser profile. Explicit `Target.createTarget(newWindow: false)` then refuses with `Failed to open new tab - no browser is open` (a CDP response, not stderr). Omit `newWindow` for background tabs so Chrome selects an existing window or creates the first one, retaining `background: true` and `focus: false`; verify with the real fallback E2E. A task-owned binary marked `Zone.Identifier` / `ZoneId=3` spawned successfully, while moving it immediately before native spawn produced ENOENT / errno -4058 and the existing startup-spawn-failed cause/action panel. These observations do not justify a new Windows stderr kind or a claim that every antivirus behaves the same.
 
 Provider configuration must be checked against the composed production Controller, not only its bare class. In #1111, dsh-im workspace decoration attached asynchronous catalogs to `registrationStatus()`: the native QR had been generated, but setup reported `setup-failed` when it read a Promise as status. Await the public Controller result and exercise the actual wrapper plus async catalogs through the public setup transport. Verify generation/poll/cancel again in the packaged Host; this does not qualify a new platform pairing.
