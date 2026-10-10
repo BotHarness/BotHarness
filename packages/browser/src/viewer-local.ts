@@ -290,6 +290,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
     }
     void (async () => {
+      say('requesting takeover…');
       const readTakeover = async () => {
         try {
           const response = await fetch('/api/browser/observation?slug=' + encodeURIComponent(slug), {
@@ -320,16 +321,23 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       };
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const before = await readTakeover();
-      if (before === undefined) return;
+      if (before === undefined) {
+        say('takeover status unavailable');
+        return;
+      }
       if (!before.taken) {
         await sleep(1500);
         const current = await readTakeover();
         if (current === undefined || current.taken) {
           if (current !== undefined) paintTakeover(true);
+          say('');
           return;
         }
-        if (await flipTakeover(true)) paintTakeover(true);
-        else say('takeover unavailable');
+        say('taking over…');
+        if (await flipTakeover(true)) {
+          paintTakeover(true);
+          say('');
+        } else say('takeover unavailable');
         return;
       }
       if (before.pending) {
@@ -342,8 +350,11 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         if (current !== undefined) paintTakeover(false);
         return;
       }
-      if (await flipTakeover(false)) paintTakeover(false);
-      else say('release unavailable');
+      say('releasing…');
+      if (await flipTakeover(false)) {
+        paintTakeover(false);
+        say('');
+      } else say('release unavailable');
     })();
   });
   void (async () => {
