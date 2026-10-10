@@ -121,7 +121,7 @@ node scripts/dev-instance.mjs --home /tmp/bh-020-web --port 31967 --json
 corepack pnpm dev:client
 ```
 
-- 启动器从 Web 模板创建 Profile，将 Core、Client、Computer 和 DeepSeekBot 本地链接；`dsh.profile.bundles` 包含 umbrella Bundle `deepseekbot` 与独立的 `@botharness/computer`（开发实例默认开启，产品侧仍按 ADR-0050 作为可选包）。它检查认证 API Gateway，JSON 摘要包含进程 PID、健康状态和本地登录 URL。登录 URL 仅用于本机浏览器，不写入 Issue 或日志。
+- 启动器从 Web 模板创建 Profile，将 Core、Client、Browser、Computer 和 DeepSeekBot 本地链接；`dsh.profile.bundles` 只包含 umbrella Bundle `deepseekbot`（Browser 与 Computer 由同一 Bundle Patch 激活，不再是独立 Bundle）。它检查认证 API Gateway，JSON 摘要包含进程 PID、健康状态和本地登录 URL。登录 URL 仅用于本机浏览器，不写入 Issue 或日志。
 - 在本机打开登录 URL，运行 `pnpm dev:client` 后，Client bundle 改动会自动构建。Web Profile 使用本机开发监听器在 `rebuilt` 事件后整页刷新，需重新进入 Bot mode；官方 Desktop 则由 DSH Client HMR 替换 `@botharness/ui` Fiber，BotHarness 仅暂存当前 Bot/Channel 选择并在新 Fiber 就绪后恢复同一 DM。此视图状态不持久化；一般 UI 改动无需重启 Host。
 - Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。Host 热替换当前关闭（0.1.7 RC2 实测；0.2.0 RC1 未复验，仍按重启处理）；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
 - 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。

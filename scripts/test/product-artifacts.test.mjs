@@ -7,6 +7,7 @@ import { productManifest, productImProvider, providerManifest } from '../product
 import {
   packagedProfileManifest,
   packagedWorkspaceSettings,
+  productAllowBuilds,
   verifiedProductArtifacts,
   verifyProductComposition,
   parseProductComposition,
@@ -32,6 +33,8 @@ function artifactSet(version = '0.0.0-test.823') {
   temporary.push(root);
   const artifacts = [
     'deepseekbot',
+    '@botharness/browser',
+    '@botharness/computer',
     '@botharness/core',
     '@botharness/ui',
     productImProvider.name,
@@ -88,16 +91,20 @@ describe('packaged product selection', () => {
     expect(saved.dependencies).toEqual({ other: '1.0.0' });
   });
 
-  it.each(['@xmanrui/dsh-im', productImProvider.name, '@botharness/core', '@botharness/ui'])(
-    'refuses a conflicting standalone %s before overwriting existing configuration',
-    (name) => {
-      const saved = { dsh: { profile: { bundles: [name] } }, untouched: 'retain' };
-      expect(() => packagedProfileManifest(saved, '/not-needed')).toThrow(
-        /remove its Bundle entry, retain credentials\/history/,
-      );
-      expect(saved).toEqual({ dsh: { profile: { bundles: [name] } }, untouched: 'retain' });
-    },
-  );
+  it.each([
+    '@xmanrui/dsh-im',
+    productImProvider.name,
+    '@botharness/browser',
+    '@botharness/computer',
+    '@botharness/core',
+    '@botharness/ui',
+  ])('refuses a conflicting standalone %s before overwriting existing configuration', (name) => {
+    const saved = { dsh: { profile: { bundles: [name] } }, untouched: 'retain' };
+    expect(() => packagedProfileManifest(saved, '/not-needed')).toThrow(
+      /remove its Bundle entry, retain credentials\/history/,
+    );
+    expect(saved).toEqual({ dsh: { profile: { bundles: [name] } }, untouched: 'retain' });
+  });
 
   it('refuses changed tarballs instead of installing an artifact with stale qualification', () => {
     const { root, artifacts } = artifactSet();
@@ -108,20 +115,35 @@ describe('packaged product selection', () => {
   it('places artifact substitution in pnpm 12 settings and preserves unrelated build policy', () => {
     const { root } = artifactSet();
     const source =
-      '# owned Profile\npackages: [.]\nautoInstallPeers: false\nallowBuilds:\n  reviewed: true\n  other: false\noverrides:\n  unrelated: 1.0.0\n';
+      '# owned Profile\npackages: [.]\nautoInstallPeers: false\nallowBuilds:\n  reviewed: true\n  other: false\n  agent-browser: true\noverrides:\n  unrelated: 1.0.0\n';
     const result = packagedWorkspaceSettings(source, root);
     expect(result).toContain('# owned Profile');
-    expect(parse(result)).toMatchObject({
+    const settings = parse(result);
+    expect(settings).toMatchObject({
       autoInstallPeers: false,
       allowBuilds: { reviewed: true, other: false },
       overrides: { unrelated: '1.0.0' },
     });
+    // The packaged Profile carries the workspace build adjudication so pnpm
+    // 12 does not refuse the Browser dependency tree, while explicit Profile
+    // entries keep precedence.
+    expect(settings.allowBuilds['agent-browser']).toBe(true);
+    expect(settings.allowBuilds['esbuild']).toBe(true);
+    expect(settings.allowBuilds['protobufjs']).toBe(false);
+    expect(packagedWorkspaceSettings('packages: [.]\n', root)).toContain('agent-browser: false');
     expect(
       parse(result).overrides[`${productImProvider.name}@${productImProvider.version}`],
     ).toMatch(/^file:.*\.tgz$/);
     expect(() => packagedWorkspaceSettings('packages: [', root)).toThrow(
       'invalid Profile workspace settings',
     );
+  });
+
+  it('keeps the packaged build policy in lockstep with the workspace root', () => {
+    const workspace = parse(
+      readFileSync(new URL('../../pnpm-workspace.yaml', import.meta.url), 'utf8'),
+    );
+    expect(productAllowBuilds).toEqual(workspace.allowBuilds);
   });
 
   it('refuses duplicate, missing, mismatched-version or escaping artifact entries', () => {
@@ -157,6 +179,9 @@ describe('release composition', () => {
       { id: 'xmanrui-dsh-im', name: productImProvider.name },
       { id: 'botharness-core', name: '@botharness/core' },
       { id: 'botharness-client', name: '@botharness/ui' },
+      { id: 'botharness-browser', name: '@botharness/browser' },
+      { id: 'computer-use', name: '@deepseek-ai/dsh-computer-use' },
+      { id: 'botharness-computer', name: '@botharness/computer' },
     ];
     expect(() => verifyProductComposition(entries)).not.toThrow();
     expect(() =>
@@ -165,14 +190,14 @@ describe('release composition', () => {
     expect(() =>
       verifyProductComposition([...entries, { id: 'legacy', name: '@xmanrui/dsh-im' }]),
     ).toThrow('Standalone upstream');
-    expect(() => verifyProductComposition(entries.slice(1))).toThrow('all three');
+    expect(() => verifyProductComposition(entries.slice(1))).toThrow('all six');
     expect(() =>
       verifyProductComposition([{ ...entries[0], disabled: true }, ...entries.slice(1)]),
     ).toThrow('conflicts');
   });
   it('reads native JS tags as data and refuses dynamic component disabling without evaluating code', () => {
     const entries = parseProductComposition(
-      "- id: unrelated\n  name: native\n  disabled: !!js 'throw new Error(\"must not execute\")'\n- id: xmanrui-dsh-im\n  name: '@botharness/im-provider'\n- id: botharness-core\n  name: '@botharness/core'\n- id: botharness-client\n  name: '@botharness/ui'\n",
+      "- id: unrelated\n  name: native\n  disabled: !!js 'throw new Error(\"must not execute\")'\n- id: xmanrui-dsh-im\n  name: '@botharness/im-provider'\n- id: botharness-core\n  name: '@botharness/core'\n- id: botharness-client\n  name: '@botharness/ui'\n- id: botharness-browser\n  name: '@botharness/browser'\n- id: computer-use\n  name: '@deepseek-ai/dsh-computer-use'\n- id: botharness-computer\n  name: '@botharness/computer'\n",
     );
     expect(entries[0].disabled.__jsExpr).toContain('must not execute');
     expect(() => verifyProductComposition(entries)).not.toThrow();
@@ -191,6 +216,8 @@ describe('release composition', () => {
     const release = productManifest(source, '0.0.0-test.823');
     expect(release.private).toBeUndefined();
     expect(release.dependencies).toEqual({
+      '@botharness/browser': '0.0.0-test.823',
+      '@botharness/computer': '0.0.0-test.823',
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
       '@botharness/im-provider': '4.32.0-botharness.17',

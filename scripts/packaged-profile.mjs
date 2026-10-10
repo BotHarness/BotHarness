@@ -12,6 +12,9 @@ export function verifyProductComposition(entries) {
     ['xmanrui-dsh-im', productImProvider.name],
     ['botharness-core', '@botharness/core'],
     ['botharness-client', '@botharness/ui'],
+    ['botharness-browser', '@botharness/browser'],
+    ['computer-use', '@deepseek-ai/dsh-computer-use'],
+    ['botharness-computer', '@botharness/computer'],
   ]);
   const found = new Map();
   const names = new Set(expected.values());
@@ -42,7 +45,7 @@ export function verifyProductComposition(entries) {
   }
   visit(entries);
   if (found.size !== expected.size)
-    throw new Error('Product Patch did not activate all three qualified components');
+    throw new Error('Product Patch did not activate all six qualified components');
 }
 
 export function parseProductComposition(source) {
@@ -53,10 +56,27 @@ export function parseProductComposition(source) {
 
 const PRODUCT_PACKAGES = new Set([
   'deepseekbot',
+  '@botharness/browser',
+  '@botharness/computer',
   '@botharness/core',
   '@botharness/ui',
   productImProvider.name,
 ]);
+
+// Mirrors the workspace root pnpm-workspace.yaml allowBuilds adjudication so
+// packaged Profiles install the same dependency tree with the same build
+// policy. scripts/test/product-artifacts.test.mjs fails on drift.
+export const productAllowBuilds = {
+  esbuild: true,
+  workerd: true,
+  puppeteer: true,
+  '@deepseek-ai/dsh-subprocess-local': true,
+  '@google/genai': false,
+  koffi: true,
+  'node-pty': true,
+  protobufjs: false,
+  'agent-browser': false,
+};
 
 export function verifiedProductArtifacts(directory) {
   const root = resolve(directory);
@@ -102,6 +122,8 @@ export function packagedProfileManifest(manifest, directory) {
   for (const standalone of [
     '@xmanrui/dsh-im',
     productImProvider.name,
+    '@botharness/browser',
+    '@botharness/computer',
     '@botharness/core',
     '@botharness/ui',
   ])
@@ -182,5 +204,10 @@ export function packagedWorkspaceSettings(source, directory) {
     overrides[`${artifact.name}@${artifact.version}`] =
       `file:${join(artifacts.directory, artifact.filename)}`;
   document.set('overrides', overrides);
+  // pnpm 12 refuses unapproved postinstall scripts. A packaged Profile
+  // installs the same dependency tree the workspace already adjudicated, so
+  // it carries the workspace build policy (agent-browser: false arrives with
+  // Browser); explicit Profile entries keep precedence.
+  document.set('allowBuilds', { ...productAllowBuilds, ...previous?.allowBuilds });
   return document.toString();
 }
