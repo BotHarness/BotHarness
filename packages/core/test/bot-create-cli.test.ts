@@ -765,3 +765,164 @@ describe('deepseekbot writer lease', () => {
     expect(after.code).toBe(0);
   });
 });
+
+describe('deepseekbot channels, grants, schedules, pairings', () => {
+  async function seedDm(home: string, slug: string, name: string): Promise<string> {
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    try {
+      const channels = createSqliteChannelStore({
+        database: attachOperationalModule(owner, 'messaging'),
+        rootDir: join(home, 'botharness', 'channels'),
+      });
+      const dm = channels.getOrCreateDm(slug, name)!;
+      await channels.appendMessage(dm.id, {
+        id: 'seed-one',
+        at: '2026-10-10T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'first',
+      });
+      await channels.appendMessage(dm.id, {
+        id: 'seed-two',
+        at: '2026-10-10T00:01:00.000Z',
+        author: { kind: 'human' },
+        body: 'second',
+      });
+      return dm.id;
+    } finally {
+      owner.close();
+    }
+  }
+
+  it('lists channels and reads messages with limit and before', async () => {
+    const home = createTempRoot('botharness-cli-channels-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const channelId = await seedDm(home, id, 'Ada');
+    const listed = await invoke(['channels'], home);
+    expect(listed.code).toBe(0);
+    expect(listed.json.channels.map((channel: { id: string }) => channel.id)).toContain(channelId);
+    const messages = await invoke(['channel-messages', channelId], home);
+    expect(messages.code).toBe(0);
+    expect(messages.json.messages.map((message: { id: string }) => message.id)).toEqual([
+      'seed-two',
+      'seed-one',
+    ]);
+    const limited = await invoke(['channel-messages', channelId, '--limit', '1'], home);
+    expect(limited.json.messages.map((message: { id: string }) => message.id)).toEqual([
+      'seed-two',
+    ]);
+    const before = await invoke(['channel-messages', channelId, '--before', 'seed-two'], home);
+    expect(before.json.messages.map((message: { id: string }) => message.id)).toEqual(['seed-one']);
+    const missing = await invoke(['channel-messages', 'dm-absent'], home);
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-channel');
+  });
+
+  it('lists grants and refuses unknown grants without a Host registry', async () => {
+    const home = createTempRoot('botharness-cli-grants-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const listed = await invoke(['grants', id], home);
+    expect(listed.code).toBe(0);
+    expect(listed.json.grants).toEqual([]);
+    const revoked = await invoke(['grant-revoke', id, '--grant', 'absent'], home);
+    expect(revoked.code).toBe(1);
+    expect(revoked.json.error.code).toBe('invalid-grant');
+    const writeSet = await invoke(['grant-write-set', id, '--grant', 'absent', '--enabled'], home);
+    expect(writeSet.code).toBe(1);
+    expect(writeSet.json.error.code).toBe('invalid-grant');
+    const noFlag = await invoke(['grant-write-set', id, '--grant', 'absent'], home);
+    expect(noFlag.code).toBe(2);
+    expect(noFlag.json.error.code).toBe('usage');
+    const missing = await invoke(['grants', 'bot-absent'], home);
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-bot');
+  });
+
+  it('runs the full schedule lifecycle and previews triggers', async () => {
+    const home = createTempRoot('botharness-cli-schedules-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const created = await invoke(
+      ['schedule-create', id, '--title', 'Ping', '--prompt', 'Say hi', '--every', '3600'],
+      home,
+    );
+    expect(created.code).toBe(0);
+    const sid = created.json.schedule.id as string;
+    const listed = await invoke(['schedules', id], home);
+    expect(listed.json.schedules.map((schedule: { id: string }) => schedule.id)).toEqual([sid]);
+    const updated = await invoke(['schedule-update', id, '--sid', sid, '--title', 'Pong'], home);
+    expect(updated.code).toBe(0);
+    expect(updated.json.schedule.title).toBe('Pong');
+    const history = await invoke(['schedule-history', id, '--sid', sid], home);
+    expect(history.json.firings).toEqual([]);
+    const fired = await invoke(['schedule-run-now', id, '--sid', sid], home);
+    expect(fired.code).toBe(0);
+    expect(fired.json.firing.trigger).toBe('manual');
+    const after = await invoke(['schedule-history', id, '--sid', sid], home);
+    expect(after.json.firings).toHaveLength(1);
+    const preview = await invoke(['schedule-preview', '--every', '3600'], home);
+    expect(preview.code).toBe(0);
+    expect(preview.json.occurrences.length).toBeGreaterThan(0);
+    const deleted = await invoke(['schedule-delete', id, '--sid', sid], home);
+    expect(deleted.code).toBe(0);
+    expect(deleted.json.removed).toBe(true);
+    const gone = await invoke(['schedules', id], home);
+    expect(gone.json.schedules).toEqual([]);
+  });
+
+  it('rejects bad triggers, unknown schedules, and unknown bots', async () => {
+    const home = createTempRoot('botharness-cli-schedule-errors-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const noTrigger = await invoke(['schedule-create', id, '--title', 'T', '--prompt', 'P'], home);
+    expect(noTrigger.code).toBe(2);
+    expect(noTrigger.json.error.code).toBe('usage');
+    const twoTriggers = await invoke(
+      [
+        'schedule-create',
+        id,
+        '--title',
+        'T',
+        '--prompt',
+        'P',
+        '--every',
+        '60',
+        '--cron',
+        '* * * * *',
+      ],
+      home,
+    );
+    expect(twoTriggers.code).toBe(2);
+    expect(twoTriggers.json.error.code).toBe('usage');
+    const noTimezone = await invoke(
+      ['schedule-create', id, '--title', 'T', '--prompt', 'P', '--daily', '09:00'],
+      home,
+    );
+    expect(noTimezone.code).toBe(2);
+    expect(noTimezone.json.error.code).toBe('usage');
+    const missing = await invoke(['schedule-delete', id, '--sid', 'absent'], home);
+    expect(missing.code).toBe(0);
+    expect(missing.json.removed).toBe(false);
+    const missingHistory = await invoke(['schedule-history', id, '--sid', 'absent'], home);
+    expect(missingHistory.code).toBe(1);
+    expect(missingHistory.json.error.code).toBe('unknown-schedule');
+    const noBot = await invoke(['schedules', 'bot-absent'], home);
+    expect(noBot.code).toBe(1);
+    expect(noBot.json.error.code).toBe('unknown-bot');
+    const noId = await invoke(['schedule-delete', id], home);
+    expect(noId.code).toBe(2);
+    expect(noId.json.error.code).toBe('usage');
+  });
+
+  it('lists empty pairings for a fresh bot and refuses unknown bots', async () => {
+    const home = createTempRoot('botharness-cli-pairings-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const listed = await invoke(['pairings', bot.json.bot.id], home);
+    expect(listed.code).toBe(0);
+    expect(listed.json.pairings).toEqual([]);
+    const missing = await invoke(['pairings', 'bot-absent'], home);
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-bot');
+  });
+});

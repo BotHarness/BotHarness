@@ -6,6 +6,20 @@ import { parseArgs } from 'node:util';
 
 import { dmChannelId } from '../channels/channel.js';
 import { createSqliteChannelStore } from '../channels/sqlite-store.js';
+import { createBotPairing } from '../messaging/pairing.js';
+import {
+  BotScheduleError,
+  createBotScheduleStore,
+  previewBotScheduleTrigger,
+  type BotSchedule,
+  type BotScheduleFiring,
+  type BotScheduleTrigger,
+} from '../schedules/bot-schedules.js';
+import {
+  createWorkspaceGrantStore,
+  WorkspaceGrantError,
+  type WorkspaceGrant,
+} from '../workspaces/grants.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../database/schema-plan.js';
 import {
   attachOperationalModule,
@@ -102,6 +116,21 @@ Usage:
   deepseekbot memory-diff <id> --sha <commit> [--home <dsh-home>]
   deepseekbot memory-save <id> --path <file> (--body <text> | --body-stdin)
                              [--expected-head <sha>] [--edit-id <id>] [--home <dsh-home>]
+  deepseekbot channels [--home <dsh-home>]
+  deepseekbot channel-messages <channel> [--limit <n>] [--before <id>] [--home <dsh-home>]
+  deepseekbot grants <id> [--home <dsh-home>]
+  deepseekbot grant-revoke <id> --grant <grant> [--home <dsh-home>]
+  deepseekbot grant-write-set <id> --grant <grant> (--enabled | --disabled) [--home <dsh-home>]
+  deepseekbot schedules <id> [--home <dsh-home>]
+  deepseekbot schedule-create <id> --title <t> --prompt <p> (--every <s> | --daily <HH:MM> |
+                                  --weekly <HH:MM> --weekdays <0-6,..> | --once-date <d> --once-time <t> |
+                                  --cron <expr>) [--timezone <tz>] [--enabled|--disabled] [--locked] [--home <dsh-home>]
+  deepseekbot schedule-update <id> --sid <schedule> [--title ...] [--prompt ...] [trigger ...] [--home <dsh-home>]
+  deepseekbot schedule-delete <id> --sid <schedule> [--home <dsh-home>]
+  deepseekbot schedule-history <id> --sid <schedule> [--home <dsh-home>]
+  deepseekbot schedule-run-now <id> --sid <schedule> [--home <dsh-home>]
+  deepseekbot schedule-preview (--every <s> | --daily ... | ...) [--home <dsh-home>]
+  deepseekbot pairings <id> [--home <dsh-home>]
   deepseekbot --help | deepseekbot create --help
 
 Sources (exactly one per create):
@@ -255,6 +284,23 @@ const CREATE_OPTIONS = {
   'edit-id': { type: 'string' },
   limit: { type: 'string' },
   sha: { type: 'string' },
+  before: { type: 'string' },
+  grant: { type: 'string' },
+  enabled: { type: 'boolean' },
+  disabled: { type: 'boolean' },
+  locked: { type: 'boolean' },
+  unlocked: { type: 'boolean' },
+  title: { type: 'string' },
+  prompt: { type: 'string' },
+  sid: { type: 'string' },
+  every: { type: 'string' },
+  daily: { type: 'string' },
+  weekly: { type: 'string' },
+  weekdays: { type: 'string' },
+  'once-date': { type: 'string' },
+  'once-time': { type: 'string' },
+  cron: { type: 'string' },
+  timezone: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -1378,6 +1424,472 @@ function runChannelHumanNameSet(
   }
 }
 
+function openSchedules(owner: OperationalDatabaseOwner, registry: PersonaBotRegistry) {
+  return createBotScheduleStore({
+    database: attachOperationalModule(owner, 'bot-schedules'),
+    isBotActive: (botSlug) => {
+      const bot = registry.get(botSlug);
+      return bot !== undefined && bot.paused !== true;
+    },
+    onAdmitted: () => {},
+  });
+}
+
+function openGrants(owner: OperationalDatabaseOwner) {
+  return createWorkspaceGrantStore({
+    database: attachOperationalModule(owner, 'workspace-grants'),
+    workspaces: () => undefined,
+  });
+}
+
+function scheduleFailure(error: unknown): never {
+  if (error instanceof BotScheduleError) {
+    if (error.code === 'not-found') {
+      throw new CliFailure('unknown-schedule', error.message, 1);
+    }
+    throw new CliFailure(error.code, error.message, 1);
+  }
+  throw error;
+}
+
+function grantFailure(error: unknown): never {
+  if (error instanceof WorkspaceGrantError) {
+    throw new CliFailure(error.code, error.message, 1);
+  }
+  throw error;
+}
+
+function requireBotRecord(registry: PersonaBotRegistry, slug: string): PersonaBotRecord {
+  const record = registry.get(slug.trim());
+  if (record === undefined) {
+    throw new CliFailure('unknown-bot', `Unknown bot: ${slug.trim()}`, 1);
+  }
+  return record;
+}
+
+function runChannels(
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { channels: Array<{ id: string; type: string; name: string; botSlug?: string }> } {
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const channels = openChannels(dshHome, owner, registry);
+    return {
+      channels: channels.list().map((channel) => ({
+        id: channel.id,
+        type: channel.type,
+        name: channel.name,
+        ...(channel.botSlug === undefined ? {} : { botSlug: channel.botSlug }),
+      })),
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runChannelMessages(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { channel: { id: string }; messages: unknown[] } {
+  const channelId = id.trim();
+  if (channelId.length === 0) throw usageError('channel-messages needs exactly one channel id.');
+  const rawLimit = trimmed(values.limit);
+  let limit: number | undefined;
+  if (rawLimit !== undefined) {
+    if (!/^[0-9]+$/u.test(rawLimit) || Number(rawLimit) < 1) {
+      throw usageError('--limit must be a positive whole number.');
+    }
+    limit = Number(rawLimit);
+  }
+  const before = trimmed(values.before);
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const channels = openChannels(dshHome, owner, registry);
+    if (channels.get(channelId) === undefined) {
+      throw new CliFailure('unknown-channel', `Unknown channel: ${channelId}`, 1);
+    }
+    return {
+      channel: { id: channelId },
+      messages: channels.readMessages(channelId, {
+        ...(limit === undefined ? {} : { limit }),
+        ...(before === undefined ? {} : { before }),
+      }),
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runGrants(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; grants: WorkspaceGrant[] } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('grants needs exactly one bot id.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    return {
+      bot: memoryBot(record),
+      grants: openGrants(owner).list(record.slug),
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runGrantRevoke(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; grant: WorkspaceGrant } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('grant-revoke needs exactly one bot id.');
+  const grantId = trimmed(values.grant);
+  if (grantId === undefined) throw usageError('--grant is required for grant-revoke.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const grant = openGrants(owner).revoke(record.slug, grantId);
+      io.stderr(`deepseekbot: revoked grant ${grantId} for ${record.slug}`);
+      return { bot: memoryBot(record), grant };
+    } catch (error) {
+      grantFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runGrantWriteSet(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; grant: WorkspaceGrant } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('grant-write-set needs exactly one bot id.');
+  const grantId = trimmed(values.grant);
+  if (grantId === undefined) throw usageError('--grant is required for grant-write-set.');
+  const enabled = values.enabled === true;
+  const disabled = values.disabled === true;
+  if (enabled === disabled) {
+    throw usageError('grant-write-set needs --enabled or --disabled, not both or neither.');
+  }
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const grant = openGrants(owner).setOrchestratorWrite(record.slug, grantId, enabled);
+      io.stderr(
+        `deepseekbot: set orchestrator write ${enabled ? 'on' : 'off'} for grant ${grantId}`,
+      );
+      return { bot: memoryBot(record), grant };
+    } catch (error) {
+      grantFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function parseTrigger(values: CreateValues): BotScheduleTrigger | undefined {
+  const every = trimmed(values.every);
+  const daily = trimmed(values.daily);
+  const weekly = trimmed(values.weekly);
+  const onceDate = trimmed(values['once-date']);
+  const onceTime = trimmed(values['once-time']);
+  const cron = trimmed(values.cron);
+  const selected = [
+    every === undefined ? 0 : 1,
+    daily === undefined ? 0 : 1,
+    weekly === undefined ? 0 : 1,
+    onceDate === undefined ? 0 : 1,
+    cron === undefined ? 0 : 1,
+  ].reduce((total, count) => total + count, 0);
+  if (selected === 0) return undefined;
+  if (selected > 1) {
+    throw usageError(
+      'Pass exactly one schedule trigger: --every, --daily, --weekly, --once-date, or --cron.',
+    );
+  }
+  const timeZone = trimmed(values.timezone);
+  if (every !== undefined) {
+    if (!/^[0-9]+$/u.test(every) || Number(every) < 1) {
+      throw usageError('--every must be a positive whole number of seconds.');
+    }
+    return { kind: 'every', everySeconds: Number(every) };
+  }
+  if (timeZone === undefined) {
+    throw usageError('--timezone is required for calendar triggers.');
+  }
+  if (daily !== undefined) return { kind: 'daily', time: daily, timeZone };
+  if (weekly !== undefined) {
+    const weekdays = trimmed(values.weekdays);
+    if (weekdays === undefined) throw usageError('--weekdays is required for --weekly.');
+    const days = weekdays.split(',').map((day) => day.trim());
+    if (
+      days.length === 0 ||
+      days.some((day) => !/^[0-9]+$/u.test(day) || Number(day) < 0 || Number(day) > 6)
+    ) {
+      throw usageError('--weekdays must be comma-separated days 0-6.');
+    }
+    return { kind: 'weekly', time: weekly, timeZone, weekdays: days.map(Number) };
+  }
+  if (onceDate !== undefined) {
+    if (onceTime === undefined) throw usageError('--once-time is required for --once-date.');
+    return { kind: 'once', date: onceDate, time: onceTime, timeZone };
+  }
+  return { kind: 'cron', expression: cron!, timeZone };
+}
+
+function enabledFlag(
+  values: CreateValues,
+  on: 'enabled' | 'locked',
+  off: 'disabled' | 'unlocked',
+): boolean | undefined {
+  const isOn = values[on] === true;
+  const isOff = values[off] === true;
+  if (isOn && isOff) throw usageError(`Pass --${on} or --${off}, not both.`);
+  if (isOn) return true;
+  if (isOff) return false;
+  return undefined;
+}
+
+function runSchedules(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; schedules: BotSchedule[] } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedules needs exactly one bot id.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    return {
+      bot: memoryBot(record),
+      schedules: openSchedules(owner, registry).list(record.slug),
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runScheduleCreate(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; schedule: BotSchedule } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedule-create needs exactly one bot id.');
+  const title = trimmed(values.title);
+  const prompt = trimmed(values.prompt);
+  if (title === undefined || prompt === undefined) {
+    throw usageError('--title and --prompt are required for schedule-create.');
+  }
+  const trigger = parseTrigger(values);
+  if (trigger === undefined) throw usageError('schedule-create needs a trigger flag.');
+  const enabled = enabledFlag(values, 'enabled', 'disabled');
+  const locked = enabledFlag(values, 'locked', 'unlocked');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const schedule = openSchedules(owner, registry).create(
+        record.slug,
+        {
+          title,
+          prompt,
+          trigger,
+          ...(enabled === undefined ? {} : { enabled }),
+          ...(locked === undefined ? {} : { locked }),
+        },
+        'human',
+      );
+      io.stderr(`deepseekbot: created schedule ${schedule.id} for ${record.slug}`);
+      return { bot: memoryBot(record), schedule };
+    } catch (error) {
+      scheduleFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runScheduleUpdate(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; schedule: BotSchedule } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedule-update needs exactly one bot id.');
+  const scheduleId = trimmed(values.sid);
+  if (scheduleId === undefined) throw usageError('--sid is required for schedule-update.');
+  const title = trimmed(values.title);
+  const prompt = trimmed(values.prompt);
+  const trigger = parseTrigger(values);
+  const enabled = enabledFlag(values, 'enabled', 'disabled');
+  const locked = enabledFlag(values, 'locked', 'unlocked');
+  if (
+    title === undefined &&
+    prompt === undefined &&
+    trigger === undefined &&
+    enabled === undefined &&
+    locked === undefined
+  ) {
+    throw usageError('schedule-update needs at least one change flag.');
+  }
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const schedule = openSchedules(owner, registry).update(
+        record.slug,
+        scheduleId,
+        {
+          ...(title === undefined ? {} : { title }),
+          ...(prompt === undefined ? {} : { prompt }),
+          ...(trigger === undefined ? {} : { trigger }),
+          ...(enabled === undefined ? {} : { enabled }),
+          ...(locked === undefined ? {} : { locked }),
+        },
+        'human',
+      );
+      io.stderr(`deepseekbot: updated schedule ${scheduleId} for ${record.slug}`);
+      return { bot: memoryBot(record), schedule };
+    } catch (error) {
+      scheduleFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runScheduleDelete(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; removed: boolean } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedule-delete needs exactly one bot id.');
+  const scheduleId = trimmed(values.sid);
+  if (scheduleId === undefined) throw usageError('--sid is required for schedule-delete.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const removed = openSchedules(owner, registry).remove(record.slug, scheduleId, 'human');
+      io.stderr(`deepseekbot: deleted schedule ${scheduleId} for ${record.slug}`);
+      return { bot: memoryBot(record), removed };
+    } catch (error) {
+      scheduleFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runScheduleHistory(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; firings: BotScheduleFiring[] } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedule-history needs exactly one bot id.');
+  const scheduleId = trimmed(values.sid);
+  if (scheduleId === undefined) throw usageError('--sid is required for schedule-history.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      return {
+        bot: memoryBot(record),
+        firings: openSchedules(owner, registry).history(record.slug, scheduleId),
+      };
+    } catch (error) {
+      scheduleFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runScheduleRunNow(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; firing: BotScheduleFiring } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('schedule-run-now needs exactly one bot id.');
+  const scheduleId = trimmed(values.sid);
+  if (scheduleId === undefined) throw usageError('--sid is required for schedule-run-now.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    try {
+      const firing = openSchedules(owner, registry).runNow(record.slug, scheduleId);
+      io.stderr(
+        `deepseekbot: recorded a manual firing for schedule ${scheduleId}; the Host executes it`,
+      );
+      return { bot: memoryBot(record), firing };
+    } catch (error) {
+      scheduleFailure(error);
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runSchedulePreview(values: CreateValues): {
+  trigger: BotScheduleTrigger;
+  occurrences: string[];
+} {
+  const trigger = parseTrigger(values);
+  if (trigger === undefined) throw usageError('schedule-preview needs a trigger flag.');
+  try {
+    return { trigger, occurrences: previewBotScheduleTrigger(trigger) };
+  } catch (error) {
+    if (error instanceof BotScheduleError) {
+      throw new CliFailure(error.code, error.message, 1);
+    }
+    throw error;
+  }
+}
+
+function runPairings(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string }; pairings: unknown[] } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('pairings needs exactly one bot id.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const record = requireBotRecord(registry, slug);
+    const pairing = createBotPairing(attachOperationalModule(owner, 'messaging'), (botSlug) => {
+      const bot = registry.get(botSlug);
+      return bot !== undefined && bot.paused !== true;
+    });
+    return { bot: memoryBot(record), pairings: pairing.list(record.slug) };
+  } finally {
+    owner.close();
+  }
+}
+
 export async function runBotCreateCli(
   argv: readonly string[],
   io: BotCreateCliIo,
@@ -1432,6 +1944,71 @@ export async function runBotCreateCli(
       io.stdout(JSON.stringify(runChannelHumanNameSet(rest[0]!, values, io), null, 2));
       return 0;
     }
+    if (command === 'channels') {
+      if (rest.length > 0) throw usageError('channels takes no bot id.');
+      io.stdout(JSON.stringify(runChannels(values, io), null, 2));
+      return 0;
+    }
+    if (command === 'channel-messages') {
+      if (rest.length !== 1) throw usageError('channel-messages needs exactly one channel id.');
+      io.stdout(JSON.stringify(runChannelMessages(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'grants') {
+      if (rest.length !== 1) throw usageError('grants needs exactly one bot id.');
+      io.stdout(JSON.stringify(runGrants(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'grant-revoke') {
+      if (rest.length !== 1) throw usageError('grant-revoke needs exactly one bot id.');
+      io.stdout(JSON.stringify(runGrantRevoke(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'grant-write-set') {
+      if (rest.length !== 1) throw usageError('grant-write-set needs exactly one bot id.');
+      io.stdout(JSON.stringify(runGrantWriteSet(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedules') {
+      if (rest.length !== 1) throw usageError('schedules needs exactly one bot id.');
+      io.stdout(JSON.stringify(runSchedules(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-create') {
+      if (rest.length !== 1) throw usageError('schedule-create needs exactly one bot id.');
+      io.stdout(JSON.stringify(runScheduleCreate(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-update') {
+      if (rest.length !== 1) throw usageError('schedule-update needs exactly one bot id.');
+      io.stdout(JSON.stringify(runScheduleUpdate(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-delete') {
+      if (rest.length !== 1) throw usageError('schedule-delete needs exactly one bot id.');
+      io.stdout(JSON.stringify(runScheduleDelete(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-history') {
+      if (rest.length !== 1) throw usageError('schedule-history needs exactly one bot id.');
+      io.stdout(JSON.stringify(runScheduleHistory(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-run-now') {
+      if (rest.length !== 1) throw usageError('schedule-run-now needs exactly one bot id.');
+      io.stdout(JSON.stringify(runScheduleRunNow(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'schedule-preview') {
+      if (rest.length > 0) throw usageError('schedule-preview takes no bot id.');
+      io.stdout(JSON.stringify(runSchedulePreview(values), null, 2));
+      return 0;
+    }
+    if (command === 'pairings') {
+      if (rest.length !== 1) throw usageError('pairings needs exactly one bot id.');
+      io.stdout(JSON.stringify(runPairings(rest[0]!, values, io), null, 2));
+      return 0;
+    }
     if (command === 'pause' || command === 'resume') {
       if (rest.length !== 1) throw usageError('pause and resume need exactly one bot id.');
       io.stdout(JSON.stringify(runPause(rest[0]!, command === 'pause', values, io), null, 2));
@@ -1445,12 +2022,6 @@ export async function runBotCreateCli(
     if (command === 'human-name-set') {
       if (rest.length > 0) throw usageError('human-name-set takes no positional arguments.');
       io.stdout(JSON.stringify(runHumanNameSet(values, io), null, 2));
-      return 0;
-    }
-    if (command === 'channel-human-name-set') {
-      if (rest.length !== 1)
-        throw usageError('channel-human-name-set needs exactly one channel id.');
-      io.stdout(JSON.stringify(runChannelHumanNameSet(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'memory-snapshot') {

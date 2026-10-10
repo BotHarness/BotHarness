@@ -24,6 +24,21 @@ deepseekbot resume <id> [--home <dsh-home>]
 deepseekbot update <id> [--name <name>] [--description <text>] [--role <tag> ...] [--home <dsh-home>]
 deepseekbot human-name-set (--name <text> | --clear) [--home <dsh-home>]
 deepseekbot channel-human-name-set <channel> (--nickname <text> | --clear) [--home <dsh-home>]
+deepseekbot channels [--home <dsh-home>]
+deepseekbot channel-messages <channel> [--limit <n>] [--before <id>] [--home <dsh-home>]
+deepseekbot grants <id> [--home <dsh-home>]
+deepseekbot grant-revoke <id> --grant <grant> [--home <dsh-home>]
+deepseekbot grant-write-set <id> --grant <grant> (--enabled | --disabled) [--home <dsh-home>]
+deepseekbot schedules <id> [--home <dsh-home>]
+deepseekbot schedule-create <id> --title <t> --prompt <p> (--every <s> | --daily <HH:MM> |
+                                --weekly <HH:MM> --weekdays <0-6,..> | --once-date <d> --once-time <t> |
+                                --cron <expr>) [--timezone <tz>] [--enabled|--disabled] [--locked] [--home <dsh-home>]
+deepseekbot schedule-update <id> --sid <schedule> [--title ...] [--prompt ...] [trigger ...] [--home <dsh-home>]
+deepseekbot schedule-delete <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-history <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-run-now <id> --sid <schedule> [--home <dsh-home>]
+deepseekbot schedule-preview (--every <s> | --daily ... | ...) [--home <dsh-home>]
+deepseekbot pairings <id> [--home <dsh-home>]
 ```
 
 每次创建只能指定一种来源。空白创建和 GitHub 导入必须传 `--name`；包导入时 `--name` 会覆盖 `.botharness/bot.json`（或文件名）中的名字。`--from-git` 接受完整 Git 地址（`https://`、`ssh://`、`git@host:path`）或 `owner/repo` 简写（即 `https://github.com/owner/repo.git`），Bot 市场条目可用其克隆地址走同一路径。`--from-dir` 会跳过 `.git` 下的文件，但存在时将其打包为历史记录。
@@ -63,6 +78,10 @@ Bot 名字只是标签，身份是 id。每次创建都会生成新的 Bot，重
 ## 生命周期与人类命名
 
 `pause`/`resume` 开关 Bot 的执行；`update` 改名改标签（`--name`、`--description`、`--role`，遵守 profile 标签/简介长度限制）。`human-name-set` 写人类显示名（`--clear` 重置），`channel-human-name-set` 写分 channel 人类昵称，用词与 CONTEXT.md 一致。未知 Bot/Channel 按错误码失败（`unknown-bot`、`unknown-channel`）。
+
+## Channel、授权、计划与配对
+
+`channels` 列出 Channel，`channel-messages` 读一页消息（从新到旧，`--limit`、`--before` 分页）。`grants` 列出 Bot 的 workspace 授权，`grant-revoke`/`grant-write-set` 管理它们；新建授权需要 Host 的 workspace 注册表，仍是 Host 侧动作。`schedules` 列出 Bot 的计划；`schedule-create` 要 `--title`、`--prompt` 和唯一一种触发器（`--every` 秒数、`--daily`/`--weekly` 时间加 `--weekdays`、`--once-date` 加 `--once-time`、`--cron`），日历触发器必须传 `--timezone`；`schedule-update`/`schedule-delete`/`schedule-history` 用 `--sid` 指定计划；`schedule-run-now` 记录一次手动触发，Host 启动后执行；`schedule-preview` 不指定 Bot、只渲染触发器的未来时刻。`pairings` 列出 Bot 的 IM 配对请求。不存在的计划报 `unknown-schedule`；删除返回 `removed`。
 
 ## Memory
 
