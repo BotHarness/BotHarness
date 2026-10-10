@@ -437,6 +437,29 @@ describe('deepseekbot model', () => {
     expect(listed.json).toEqual({ presets: [] });
   });
 
+  it('accepts Host-declared provider routes alongside catalog providers', async () => {
+    const home = createTempRoot('botharness-model-host-routes-');
+    for (const provider of ['deepseek-official', 'deepseek-account']) {
+      const created = await invoke(
+        [
+          'model-preset-create',
+          '--name',
+          `Host ${provider}`,
+          '--orchestrator-provider',
+          provider,
+          '--orchestrator-model',
+          'x',
+          '--assignment-provider',
+          provider,
+          '--assignment-model',
+          'x',
+        ],
+        home,
+      );
+      expect(created.code).toBe(0);
+    }
+  });
+
   it('refuses to apply a preset with an unknown provider and leaves the bot untouched', async () => {
     const home = createTempRoot('botharness-model-apply-provider-');
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
@@ -611,5 +634,24 @@ describe('deepseekbot memory', () => {
     const noPath = await invoke(['memory-file', bot.json.bot.id], home);
     expect(noPath.code).toBe(2);
     expect(noPath.json.error.code).toBe('usage');
+  });
+});
+
+describe('deepseekbot writer lease', () => {
+  it('fails coded while the Host holds the writer lease', async () => {
+    const home = createTempRoot('botharness-lease-');
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    try {
+      const listed = await invoke(['model-presets'], home);
+      expect(listed.code).toBe(1);
+      expect(listed.json.error.code).toBe('lease-unavailable');
+      const created = await invoke(['create', '--name', 'Ada'], home);
+      expect(created.code).toBe(1);
+      expect(created.json.error.code).toBe('lease-unavailable');
+    } finally {
+      owner.close();
+    }
+    const after = await invoke(['create', '--name', 'Ada'], home);
+    expect(after.code).toBe(0);
   });
 });

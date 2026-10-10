@@ -9,6 +9,7 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../database/schema-plan.js';
 import {
   attachOperationalModule,
   mountOperationalDatabase,
+  OperationalDatabaseError,
   type OperationalDatabaseOwner,
 } from '../database/owner.js';
 import { resolveDshHome } from '../im/config-store.js';
@@ -109,7 +110,8 @@ Machine contract:
   exits non-zero with {"error": {"code", "message"}} using a stable code
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
   unknown-bot, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
-  memory-unavailable, invalid-input). Human-readable lines go to stderr only.
+  memory-unavailable, lease-unavailable, invalid-input). Human-readable lines go to stderr only.
+  Stop the Host before targeting its home: the writer lease is exclusive.
 
 Models:
   model-presets lists the profile presets; model-preset-create mints one from
@@ -151,6 +153,8 @@ const STATIC_CATALOG_PROVIDER_IDS: ReadonlySet<string> = new Set([
   'cloudflare-ai-gateway',
   'cloudflare-workers-ai',
   'deepseek',
+  'deepseek-account',
+  'deepseek-official',
   'fireworks',
   'github-copilot',
   'google',
@@ -397,7 +401,24 @@ function openRegistry(dshHome: string): {
   owner: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
 } {
-  const owner = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  let owner: OperationalDatabaseOwner;
+  try {
+    owner = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  } catch (error) {
+    if (error instanceof OperationalDatabaseError) {
+      throw new CliFailure(error.code, error.message, 1);
+    }
+    throw error;
+  }
+  if (owner.mode !== 'ready') {
+    const recovery = owner.recovery;
+    owner.close();
+    throw new CliFailure(
+      recovery?.code ?? 'recovery-mode',
+      recovery?.message ?? 'The operational database is unavailable.',
+      1,
+    );
+  }
   const registry = createPersonaBotRegistry({
     rootDir: join(dshHome, 'botharness', 'bots'),
     database: owner,
@@ -1297,6 +1318,14 @@ export async function runBotCreateCli(
       io.stdout(JSON.stringify(failure, null, 2));
       io.stderr(`deepseekbot: ${error.message}`);
       return 2;
+    }
+    if (error instanceof OperationalDatabaseError) {
+      const failure: BotCreateFailure = {
+        error: { code: error.code, message: error.message },
+      };
+      io.stdout(JSON.stringify(failure, null, 2));
+      io.stderr(`deepseekbot: ${error.message}`);
+      return 1;
     }
     const failure: BotCreateFailure = {
       error: { code: 'internal-error', message: 'The command failed before producing a result.' },
