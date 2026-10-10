@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -924,5 +932,132 @@ describe('deepseekbot channels, grants, schedules, pairings', () => {
     const missing = await invoke(['pairings', 'bot-absent'], home);
     expect(missing.code).toBe(1);
     expect(missing.json.error.code).toBe('unknown-bot');
+  });
+});
+
+describe('deepseekbot secrets', () => {
+  const credentialFile = (home: string): string => join(home, '.credentials.yaml');
+  const backups = (home: string): string[] =>
+    readdirSync(home).filter((name) => name.startsWith('.credentials.yaml.bak-'));
+
+  it('puts, lists, and unsets a secret without ever echoing the value', async () => {
+    const home = createTempRoot('botharness-secrets-');
+    const put = await invoke(['secret-put', 'E2E_FAKE_KEY'], home, {}, 'fake-value-1');
+    expect(put.code).toBe(0);
+    expect(put.json.secret).toMatchObject({
+      name: 'E2E_FAKE_KEY',
+      configured: true,
+      source: 'file',
+      writable: true,
+    });
+    expect(put.stdout).not.toContain('fake-value-1');
+    expect(put.stderr).not.toContain('fake-value-1');
+    expect(readFileSync(credentialFile(home), 'utf8')).toContain('fake-value-1');
+    if (!process.platform.startsWith('win')) {
+      expect(statSync(credentialFile(home)).mode & 0o777).toBe(0o600);
+    }
+    const listed = await invoke(['secret-list'], home);
+    expect(listed.code).toBe(0);
+    expect(listed.json.secrets).toMatchObject([
+      { name: 'E2E_FAKE_KEY', configured: true, source: 'file', writable: true },
+    ]);
+    expect(listed.stdout).not.toContain('fake-value-1');
+    const overwrite = await invoke(['secret-put', 'E2E_FAKE_KEY'], home, {}, 'fake-value-2');
+    expect(overwrite.code).toBe(0);
+    expect(backups(home)).toHaveLength(1);
+    expect(readFileSync(credentialFile(home), 'utf8')).toContain('fake-value-2');
+    const removed = await invoke(['secret-unset', 'E2E_FAKE_KEY'], home);
+    expect(removed.code).toBe(0);
+    expect(removed.json.secret).toMatchObject({ name: 'E2E_FAKE_KEY', configured: false });
+    expect(readFileSync(credentialFile(home), 'utf8')).not.toContain('E2E_FAKE_KEY');
+    const empty = await invoke(['secret-list'], home);
+    expect(empty.json).toEqual({ secrets: [] });
+  });
+
+  it('reports environment overrides as read-only and keeps them on unset', async () => {
+    const home = createTempRoot('botharness-secrets-env-');
+    const put = await invoke(['secret-put', 'E2E_ENV_KEY'], home, {}, 'file-value');
+    expect(put.code).toBe(0);
+    const listed = await invoke(['secret-list'], home, { E2E_ENV_KEY: 'env-value' });
+    expect(listed.json.secrets).toMatchObject([
+      { name: 'E2E_ENV_KEY', configured: true, source: 'environment', writable: false },
+    ]);
+    expect(listed.stdout).not.toContain('env-value');
+    expect(listed.stdout).not.toContain('file-value');
+    const removed = await invoke(['secret-unset', 'E2E_ENV_KEY'], home, {
+      E2E_ENV_KEY: 'env-value',
+    });
+    expect(removed.code).toBe(0);
+    expect(removed.json.secret).toMatchObject({
+      name: 'E2E_ENV_KEY',
+      configured: true,
+      source: 'environment',
+      writable: false,
+    });
+  });
+
+  it('rejects bad names, empty values, and malformed stores', async () => {
+    const home = createTempRoot('botharness-secrets-errors-');
+    const badName = await invoke(['secret-put', 'has space'], home, {}, 'x');
+    expect(badName.code).toBe(1);
+    expect(badName.json.error.code).toBe('invalid-input');
+    const empty = await invoke(['secret-put', 'E2E_EMPTY'], home, {}, '');
+    expect(empty.code).toBe(1);
+    expect(empty.json.error.code).toBe('invalid-input');
+    const missing = await invoke(['secret-list'], home);
+    expect(missing.code).toBe(0);
+    expect(missing.json).toEqual({ secrets: [] });
+    writeFileSync(credentialFile(home), 'not: [valid, yaml\n');
+    const badPut = await invoke(['secret-put', 'E2E_X'], home, {}, 'x');
+    expect(badPut.code).toBe(1);
+    expect(badPut.json.error.code).toBe('bad-credentials');
+    const badList = await invoke(['secret-list'], home);
+    expect(badList.code).toBe(1);
+    expect(badList.json.error.code).toBe('bad-credentials');
+  });
+
+  it('refuses secret flags and wide-open files', async () => {
+    const home = createTempRoot('botharness-secrets-guard-');
+    const flagged = await invoke(['secret-list', '--token', 'sk-fake-9'], home);
+    expect(flagged.code).toBe(2);
+    expect(flagged.json.error.code).toBe('secret-in-argv');
+    expect(flagged.stdout).not.toContain('sk-fake-9');
+    if (process.platform.startsWith('win')) return;
+    writeFileSync(credentialFile(home), 'version: 1\n\nrefs:\n');
+    if (!process.platform.startsWith('win')) chmodSync(credentialFile(home), 0o644);
+    const refused = await invoke(['secret-list'], home);
+    expect(refused.code).toBe(1);
+    expect(refused.json.error.code).toBe('bad-credentials');
+  });
+
+  it('preserves records and comments around refs edits', async () => {
+    const home = createTempRoot('botharness-secrets-shape-');
+    writeFileSync(
+      credentialFile(home),
+      [
+        'version: 1',
+        '',
+        '# operator note',
+        'refs:',
+        '  KEEP_ME: |-',
+        '    abc',
+        '',
+        'records:',
+        '  owner/id:',
+        '    kind: grant',
+      ].join('\n') + '\n',
+    );
+    if (!process.platform.startsWith('win')) chmodSync(credentialFile(home), 0o600);
+    const put = await invoke(['secret-put', 'E2E_NEW'], home, {}, 'line1\nline2');
+    expect(put.code).toBe(0);
+    const text = readFileSync(credentialFile(home), 'utf8');
+    expect(text).toContain('# operator note');
+    expect(text).toContain('records:');
+    expect(text).toContain('KEEP_ME');
+    const listed = await invoke(['secret-list'], home);
+    expect(listed.json.secrets.map((entry: { name: string }) => entry.name).sort()).toEqual([
+      'E2E_NEW',
+      'KEEP_ME',
+    ]);
   });
 });
