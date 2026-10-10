@@ -73,7 +73,7 @@
 
 ### Fixed
 
-- 点击教程遮罩会进入下一步，不再退出引导；在最后一步点击遮罩会完成教程（[#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)）。
+- 点击教程遮罩会进入下一步，不再退出引导；最后一步执行完成按钮的动作。底部的跳过保留为文字，上一步、下一步和完成改用带无障碍名称的图标，按钮和进度不再挤压换行（[#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)）。
 
 - Bot Browser 首次后台标签可在 Chrome 启动窗口尚未就绪时打开，本地 Web 首装期间也能看到下载进度；额外的开发刷新连接现在仅在 `?botharness-dev-reload=1` 时启用（[#1339](https://github.com/BotHarness/DeepSeekBot/issues/1339)）。
 

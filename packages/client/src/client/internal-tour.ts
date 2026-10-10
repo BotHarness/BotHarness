@@ -25,6 +25,35 @@ export interface InternalTourOptions {
 
 const FIRST_STEP_TIMEOUT_MS = 4000;
 
+const TOUR_ICON_PATHS = {
+  previous: 'M10 4L6.70711 7.29289C6.31658 7.68342 6.31658 8.31658 6.70711 8.70711L10 12',
+  next: 'M6 12L9.29289 8.70711C9.68342 8.31658 9.68342 7.68342 9.29289 7.29289L6 4',
+  done: 'M2.25 8.5L5.49732 11.7473C5.90519 12.1552 6.57263 12.1344 6.95426 11.7018L13.75 4',
+};
+
+function setNavigationIcon(
+  doc: Document,
+  button: HTMLButtonElement,
+  label: string,
+  pathData: string,
+): void {
+  const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', pathData);
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1');
+  svg.append(path);
+  button.replaceChildren(svg);
+  button.classList.add('bh-internal-tour-navigation');
+  button.setAttribute('aria-label', label);
+  button.title = label;
+}
+
 export function resolveTourSteps(
   doc: Document,
   specs: readonly InternalTourSpec[],
@@ -112,6 +141,19 @@ export function startInternalTour(
         popover.wrapper.setAttribute('role', 'dialog');
         popover.wrapper.setAttribute('aria-label', tour?.getActiveStep()?.popover?.title ?? '');
         popover.closeButton.setAttribute('aria-label', options.closeLabel);
+        setNavigationIcon(
+          doc,
+          popover.previousButton,
+          options.previousLabel,
+          TOUR_ICON_PATHS.previous,
+        );
+        const lastStep = tour?.isLastStep() === true;
+        setNavigationIcon(
+          doc,
+          popover.nextButton,
+          lastStep ? options.doneLabel : options.nextLabel,
+          lastStep ? TOUR_ICON_PATHS.done : TOUR_ICON_PATHS.next,
+        );
         if (popover.footerButtons.querySelector('.bh-internal-tour-skip') === null) {
           const skip = doc.createElement('button');
           skip.type = 'button';

@@ -117,6 +117,54 @@ it('advances on mask clicks and finishes on the last step without closing or ski
   expect(document.querySelector('.driver-popover')).toBeNull();
 });
 
+it('renders icon navigation with localized names and a text-only skip action', async () => {
+  const first = document.createElement('div');
+  first.id = 'first';
+  const last = document.createElement('div');
+  last.id = 'last';
+  document.body.append(first, last);
+  stop = startInternalTour(
+    [
+      { selector: '#first', title: 'First', description: 'First step' },
+      { selector: '#last', title: 'Last', description: 'Last step' },
+    ],
+    options({
+      previousLabel: '上一步',
+      nextLabel: '下一步',
+      doneLabel: '完成',
+      skipLabel: '跳过教程',
+    }),
+  );
+  await vi.advanceTimersByTimeAsync(50);
+  const previous = document.querySelector<HTMLButtonElement>('.driver-popover-prev-btn')!;
+  const next = document.querySelector<HTMLButtonElement>('.driver-popover-next-btn')!;
+  expect(previous.getAttribute('aria-label')).toBe('上一步');
+  expect(previous.title).toBe('上一步');
+  expect(previous.textContent).toBe('');
+  expect(previous.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  expect(previous.classList.contains('driver-popover-btn-disabled')).toBe(true);
+  expect(next.getAttribute('aria-label')).toBe('下一步');
+  expect(next.title).toBe('下一步');
+  expect(next.textContent).toBe('');
+  const nextPath = next.querySelector('path')?.getAttribute('d');
+  expect(nextPath).toBeTruthy();
+  const skip = document.querySelector<HTMLButtonElement>('.bh-internal-tour-skip')!;
+  expect(skip.textContent).toBe('跳过教程');
+  expect(skip.querySelector('svg')).toBeNull();
+  next.click();
+  await vi.advanceTimersByTimeAsync(50);
+  const done = document.querySelector<HTMLButtonElement>('.driver-popover-next-btn')!;
+  expect(done.getAttribute('aria-label')).toBe('完成');
+  expect(done.title).toBe('完成');
+  expect(done.textContent).toBe('');
+  expect(done.querySelector('path')?.getAttribute('d')).not.toBe(nextPath);
+  document.querySelector<HTMLButtonElement>('.driver-popover-prev-btn')!.click();
+  await vi.advanceTimersByTimeAsync(50);
+  expect(document.querySelector('.driver-popover-next-btn')?.getAttribute('aria-label')).toBe(
+    '下一步',
+  );
+});
+
 it('waits for the first anchor before driving the tour', async () => {
   const tourOptions = options();
   stop = startInternalTour(
@@ -178,7 +226,7 @@ it('finishes through the Done action on the last step', async () => {
   document.querySelector<HTMLButtonElement>('.driver-popover-next-btn')?.click();
   await vi.advanceTimersByTimeAsync(50);
   const done = document.querySelector<HTMLButtonElement>('.driver-popover-next-btn');
-  expect(done?.textContent).toBe('Done');
+  expect(done?.getAttribute('aria-label')).toBe('Done');
   done?.click();
   await vi.advanceTimersByTimeAsync(50);
   expect(tourOptions.onFinished).toHaveBeenCalledOnce();

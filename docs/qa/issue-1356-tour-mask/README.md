@@ -57,6 +57,26 @@ the same replay again advanced to 2 / 8 on a mask click. No Host/data contract c
 
 ## Human review
 
+### Footer follow-up after Human QA
+
+The crowded final-step footer is now a single row: text-only Skip, a left-chevron Previous,
+a right-chevron Next, and a checkmark Done. The imperative Driver.js buttons use the exact
+16 × 16 native DSH Regular icon path data rather than adding React roots or a new runtime
+module. Icon buttons retain localized `aria-label` and `title`, and the SVGs are decorative.
+The disabled Previous state on the first step and button event handling remain intact.
+
+All eight dark screenshots were refreshed after the change; the final state also has a
+[light-theme screenshot](08-window-companion-light.jpg). Compare
+[the previous wrapping footer](before-footer-wrap.jpg) with
+[the current footer](08-window-companion.jpg). In the actual final-step DOM, progress is
+15 CSS pixels high, Skip is 26.8 high, and both icon buttons are 28 × 28, on one 28-high row.
+The Done icon was clicked successfully. Related tour/onboarding/token suites now pass
+83 tests across 9 files; typecheck and build pass again. Browser viewport-resize requests
+timed out, so this follow-up does not claim a narrow-viewport screenshot.
+
+The separately reported DM sidebar scope mismatch is tracked in
+[#1361](https://github.com/BotHarness/DeepSeekBot/issues/1361), not fixed by this PR.
+
 Launch this branch through `scripts/dev-instance.mjs` with a new isolated home and a free
 port, then enter Bot mode. To replay, open Bot settings → General → Continue tutorial.
 Click the mask through all eight steps and once more on the last step. Separately verify
