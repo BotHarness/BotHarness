@@ -309,6 +309,26 @@ export function startupTimeoutFailure(timeoutMs: number): BrowserProvisionError 
   );
 }
 
+export function spawnFailure(error: unknown, binary: string): BrowserProvisionError {
+  const raw = error instanceof Error ? error.message : String(error);
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '').toUpperCase()
+      : '';
+  if (code === 'EACCES' || code === 'EPERM' || PERMISSION_PATTERNS.test(raw)) {
+    return new BrowserProvisionError(
+      'startup-spawn-failed',
+      `The Bot Browser program could not be started because it is not executable (${binary}); ask the machine owner to fix its permissions, then open the browser again.`,
+      raw,
+    );
+  }
+  return new BrowserProvisionError(
+    'startup-spawn-failed',
+    `The Bot Browser program could not be started (${binary}); it may have been blocked or removed by antivirus. Allow-list the browser folder, then open the browser again to re-download if needed.`,
+    raw,
+  );
+}
+
 export function missingBinaryFailure(explicit: string): BrowserProvisionError {
   return new BrowserProvisionError(
     'startup-missing-binary',

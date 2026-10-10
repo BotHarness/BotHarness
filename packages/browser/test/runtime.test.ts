@@ -1603,6 +1603,28 @@ describe('first-run provisioning UX', () => {
     expect(failure.code).toBe('startup-missing-binary');
     expect(failure.message).toContain('/opt/missing-chrome');
   });
+
+  it('maps a spawn refusal for a vanished binary to antivirus-or-permissions guidance', async () => {
+    const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    spawnMock.mockImplementation(((...args: unknown[]) =>
+      (actual.spawn as (...inner: unknown[]) => unknown)(...args)) as typeof spawn);
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: () => false,
+      installDir: '/tmp/browser-cache',
+      installFallback: async () => '/tmp/browser-cache-removed/chrome',
+      preflight: { run: () => FULL_LDCONFIG },
+    });
+    const failure = (await runtime.ensure().then(
+      () => undefined,
+      (error: unknown) => error,
+    )) as BrowserProvisionError;
+    expect(failure.code).toBe('startup-spawn-failed');
+    expect(failure.message).toMatch(/antivirus/);
+    expect(failure.detail).toMatch(/ENOENT/);
+  });
 });
 
 describe('Container upload execution paths', () => {

@@ -17,6 +17,7 @@ import {
   missingLibsOfBinary,
   parseLdconfigSonames,
   parseLddMissing,
+  spawnFailure,
   startupTimeoutFailure,
   toBrowserErrorBody,
   LINUX_CHROME_LIB_REQUIREMENTS,
@@ -30,7 +31,7 @@ const FULL_LDCONFIG = [...LINUX_CHROME_LIB_REQUIREMENTS]
 
 describe('failure kinds', () => {
   it('accepts only the contracted codes', () => {
-    expect(BROWSER_FAILURE_KINDS).toHaveLength(9);
+    expect(BROWSER_FAILURE_KINDS).toHaveLength(10);
     expect(isBrowserFailureKind('provision-no-network')).toBe(true);
     expect(isBrowserFailureKind('startup-crashed')).toBe(true);
     expect(isBrowserFailureKind('code 127')).toBe(false);
@@ -266,5 +267,22 @@ describe('startup exit diagnosis', () => {
     expect(missingBinaryFailure('/opt/missing').code).toBe('startup-missing-binary');
     expect(missingBinaryFailure('/opt/missing').message).toContain('/opt/missing');
     expect(missingBinaryFailure('').message).toMatch(/No Chrome, Edge, or Chromium/);
+  });
+
+  it('maps spawn refusals to antivirus-or-permissions guidance', () => {
+    const gone = spawnFailure(
+      Object.assign(new Error('spawn /cache/chrome ENOENT'), { code: 'ENOENT' }),
+      '/cache/chrome',
+    );
+    expect(gone.code).toBe('startup-spawn-failed');
+    expect(gone.message).toMatch(/antivirus/);
+    expect(gone.message).toContain('/cache/chrome');
+    expect(gone.detail).toContain('ENOENT');
+    const denied = spawnFailure(
+      Object.assign(new Error('spawn EACCES'), { code: 'EACCES' }),
+      '/cache/chrome',
+    );
+    expect(denied.code).toBe('startup-spawn-failed');
+    expect(denied.message).toMatch(/permissions/);
   });
 });

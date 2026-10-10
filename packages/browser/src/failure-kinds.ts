@@ -5,6 +5,7 @@ export type BrowserFailureKind =
   | 'provision-missing-libs'
   | 'provision-failed'
   | 'startup-missing-binary'
+  | 'startup-spawn-failed'
   | 'startup-sandbox'
   | 'startup-crashed'
   | 'startup-timeout';
@@ -16,6 +17,7 @@ export const BROWSER_FAILURE_KINDS: readonly BrowserFailureKind[] = [
   'provision-missing-libs',
   'provision-failed',
   'startup-missing-binary',
+  'startup-spawn-failed',
   'startup-sandbox',
   'startup-crashed',
   'startup-timeout',

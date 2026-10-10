@@ -108,6 +108,11 @@ export const zh = {
   'entry.fail.startup-missing-binary.fault': '这是插件配置里的浏览器路径问题。',
   'entry.fail.startup-missing-binary.action':
     '修正浏览器插件配置中的 browserPath，或清空它改用自动下载。',
+  'entry.fail.startup-spawn-failed.title': '浏览器程序无法启动。',
+  'entry.fail.startup-spawn-failed.fault':
+    '本机拦截或删除了浏览器文件——常见是杀毒软件，偶尔是权限问题。',
+  'entry.fail.startup-spawn-failed.action':
+    '把浏览器目录加入杀毒软件白名单（或找机器管理员看权限），再点一次“打开”。',
   'entry.fail.startup-sandbox.title': '浏览器因系统沙箱限制拒绝启动。',
   'entry.fail.startup-sandbox.fault': '这是本机系统限制的问题。',
   'entry.fail.startup-sandbox.action': '在浏览器插件配置中打开 headless 后，再点一次“打开”。',
@@ -238,6 +243,11 @@ export const en: Record<BrowserKey, string> = {
     'This is about the browser path in the plugin configuration.',
   'entry.fail.startup-missing-binary.action':
     'Fix browserPath in the browser plugin configuration, or clear it to use the automatic download.',
+  'entry.fail.startup-spawn-failed.title': 'The browser program could not be started.',
+  'entry.fail.startup-spawn-failed.fault':
+    'This machine blocked or removed the browser file — often antivirus, sometimes permissions.',
+  'entry.fail.startup-spawn-failed.action':
+    'Allow-list the browser folder in your antivirus (or ask the machine owner about permissions), then click Open again.',
   'entry.fail.startup-sandbox.title': 'The browser refused to start because of its OS sandbox.',
   'entry.fail.startup-sandbox.fault': 'This is about OS restrictions on this machine.',
   'entry.fail.startup-sandbox.action':

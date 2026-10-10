@@ -12,6 +12,7 @@ import {
   missingBinaryFailure,
   missingLibsFailure,
   missingLibsOfBinary,
+  spawnFailure,
   startupTimeoutFailure,
   type PreflightDeps,
 } from './provision.js';
@@ -579,7 +580,8 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
             }),
           );
         });
-      const onError = (error: Error): void => settle(() => reject(error));
+      const onError = (error: Error): void =>
+        settle(() => reject(spawnFailure(error, binary ?? '')));
       proc.stderr?.on('data', onData);
       proc.on('exit', onExit);
       proc.on('error', onError);
