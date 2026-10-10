@@ -12,6 +12,7 @@ import {
   type PixelMouthState,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { morphPixels, pixelPathMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
+import { seededRandom } from '../../../core/src/bots/avatar-random.js';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,
@@ -144,6 +145,7 @@ const blinkFrames = (blinkAt: number, count: number): Keyframe[] =>
   }));
 
 export function IllustratedAvatar({
+  personaBotId,
   recipe,
   state,
   effect,
@@ -153,6 +155,7 @@ export function IllustratedAvatar({
   still = false,
   mouth = 'saved',
 }: {
+  personaBotId: string;
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
@@ -162,6 +165,10 @@ export function IllustratedAvatar({
   surface?: 'portrait' | 'companion' | undefined;
   still?: boolean | undefined;
 }): ReactElement {
+  const blinkTiming = useMemo(() => {
+    const random = seededRandom(`botharness-blink:${personaBotId}`);
+    return { duration: 4400 + random() * 1600, phase: random() * 0.75 };
+  }, [personaBotId]);
   const speech = surface === 'companion' && recipe.family === 'illustrated';
   const turning = !still && state === 'thinking' && size > 64;
   const markup = useMemo(
@@ -353,8 +360,13 @@ export function IllustratedAvatar({
           pixelTimer = setTimeout(start, PIXEL_SYMBOL_HOLD_MS - held);
         else start();
       };
-      const loop = (target: Element, frames: Keyframe[], duration: number) =>
-        animations.add(target.animate(frames, { duration, iterations: Infinity }));
+      const loop = (target: Element, frames: Keyframe[], duration: number, delay = 0) =>
+        animations.add(target.animate(frames, { duration, delay, iterations: Infinity }));
+      const eyeLoop = (steps: readonly Step[], duration: number) => {
+        const delay = -blinkTiming.phase * duration;
+        loop(gaze, stepped(steps, steps.length - 1), duration, delay);
+        loop(blink, blinkFrames(steps.length - 1, steps.length), duration, delay);
+      };
       const settled = () => animations.size === 0 && !run && !lineTimer && !pixelRun;
       const sync = () => {
         const currentRevision = ++revision;
@@ -411,8 +423,7 @@ export function IllustratedAvatar({
             if (state !== 'thinking' && state !== 'working') {
               if (compact || state !== 'idle') return;
               const rest: Step[] = Array.from({ length: 12 }, () => [0, 0]);
-              loop(gaze, stepped(rest, 11), 4800);
-              loop(blink, blinkFrames(11, 12), 4800);
+              eyeLoop(rest, blinkTiming.duration);
               return;
             }
             const turns = [...node.querySelectorAll<SVGGElement>('[data-avatar-turn]')];
@@ -435,8 +446,7 @@ export function IllustratedAvatar({
             loop(head, stepped(HEAD_STEPS[effect]), compact ? 1200 : 1600);
             if (compact) return;
             const gazeSteps = [...GAZE_STEPS[effect], [0, 0] as Step];
-            loop(gaze, stepped(gazeSteps, gazeSteps.length - 1), 2000);
-            loop(blink, blinkFrames(gazeSteps.length - 1, gazeSteps.length), 2000);
+            eyeLoop(gazeSteps, 2000);
           })
           .catch(() => undefined);
       };
@@ -475,7 +485,7 @@ export function IllustratedAvatar({
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup, recipe, symbol, still],
+    [state, effect, size, markup, recipe, symbol, still, blinkTiming],
   );
   return (
     <>

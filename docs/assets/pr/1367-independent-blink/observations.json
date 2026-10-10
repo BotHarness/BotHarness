@@ -1,0 +1,78 @@
+{
+  "purpose": "Visual blink timing observation, not a performance measurement",
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "theme": "dark",
+  "locale": "zh",
+  "formalAvatar": "0.10.1",
+  "beforeSource": "38571a9cda289bc55cbe41ae8db2369a245d68e3",
+  "afterSource": "3cfd719a94cb0a03490473a889da0e96a8f1f63e",
+  "summaries": {
+    "before": {
+      "sampleCount": 302,
+      "allFiveClosedSamples": 22,
+      "pairedEyeLayers": true,
+      "timings": [
+        {
+          "companion": 1,
+          "durationMs": 4800,
+          "delayMs": 0
+        },
+        {
+          "companion": 2,
+          "durationMs": 4800,
+          "delayMs": 0
+        },
+        {
+          "companion": 3,
+          "durationMs": 4800,
+          "delayMs": 0
+        },
+        {
+          "companion": 4,
+          "durationMs": 4800,
+          "delayMs": 0
+        },
+        {
+          "companion": 5,
+          "durationMs": 4800,
+          "delayMs": 0
+        }
+      ]
+    },
+    "after": {
+      "sampleCount": 300,
+      "allFiveClosedSamples": 0,
+      "pairedEyeLayers": true,
+      "timings": [
+        {
+          "companion": 1,
+          "durationMs": 5382.995368912816,
+          "delayMs": -1609.8967593405691
+        },
+        {
+          "companion": 2,
+          "durationMs": 5219.039873406291,
+          "delayMs": -1115.0512518884796
+        },
+        {
+          "companion": 3,
+          "durationMs": 5767.9440177977085,
+          "delayMs": -1525.8139931875955
+        },
+        {
+          "companion": 4,
+          "durationMs": 5919.360710307956,
+          "delayMs": -4336.906598443855
+        },
+        {
+          "companion": 5,
+          "durationMs": 4908.681294694543,
+          "delayMs": -1863.398910728721
+        }
+      ]
+    }
+  }
+}
