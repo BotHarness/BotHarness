@@ -5,7 +5,14 @@ import { CompanionPin } from './window-companions-view.js';
 import type { WindowCompanions } from './window-companions.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
-import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -226,6 +233,98 @@ function ReplyIcon(): ReactElement {
   );
 }
 
+const BUBBLE_LONG_PRESS_MS = 500;
+const BUBBLE_LONG_PRESS_TOLERANCE_PX = 10;
+
+export function MessageBubbleWrap({
+  message,
+  focused,
+  onContextMenu,
+  children,
+}: {
+  message: ChannelMessage;
+  focused: boolean;
+  onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  children?: ReactNode;
+}): ReactElement {
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const origin = useRef<{ x: number; y: number } | undefined>(undefined);
+  const fired = useRef(false);
+  const clearTimer = useCallback(() => {
+    if (timer.current !== undefined) {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+    }
+  }, []);
+  const mount = useMountedResource<HTMLDivElement>(
+    () => () => {
+      if (timer.current !== undefined) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const cancel = (): void => {
+    clearTimer();
+    origin.current = undefined;
+  };
+  return (
+    <div
+      ref={mount}
+      className={`bh-bubble-wrap${focused ? ' bh-bubble-focused' : ''}${message.failed === undefined ? '' : ' bh-bubble-wrap-failed'}`}
+      data-message-id={message.id}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onContextMenu(message, event.clientX, event.clientY);
+      }}
+      onTouchStart={(event) => {
+        if (event.touches.length !== 1) {
+          cancel();
+          return;
+        }
+        const touch = event.touches[0];
+        if (touch === undefined) {
+          cancel();
+          return;
+        }
+        const x = touch.clientX;
+        const y = touch.clientY;
+        clearTimer();
+        origin.current = { x, y };
+        fired.current = false;
+        timer.current = setTimeout(() => {
+          timer.current = undefined;
+          fired.current = true;
+          try {
+            if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+          } catch {}
+          onContextMenu(message, x, y);
+        }, BUBBLE_LONG_PRESS_MS);
+      }}
+      onTouchMove={(event) => {
+        const start = origin.current;
+        const touch = event.touches[0];
+        if (start === undefined || touch === undefined || timer.current === undefined) return;
+        if (
+          Math.abs(touch.clientX - start.x) > BUBBLE_LONG_PRESS_TOLERANCE_PX ||
+          Math.abs(touch.clientY - start.y) > BUBBLE_LONG_PRESS_TOLERANCE_PX
+        )
+          cancel();
+      }}
+      onTouchEnd={(event) => {
+        const wasFired = fired.current;
+        cancel();
+        fired.current = false;
+        if (wasFired) event.preventDefault();
+      }}
+      onTouchCancel={() => {
+        cancel();
+        fired.current = false;
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function MessageGroupView({
   humanMembers = [],
   group,
@@ -328,14 +427,11 @@ function MessageGroupView({
                   ? 'last'
                   : 'middle';
           return (
-            <div
+            <MessageBubbleWrap
               key={message.id}
-              className={`bh-bubble-wrap${focusMessageId === message.id ? ' bh-bubble-focused' : ''}${message.failed === undefined ? '' : ' bh-bubble-wrap-failed'}`}
-              data-message-id={message.id}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                onContextMenu(message, event.clientX, event.clientY);
-              }}
+              message={message}
+              focused={focusMessageId === message.id}
+              onContextMenu={onContextMenu}
             >
               <div
                 className={`bh-bubble-surface${message.failed === undefined ? '' : ' bh-bubble-surface-failed'}`}
@@ -409,7 +505,7 @@ function MessageGroupView({
                   </div>
                 </div>
               </div>
-            </div>
+            </MessageBubbleWrap>
           );
         })}
       </div>

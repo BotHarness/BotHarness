@@ -73,6 +73,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 - In Bot Settings, Computer **Import…** stays closed when the directory holds no archives, and a Combobox with nothing to pick renders no floating box, so an empty dropdown no longer reads as a broken select ([#1309](https://github.com/BotHarness/DeepSeekBot/issues/1309)).
 
+- On narrow screens, message bubbles are no longer squeezed by the always-visible reply and copy buttons; those actions move into the long-press message menu, while desktop hover and right-click behavior is unchanged ([#1346](https://github.com/BotHarness/DeepSeekBot/issues/1346)).
+
 ### Documentation
 
 - Documented how a PersonaBot's Memory commits and its own BotHarness-tool actions will be kept as Channel Notices in the conversation that caused them and as searchable Bot Inbox history that never wakes it; runtime behavior is unchanged ([ADR-0154](docs/adr/0154-bot-self-records-keep-memory-commits-and-bot-actions-in-the-timeline-and-inbox.md), [#1272](https://github.com/BotHarness/DeepSeekBot/issues/1272)).

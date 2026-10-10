@@ -127,6 +127,10 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-move-checked \{\s*display: flex/);
   });
 
+  it('moves bubble copy/reply actions into the long-press menu on narrow screens', () => {
+    expect(source).toMatch(/@media \(max-width: 640px\) \{\s*\.bh-bubble-meta \{\s*display: none/);
+  });
+
   it('fits ordered Channels into the native 36px collapsed rail and separates pins', () => {
     expect(source).toMatch(/\.bh-rail-group \{[^}]*width: 36px/);
     expect(source).toMatch(/\.bh-rail-channel \{[^}]*width: 36px;[^}]*height: 36px/);
