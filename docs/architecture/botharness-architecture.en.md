@@ -1,5 +1,9 @@
 # BotHarness Architecture & Data Flow
 
+### External CLI live requests and replies
+
+The application-defined live CLI follows ADR-0159: each invocation exchanges the current Host launch token for an in-memory cookie and calls the existing DSH HTTP unary carrier and Typert Bridge, without another listener, credential cache or database side channel. Send validates the Bot through the Registry, establishes its DM through the Channel owner, and submits a `human-UUID` message ID; deduplication stays Host-owned. The new read-only `channelSendStatus` query reuses `source_events`, `inbox_admissions`, `channel_output_origins` and `session_ownership` to return committed replies and processing state for the exact request Source Event, DM and Bot-owned Session. It does not guess from timestamps or the latest message. Question/approval cards, notices and failures do not count as replies. Timeout retains a receipt and never automatically resends. Approvals, questions, workspace grants and release reads retain their existing Host owners. No durable table or permission authority is added. See the [CLI guide](../bot-cli.md) and [#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317).
+
 <!-- Maintained source, not generated: this is the English translation of `docs/architecture/botharness-architecture.md`. Edit this file (and its `diagrams/en/*.mmd` sources), not `apps/docs`. -->
 
 BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent product identity: a **PersonaBot**. One Orchestrator Session manages its Inbox and may coordinate multiple independent Assignment Sessions concurrently; Memory is an optional capability and Persona is optional content within it; neither is a prerequisite for chat or execution. DeepSeekBot is the first app, providing the roster, Bot Inbox, Assignment Directory, delegation, and IM integration.

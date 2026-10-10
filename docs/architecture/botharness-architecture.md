@@ -1,5 +1,9 @@
 # BotHarness 架构与数据流
 
+### 外部 CLI 的在线请求与回复
+
+应用定义的在线 CLI 依照 ADR-0159，每次从当前 Host 启动令牌换取内存 cookie，经既有 DSH HTTP unary carrier 调用 Typert Bridge；不另设监听器、凭据缓存或数据库旁路。发送先由 Registry 查询确认 Bot，再由 Channel owner 建立 DM，使用 `human-UUID` 消息 ID 提交；重试去重仍归 Host。新增 `channelSendStatus` 只读查询复用 `source_events`、`inbox_admissions`、`channel_output_origins` 和 `session_ownership`，按原请求 Source Event、同一 DM 与 Bot 所有的 Session 返回已提交回复和当前处理状态，不以时间窗口或最新一条消息猜测对应关系。问题／审批卡片、通知及失败不算回复；超时保留回执供查询，不自动重发。工具审批、正式问题、工作区授权和发布状态沿用各自 Host owner；无新增耐久表或权限权威。见 [CLI 指南](../bot-cli.zh.md) 与 [#1317](https://github.com/BotHarness/DeepSeekBot/issues/1317)。
+
 #679 将入口收束为 Bot 模式设置左侧的紧凑图标／未读 Chip；折叠侧栏时则在 Bot 模式下方以相同尺寸对齐。展开时仅显示未读数字 badge，最多为 99+；有未读时入口常显，没有未读时仅在 Bot 模式开启时悬停或键盘聚焦才显示，与设置按钮一致；模式关闭时 hover 不显示，也不进入 Tab 顺序；折叠时入口仅在 Bot 模式开启后显示，图标右上角红点表示有未读或待行动；模式关闭时入口隐藏且不进入 Tab 顺序。无障碍名称保留完整未读数量与待行动提示。Client 导航偏好单独记住最后查看的总览／收件箱，不受私聊、模式切换或刷新影响；显式 tab 仍直接打开对应视图。
 
 BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产品身份：**PersonaBot**。PersonaBot 用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Assignment Session；Memory 是 optional capability，Persona 是其中的 optional 内容；两者都不是聊天或执行的前置依赖。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Assignment Directory、委派和 IM 接入。
