@@ -870,8 +870,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     if (live === undefined) throw new Error('The Bot Browser is not running');
     const created = await live.send('Target.createTarget', {
       url: 'about:blank',
-      newWindow,
-      ...(newWindow ? {} : { background: true, focus: false }),
+      ...(newWindow ? { newWindow: true } : { background: true, focus: false }),
     });
     const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
     if (targetId === '') throw new Error('The Bot Browser did not open a tab');

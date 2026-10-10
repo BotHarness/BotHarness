@@ -710,7 +710,6 @@ describe('runtime lifecycle', () => {
     );
     expect(create?.params).toEqual({
       url: 'about:blank',
-      newWindow: false,
       background: true,
       focus: false,
     });
@@ -720,6 +719,46 @@ describe('runtime lifecycle', () => {
     expect(info.url).toBe('https://example.com/');
     await runtime.closeTab('tab-2');
     expect(sent.some((call) => call.method === 'Target.closeTarget')).toBe(true);
+  });
+
+  it('opens its first background tab before the startup window exists', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const targets: Record<string, unknown>[] = [];
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Target.createTarget') {
+          if (targets.length === 0 && params?.['newWindow'] === false)
+            throw new Error('Failed to open new tab - no browser is open');
+          targets.push(params ?? {});
+        }
+        return base.send(method, params, sessionId);
+      },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: join(tmpdir(), 'browser-startup-window'),
+      platform: 'win32',
+      browserPath: 'chrome.exe',
+      fileExists: () => true,
+      connect: async () => client,
+    });
+    const opening = runtime.open('https://example.com');
+    child.ready();
+    try {
+      expect((await opening).tabId).toBe('tab-1');
+      await runtime.createTab('https://example.org');
+      expect(targets).toEqual([
+        { url: 'about:blank', background: true, focus: false },
+        { url: 'about:blank', background: true, focus: false },
+      ]);
+      expect(base.calls.some((call) => call.method === 'Target.activateTarget')).toBe(false);
+      expect(base.calls.some((call) => call.method === 'Page.bringToFront')).toBe(false);
+    } finally {
+      await runtime.stop();
+    }
   });
 
   it('uploads a Host file into the page file input, and reports a page without one', async () => {
