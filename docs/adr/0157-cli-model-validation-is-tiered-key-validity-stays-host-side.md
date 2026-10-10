@@ -1,7 +1,7 @@
 ---
 Status: Accepted
 Date: 2026-10-10
-Issues: [#1308](https://github.com/BotHarness/DeepSeekBot/issues/1308)
+Issues: [#1308](https://github.com/BotHarness/DeepSeekBot/issues/1308), [#1310](https://github.com/BotHarness/DeepSeekBot/issues/1310)
 ---
 
 # CLI model validation is tiered; key validity stays Host-side
@@ -11,7 +11,7 @@ The offline `deepseekbot` CLI applies model presets without the catalog validati
 ## Decision
 
 - **Shape tier, always.** Every route flag is checked structurally (`provider`/`model` non-blank, effort well-formed); failures are `usage`/`invalid-input` before anything is minted or written.
-- **Existence tier, offline.** The CLI links `@deepseek-ai/dsh-llm` for keyless calls only (`listProviders`-level existence of the provider). Model-name existence needs a networked model list, so model names stay shape-checked; an unknown provider fails fast with `invalid-input`.
+- **Existence tier, offline.** The CLI checks the provider against a static snapshot of the installed pi-ai catalog compiled into the CLI. The live `dsh-llm` runtime is Host-only (not installed for offline use and needing a Host instance for keyless calls), so linking it is not an option; instead the snapshot and the Host catalog are reviewed together whenever a provider is added upstream. Model-name existence needs a networked model list, so model names stay shape-checked; an unknown provider fails fast with `invalid-input` before anything is minted or written.
 - **Validity tier, Host-side.** Whether the key works and the model answers is a runtime property. The CLI never reads `$DSH_HOME/.credentials.yaml` to pre-check keys: that file is the DSH credentials service's managed document, and copying key management into the CLI widens the secret surface for a check whose honest form is sending one message. `model-plan` reports readiness `deferred` (`host-only`), and every skip is a visible step, matching the `no-model-yet` precedent from ADR-0156.
 - **No DSH-CLI delegation.** The official DSH CLI has no model-configuration surface (boot/plugin/config/diagnostics only), so there is nothing to reuse; the CLI reads provider keys from the launch environment only, per the official precedence chain, and never echoes them.
 

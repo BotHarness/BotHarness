@@ -39,7 +39,7 @@ Stdout carries exactly one JSON document. Success exits 0:
 }
 ```
 
-Failure exits non-zero with `{"error": {"code", "message"}}` using a stable code (`usage`, `secret-in-argv`, `bad-zip`, `bad-bundle`, `bad-ref`, `unknown-preset`, `unknown-bot`, `git-not-found`, `git-clone-failed`, `git-clone-timeout`, `memory-unavailable`, `invalid-input`). Human-readable lines go to stderr only, so stdout stays parseable in both cases.
+Failure exits non-zero with `{"error": {"code", "message"}}` using a stable code (`usage`, `secret-in-argv`, `bad-zip`, `bad-bundle`, `bad-ref`, `unknown-preset`, `unknown-bot`, `duplicate-preset`, `git-not-found`, `git-clone-failed`, `git-clone-timeout`, `memory-unavailable`, `invalid-input`). Human-readable lines go to stderr only, so stdout stays parseable in both cases.
 
 ## Identity
 

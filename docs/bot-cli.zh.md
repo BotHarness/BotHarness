@@ -39,7 +39,7 @@ deepseekbot model-plan <id> [--home <dsh-home>]
 }
 ```
 
-失败时退出码非零并输出 `{"error": {"code", "message"}}`，错误码保持稳定（`usage`、`secret-in-argv`、`bad-zip`、`bad-bundle`、`bad-ref`、`unknown-preset`、`unknown-bot`、`git-not-found`、`git-clone-failed`、`git-clone-timeout`、`memory-unavailable`、`invalid-input`）。人类可读的信息只写到 stderr，因此两种情况下标准输出都可解析。
+失败时退出码非零并输出 `{"error": {"code", "message"}}`，错误码保持稳定（`usage`、`secret-in-argv`、`bad-zip`、`bad-bundle`、`bad-ref`、`unknown-preset`、 `unknown-bot`、`duplicate-preset`、`git-not-found`、`git-clone-failed`、`git-clone-timeout`、`memory-unavailable`、`invalid-input`）。人类可读的信息只写到 stderr，因此两种情况下标准输出都可解析。
 
 ## 身份
 

@@ -465,7 +465,7 @@ describe('deepseekbot model', () => {
     expect(plan.json.revision).toBe(0);
   });
 
-  it('reports the minted bot when create-time apply hits an unknown provider', async () => {
+  it('mints nothing when create-time preset has an unknown provider', async () => {
     const home = createTempRoot('botharness-model-create-provider-');
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     let presetId = '';
@@ -484,6 +484,19 @@ describe('deepseekbot model', () => {
     const result = await invoke(['create', '--name', 'Ada', '--preset', presetId], home);
     expect(result.code).toBe(1);
     expect(result.json.error.code).toBe('invalid-input');
-    expect(result.json.bot.id).toMatch(/^bot-[0-9a-f]{32}$/u);
+    expect(result.json.bot).toBeUndefined();
+    const listed = await invoke(['list'], home);
+    expect(listed.json).toEqual({ bots: [] });
+  });
+
+  it('refuses secret argv on model verbs and keeps env secrets out of stdout', async () => {
+    const home = createTempRoot('botharness-model-secret-');
+    const refused = await invoke(['model-presets', '--token', 'sk-fake-7'], home);
+    expect(refused.code).toBe(2);
+    expect(refused.json.error.code).toBe('secret-in-argv');
+    expect(refused.stdout).not.toContain('sk-fake-7');
+    const result = await invoke(['model-presets'], home, { DEEPSEEK_API_KEY: 'sk-env-secret-7' });
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain('sk-env-secret-7');
   });
 });

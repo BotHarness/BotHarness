@@ -94,9 +94,9 @@ Machine contract:
 Models:
   model-presets lists the profile presets; model-preset-create mints one from
   explicit provider/model routes; model-preset-apply and model-plan read and
-  write the bot record directly. Route catalog validation and readiness
-  inspection stay Host-side: offline apply skips catalog validation and plan
-  reports readiness deferred.
+  write the bot record directly. Routes are shape-checked plus
+  provider-existence-checked offline; catalog liveness and readiness
+  inspection stay Host-side, and model-plan reports readiness deferred.
 
 Identity:
   The bot name is a label. Every create mints a new bot id, so reusing a name
@@ -354,6 +354,10 @@ function readBundleDirectory(root: string): BundleDirectory {
   return { files, descriptor, history, historySkipped };
 }
 
+function resolveHome(values: CreateValues, io: BotCreateCliIo): string {
+  return trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+}
+
 function openRegistry(dshHome: string): {
   owner: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
@@ -542,7 +546,7 @@ async function runCreate(
   readStdin: () => Promise<string>,
 ): Promise<BotCreateResult> {
   const validated = await validatedCreate(values, readStdin);
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const steps: BotCreateStep[] = [{ name: 'validate', status: 'ok' }];
   const { owner, registry } = openRegistry(dshHome);
   try {
@@ -551,7 +555,8 @@ async function runCreate(
         rootDir: join(dshHome, 'botharness'),
         database: owner,
       });
-      if (presets.get(validated.presetId) === undefined) {
+      const preset = presets.get(validated.presetId);
+      if (preset === undefined) {
         throw new CliFailure(
           'unknown-preset',
           `Unknown model preset: ${validated.presetId}`,
@@ -559,6 +564,8 @@ async function runCreate(
           steps,
         );
       }
+      assertKnownProvider(preset.orchestrator.provider, { steps });
+      assertKnownProvider(preset.assignmentDefault.provider, { steps });
     }
     let slug = mintSlug();
     steps.push({ name: 'allocate-id', status: 'ok' });
@@ -788,7 +795,7 @@ function runList(
   values: CreateValues,
   io: BotCreateCliIo,
 ): { bots: Array<{ id: string; name: string; createdAt: string }> } {
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner, registry } = openRegistry(dshHome);
   try {
     return {
@@ -806,7 +813,7 @@ function runList(
 function runShow(id: string, values: CreateValues, io: BotCreateCliIo): BotCreateResult {
   const slug = id.trim();
   if (slug.length === 0) throw usageError('show needs a bot id.');
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner, registry } = openRegistry(dshHome);
   try {
     const record = registry.get(slug);
@@ -836,7 +843,7 @@ function modelStore(dshHome: string, owner: OperationalDatabaseOwner) {
 }
 
 function runModelPresets(values: CreateValues, io: BotCreateCliIo): { presets: ModelPreset[] } {
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner } = openRegistry(dshHome);
   try {
     return { presets: modelStore(dshHome, owner).list() };
@@ -862,7 +869,7 @@ function runModelPresetCreate(values: CreateValues, io: BotCreateCliIo): { prese
   const assignmentDefault = parseRoute(values, 'assignment');
   assertKnownProvider(orchestrator.provider);
   assertKnownProvider(assignmentDefault.provider);
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner } = openRegistry(dshHome);
   try {
     try {
@@ -893,7 +900,7 @@ function runModelPresetApply(
   if (slug.length === 0) throw usageError('model-preset-apply needs exactly one bot id.');
   const presetId = trimmed(values.preset);
   if (presetId === undefined) throw usageError('--preset is required to apply a model preset.');
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner, registry } = openRegistry(dshHome);
   try {
     const record = registry.get(slug);
@@ -930,7 +937,7 @@ function runModelPlan(
 } {
   const slug = id.trim();
   if (slug.length === 0) throw usageError('model-plan needs exactly one bot id.');
-  const dshHome = trimmed(values.home) ?? trimmed(io.env['DSH_HOME']) ?? resolveDshHome(io.env);
+  const dshHome = resolveHome(values, io);
   const { owner, registry } = openRegistry(dshHome);
   try {
     const record = registry.get(slug);
