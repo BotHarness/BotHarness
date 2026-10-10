@@ -471,7 +471,7 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function ViewerTitleBar(props) {
-			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse } = props;
+			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse, hideStop, hideInteractiveToggle } = props;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -489,7 +489,11 @@ window.__ModuleLoader__.load({
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
 						style: {
 							fontSize: 13,
-							fontWeight: 600
+							fontWeight: 600,
+							minWidth: 0,
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap"
 						},
 						children: title
 					}),
@@ -509,7 +513,7 @@ window.__ModuleLoader__.load({
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
 					extraControls,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+					hideInteractiveToggle ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 						variant: interactive ? "ghost" : "primary",
 						size: "sm",
 						"aria-pressed": interactive,
@@ -518,7 +522,7 @@ window.__ModuleLoader__.load({
 						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
 						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
+					hideStop === true ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
 						t,
 						busy,
 						stopping,
@@ -535,7 +539,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange }) {
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle }) {
 			const entryRef = (0, react.useRef)(null);
 			const mounted = (0, react.useRef)(false);
 			const [hovered, setHovered] = (0, react.useState)(false);
@@ -726,7 +730,9 @@ window.__ModuleLoader__.load({
 						interactive: interactive ?? inputEnabled,
 						onToggleInteractive: onToggleInteractive ?? (() => setInputEnabled((current) => !current)),
 						onStop,
-						onCollapse: collapseViewer
+						onCollapse: collapseViewer,
+						hideStop,
+						hideInteractiveToggle
 					}, "viewer-titlebar") : null,
 					notice,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -778,7 +784,7 @@ window.__ModuleLoader__.load({
 								display: "flex",
 								gap: 8
 							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							children: [hideStop === true ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								disabled: busy || stopping,
 								onClick: onStop,

@@ -28,3 +28,15 @@ The local Bot Browser viewer was observe-only (static screenshot plus tab list) 
 - New seams: `packages/browser/src/viewer-local.ts` (Host-served local viewer page, frame stream, pointer/keyboard input, handoff banner) and `packages/browser/src/takeover.ts` (single-use token lifecycle, waiters, append-only audit plus recording). The `browser_takeover` tool (request/await/status) is the bot side of the handoff.
 - Takeover availability follows the per-bot Browser Access switch, and human input requires Pause; resuming invalidates observation refs as before.
 - Community sandbox tool policy is unchanged by this slice: where interaction tools are allowlisted read-only, the new `browser_takeover` tool needs the same operator decision as the rest of the interaction set.
+
+## Amendment 2026-10-10: watching is the default, takeover is explicit
+
+Human testing showed that pausing on every viewer open destroys a wanted behavior: opening the viewer to watch the Bot work must never interrupt it. The header model is therefore watch-by-default with an explicit takeover switch, not open-to-interact:
+
+- Opening the viewer (or the fullscreen) never pauses; the Bot keeps acting while the Human watches.
+- A header takeover toggle (接管 / 取消接管) pauses and enables input; releasing resumes, unless a bot-minted handoff link is still pending, in which case the pause stays until the handoff completes or expires.
+- The manual sidebar pause and the `browser_takeover` tool flow are unchanged; resuming still invalidates observation refs.
+- The fullscreen header carries only the title (`{bot}的浏览器`, 接管中 suffix while taken over), the input-mode switch, the takeover toggle, and collapse.Stop lives outside fullscreen. Narrow headers collapse button labels to icons.
+- On desktop the viewer page hides its control rows and types straight from the physical keyboard; on touch devices a gamepad-scale pad (click, right-click, scroll, keyboard summon) plus a latching modifier row drives input, and the native keyboard is summoned by tapping rather than by a visible input box.
+
+Related glossary: Browser Takeover (explicit control), Browser Watch (non-interrupting observation), Browser Pause (manual stop).

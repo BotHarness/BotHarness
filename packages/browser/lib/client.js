@@ -468,7 +468,7 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function ViewerTitleBar(props) {
-			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse } = props;
+			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse, hideStop, hideInteractiveToggle } = props;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -486,7 +486,11 @@ window.__ModuleLoader__.load({
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
 						style: {
 							fontSize: 13,
-							fontWeight: 600
+							fontWeight: 600,
+							minWidth: 0,
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap"
 						},
 						children: title
 					}),
@@ -506,7 +510,7 @@ window.__ModuleLoader__.load({
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
 					extraControls,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+					hideInteractiveToggle ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 						variant: interactive ? "ghost" : "primary",
 						size: "sm",
 						"aria-pressed": interactive,
@@ -515,7 +519,7 @@ window.__ModuleLoader__.load({
 						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
 						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
+					hideStop === true ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
 						t,
 						busy,
 						stopping,
@@ -532,7 +536,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange }) {
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange, hideStop, hideInteractiveToggle }) {
 			const entryRef = (0, react.useRef)(null);
 			const mounted = (0, react.useRef)(false);
 			const [hovered, setHovered] = (0, react.useState)(false);
@@ -723,7 +727,9 @@ window.__ModuleLoader__.load({
 						interactive: interactive ?? inputEnabled,
 						onToggleInteractive: onToggleInteractive ?? (() => setInputEnabled((current) => !current)),
 						onStop,
-						onCollapse: collapseViewer
+						onCollapse: collapseViewer,
+						hideStop,
+						hideInteractiveToggle
 					}, "viewer-titlebar") : null,
 					notice,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -775,7 +781,7 @@ window.__ModuleLoader__.load({
 								display: "flex",
 								gap: 8
 							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							children: [hideStop === true ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								disabled: busy || stopping,
 								onClick: onStop,
@@ -1289,6 +1295,10 @@ window.__ModuleLoader__.load({
 			"entry.view.inputMode.trackpad": "触控板",
 			"entry.view.close": "关闭",
 			"entry.view.container": "容器浏览器",
+			"entry.view.browserTitle": "{name}的浏览器",
+			"entry.takeover.start": "接管",
+			"entry.takeover.stop": "取消接管",
+			"entry.takeover.active": "接管中",
 			"entry.label": "浏览器",
 			"entry.access.title": "Browser Access",
 			"entry.access.enable": "启用 Browser Access",
@@ -1373,6 +1383,10 @@ window.__ModuleLoader__.load({
 			"entry.view.inputMode.trackpad": "Trackpad",
 			"entry.view.close": "Close",
 			"entry.view.container": "Container Browser",
+			"entry.view.browserTitle": "{name}'s Browser",
+			"entry.takeover.start": "Take over",
+			"entry.takeover.stop": "Release",
+			"entry.takeover.active": "Taking over",
 			"entry.label": "Browser",
 			"entry.access.title": "Browser Access",
 			"entry.access.enable": "Enable Browser Access",
@@ -2129,6 +2143,10 @@ window.__ModuleLoader__.load({
 .bh-browser-tab .bh-browser-tab-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tabs .bh-card-main { padding: 7px 10px; }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+.bh-viewer-btn-content { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 560px) {
+  [data-bh-viewer-btn-label] { display: none; }
+}
 `;
 		//#endregion
 		//#region packages/browser/src/client/access-power-icon.tsx
@@ -2144,6 +2162,60 @@ window.__ModuleLoader__.load({
 				strokeLinejoin: "round",
 				"aria-hidden": "true",
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 2v10" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M18.4 6.6a9 9 0 1 1-12.77.04" })]
+			});
+		}
+		//#endregion
+		//#region packages/browser/src/client/viewer-icons.tsx
+		function baseProps(size) {
+			return {
+				width: size,
+				height: size,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": true
+			};
+		}
+		function DirectTapIcon({ size = 14 }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				...baseProps(size),
+				fill: "currentColor",
+				stroke: "none",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M6.5 3.8 18.6 11l-6.9 1.7-2.6 6.5z" })
+			});
+		}
+		function TrackpadIcon({ size = 14 }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				...baseProps(size),
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("rect", {
+					x: "4",
+					y: "5",
+					width: "16",
+					height: "14",
+					rx: "3"
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+					x1: "12",
+					y1: "12",
+					x2: "12",
+					y2: "15"
+				})]
+			});
+		}
+		function TakeoverIcon({ size = 14 }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				...baseProps(size),
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+						cx: "10",
+						cy: "8",
+						r: "3.5"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 20c0-3.3 2.7-6 6-6 1.4 0 2.7.5 3.7 1.3" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m14.5 18.5 2.5 2.5 5-5.5" })
+				]
 			});
 		}
 		//#endregion
@@ -2432,14 +2504,17 @@ window.__ModuleLoader__.load({
 					}
 				});
 			};
-			const toggleInteraction = () => {
+			const toggleTakeover = () => {
 				if (interaction) {
 					disableInteraction();
+					if (observation?.handoffPending !== true) invoke(TAKEOVER_ENDPOINT, { active: false });
 					return;
 				}
 				if (busy || botSlug === void 0 || viewerUrl === void 0) return;
 				postTakeoverEnable();
 			};
+			const botName = info.displayName ?? botSlug ?? "";
+			const takeoverTitle = interaction && paused ? `${t("entry.view.browserTitle", { name: botName })} · ${t("entry.takeover.active")}` : t("entry.view.browserTitle", { name: botName });
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
 				setBusy(true);
@@ -2457,7 +2532,6 @@ window.__ModuleLoader__.load({
 					if (endpoint === OPEN_ENDPOINT && result.viewerUrl !== void 0 && result.viewerUrl !== null) {
 						setViewer(result.viewerUrl);
 						setInteraction(false);
-						postTakeoverEnable();
 					}
 					if (endpoint === STOP_ENDPOINT) {
 						setViewer(void 0);
@@ -2609,7 +2683,7 @@ window.__ModuleLoader__.load({
 												onClick: onPause,
 												children: t(paused ? "entry.view.resume" : "entry.view.pause")
 											}),
-											(observation?.running === true || cleanupRequired) && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+											observation?.running === true || cleanupRequired ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 												size: "sm",
 												variant: "outline",
 												disabled: busy,
@@ -2631,7 +2705,7 @@ window.__ModuleLoader__.load({
 						alt: t("entry.label")
 					}) }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
 						t: viewerTranslate,
-						title: t(observation?.target === "container" ? "entry.view.container" : "settings.local"),
+						title: takeoverTitle,
 						src: `${viewerUrl}${viewerUrl.includes("?") ? "&" : "?"}mode=${inputMode}`,
 						design: {
 							width: 1024,
@@ -2644,15 +2718,16 @@ window.__ModuleLoader__.load({
 						}),
 						busy,
 						stopping: false,
+						hideStop: true,
+						hideInteractiveToggle: true,
 						onStop: () => invoke(STOP_ENDPOINT),
 						interactive: interaction && paused,
-						onToggleInteractive: toggleInteraction,
+						onToggleInteractive: toggleTakeover,
 						onDisableInteraction: disableInteraction,
 						expanded: viewer === viewerUrl,
 						onExpandedChange: (next) => {
 							setViewer(next ? viewerUrl : void 0);
 							if (!next) disableInteraction();
-							else if (!interaction) toggleInteraction();
 						},
 						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
@@ -2661,13 +2736,27 @@ window.__ModuleLoader__.load({
 							"aria-pressed": inputMode === "trackpad",
 							title: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct"),
 							onClick: () => setInputMode((mode) => mode === "direct" ? "trackpad" : "direct"),
-							children: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct")
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								className: "bh-viewer-btn-content",
+								children: [inputMode === "direct" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(TrackpadIcon, {}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DirectTapIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									"data-bh-viewer-btn-label": true,
+									children: t(inputMode === "direct" ? "entry.view.inputMode.trackpad" : "entry.view.inputMode.direct")
+								})]
+							})
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							size: "sm",
-							variant: "outline",
+							variant: interaction ? "ghost" : "primary",
 							disabled: busy,
-							onClick: onPause,
-							children: t(paused ? "entry.view.resume" : "entry.view.pause")
+							"aria-pressed": interaction,
+							title: t(interaction ? "entry.takeover.stop" : "entry.takeover.start"),
+							onClick: toggleTakeover,
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								className: "bh-viewer-btn-content",
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(TakeoverIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									"data-bh-viewer-btn-label": true,
+									children: t(interaction ? "entry.takeover.stop" : "entry.takeover.start")
+								})]
+							})
 						})] })
 					}, scope),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {

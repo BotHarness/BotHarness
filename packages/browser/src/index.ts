@@ -598,6 +598,7 @@ export function apply(
             frame: null,
             focused: null,
             takeover: false,
+            handoffPending: false,
             tabs: [],
           });
         }
@@ -611,6 +612,7 @@ export function apply(
             frame: null,
             focused: null,
             takeover: provider.isTakeover(slug),
+            handoffPending: provider.takeoverPending(slug),
             tabs: [],
             profile: await profile.view(),
           });
@@ -622,6 +624,7 @@ export function apply(
             frame: null,
             focused: null,
             takeover: provider.isTakeover(slug),
+            handoffPending: provider.takeoverPending(slug),
             tabs: [],
             daily: daily.view(slug) ?? null,
           });
@@ -633,6 +636,7 @@ export function apply(
             frame: null,
             focused: null,
             takeover: false,
+            handoffPending: false,
             tabs: [],
             borrowed: borrow.view(slug) ?? null,
           });
@@ -643,6 +647,7 @@ export function apply(
             frame: null,
             focused: null,
             takeover: false,
+            handoffPending: false,
             tabs: [],
           });
         }
@@ -675,6 +680,7 @@ export function apply(
           frame,
           focused: tabId ?? null,
           takeover: provider.isTakeover(slug),
+          handoffPending: provider.takeoverPending(slug),
           tabs,
           profiles,
           target: target(),

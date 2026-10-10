@@ -44,4 +44,8 @@ export const styles =
 .bh-browser-tab .bh-browser-tab-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tabs .bh-card-main { padding: 7px 10px; }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+.bh-viewer-btn-content { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 560px) {
+  [data-bh-viewer-btn-label] { display: none; }
+}
 `;

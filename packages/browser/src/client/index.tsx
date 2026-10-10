@@ -31,6 +31,7 @@ const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
 
 import { AccessPowerIcon } from './access-power-icon.js';
+import { DirectTapIcon, TakeoverIcon, TrackpadIcon } from './viewer-icons.js';
 
 export const name = 'botharness-browser-client';
 
@@ -100,6 +101,7 @@ interface BrowserObservation {
   readonly frame: string | null;
   readonly focused: string | null;
   readonly takeover: boolean;
+  readonly handoffPending?: boolean;
   readonly tabs: readonly BrowserTabView[];
   readonly profiles?: readonly string[];
 }
@@ -444,14 +446,20 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         }
       });
   };
-  const toggleInteraction = (): void => {
+  const toggleTakeover = (): void => {
     if (interaction) {
       disableInteraction();
+      if (observation?.handoffPending !== true) invoke(TAKEOVER_ENDPOINT, { active: false });
       return;
     }
     if (busy || botSlug === undefined || viewerUrl === undefined) return;
     postTakeoverEnable();
   };
+  const botName = info.displayName ?? botSlug ?? '';
+  const takeoverTitle =
+    interaction && paused
+      ? `${t('entry.view.browserTitle', { name: botName })} · ${t('entry.takeover.active')}`
+      : t('entry.view.browserTitle', { name: botName });
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
@@ -472,7 +480,6 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         ) {
           setViewer(result.viewerUrl);
           setInteraction(false);
-          postTakeoverEnable();
         }
         if (endpoint === STOP_ENDPOINT) {
           setViewer(undefined);
@@ -650,7 +657,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                 >
                   {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
                 </Button>
-                {(observation?.running === true || cleanupRequired) && viewerUrl === undefined ? (
+                {observation?.running === true || cleanupRequired ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -677,7 +684,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <RemoteViewer
           key={scope}
           t={viewerTranslate}
-          title={t(observation?.target === 'container' ? 'entry.view.container' : 'settings.local')}
+          title={takeoverTitle}
           src={`${viewerUrl}${viewerUrl.includes('?') ? '&' : '?'}mode=${inputMode}`}
           design={{ width: 1024, height: 768 }}
           notice={
@@ -689,15 +696,16 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           }
           busy={busy}
           stopping={false}
+          hideStop
+          hideInteractiveToggle
           onStop={() => invoke(STOP_ENDPOINT)}
           interactive={interaction && paused}
-          onToggleInteractive={toggleInteraction}
+          onToggleInteractive={toggleTakeover}
           onDisableInteraction={disableInteraction}
           expanded={viewer === viewerUrl}
           onExpandedChange={(next) => {
             setViewer(next ? viewerUrl : undefined);
             if (!next) disableInteraction();
-            else if (!interaction) toggleInteraction();
           }}
           extraControls={
             <>
@@ -713,14 +721,31 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                 )}
                 onClick={() => setInputMode((mode) => (mode === 'direct' ? 'trackpad' : 'direct'))}
               >
-                {t(
-                  inputMode === 'direct'
-                    ? 'entry.view.inputMode.trackpad'
-                    : 'entry.view.inputMode.direct',
-                )}
+                <span className="bh-viewer-btn-content">
+                  {inputMode === 'direct' ? <TrackpadIcon /> : <DirectTapIcon />}
+                  <span data-bh-viewer-btn-label>
+                    {t(
+                      inputMode === 'direct'
+                        ? 'entry.view.inputMode.trackpad'
+                        : 'entry.view.inputMode.direct',
+                    )}
+                  </span>
+                </span>
               </Button>
-              <Button size="sm" variant="outline" disabled={busy} onClick={onPause}>
-                {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+              <Button
+                size="sm"
+                variant={interaction ? 'ghost' : 'primary'}
+                disabled={busy}
+                aria-pressed={interaction}
+                title={t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                onClick={toggleTakeover}
+              >
+                <span className="bh-viewer-btn-content">
+                  <TakeoverIcon />
+                  <span data-bh-viewer-btn-label>
+                    {t(interaction ? 'entry.takeover.stop' : 'entry.takeover.start')}
+                  </span>
+                </span>
               </Button>
             </>
           }

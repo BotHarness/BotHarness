@@ -25,11 +25,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #handoffBtns{display:flex;gap:8px;margin-top:8px}
 #modeBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:6px 12px;cursor:pointer}
 #hint{font-size:12px;opacity:.65}
-#stage{position:relative}
+#stage{position:sticky;top:0;z-index:1;background:#101014;padding-top:4px}
 #videoCanvas{width:100%;height:auto;display:block;background:#000;border-radius:8px;min-height:120px;touch-action:none}
 #cursor{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;pointer-events:none;display:none}
-#scrollRow{display:flex;gap:8px;padding:8px 2px}
-.scrollBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:14px;padding:8px;cursor:pointer}
+#padRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 2px}
+.padBtn{min-height:68px;border:1px solid #555;border-radius:18px;background:#222;color:#fff;font-size:17px;cursor:pointer;touch-action:manipulation}
+.padBtn:active{background:#333}
+.padBtn.wide{grid-column:1/-1}
 #kbdRow{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;padding:8px 2px;background:#101014}
 #modRow{display:flex;gap:8px}
 .modBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:15px;padding:8px 4px;cursor:pointer}
@@ -42,7 +44,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 </style>
 </head>
 <body>
-<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button><button class="keyBtn" id="hideBtn" type="button">⌨</button></div><div id="typeRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1"><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="padRow"><button class="padBtn" id="padLeft" type="button">Left Click</button><button class="padBtn" id="padRight" type="button">Right Click</button><button class="padBtn" id="padUp" type="button">▲ Scroll</button><button class="padBtn" id="padDown" type="button">▼ Scroll</button><button class="padBtn wide" id="padKbd" type="button">⌨ Keyboard</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1" enterkeyhint="go"><div id="status"></div></div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
@@ -53,16 +55,16 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const status = document.getElementById('status');
   const modeBtn = document.getElementById('modeBtn');
   const hint = document.getElementById('hint');
-  const upBtn = document.getElementById('upBtn');
-  const downBtn = document.getElementById('downBtn');
-  const kbd = document.getElementById('kbd');
+  const padLeft = document.getElementById('padLeft');
+  const padRight = document.getElementById('padRight');
+  const padUp = document.getElementById('padUp');
+  const padDown = document.getElementById('padDown');
+  const padKbd = document.getElementById('padKbd');
   const ghost = document.getElementById('ghost');
   const ghostField = ghost instanceof HTMLInputElement ? ghost : null;
-  const sendBtn = document.getElementById('sendBtn');
   const enterBtn = document.getElementById('enterBtn');
   const backBtn = document.getElementById('backBtn');
-  const hideBtn = document.getElementById('hideBtn');
-  const scrollRow = document.getElementById('scrollRow');
+  const padRow = document.getElementById('padRow');
   const kbdRow = document.getElementById('kbdRow');
   const modBtns = {
     meta: document.getElementById('modMeta'),
@@ -141,7 +143,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   function layoutRows() {
     const bare = mode === 'direct' && finePointer;
-    if (scrollRow) scrollRow.style.display = bare ? 'none' : '';
+    if (padRow) padRow.style.display = bare ? 'none' : '';
     if (kbdRow) kbdRow.style.display = bare ? 'none' : '';
     return bare;
   }
@@ -252,8 +254,33 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     mode = mode === 'trackpad' ? 'direct' : 'trackpad';
     paint();
   });
-  if (upBtn) upBtn.addEventListener('click', () => void send({ kind: 'scroll', direction: 'up', amount: 600 }));
-  if (downBtn) downBtn.addEventListener('click', () => void send({ kind: 'scroll', direction: 'down', amount: 600 }));
+  function padClick(point) {
+    if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+  }
+  if (padLeft) padLeft.addEventListener('click', () => padClick(cursorPoint()));
+  if (padRight) padRight.addEventListener('click', () => {
+    const point = cursorPoint();
+    if (point !== null) void send({ kind: 'click', x: point.x, y: point.y, button: 'right' });
+  });
+  if (padUp) padUp.addEventListener('click', () => void send({ kind: 'scroll', direction: 'up', amount: 600 }));
+  if (padDown) padDown.addEventListener('click', () => void send({ kind: 'scroll', direction: 'down', amount: 600 }));
+  if (padKbd) padKbd.addEventListener('click', () => {
+    if (document.activeElement === ghostField) {
+      disarm();
+      if (ghostField) ghostField.blur();
+      padKbd.classList.remove('armed');
+    } else {
+      focusGhost();
+    }
+  });
+  if (ghostField) {
+    ghostField.addEventListener('focus', () => {
+      if (padKbd) padKbd.classList.add('armed');
+    });
+    ghostField.addEventListener('blur', () => {
+      if (padKbd) padKbd.classList.remove('armed');
+    });
+  }
   function focusGhost() {
     if (ghostField) {
       try {
@@ -263,40 +290,23 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       }
     }
   }
-  async function sendText() {
-    if (!kbd || !(kbd instanceof HTMLInputElement)) return;
-    const value = kbd.value;
-    if (value === '') return;
-    kbd.value = '';
-    const mods = armedMods();
-    disarm();
-    if (mods.length > 0 && value.length === 1) {
-      await send({ kind: 'key', key: value, modifiers: mods });
-      return;
-    }
-    await send({ kind: 'type', text: value });
-  }
   async function pressControl(key) {
     const mods = armedMods();
     disarm();
     await send(mods.length === 0 ? { kind: 'key', key } : { kind: 'key', key, modifiers: mods });
   }
-  if (sendBtn) sendBtn.addEventListener('click', () => void sendText());
-  if (kbd) {
-    kbd.addEventListener('input', (event) => {
-      if (event.isComposing) return;
-      void sendText();
-    });
-    kbd.addEventListener('compositionend', () => void sendText());
-    kbd.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const mods = armedMods();
-        disarm();
-        if (mods.length === 0) void sendText();
-        else void send({ kind: 'key', key: 'Enter', modifiers: mods });
-      }
-    });
+  function flushGhost(asEnter) {
+    if (!ghostField) return;
+    const value = ghostField.value;
+    if (value === '' && !asEnter) return;
+    ghostField.value = '';
+    const mods = armedMods();
+    disarm();
+    if (asEnter || (mods.length > 0 && value.length === 1)) {
+      void send({ kind: 'key', key: asEnter ? 'Enter' : value, modifiers: mods });
+      return;
+    }
+    void send({ kind: 'type', text: value });
   }
   if (ghostField) {
     ghostField.addEventListener('input', (event) => {
@@ -304,13 +314,26 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       const value = ghostField.value;
       if (value === '') return;
       ghostField.value = '';
+      const mods = armedMods();
+      disarm();
+      if (mods.length > 0 && value.length === 1) {
+        void send({ kind: 'key', key: value, modifiers: mods });
+        return;
+      }
       void send({ kind: 'type', text: value });
     });
     ghostField.addEventListener('compositionend', () => {
       const value = ghostField.value;
       if (value === '') return;
       ghostField.value = '';
+      disarm();
       void send({ kind: 'type', text: value });
+    });
+    ghostField.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        flushGhost(true);
+      }
     });
   }
   const deadKeys = ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'Fn', 'FnLock', 'Hyper', 'Super', 'Symbol', 'SymbolLock', 'Process', 'Unidentified'];
@@ -343,10 +366,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   if (enterBtn) enterBtn.addEventListener('click', () => void pressControl('Enter'));
   if (backBtn) backBtn.addEventListener('click', () => void pressControl('Backspace'));
-  if (hideBtn) hideBtn.addEventListener('click', () => {
-    disarm();
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  });
+
   let suppressClick = false;
   if (surface) {
     surface.addEventListener('click', (event) => {
@@ -357,6 +377,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       if (mode !== 'direct') return;
       const point = pagePoint(event.clientX, event.clientY);
       if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
+      if (surface) {
+        const rect = surface.getBoundingClientRect();
+        cx = event.clientX - rect.left;
+        cy = event.clientY - rect.top;
+        cursorInit = true;
+        place();
+      }
       if (layoutRows()) focusGhost();
     });
     surface.addEventListener('wheel', (event) => {
@@ -439,6 +466,12 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     });
   }
   window.addEventListener('resize', place);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      window.scrollTo(0, 0);
+      place();
+    });
+  }
   paint();
   void loadHandoff();
   void poll();

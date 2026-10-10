@@ -40,6 +40,7 @@ export interface TakeoverService {
   complete(token: string, reason: TakeoverCompletion): TakeoverRecord | undefined;
   wait(token: string, signal?: AbortSignal): Promise<TakeoverRecord>;
   recordInput(slug: string, detail: string): void;
+  hasActive(slug: string): boolean;
   audit(slug: string): readonly TakeoverInputEvent[];
   recording(token: string): TakeoverRecord | undefined;
 }
@@ -195,6 +196,15 @@ export function createTakeoverService(now: () => number = Date.now): TakeoverSer
       refresh(record);
       if (record.state !== 'pending' && record.state !== 'accepted') return;
       push(record, 'input', detail);
+    },
+
+    hasActive(slug) {
+      const token = activeBySlug.get(slug);
+      if (token === undefined) return false;
+      const record = records.get(token);
+      if (record === undefined) return false;
+      refresh(record);
+      return record.state === 'pending' || record.state === 'accepted';
     },
 
     audit(slug) {

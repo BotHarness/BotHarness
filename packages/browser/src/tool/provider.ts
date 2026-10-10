@@ -77,6 +77,7 @@ export interface BrowserToolProvider {
   reconcileAll(): Promise<void>;
   isTakeover(slug: string): boolean;
   setTakeover(slug: string, active: boolean): boolean;
+  takeoverPending(slug: string): boolean;
   openForHuman(slug: string, requestedTabId?: string): Promise<BrowserTab>;
   currentTab(slug: string): string | undefined;
   ownsTab(slug: string, targetId: string): boolean;
@@ -1054,6 +1055,11 @@ export function createBrowserToolProvider(
 
     setTakeover(slug, active) {
       return applyTakeover(slug, active);
+    },
+
+    takeoverPending(slug) {
+      const service = options.takeover?.();
+      return service === undefined ? false : service.hasActive(slug);
     },
 
     openForHuman(slug, requestedTabId) {

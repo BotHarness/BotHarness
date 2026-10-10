@@ -115,10 +115,15 @@ describe('local browser viewer stream', () => {
     expect(page).toContain("get('mode')");
     expect(page).toContain('id="ghost"');
     expect(page).toContain('id="modRow"');
+    expect(page).toContain('id="padLeft"');
+    expect(page).toContain('id="padRight"');
+    expect(page).toContain('id="padUp"');
+    expect(page).toContain('id="padDown"');
+    expect(page).toContain('id="padKbd"');
     expect(page).toContain('Trackpad');
     expect(page).toContain('Direct tap');
-    expect(page).toContain('id="kbd"');
-    expect(page).toContain('id="sendBtn"');
+    expect(page).not.toContain('id="kbd"');
+    expect(page).not.toContain('sendBtn');
     f.dispose();
     expect(f.release).toHaveBeenCalledOnce();
   });
