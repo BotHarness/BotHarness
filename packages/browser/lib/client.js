@@ -1314,6 +1314,7 @@ window.__ModuleLoader__.load({
 			"entry.view.pause": "暂停 Bot",
 			"entry.view.resume": "继续",
 			"entry.view.open": "打开 Bot 浏览器",
+			"entry.view.fullscreen": "全屏",
 			"entry.view.stop": "停止",
 			"entry.view.cleanupFailed": "浏览器清理失败。点击“停止”重试。",
 			"entry.view.opening": "正在打开…",
@@ -1402,6 +1403,7 @@ window.__ModuleLoader__.load({
 			"entry.view.pause": "Pause Bot",
 			"entry.view.resume": "Resume",
 			"entry.view.open": "Open Bot Browser",
+			"entry.view.fullscreen": "Fullscreen",
 			"entry.view.stop": "Stop",
 			"entry.view.cleanupFailed": "Browser cleanup failed. Click Stop to retry.",
 			"entry.view.opening": "Opening…",
@@ -2699,12 +2701,27 @@ window.__ModuleLoader__.load({
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 										className: "bh-browser-actions",
 										children: [
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+											viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 												size: "sm",
 												variant: "primary",
 												disabled: busy || cleanupRequired,
 												onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
 												children: t(busy ? "entry.view.opening" : "entry.view.open")
+											}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "primary",
+												disabled: busy || cleanupRequired,
+												title: t("entry.view.fullscreen"),
+												onClick: () => {
+													if (viewerUrl !== void 0) setViewer(viewerUrl);
+												},
+												children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+													className: "bh-viewer-btn-content",
+													children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutlineRegular, { size: 14 }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+														"data-bh-viewer-btn-label": true,
+														children: t("entry.view.fullscreen")
+													})]
+												})
 											}),
 											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 												size: "sm",

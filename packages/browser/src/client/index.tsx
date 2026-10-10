@@ -9,7 +9,13 @@ import {
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Button, Switch, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  IconFullscreenOutlineRegular,
+  Switch,
+  Tag,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import { ChannelSidebarIcon } from '../../../client/src/client/channel-sidebar-icon.js';
 import { useMountedResource } from '../../../client/src/client/mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
@@ -692,16 +698,33 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
                 </div>
               ) : null}
               <div className="bh-browser-actions">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={busy || cleanupRequired}
-                  onClick={() =>
-                    invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
-                  }
-                >
-                  {t(busy ? 'entry.view.opening' : 'entry.view.open')}
-                </Button>
+                {viewerUrl === undefined ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy || cleanupRequired}
+                    onClick={() =>
+                      invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
+                    }
+                  >
+                    {t(busy ? 'entry.view.opening' : 'entry.view.open')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy || cleanupRequired}
+                    title={t('entry.view.fullscreen')}
+                    onClick={() => {
+                      if (viewerUrl !== undefined) setViewer(viewerUrl);
+                    }}
+                  >
+                    <span className="bh-viewer-btn-content">
+                      <IconFullscreenOutlineRegular size={14} />
+                      <span data-bh-viewer-btn-label>{t('entry.view.fullscreen')}</span>
+                    </span>
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

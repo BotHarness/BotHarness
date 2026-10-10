@@ -237,9 +237,7 @@ describe('Container Human viewer', () => {
     expect(frame.style.pointerEvents).toBe('auto');
     expect(frame.tabIndex).toBe(0);
     await act(async () =>
-      [...host.querySelectorAll('button')]
-        .find((b) => b.textContent === 'Open Bot Browser')!
-        .click(),
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Fullscreen')!.click(),
     );
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     expect(takeover).toBe(false);
@@ -399,9 +397,7 @@ describe('Container Human viewer', () => {
     await act(async () => root2.render(createElement(Body!, { botSlug: 'qa' })));
     await poll();
     await act(async () =>
-      [...host2.querySelectorAll('button')]
-        .find((b) => b.textContent === 'Open Bot Browser')!
-        .click(),
+      [...host2.querySelectorAll('button')].find((b) => b.textContent === 'Fullscreen')!.click(),
     );
     expect(host2.querySelector('[role="dialog"]')).not.toBeNull();
     expect([...host2.querySelectorAll('button')].some((b) => b.textContent === 'Take over')).toBe(
@@ -440,6 +436,17 @@ describe('Container Human viewer', () => {
       { type: 'bh-takeover-state', active: true },
       window.location.origin,
     );
+  });
+  it('opens the fullscreen viewer without another server round trip', async () => {
+    target = 'container';
+    viewer = true;
+    await poll();
+    const calls = vi.mocked(globalThis.fetch).mock.calls.length;
+    await act(async () =>
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Fullscreen')!.click(),
+    );
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(vi.mocked(globalThis.fetch).mock.calls.length).toBe(calls);
   });
   it('switches the viewer input mode from the fullscreen header', async () => {
     const frame = await expand();
@@ -495,9 +502,7 @@ describe('Local Human viewer', () => {
     viewer = true;
     await poll();
     await act(async () =>
-      [...host.querySelectorAll('button')]
-        .find((b) => b.textContent === 'Open Bot Browser')!
-        .click(),
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Fullscreen')!.click(),
     );
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     expect(takeover).toBe(false);
