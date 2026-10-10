@@ -77,6 +77,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Opening a Bot DM by Channel ID, including the first Bot-mode entry, now shows that PersonaBot's Channel sidebar and shares its collapse/expansion preferences with Bot navigation; stale conversation metadata no longer selects another Channel's entries ([#1361](https://github.com/BotHarness/DeepSeekBot/issues/1361)).
+
 - Clicking the tutorial mask advances to the next step instead of dismissing the tour; the final step uses the Done action. The footer keeps Skip as text and uses labeled icons for Previous, Next and Done so the controls and progress do not wrap ([#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356)).
 
 - Profile token-usage cards keep missing-provider-usage explanations behind an info icon beside the title, available on hover, keyboard focus or click instead of taking up space in the card ([#1355](https://github.com/BotHarness/DeepSeekBot/issues/1355)).
