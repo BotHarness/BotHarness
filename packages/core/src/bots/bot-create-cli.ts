@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { chmodSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -131,6 +131,9 @@ Usage:
   deepseekbot schedule-run-now <id> --sid <schedule> [--home <dsh-home>]
   deepseekbot schedule-preview (--every <s> | --daily ... | ...) [--home <dsh-home>]
   deepseekbot pairings <id> [--home <dsh-home>]
+  deepseekbot secret-put <NAME> [--home <dsh-home>]            secret value arrives on stdin only
+  deepseekbot secret-list [--home <dsh-home>]                  names, sources, writability; never values
+  deepseekbot secret-unset <NAME> [--home <dsh-home>]
   deepseekbot --help | deepseekbot create --help
 
 Sources (exactly one per create):
@@ -148,7 +151,7 @@ Machine contract:
   exits non-zero with {"error": {"code", "message"}} using a stable code
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
   unknown-bot, unknown-channel, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
-  memory-unavailable, lease-unavailable, invalid-input). Human-readable lines go to stderr only.
+  memory-unavailable, lease-unavailable, bad-credentials, invalid-input). Human-readable lines go to stderr only.
   Stop the Host before targeting its home: the writer lease is exclusive.
 
 Models:
@@ -1890,6 +1893,296 @@ function runPairings(
   }
 }
 
+const SECRET_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+
+interface CredentialRefs {
+  lines: string[];
+  spans: Map<string, { start: number; end: number }>;
+}
+
+function credentialPath(dshHome: string): string {
+  return join(dshHome, '.credentials.yaml');
+}
+
+function badCredentials(message: string): CliFailure {
+  return new CliFailure('bad-credentials', message, 1);
+}
+
+function parseCredentialRefs(path: string, text: string): CredentialRefs {
+  const invalid = (detail: string): CliFailure =>
+    badCredentials(`The credential file ${path} is invalid: ${detail}`);
+  const lines = text.split('\n');
+  const tops = new Map<string, number>();
+  let section: string | undefined;
+  let entry: { name: string; start: number; indent: number } | undefined;
+  const spans = new Map<string, { start: number; end: number }>();
+  const closeEntry = (end: number): void => {
+    if (entry === undefined) return;
+    if (spans.has(entry.name)) throw invalid(`duplicate key ${entry.name}`);
+    spans.set(entry.name, { start: entry.start, end });
+    entry = undefined;
+  };
+  lines.forEach((line, index) => {
+    if (line.trim().length === 0) {
+      closeEntry(index);
+      return;
+    }
+    const indent = line.length - line.trimStart().length;
+    const isComment = line.trimStart().startsWith('#');
+    if (entry !== undefined && indent > entry.indent) return;
+    closeEntry(index);
+    if (isComment) return;
+    if (indent === 0) {
+      if (line === '---' || line === '...') {
+        section = undefined;
+        return;
+      }
+      const top = /^([A-Za-z0-9_-]+):(.*)$/u.exec(line);
+      if (top === null || top[1] === undefined) throw invalid(`unexpected line ${index + 1}`);
+      const name = top[1];
+      if (tops.has(name)) throw invalid(`duplicate key ${name}`);
+      tops.set(name, index);
+      if (name !== 'version' && name !== 'refs' && name !== 'records') {
+        throw invalid(`unknown top-level key ${name}`);
+      }
+      section = name;
+      return;
+    }
+    if (section !== 'refs') {
+      if (section === 'records') return;
+      throw invalid(`unexpected line ${index + 1}`);
+    }
+    const item = /^(\s+)([^:\s][^:]*):(.*)$/u.exec(line);
+    if (item === null || item[1] === undefined || item[2] === undefined) {
+      throw invalid(`unexpected line ${index + 1} under refs`);
+    }
+    const name = item[2].trim();
+    if (!SECRET_NAME_RE.test(name)) throw invalid(`unaddressable key ${name}`);
+    entry = { name, start: index, indent: item[1].length };
+  });
+  closeEntry(lines.length);
+  const versionRaw = tops.has('version') ? lines[tops.get('version')!] : undefined;
+  const versionLine =
+    versionRaw === undefined
+      ? undefined
+      : versionRaw
+          .replace(/^version:/u, '')
+          .split(/\s+#/u, 1)[0]!
+          .trim()
+          .replace(/^(['"])(.*)\1$/u, '$2');
+  if (versionLine !== '1') throw invalid('missing or unsupported version (want version: 1)');
+  return { lines, spans };
+}
+
+function extractBlockValue(lines: string[], start: number, end: number): string | undefined {
+  const head = /^(\s+)([^:\s][^:]*):(.*)$/u.exec(lines[start]!);
+  if (head === null) return undefined;
+  const rest = head[3]!.trim();
+  if (rest !== '|' && rest !== '|-' && rest !== '|+') {
+    return rest;
+  }
+  const body: string[] = [];
+  let contentIndent: number | undefined;
+  for (let index = start + 1; index < end; index += 1) {
+    const line = lines[index]!;
+    if (line.trim().length === 0) {
+      body.push('');
+      continue;
+    }
+    const indent = line.length - line.trimStart().length;
+    if (contentIndent === undefined) contentIndent = indent;
+    body.push(line.slice(contentIndent));
+  }
+  while (body.length > 0 && body[body.length - 1] === '') body.pop();
+  if (rest === '|') body.push('');
+  return body.join('\n');
+}
+
+function renderSecretEntry(name: string, value: string): string[] {
+  return [`  ${name}: |-`, ...value.split('\n').map((line) => `    ${line}`)];
+}
+
+function checkCredentialMode(path: string): void {
+  if (process.platform === 'win32') return;
+  let mode: number;
+  try {
+    mode = lstatSync(path).mode;
+  } catch {
+    throw badCredentials(`The credential file ${path} cannot be read.`);
+  }
+  if ((mode & 0o077) !== 0) {
+    throw badCredentials(
+      `The credential file ${path} is readable beyond its owner; run chmod 600 ${path}.`,
+    );
+  }
+}
+
+function backupCredentialFile(path: string, lines: string[]): string {
+  const stamp = new Date().toISOString().replace(/[:.]/gu, '-');
+  const backup = `${path}.bak-${stamp}`;
+  writeFileSync(backup, lines.join('\n'), { mode: 0o600 });
+  return backup;
+}
+
+function writeCredentialFile(path: string, lines: string[]): void {
+  writeFileSync(path, lines.join('\n'));
+  if (process.platform !== 'win32') chmodSync(path, 0o600);
+}
+
+function readCredentialStore(dshHome: string): {
+  path: string;
+  exists: boolean;
+  refs: CredentialRefs | undefined;
+} {
+  const path = credentialPath(dshHome);
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return { path, exists: false, refs: undefined };
+  }
+  if (text.trim().length === 0) return { path, exists: false, refs: undefined };
+  checkCredentialMode(path);
+  return { path, exists: true, refs: parseCredentialRefs(path, text) };
+}
+
+function secretRecord(
+  name: string,
+  env: NodeJS.ProcessEnv,
+  stored: boolean,
+): { name: string; configured: boolean; source: string; writable: boolean } {
+  const fromEnv = env[name];
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return { name, configured: true, source: 'environment', writable: false };
+  }
+  if (stored) {
+    return { name, configured: true, source: 'file', writable: true };
+  }
+  return { name, configured: false, source: 'absent', writable: false };
+}
+
+function runSecretList(
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { secrets: Array<{ name: string; configured: boolean; source: string; writable: boolean }> } {
+  const dshHome = resolveHome(values, io);
+  const store = readCredentialStore(dshHome);
+  if (!store.exists || store.refs === undefined) return { secrets: [] };
+  return {
+    secrets: [...store.refs.spans.keys()].sort().map((name) => secretRecord(name, io.env, true)),
+  };
+}
+
+async function runSecretPut(
+  name: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+  readStdin: () => Promise<string>,
+): Promise<{ secret: { name: string; configured: boolean; source: string; writable: boolean } }> {
+  const rawName = name.trim();
+  if (!SECRET_NAME_RE.test(rawName)) {
+    throw new CliFailure(
+      'invalid-input',
+      'secret-put needs an environment-variable-style name.',
+      1,
+    );
+  }
+  const value = (await readStdin()).replace(/\r?\n$/u, '');
+  if (value.length === 0) {
+    throw new CliFailure(
+      'invalid-input',
+      'secret-put read an empty value; removing a key deletes it, use secret-unset.',
+      1,
+    );
+  }
+  const dshHome = resolveHome(values, io);
+  const store = readCredentialStore(dshHome);
+  let lines: string[];
+  let spans: Map<string, { start: number; end: number }>;
+  if (!store.exists || store.refs === undefined) {
+    lines = ['version: 1', '', 'refs:'];
+    spans = new Map();
+    writeCredentialFile(store.path, lines);
+  } else {
+    lines = [...store.refs.lines];
+    spans = new Map(store.refs.spans);
+    backupCredentialFile(store.path, lines);
+  }
+  const entry = renderSecretEntry(rawName, value);
+  const span = spans.get(rawName);
+  let next: string[];
+  if (span !== undefined) {
+    next = [...lines.slice(0, span.start), ...entry, ...lines.slice(span.end)];
+  } else {
+    const refsLine = lines.findIndex((line) => /^refs:(.*)$/u.test(line));
+    if (refsLine === -1) {
+      const tail = lines.length > 0 && lines[lines.length - 1] !== '' ? [''] : [];
+      next = [...lines, ...tail, 'refs:', ...entry];
+    } else {
+      let end = refsLine + 1;
+      while (end < lines.length) {
+        const line = lines[end]!;
+        if (line.trim().length === 0) {
+          end += 1;
+          continue;
+        }
+        if (line.length - line.trimStart().length === 0) break;
+        end += 1;
+      }
+      next = [...lines.slice(0, end), ...entry, ...lines.slice(end)];
+    }
+  }
+  if (next.length > 0 && next[next.length - 1] !== '') next.push('');
+  writeCredentialFile(store.path, next);
+  const reread = parseCredentialRefs(store.path, next.join('\n'));
+  const written = reread.spans.get(rawName);
+  const roundTrips =
+    written !== undefined && extractBlockValue(reread.lines, written.start, written.end) === value;
+  if (!roundTrips) {
+    const backup = backupCredentialFile(store.path, lines);
+    writeCredentialFile(store.path, lines);
+    throw badCredentials(`The write did not round-trip; restored the backup at ${backup}.`);
+  }
+  io.stderr(`deepseekbot: saved secret ${rawName}`);
+  return { secret: secretRecord(rawName, io.env, true) };
+}
+
+function runSecretUnset(
+  name: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { secret: { name: string; configured: boolean; source: string; writable: boolean } } {
+  const rawName = name.trim();
+  if (!SECRET_NAME_RE.test(rawName)) {
+    throw new CliFailure(
+      'invalid-input',
+      'secret-unset needs an environment-variable-style name.',
+      1,
+    );
+  }
+  const dshHome = resolveHome(values, io);
+  const store = readCredentialStore(dshHome);
+  if (!store.exists || store.refs === undefined) {
+    return { secret: secretRecord(rawName, io.env, false) };
+  }
+  const span = store.refs.spans.get(rawName);
+  if (span === undefined) {
+    return { secret: secretRecord(rawName, io.env, false) };
+  }
+  const lines = [...store.refs.lines];
+  backupCredentialFile(store.path, lines);
+  const next = [...lines.slice(0, span.start), ...lines.slice(span.end)];
+  writeCredentialFile(store.path, next);
+  const reread = parseCredentialRefs(store.path, next.join('\n'));
+  if (reread.spans.has(rawName)) {
+    const backup = backupCredentialFile(store.path, lines);
+    writeCredentialFile(store.path, lines);
+    throw badCredentials(`The delete did not round-trip; restored the backup at ${backup}.`);
+  }
+  io.stderr(`deepseekbot: removed secret ${rawName}`);
+  return { secret: secretRecord(rawName, io.env, false) };
+}
+
 export async function runBotCreateCli(
   argv: readonly string[],
   io: BotCreateCliIo,
@@ -2007,6 +2300,21 @@ export async function runBotCreateCli(
     if (command === 'pairings') {
       if (rest.length !== 1) throw usageError('pairings needs exactly one bot id.');
       io.stdout(JSON.stringify(runPairings(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'secret-put') {
+      if (rest.length !== 1) throw usageError('secret-put needs exactly one secret name.');
+      io.stdout(JSON.stringify(await runSecretPut(rest[0]!, values, io, readStdin), null, 2));
+      return 0;
+    }
+    if (command === 'secret-list') {
+      if (rest.length > 0) throw usageError('secret-list takes no secret name.');
+      io.stdout(JSON.stringify(runSecretList(values, io), null, 2));
+      return 0;
+    }
+    if (command === 'secret-unset') {
+      if (rest.length !== 1) throw usageError('secret-unset needs exactly one secret name.');
+      io.stdout(JSON.stringify(runSecretUnset(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command === 'pause' || command === 'resume') {
