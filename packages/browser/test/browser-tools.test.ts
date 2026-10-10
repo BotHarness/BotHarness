@@ -10,6 +10,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { ToolDefinition, ToolRunContext, ToolExecutionSuccess } from '@deepseek-ai/dsh-tools';
 
 import type { BotBrowserRuntime } from '../src/runtime/browser.js';
+import { createTakeoverService } from '../src/takeover.js';
 import {
   auditSummary,
   createBrowserToolProvider,
@@ -127,6 +128,7 @@ interface Harness {
     readonly stopAll: ReturnType<typeof vi.fn>;
   };
   readonly audits: BrowserAuditEvent[];
+  readonly takeovers: ReturnType<typeof createTakeoverService>;
   readonly screenshotDir: string;
   created(): void;
   setAccess(enabled: boolean): void;
@@ -145,10 +147,12 @@ function harness(options: {
   daily?: Parameters<typeof createBrowserToolProvider>[0]['daily'];
   profile?: Parameters<typeof createBrowserToolProvider>[0]['profile'];
   borrowed?: Parameters<typeof createBrowserToolProvider>[0]['borrowed'];
+  takeover?: Parameters<typeof createBrowserToolProvider>[0]['takeover'];
 }): Harness {
   const { scope, state } = fakeScope();
   const runtime = fakeRuntime();
   const audits: BrowserAuditEvent[] = [];
+  const takeovers = createTakeoverService();
   const screenshotDir = mkdtempSync(join(tmpdir(), 'browser-tools-'));
   screenshotDirs.push(screenshotDir);
   let access = options.access;
@@ -177,6 +181,8 @@ function harness(options: {
     ...(options.daily === undefined ? {} : { daily: options.daily }),
     ...(options.profile === undefined ? {} : { profile: options.profile }),
     ...(options.borrowed === undefined ? {} : { borrowed: options.borrowed }),
+    takeover: options.takeover ?? (() => takeovers),
+    takeoverUrlFor: () => '/botharness-browser/viewer/local/?slug=bot-a',
     audit: (event) => audits.push(event),
     core: () => ({
       registry: {
@@ -196,6 +202,7 @@ function harness(options: {
     runtime,
     runtimes,
     audits,
+    takeovers,
     screenshotDir,
     created: () =>
       provider.attachAgent(scope, 'session-a', { botSlug: 'bot-a', rootRole: 'orchestrator' }),
@@ -341,6 +348,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       'browser_screenshot',
       'browser_scroll',
       'browser_tabs',
+      'browser_takeover',
       'browser_type',
       'browser_upload',
       'browser_wait',
@@ -992,6 +1000,41 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await expect(
       h.state.definitions.get('browser_click')!.execute({}, execution('browser_click')),
     ).rejects.toThrow(/ref from browser_observe or x\/y/);
+  });
+
+  it('runs a takeover handoff: request pauses, await verifies state and resumes', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const call = (name: string, args: Record<string, unknown>) =>
+      h.state.definitions.get(name)!.execute(args, execution(name)) as Promise<{
+        content: { text?: string }[];
+      }>;
+    await call('browser_open', { url: 'https://example.com' });
+    const requested = await call('browser_takeover', {
+      action: 'request',
+      instructions: 'Log in to Example',
+    });
+    const text = requested.content.map((part) => part.text ?? '').join('\n');
+    expect(text).toContain('Takeover link (single-use');
+    expect(text).toContain('Post this guiding message to the Human now:');
+    expect(h.provider.isTakeover('bot-a')).toBe(true);
+    expect(h.audits.at(-1)?.summary).toContain('chars=');
+    expect(JSON.stringify(h.audits)).not.toContain('Log in to Example');
+    const token = /takeover=([0-9a-f]+)/u.exec(text)?.[1] ?? '';
+    expect(token).not.toBe('');
+    h.takeovers.accept(token);
+    h.takeovers.complete(token, 'done');
+    const waited = await call('browser_takeover', { action: 'await', token });
+    const doneText = waited.content.map((part) => part.text ?? '').join('\n');
+    expect(doneText).toContain('Human finished (done)');
+    expect(doneText).toContain('https://example.com/');
+    expect(doneText).toContain('Call browser_observe before acting.');
+    expect(h.provider.isTakeover('bot-a')).toBe(false);
+    const status = await call('browser_takeover', { action: 'status', token });
+    expect(status.content.map((part) => part.text ?? '').join()).toContain('completed');
+    await expect(call('browser_takeover', { action: 'await', token: 'nope' })).rejects.toThrow(
+      /Unknown takeover token/,
+    );
   });
 
   it('keeps the current tab on recoverable errors and drops it on dead targets', async () => {

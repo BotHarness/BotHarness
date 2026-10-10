@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 
 import { LOCAL_VIEWER_PREFIX, localViewerUrl, registerLocalViewer } from '../src/viewer-local.js';
+import { createTakeoverService, type TakeoverService } from '../src/takeover.js';
 
 function fixture(options?: {
   running?: boolean;
@@ -39,6 +40,7 @@ function fixture(options?: {
   }));
   const note = vi.fn();
   const touch = vi.fn();
+  const takeover: TakeoverService = createTakeoverService();
   let route!: Parameters<Parameters<typeof registerLocalViewer>[0]['host']['register']>[0];
   const release = vi.fn();
   const dispose = registerLocalViewer({
@@ -64,6 +66,7 @@ function fixture(options?: {
     touch,
     hasAccess: () => options?.access ?? true,
     note,
+    takeover,
     rejection: () => options?.rejected,
   });
   const call = async (
@@ -85,7 +88,7 @@ function fixture(options?: {
     );
     return response;
   };
-  return { dispose, release, call, clickAt, scroll, insertText, pressKey, note, touch };
+  return { dispose, release, call, clickAt, scroll, insertText, pressKey, note, touch, takeover };
 }
 
 describe('local browser viewer stream', () => {
@@ -290,6 +293,54 @@ describe('local browser viewer stream', () => {
     const f = fixture({ access: false });
     const response = await f.call(`${LOCAL_VIEWER_PREFIX}/?slug=qa`);
     expect(response.writeHead).toHaveBeenCalledWith(403, expect.anything());
+    f.dispose();
+  });
+
+  it('serves handoff instructions and records accept plus completion', async () => {
+    const f = fixture();
+    const record = f.takeover.mint('qa', 'Log in to Example');
+    const details = await f.call(`${LOCAL_VIEWER_PREFIX}/handoff?token=${record.token}`);
+    expect(details.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'content-type': 'application/json' }),
+    );
+    expect(String(details.end.mock.calls[0]?.[0] ?? '')).toContain('Log in to Example');
+    const accepted = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/handoff/accept`,
+      'POST',
+      {},
+      {
+        token: record.token,
+      },
+    );
+    expect(accepted.writeHead).toHaveBeenCalledWith(200, expect.anything());
+    const done = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/handoff/complete`,
+      'POST',
+      {},
+      {
+        token: record.token,
+        reason: 'done',
+      },
+    );
+    expect(done.writeHead).toHaveBeenCalledWith(200, expect.anything());
+    const again = await f.call(
+      `${LOCAL_VIEWER_PREFIX}/handoff/complete`,
+      'POST',
+      {},
+      {
+        token: record.token,
+        reason: 'done',
+      },
+    );
+    expect(again.writeHead).toHaveBeenCalledWith(410, expect.anything());
+    f.dispose();
+  });
+
+  it('rejects unknown handoff tokens with gone', async () => {
+    const f = fixture();
+    const response = await f.call(`${LOCAL_VIEWER_PREFIX}/handoff?token=nope`);
+    expect(response.writeHead).toHaveBeenCalledWith(410, expect.anything());
     f.dispose();
   });
 });

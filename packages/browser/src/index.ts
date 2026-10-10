@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
 import { LOCAL_VIEWER_PREFIX, localViewerUrl, registerLocalViewer } from './viewer-local.js';
+import { createTakeoverService } from './takeover.js';
 import type { ContainerBrowserOptions } from './runtime/container.js';
 import { createProfileControl } from './profile-control.js';
 import { registerProfileHttp } from './profile-http.js';
@@ -253,6 +254,18 @@ export function apply(
     ),
   );
 
+  const takeovers = createTakeoverService();
+
+  const takeoverViewerBase = (slug: string): string | undefined => {
+    const runtime = runtimes.for(slug);
+    if (!runtime.isRunning()) return undefined;
+    return (
+      runtime.viewerUrl?.() ??
+      (target() === 'local' ? localViewerUrl(slug) : undefined) ??
+      undefined
+    );
+  };
+
   const provider = createBrowserToolProvider({
     ctx,
     runtimes,
@@ -265,6 +278,8 @@ export function apply(
     profile: () => (target() === 'profile-control' ? profile : undefined),
     daily: () => (target() === 'daily-control' ? daily : undefined),
     borrowed: () => (target() === 'extension' ? borrow : undefined),
+    takeover: () => takeovers,
+    takeoverUrlFor: takeoverViewerBase,
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
     onInvalidate: (slug) => botRevisions.set(slug, (botRevisions.get(slug) ?? 0) + 1),
@@ -338,6 +353,7 @@ export function apply(
             | undefined
         )?.get(slug)?.browserAccess === true,
       note: (detail) => diagnostics.record('lifecycle', detail),
+      takeover: takeovers,
       rejection: (headers) => services.connection.requestRejection({ headers }),
     });
     diagnostics.record('lifecycle', `local viewer ready prefix=${LOCAL_VIEWER_PREFIX}`);
@@ -778,6 +794,46 @@ export function apply(
     connectionCtx.effect(
       () => connection.fetch.register(stopRoute),
       'botharness-browser: stop route',
+    );
+
+    const takeoverAuditRoute = {
+      path: '/api/browser/takeover/audit',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const slug = new URL(request.url).searchParams.get('slug') ?? '';
+        if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        return json({ ok: true, events: takeovers.audit(slug) });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(takeoverAuditRoute),
+      'botharness-browser: takeover audit route',
+    );
+
+    const takeoverRecordingRoute = {
+      path: '/api/browser/takeover/recording',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const token = new URL(request.url).searchParams.get('token') ?? '';
+        const record = token === '' ? undefined : takeovers.recording(token);
+        if (record === undefined) return json({ ok: false, error: 'unknown token' }, 404);
+        return json({
+          ok: true,
+          slug: record.slug,
+          state: record.state,
+          ...(record.reason === undefined ? {} : { reason: record.reason }),
+          createdAt: record.createdAt,
+          expiresAt: record.expiresAt,
+          ...(record.completedAt === undefined ? {} : { completedAt: record.completedAt }),
+          events: record.events,
+        });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(takeoverRecordingRoute),
+      'botharness-browser: takeover recording route',
     );
   });
 

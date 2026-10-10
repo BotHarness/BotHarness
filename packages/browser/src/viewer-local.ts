@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'node:http';
 
 import type { BrowserViewerHost } from './viewer.js';
 import type { BotBrowserRuntimes } from './runtimes.js';
+import type { TakeoverCompletion, TakeoverService } from './takeover.js';
 
 export const LOCAL_VIEWER_PREFIX = '/botharness-browser/viewer/local';
 
@@ -20,6 +21,8 @@ function viewerPage(): string {
 html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-family:system-ui,-apple-system,sans-serif}
 #wrap{max-width:1280px;margin:0 auto;padding:8px;box-sizing:border-box}
 #toolbar{display:flex;gap:8px;align-items:center;padding:8px 2px}
+#handoff{display:none;border:1px solid #665;border-radius:8px;background:#23230f;padding:10px 12px;margin:8px 2px;font-size:13px}
+#handoffBtns{display:flex;gap:8px;margin-top:8px}
 #modeBtn{border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:13px;padding:6px 12px;cursor:pointer}
 #hint{font-size:12px;opacity:.65}
 #stage{position:relative}
@@ -34,7 +37,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 </style>
 </head>
 <body>
-<div id="wrap"><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><img id="frame" alt="Bot Browser live view"><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button><button class="keyBtn" id="enterBtn" type="button">Enter</button><button class="keyBtn" id="tabBtn" type="button">Tab</button><button class="keyBtn" id="escBtn" type="button">Esc</button></div><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><img id="frame" alt="Bot Browser live view"><div id="cursor"></div></div><div id="scrollRow"><button class="scrollBtn" id="upBtn" type="button">Up</button><button class="scrollBtn" id="downBtn" type="button">Down</button></div><div id="kbdRow"><input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type here"><button class="keyBtn" id="sendBtn" type="button">Send</button><button class="keyBtn" id="enterBtn" type="button">Enter</button><button class="keyBtn" id="tabBtn" type="button">Tab</button><button class="keyBtn" id="escBtn" type="button">Esc</button></div><div id="status"></div></div>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
@@ -51,6 +54,46 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const enterBtn = document.getElementById('enterBtn');
   const tabBtn = document.getElementById('tabBtn');
   const escBtn = document.getElementById('escBtn');
+  const handoffBox = document.getElementById('handoff');
+  const handoffText = document.getElementById('handoffText');
+  const doneBtn = document.getElementById('doneBtn');
+  const failBtn = document.getElementById('failBtn');
+  const handoffToken = params.get('takeover') ?? '';
+  async function finishHandoff(reason) {
+    if (handoffToken === '') return;
+    try {
+      const response = await fetch('handoff/complete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: handoffToken, reason }),
+      });
+      say(response.ok ? 'Reported, the bot will verify' : 'handoff link expired or already used');
+      if (handoffBox) handoffBox.style.display = 'none';
+    } catch {
+      say('handoff completion unavailable');
+    }
+  }
+  async function loadHandoff() {
+    if (handoffToken === '') return;
+    try {
+      const accepted = await fetch('handoff/accept', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: handoffToken }),
+      });
+      if (!accepted.ok) {
+        say('handoff link expired or already used');
+        return;
+      }
+      const details = await (await fetch('handoff?token=' + encodeURIComponent(handoffToken), { cache: 'no-store' })).json();
+      if (handoffBox) handoffBox.style.display = 'block';
+      if (handoffText) handoffText.textContent = typeof details.instructions === 'string' ? details.instructions : '';
+    } catch {
+      say('handoff link unavailable');
+    }
+  }
+  if (doneBtn) doneBtn.addEventListener('click', () => void finishHandoff('done'));
+  if (failBtn) failBtn.addEventListener('click', () => void finishHandoff('failed'));
   let current = '';
   let mode = window.innerWidth < 768 ? 'trackpad' : 'direct';
   let cx = 0;
@@ -245,6 +288,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   }
   window.addEventListener('resize', place);
   paint();
+  void loadHandoff();
   void poll();
   setInterval(() => void poll(), 1000);
 })();
@@ -302,6 +346,7 @@ export function registerLocalViewer(options: {
   touch: (slug: string) => void;
   hasAccess: (slug: string) => boolean;
   note: (detail: string) => void;
+  takeover: TakeoverService;
   rejection: (headers: Headers) => number | undefined;
 }): () => void {
   return options.host.register({
@@ -315,6 +360,102 @@ export function registerLocalViewer(options: {
         return;
       }
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+      if (url.pathname.endsWith('/handoff/accept') || url.pathname.endsWith('/handoff/complete')) {
+        if (request.method !== 'POST') {
+          response.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('method not allowed');
+          return;
+        }
+        let handoffBody: Record<string, unknown>;
+        try {
+          handoffBody = (await readBody(request)) as Record<string, unknown>;
+        } catch {
+          response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('invalid handoff request');
+          return;
+        }
+        const token = typeof handoffBody['token'] === 'string' ? handoffBody['token'] : '';
+        if (token === '') {
+          response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('token is required');
+          return;
+        }
+        const completing = url.pathname.endsWith('/handoff/complete');
+        if (completing) {
+          const reason = handoffBody['reason'];
+          if (reason !== 'done' && reason !== 'failed') {
+            response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+            response.end('reason must be done or failed');
+            return;
+          }
+          const finished = options.takeover.complete(token, reason as TakeoverCompletion);
+          if (finished === undefined) {
+            response.writeHead(410, { 'content-type': 'text/plain; charset=utf-8' });
+            response.end('takeover link expired or already used');
+            return;
+          }
+          options.note(`takeover complete slug=${finished.slug} reason=${reason}`);
+          response.writeHead(200, {
+            'content-type': 'application/json',
+            'cache-control': 'no-store',
+          });
+          response.end(JSON.stringify({ ok: true }));
+          return;
+        }
+        const accepted = options.takeover.accept(token);
+        if (accepted === undefined) {
+          response.writeHead(410, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('takeover link expired or already used');
+          return;
+        }
+        if (!options.hasAccess(accepted.slug)) {
+          response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('Browser Access is off for this PersonaBot');
+          return;
+        }
+        options.note(`takeover accept slug=${accepted.slug}`);
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+        });
+        response.end(
+          JSON.stringify({
+            ok: true,
+            slug: accepted.slug,
+            instructions: accepted.instructions,
+            expiresAt: accepted.expiresAt,
+          }),
+        );
+        return;
+      }
+      if (url.pathname.endsWith('/handoff')) {
+        if (request.method !== 'GET') {
+          response.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('method not allowed');
+          return;
+        }
+        const token = url.searchParams.get('token') ?? '';
+        const record = token === '' ? undefined : options.takeover.describe(token);
+        if (record === undefined || (record.state !== 'pending' && record.state !== 'accepted')) {
+          response.writeHead(410, { 'content-type': 'text/plain; charset=utf-8' });
+          response.end('takeover link expired or already used');
+          return;
+        }
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+        });
+        response.end(
+          JSON.stringify({
+            ok: true,
+            slug: record.slug,
+            instructions: record.instructions,
+            expiresAt: record.expiresAt,
+            state: record.state,
+          }),
+        );
+        return;
+      }
       if (url.pathname.endsWith('/input')) {
         if (request.method !== 'POST') {
           response.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' });
@@ -373,6 +514,7 @@ export function registerLocalViewer(options: {
             options.touch(slug);
             const page = await runtime.clickAt(tabId, x, y);
             options.note(`viewer click slug=${slug}`);
+            options.takeover.recordInput(slug, `click x=${x} y=${y}`);
             response.writeHead(200, {
               'content-type': 'application/json',
               'cache-control': 'no-store',
@@ -386,6 +528,7 @@ export function registerLocalViewer(options: {
             options.touch(slug);
             const page = await runtime.scroll(tabId, direction, amount);
             options.note(`viewer scroll slug=${slug} direction=${direction} amount=${amount}`);
+            options.takeover.recordInput(slug, `scroll ${direction} ${amount}`);
             response.writeHead(200, {
               'content-type': 'application/json',
               'cache-control': 'no-store',
@@ -403,6 +546,7 @@ export function registerLocalViewer(options: {
             options.touch(slug);
             const page = await runtime.insertText(tabId, text);
             options.note(`viewer type slug=${slug} chars=${text.length}`);
+            options.takeover.recordInput(slug, `type chars=${text.length}`);
             response.writeHead(200, {
               'content-type': 'application/json',
               'cache-control': 'no-store',
@@ -420,6 +564,7 @@ export function registerLocalViewer(options: {
             options.touch(slug);
             const page = await runtime.pressKey(tabId, key);
             options.note(`viewer key slug=${slug} key=${key.slice(0, 32)}`);
+            options.takeover.recordInput(slug, `key ${key.slice(0, 32)}`);
             response.writeHead(200, {
               'content-type': 'application/json',
               'cache-control': 'no-store',
