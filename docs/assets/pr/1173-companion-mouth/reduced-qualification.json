@@ -1,0 +1,36 @@
+{
+  "runtimeCode": "4e366904",
+  "package": "@botharness/pixel-avatar@0.2.0",
+  "viewport": {
+    "width": 1559,
+    "height": 865
+  },
+  "theme": "dark",
+  "actualCanonicalBodyLength": 312,
+  "samples": [
+    {
+      "phase": "reduced-idle",
+      "count": 1,
+      "mouthStates": ["saved"]
+    },
+    {
+      "phase": "reduced-release",
+      "count": 19,
+      "mouthStates": ["saved"]
+    },
+    {
+      "phase": "real-reduced-reveal",
+      "count": 242,
+      "mouthStates": ["saved"]
+    },
+    {
+      "phase": "real-reduced-settled",
+      "count": 149,
+      "mouthStates": ["saved"]
+    }
+  ],
+  "limits": [
+    "Actual native new DM and reduced-motion drag observed; no hidden/background, unpin or performance claim.",
+    "Original source revision retained; no Human mouth hand-feel acceptance yet."
+  ]
+}

@@ -254,6 +254,46 @@ it('bounds parallel cards at twenty, freezes reading order, continues typing and
   expect(owner.getSnapshot().cards).toHaveLength(0);
 });
 
+it('shows fresh arrivals when focused reading has no cards and releases waiting arrivals after the last dismissal', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (type: string, value: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(value) }));
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host', revision: 0, bots: [] },
+  });
+  const reply = (messageId: string) =>
+    send('companion/message', {
+      generation: 'host',
+      botId: 'ada',
+      messageId,
+      channelId: 'dm',
+      channelName: 'Ada',
+      body: 'A new reply',
+    });
+  reply('first');
+  owner.reading(true);
+  owner.dismiss('first', 'dm');
+  expect(owner.getSnapshot()).toMatchObject({ reading: true, cards: [], pending: 0 });
+  reply('second');
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['second']);
+  expect(owner.getSnapshot().pending).toBe(0);
+  reply('third');
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['second']);
+  expect(owner.getSnapshot().pending).toBe(1);
+  owner.dismiss('second', 'dm');
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['third']);
+  expect(owner.getSnapshot()).toMatchObject({ reading: true, pending: 0 });
+});
+
 it('reveals whole emoji and combining graphemes and clips previews on a complete boundary', async () => {
   const events = new EventTarget();
   const owner = new WindowCompanion({

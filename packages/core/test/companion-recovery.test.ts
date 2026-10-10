@@ -225,9 +225,13 @@ it('keeps reading progress and deduplicates recovery through the real feed into 
     await receive();
     await vi.waitFor(() => expect(updates).toBe(3));
     await receive();
+    expect(child.getSnapshot()).toMatchObject({ reading: true, cards: [], pending: 0 });
     await commit('future-after-enable');
     await receive();
-    expect(child.getSnapshot().pending).toBe(1);
+    expect(child.getSnapshot().pending).toBe(0);
+    expect(child.getSnapshot().cards.map((card) => card.messageId)).toEqual([
+      'future-after-enable',
+    ]);
     child.reading(false);
     expect(child.getSnapshot().cards.map((card) => card.messageId)).toEqual([
       'future-after-enable',

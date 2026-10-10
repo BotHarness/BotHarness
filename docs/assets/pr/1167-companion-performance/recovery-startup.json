@@ -1,0 +1,404 @@
+{
+  "schemaVersion": 1,
+  "issue": 1167,
+  "status": "Partial measured Companion-stream recovery and fresh Client document; overall performance acceptance incomplete",
+  "browserMode": "isolated headless, foreground visible",
+  "viewport": {
+    "width": 960,
+    "height": 640,
+    "dpr": 1
+  },
+  "theme": "native dark",
+  "visibleCompanions": 5,
+  "canonicalMessages": 3,
+  "sameCanonicalBodyHashes": true,
+  "method": "A loopback forwarding hop destroys and temporarily refuses only real /api/botharness/companion streams. Native Host canonical messages are committed while cut. Trace begins before forwarding resumes; existing reading and queued content are observed. Later the same browser performs a full Client reload with cache bypass; live Host and browser process remain running.",
+  "roles": {
+    "parent": {
+      "source": {
+        "host": "75a236a56942f75c3ebbbe84b88bde2e6fc3abcb"
+      },
+      "avatarVersion": "0.1.0",
+      "chromeVersion": "154.0.8037.98",
+      "initialMessagesPerDm": [8, 8, 8, 8, 12],
+      "actualCanonicalBodies": [
+        {
+          "bodyLength": 1236,
+          "bodyHash": "e0591711a1d1503460f9348121dbe50919a594ad61470ee1b75e3cd6f0621ae8"
+        },
+        {
+          "bodyLength": 1240,
+          "bodyHash": "d3b56e82fa15f0ca99ec2bb6c388c12db2a9f1b72e077f913138471ac51ba938"
+        },
+        {
+          "bodyLength": 1240,
+          "bodyHash": "f590f29efe86d65e952f1e2a7676586f291f55c486e6233e387a97bbb4cf8f76"
+        }
+      ],
+      "proxyBeforeCut": {
+        "opened": 7,
+        "dropped": 0,
+        "refused": 0,
+        "blocked": false,
+        "activeStreams": 1
+      },
+      "proxyAfterCut": {
+        "opened": 7,
+        "dropped": 1,
+        "refused": 0,
+        "blocked": true,
+        "activeStreams": 0
+      },
+      "proxyAtReturn": {
+        "opened": 7,
+        "dropped": 1,
+        "refused": 12,
+        "blocked": false,
+        "activeStreams": 0
+      },
+      "proxyFinal": {
+        "opened": 12,
+        "dropped": 1,
+        "refused": 12,
+        "blocked": false,
+        "activeStreams": 0
+      },
+      "returnObservedUpperBoundMs": 5049.1106000000145,
+      "reloadLiveObservedUpperBoundMs": 3561.7098000000115,
+      "reloadedNavigation": [
+        {
+          "type": "reload",
+          "startTime": 0,
+          "responseEnd": 6.4000000059604645,
+          "domContentLoadedEventEnd": 188.09999999403954,
+          "loadEventEnd": 1230.199999988079,
+          "transferSize": 6327
+        }
+      ],
+      "observations": [
+        {
+          "label": "reading-before-offline",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 1,
+          "cards": 1,
+          "pending": []
+        },
+        {
+          "label": "offline-backlog-committed",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 0,
+          "staleCount": 5,
+          "readingCount": 1,
+          "cards": 1,
+          "pending": []
+        },
+        {
+          "label": "recovered-reading-after-fifteen-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 1,
+          "cards": 2,
+          "pending": ["+1"]
+        },
+        {
+          "label": "dedup-after-five-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 3,
+          "pending": []
+        },
+        {
+          "label": "before-cache-bypass-reload",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 2,
+          "pending": []
+        },
+        {
+          "label": "reloaded-after-fifteen-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 0,
+          "pending": []
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "reconnect-return",
+          "traceSeconds": 39.512528,
+          "animationFrameWallDuration": {
+            "count": 4177,
+            "minMs": 0.677,
+            "meanMs": 9.141987790280124,
+            "p50Ms": 9.223,
+            "p95Ms": 10.741,
+            "p99Ms": 11.268,
+            "maxMs": 52.436,
+            "over8_333Ms": 3449,
+            "over16_667Ms": 2,
+            "over50Ms": 1
+          },
+          "presentationInterval": {
+            "count": 4175,
+            "minMs": 0.6,
+            "meanMs": 9.415882395209616,
+            "p50Ms": 9.339,
+            "p95Ms": 17.953,
+            "p99Ms": 18.307,
+            "maxMs": 82.975,
+            "over8_333Ms": 3440,
+            "over16_667Ms": 703,
+            "over50Ms": 1
+          }
+        },
+        {
+          "name": "client-reload-no-replay",
+          "traceSeconds": 19.504671,
+          "animationFrameWallDuration": {
+            "count": 1887,
+            "minMs": 1.532,
+            "meanMs": 10.003883942766292,
+            "p50Ms": 9.245,
+            "p95Ms": 9.705,
+            "p99Ms": 12.115,
+            "maxMs": 825.301,
+            "over8_333Ms": 1861,
+            "over16_667Ms": 15,
+            "over50Ms": 6
+          },
+          "presentationInterval": {
+            "count": 1885,
+            "minMs": 0.728,
+            "meanMs": 10.22984668435012,
+            "p50Ms": 9.337,
+            "p95Ms": 9.831,
+            "p99Ms": 18.058,
+            "maxMs": 839.908,
+            "over8_333Ms": 1853,
+            "over16_667Ms": 30,
+            "over50Ms": 8
+          }
+        }
+      ],
+      "intentionalNetworkErrorCount": 2,
+      "postReloadConsoleErrorCount": 0,
+      "closedOwnedBrowser": true,
+      "closedProxy": true,
+      "noReplayObserved": true
+    },
+    "candidate": {
+      "source": {
+        "hostBase": "fc356883152ac5d86b11993216084dbda60be4d4",
+        "hostMain": "66d2767a",
+        "owner": "ac9e25740e7ef33d1409b124d9bab23d16732ced",
+        "localUncommittedChanges": "Companion speechMouthVersion2 and packed owner0.10.1 dependency, not published"
+      },
+      "avatarVersion": "0.10.1",
+      "chromeVersion": "154.0.8037.98",
+      "initialMessagesPerDm": [7, 5, 5, 5, 15],
+      "actualCanonicalBodies": [
+        {
+          "bodyLength": 1236,
+          "bodyHash": "e0591711a1d1503460f9348121dbe50919a594ad61470ee1b75e3cd6f0621ae8"
+        },
+        {
+          "bodyLength": 1240,
+          "bodyHash": "d3b56e82fa15f0ca99ec2bb6c388c12db2a9f1b72e077f913138471ac51ba938"
+        },
+        {
+          "bodyLength": 1240,
+          "bodyHash": "f590f29efe86d65e952f1e2a7676586f291f55c486e6233e387a97bbb4cf8f76"
+        }
+      ],
+      "proxyBeforeCut": {
+        "opened": 7,
+        "dropped": 0,
+        "refused": 0,
+        "blocked": false,
+        "activeStreams": 1
+      },
+      "proxyAfterCut": {
+        "opened": 7,
+        "dropped": 1,
+        "refused": 0,
+        "blocked": true,
+        "activeStreams": 0
+      },
+      "proxyAtReturn": {
+        "opened": 7,
+        "dropped": 1,
+        "refused": 5,
+        "blocked": false,
+        "activeStreams": 0
+      },
+      "proxyFinal": {
+        "opened": 12,
+        "dropped": 1,
+        "refused": 5,
+        "blocked": false,
+        "activeStreams": 0
+      },
+      "returnObservedUpperBoundMs": 5482.611100000009,
+      "reloadLiveObservedUpperBoundMs": 3075.8174,
+      "reloadedNavigation": [
+        {
+          "type": "reload",
+          "startTime": 0,
+          "responseEnd": 5.5999999940395355,
+          "domContentLoadedEventEnd": 192,
+          "loadEventEnd": 1111.2000000178814,
+          "transferSize": 8630
+        }
+      ],
+      "observations": [
+        {
+          "label": "reading-before-offline",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 1,
+          "cards": 1,
+          "pending": []
+        },
+        {
+          "label": "offline-backlog-committed",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 0,
+          "staleCount": 5,
+          "readingCount": 1,
+          "cards": 1,
+          "pending": []
+        },
+        {
+          "label": "recovered-reading-after-fifteen-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 1,
+          "cards": 2,
+          "pending": ["+1"]
+        },
+        {
+          "label": "dedup-after-five-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 3,
+          "pending": []
+        },
+        {
+          "label": "before-cache-bypass-reload",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 3,
+          "pending": []
+        },
+        {
+          "label": "reloaded-after-fifteen-seconds",
+          "visibility": "visible",
+          "companionCount": 5,
+          "liveCount": 5,
+          "staleCount": 0,
+          "readingCount": 0,
+          "cards": 0,
+          "pending": []
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "reconnect-return",
+          "traceSeconds": 40.314697,
+          "animationFrameWallDuration": {
+            "count": 4246,
+            "minMs": 1.17,
+            "meanMs": 8.957283089967044,
+            "p50Ms": 9.149,
+            "p95Ms": 12.563,
+            "p99Ms": 14.053,
+            "maxMs": 87.83,
+            "over8_333Ms": 3140,
+            "over16_667Ms": 1,
+            "over50Ms": 1
+          },
+          "presentationInterval": {
+            "count": 4241,
+            "minMs": 0.706,
+            "meanMs": 9.445697948597056,
+            "p50Ms": 9.331,
+            "p95Ms": 17.94,
+            "p99Ms": 26.991,
+            "maxMs": 105.267,
+            "over8_333Ms": 2969,
+            "over16_667Ms": 1064,
+            "over50Ms": 1
+          }
+        },
+        {
+          "name": "client-reload-no-replay",
+          "traceSeconds": 18.99724,
+          "animationFrameWallDuration": {
+            "count": 1827,
+            "minMs": 0.6,
+            "meanMs": 10.009948002189388,
+            "p50Ms": 9.241,
+            "p95Ms": 9.742,
+            "p99Ms": 14.152,
+            "maxMs": 720.509,
+            "over8_333Ms": 1792,
+            "over16_667Ms": 16,
+            "over50Ms": 9
+          },
+          "presentationInterval": {
+            "count": 1825,
+            "minMs": 0.739,
+            "meanMs": 10.274449315068507,
+            "p50Ms": 9.338,
+            "p95Ms": 9.909,
+            "p99Ms": 26.82,
+            "maxMs": 735.081,
+            "over8_333Ms": 1780,
+            "over16_667Ms": 37,
+            "over50Ms": 9
+          }
+        }
+      ],
+      "intentionalNetworkErrorCount": 2,
+      "postReloadConsoleErrorCount": 0,
+      "closedOwnedBrowser": true,
+      "closedProxy": true,
+      "noReplayObserved": true
+    }
+  },
+  "limits": [
+    "One successful sample per revision, not randomized or a sustained-load envelope.",
+    "The forwarding hop and bounded DOM/input/screenshot observations are included in these interaction traces. Earlier direct-origin frame measurements are a separate protocol.",
+    "Recovery latency is an observed upper bound including tool dispatch/polling, not pure Client execution time. Navigation Timing describes document loading, not the exact first-live instant.",
+    "Only the Companion feed is interrupted; this is not full-network outage, actual background return or Host/browser-process cold start.",
+    "Original browser Offline attempt kept established streams live and was excluded. A short-message attempt reached recovery but its fixed card-count oracle failed after normal expiry; its failed trace is excluded. Long real messages keep the final observation within natural card lifetime; no product timer changed.",
+    "Source, Avatar, shell, history and roster differences remain disclosed in the original checkpoint.",
+    "No budget, physical display FPS, feature attribution or overall acceptance is claimed."
+  ]
+}

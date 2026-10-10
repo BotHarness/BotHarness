@@ -584,15 +584,6 @@ function TokenUsageCard({
             reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal),
         })}
       </div>
-      {activity?.modelUsageRows?.some(
-        (row) =>
-          row.inputTokens === null ||
-          row.outputTokens === null ||
-          row.cacheReadTokens === null ||
-          row.cacheWriteTokens === null,
-      ) ? (
-        <p className="bh-note">{t('profile.usage.partial')}</p>
-      ) : null}
       <Chart
         definition={definition}
         ariaLabel={t('profile.tokens.sparkline')}
@@ -654,6 +645,16 @@ export function createProfileCardBuiltins(
   return [
     {
       id: 'token-usage',
+      help: ({ activity, t }) =>
+        activity?.modelUsageRows?.some(
+          (row) =>
+            row.inputTokens === null ||
+            row.outputTokens === null ||
+            row.cacheReadTokens === null ||
+            row.cacheWriteTokens === null,
+        )
+          ? t('profile.usage.partial')
+          : undefined,
       label: t('profile.card.tokens'),
       order: 5,
       render: (props) => <TokenUsageCard {...props} />,

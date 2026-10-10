@@ -9,7 +9,8 @@ export const WINDOW_COMPANION_CSS = `
   --bh-companion-attention: var(--dsw-alias-state-warn-primary);
   --bh-companion-font: var(--dsw-font-markdown-code-block-font-family);
   /* @bh-companion-aliases:end */
-  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  /* Focus may scroll hidden overflow; the presentation viewport must stay fixed. */
+  position: absolute; inset: 0; pointer-events: none; overflow: clip;
 }
 .bh-companion-chip { display: inline-flex; align-items: center; gap: 2px; }
 .bh-channel-island-wrap > .bh-companion-pin { margin-left: 2px; }
@@ -41,7 +42,8 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-pending .bh-tool-approval-card { margin: 0; min-width: 0; grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
 .bh-companion-pending .bh-tool-approval-input { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-companion-cards { position: absolute; bottom: 174px; width: 320px; max-width: calc(100vw - 16px); margin: 0; padding: 0; list-style: none; overflow: visible; transition: height 220ms ease; }
-.bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-gutter: stable; }
+.bh-companion[data-reading='true'] .bh-companion-cards { overflow: auto; scrollbar-width: none; }
+.bh-companion-cards::-webkit-scrollbar, .bh-companion-card p::-webkit-scrollbar { display: none; }
 .bh-companion-card { position: absolute; width: 100%; height: 104px; padding: 8px 10px; background: var(--bh-companion-surface); border: 2px solid var(--bh-companion-border); transform-origin: center top; color: var(--bh-companion-text); transition: top 220ms ease, transform 220ms ease; box-shadow: 3px 3px 0 var(--bh-companion-border); }
 .bh-companion-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .bh-companion-source { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
@@ -49,12 +51,16 @@ export const WINDOW_COMPANION_CSS = `
 .bh-companion-source button { text-align: left; line-height: 14px; }
 .bh-companion-source button:disabled { cursor: default; }
 .bh-companion-card header button { font-size: 11px; color: var(--bh-companion-muted); background: transparent; border: 0; padding: 0; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow: auto; }
+.bh-companion-card p { margin: 6px 0 0; font: 12px/18px var(--bh-companion-font); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 54px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; overflow-anchor: none; scroll-behavior: auto; }
+.bh-companion-card p:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
 .bh-companion-card p[data-context='true'] { max-height: 36px; }
-.bh-companion-toolbar { position: absolute; bottom: 96px; left: -10px; display: flex; align-items: center; gap: 4px; padding: 5px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); opacity: 0; visibility: hidden; transition: opacity 150ms ease; }
-.bh-companion-toolbar[data-open='true'] { opacity: 1; visibility: visible; }
+.bh-companion-toolbar { position: absolute; bottom: 96px; left: -10px; display: flex; align-items: center; gap: 4px; padding: 5px; background: var(--bh-companion-surface); border: 1px solid var(--bh-companion-border); }
 .bh-companion-toolbar button { display: grid; place-items: center; min-width: 28px; height: 26px; border: 0; background: transparent; color: var(--bh-companion-text); cursor: pointer; }
 .bh-companion-toolbar button:hover { background: var(--bh-companion-hover); }
 .bh-companion-attention { position: absolute; z-index: 2; right: 4px; top: 4px; min-width: 20px; height: 20px; padding: 0 3px; border: 1px solid var(--bh-companion-border); background: var(--bh-companion-surface); color: var(--bh-companion-attention); cursor: pointer; }
+.bh-companion-toolbar, .bh-companion-attention { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 150ms ease, visibility 0s linear 150ms; }
+.bh-companion:hover .bh-companion-toolbar, .bh-companion:has(:focus-visible) .bh-companion-toolbar,
+.bh-companion:hover .bh-companion-attention, .bh-companion:has(:focus-visible) .bh-companion-attention,
+.bh-companion-toolbar[data-open='true'] { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
 html[data-botharness-motion='reduce'] .bh-companion * { transition: none; }
 `;

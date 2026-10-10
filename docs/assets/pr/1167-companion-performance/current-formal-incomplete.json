@@ -1,0 +1,459 @@
+{
+  "baseline": "bcae2205d7562f3eec1d9b2f5e20c1b4fbb5a9da",
+  "candidate": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+  "formalAvatar": "0.10.0",
+  "plannedOrder": ["parent-1", "candidate-1", "candidate-2", "parent-2"],
+  "includedOrder": ["parent-1", "candidate-1", "candidate-2"],
+  "plannedBalancedOrderCompleted": false,
+  "performanceAcceptance": false,
+  "excludedRuns": [
+    {
+      "label": "parent-2",
+      "reason": "Native reading state violated precondition after one paused trace; exclude entire run, preserve original failure"
+    }
+  ],
+  "canonicalWelcomeRows": 5,
+  "allWelcomeRowsPersistedBeforeFirstTimedPrecondition": true,
+  "initialSetupCountsMatched": false,
+  "historyQualificationMethod": "Read-only canonical placement/source-event ledger after all owned Hosts stop; exactly one unchanged native system onboarding welcome per cohort Channel, all persisted before the earliest timed precondition. Original setup metadata retained (parent1 zero, later runs one); not a claim of matching initial setup or live post-trace RPC counts.",
+  "runs": [
+    {
+      "label": "parent-1",
+      "role": "parent",
+      "source": "bcae2205d7562f3eec1d9b2f5e20c1b4fbb5a9da",
+      "assetCost": {
+        "bundleBytes": 2977184,
+        "gzipLevel6Bytes": 739836,
+        "sha256": "0acba02a4b2da9212bb810e8db0408d5b0584ce681de4262983b4566dcedae69"
+      },
+      "viewport": {
+        "width": 960,
+        "height": 640,
+        "dpr": 1
+      },
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+      "scenes": [
+        {
+          "name": "walkers-0-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.594381,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 651,
+            "minMs": 0.958,
+            "meanMs": 8.152803379416289,
+            "p50Ms": 8.146,
+            "p95Ms": 9.574,
+            "p99Ms": 14.096,
+            "maxMs": 16.812,
+            "over8_333Ms": 156,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 650,
+            "minMs": 1.159,
+            "meanMs": 8.329201538461538,
+            "p50Ms": 8.279,
+            "p95Ms": 10.162,
+            "p99Ms": 14.421,
+            "maxMs": 17.303,
+            "over8_333Ms": 272,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.11304,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 443,
+            "minMs": 4.451,
+            "meanMs": 8.744408577878104,
+            "p50Ms": 9.183,
+            "p95Ms": 12.034,
+            "p99Ms": 15.481,
+            "maxMs": 17.262,
+            "over8_333Ms": 270,
+            "over16_667Ms": 2,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 425,
+            "minMs": 5.188,
+            "meanMs": 11.783482352941187,
+            "p50Ms": 8.451,
+            "p95Ms": 16.819,
+            "p99Ms": 25.093,
+            "maxMs": 25.139,
+            "over8_333Ms": 282,
+            "over16_667Ms": 81,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.089572,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 358,
+            "minMs": 5.212,
+            "meanMs": 10.688312849162013,
+            "p50Ms": 10.861,
+            "p95Ms": 14.706,
+            "p99Ms": 18.209,
+            "maxMs": 29.672,
+            "over8_333Ms": 292,
+            "over16_667Ms": 6,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 350,
+            "minMs": 7.837,
+            "meanMs": 13.642431428571422,
+            "p50Ms": 16.531,
+            "p95Ms": 16.939,
+            "p99Ms": 25.108,
+            "maxMs": 33.347,
+            "over8_333Ms": 269,
+            "over16_667Ms": 109,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-0-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.144603,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 582,
+            "minMs": 1.089,
+            "meanMs": 8.185788659793815,
+            "p50Ms": 8.151,
+            "p95Ms": 9.221,
+            "p99Ms": 15.372,
+            "maxMs": 19.854,
+            "over8_333Ms": 143,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 581,
+            "minMs": 1.265,
+            "meanMs": 8.353891566265064,
+            "p50Ms": 8.274,
+            "p95Ms": 9.389,
+            "p99Ms": 15.725,
+            "maxMs": 20.105,
+            "over8_333Ms": 225,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          }
+        }
+      ]
+    },
+    {
+      "label": "candidate-1",
+      "role": "candidate",
+      "source": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+      "assetCost": {
+        "bundleBytes": 2991594,
+        "gzipLevel6Bytes": 743169,
+        "sha256": "841cb326496301dd096d1633de6ca0e192d35b03acebdc9be42b655b07a69f17"
+      },
+      "viewport": {
+        "width": 960,
+        "height": 640,
+        "dpr": 1
+      },
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+      "scenes": [
+        {
+          "name": "walkers-0-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.570916,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 639,
+            "minMs": 1.158,
+            "meanMs": 8.10746165884194,
+            "p50Ms": 8.112,
+            "p95Ms": 10.053,
+            "p99Ms": 14.021,
+            "maxMs": 17.323,
+            "over8_333Ms": 155,
+            "over16_667Ms": 2,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 638,
+            "minMs": 1.555,
+            "meanMs": 8.339963949843268,
+            "p50Ms": 8.258,
+            "p95Ms": 10.98,
+            "p99Ms": 14.479,
+            "maxMs": 17.543,
+            "over8_333Ms": 265,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.114445,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 515,
+            "minMs": 4.01,
+            "meanMs": 7.6741165048543545,
+            "p50Ms": 7.536,
+            "p95Ms": 11.241,
+            "p99Ms": 14.879,
+            "maxMs": 21.09,
+            "over8_333Ms": 192,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 511,
+            "minMs": 0.15,
+            "meanMs": 9.594573385518585,
+            "p50Ms": 8.343,
+            "p95Ms": 18.567,
+            "p99Ms": 21.94,
+            "maxMs": 30.218,
+            "over8_333Ms": 261,
+            "over16_667Ms": 76,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 7.410692,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 439,
+            "minMs": 4.574,
+            "meanMs": 9.334079726651485,
+            "p50Ms": 9.601,
+            "p95Ms": 12.213,
+            "p99Ms": 15.062,
+            "maxMs": 18.009,
+            "over8_333Ms": 317,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 434,
+            "minMs": 0.06,
+            "meanMs": 11.615658986175116,
+            "p50Ms": 10.567,
+            "p95Ms": 20.674,
+            "p99Ms": 24.659,
+            "maxMs": 29.124,
+            "over8_333Ms": 287,
+            "over16_667Ms": 88,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-0-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.091473,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 585,
+            "minMs": 0.794,
+            "meanMs": 8.13034358974359,
+            "p50Ms": 8.116,
+            "p95Ms": 9.511,
+            "p99Ms": 12.54,
+            "maxMs": 17.246,
+            "over8_333Ms": 149,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 584,
+            "minMs": 1.768,
+            "meanMs": 8.334595890410956,
+            "p50Ms": 8.276,
+            "p95Ms": 9.785,
+            "p99Ms": 12.771,
+            "maxMs": 17.413,
+            "over8_333Ms": 249,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          }
+        }
+      ]
+    },
+    {
+      "label": "candidate-2",
+      "role": "candidate",
+      "source": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+      "assetCost": {
+        "bundleBytes": 2991594,
+        "gzipLevel6Bytes": 743169,
+        "sha256": "841cb326496301dd096d1633de6ca0e192d35b03acebdc9be42b655b07a69f17"
+      },
+      "viewport": {
+        "width": 960,
+        "height": 640,
+        "dpr": 1
+      },
+      "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+      "scenes": [
+        {
+          "name": "walkers-0-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.618646,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 647,
+            "minMs": 1.175,
+            "meanMs": 8.111106646058726,
+            "p50Ms": 8.107,
+            "p95Ms": 9.008,
+            "p99Ms": 11.192,
+            "maxMs": 15.685,
+            "over8_333Ms": 181,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 646,
+            "minMs": 1.689,
+            "meanMs": 8.32942724458204,
+            "p50Ms": 8.294,
+            "p95Ms": 9.381,
+            "p99Ms": 12.303,
+            "maxMs": 15.918,
+            "over8_333Ms": 298,
+            "over16_667Ms": 0,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-1",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.091182,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 524,
+            "minMs": 3.708,
+            "meanMs": 7.363805343511452,
+            "p50Ms": 7.187,
+            "p95Ms": 10.587,
+            "p99Ms": 14.916,
+            "maxMs": 16.794,
+            "over8_333Ms": 166,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 517,
+            "minMs": 0.148,
+            "meanMs": 9.296466150870401,
+            "p50Ms": 8.308,
+            "p95Ms": 21.407,
+            "p99Ms": 23.823,
+            "maxMs": 25.798,
+            "over8_333Ms": 230,
+            "over16_667Ms": 69,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-5-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.4768,
+          "enabledWalkers": 5,
+          "endpointMovedCompanions": 5,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 426,
+            "minMs": 4.872,
+            "meanMs": 9.580401408450703,
+            "p50Ms": 9.746,
+            "p95Ms": 12.266,
+            "p99Ms": 14.563,
+            "maxMs": 20.769,
+            "over8_333Ms": 339,
+            "over16_667Ms": 3,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 419,
+            "minMs": 0.295,
+            "meanMs": 12.077114558472559,
+            "p50Ms": 8.602,
+            "p95Ms": 22.44,
+            "p99Ms": 25.639,
+            "maxMs": 28.505,
+            "over8_333Ms": 274,
+            "over16_667Ms": 112,
+            "over50Ms": 0
+          }
+        },
+        {
+          "name": "walkers-0-2",
+          "requestedSeconds": 5,
+          "traceSeconds": 5.159316,
+          "enabledWalkers": 0,
+          "endpointMovedCompanions": 0,
+          "endpointMovementMatchesEnabled": true,
+          "frameWallDuration": {
+            "count": 619,
+            "minMs": 1.224,
+            "meanMs": 8.120487883683365,
+            "p50Ms": 8.13,
+            "p95Ms": 9.059,
+            "p99Ms": 11.613,
+            "maxMs": 17.777,
+            "over8_333Ms": 184,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          },
+          "presentationInterval": {
+            "count": 617,
+            "minMs": 1.403,
+            "meanMs": 8.332283630470014,
+            "p50Ms": 8.322,
+            "p95Ms": 9.435,
+            "p99Ms": 13.807,
+            "maxMs": 17.952,
+            "over8_333Ms": 300,
+            "over16_667Ms": 1,
+            "over50Ms": 0
+          }
+        }
+      ]
+    }
+  ]
+}

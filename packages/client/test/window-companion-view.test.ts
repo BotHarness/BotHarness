@@ -5,6 +5,8 @@ import { expect, it, vi } from 'vitest';
 import { WindowCompanion } from '../src/client/window-companion.js';
 import { WindowCompanionView } from '../src/client/window-companion-view.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { CompanionSound } from '../src/client/companion-sound.js';
+import { companionPosition } from './companion-position.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -39,7 +41,203 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconNewChatOutlineRegular: () => null,
 }));
 
-it('projects the owning Avatar screen point into an offset overlay and remeasures it after resize', async () => {
+it('follows revealed message tails independently and preserves upward reading until returning to the bottom', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  const events = new EventTarget();
+  const companion = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  const send = (type: string, value: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(value) }));
+  await companion.start();
+  companion.select('ada');
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host', revision: 0, bots: [] },
+  });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  let firstHeight = 180;
+  let secondHeight = 90;
+  const height = vi
+    .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+    .mockImplementation(function (this: HTMLElement) {
+      if (!this.matches('.bh-companion-card p') || !this.textContent) return 0;
+      return this.textContent.startsWith('A') ? firstHeight : secondHeight;
+    });
+  const viewport = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(54);
+  try {
+    await act(() =>
+      root.render(
+        createElement(WindowCompanionView, {
+          companion,
+          openDm() {},
+          openAttention() {},
+          openChannel() {},
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(() => {
+      for (const letter of ['A', 'B'])
+        send('companion/message', {
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId: letter,
+          body: letter.repeat(200),
+          source: 'own-dm',
+        });
+      companion.advance(350);
+    });
+    const [first, second] = [
+      ...node.querySelectorAll<HTMLParagraphElement>('.bh-companion-card p'),
+    ];
+    expect(first!.scrollTop).toBe(126);
+    expect(second!.scrollTop).toBe(36);
+    await act(() => {
+      first!.scrollTop = 18;
+      first!.dispatchEvent(new Event('scroll'));
+    });
+    firstHeight = 216;
+    secondHeight = 126;
+    await act(() => companion.advance(350));
+    expect(first!.scrollTop).toBe(18);
+    expect(second!.scrollTop).toBe(72);
+    expect(first!.textContent).toBe('A'.repeat(20));
+    await act(() => {
+      first!.scrollTop = 162;
+      first!.dispatchEvent(new Event('scroll'));
+    });
+    firstHeight = 252;
+    await act(() => companion.advance(350));
+    expect(first!.scrollTop).toBe(198);
+    await act(() => companion.advance(30_000, true));
+    expect(first!.textContent).toBe('A'.repeat(200));
+    expect(second!.textContent).toBe('B'.repeat(200));
+    expect(node.querySelectorAll('.bh-companion-card p')[0]).toBe(first);
+  } finally {
+    await act(() => root.unmount());
+    companion.dispose();
+    node.remove();
+    height.mockRestore();
+    viewport.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+it('sounds only fresh playback and silences a Bot on background, stale sync, archive and unmount', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.useFakeTimers();
+  const frames = new Map<number, FrameRequestCallback>();
+  let frameId = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++frameId, callback);
+    return frameId;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const events = new EventTarget();
+  const companion = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  const send = (type: string, value: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(value) }));
+  const baseline = (paused = false) =>
+    send('companion/baseline', {
+      profileId: 'qa',
+      bot: { slug: 'ada', name: 'Ada', paused },
+      activity: { generation: 'host', revision: 0, bots: [] },
+    });
+  await companion.start();
+  companion.select('ada');
+  baseline();
+  const sound = new CompanionSound();
+  const play = vi.spyOn(sound, 'play');
+  const stop = vi.spyOn(sound, 'stop');
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const advanceFrames = async (count: number) => {
+    for (let index = 0; index < count; index++) {
+      await act(() => {
+        vi.advanceTimersByTime(16);
+        const callbacks = [...frames.values()];
+        frames.clear();
+        for (const callback of callbacks) callback(performance.now());
+      });
+    }
+  };
+  const visibility = vi.spyOn(document, 'hidden', 'get');
+  try {
+    await act(() =>
+      root.render(
+        createElement(WindowCompanionView, {
+          companion,
+          sound,
+          openDm() {},
+          openAttention() {},
+          openChannel() {},
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(() =>
+      send('companion/message', {
+        generation: 'host',
+        botId: 'ada',
+        channelId: 'dm',
+        channelName: 'Ada',
+        messageId: 'new',
+        body: 'abcdefghijklmno',
+        source: 'own-dm',
+      }),
+    );
+    expect(play).not.toHaveBeenCalled();
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledOnce();
+    const shown = companion.getSnapshot().cards[0]!.shown;
+    visibility.mockReturnValue(true);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(100);
+    expect(play).toHaveBeenCalledOnce();
+    expect(companion.getSnapshot().cards[0]!.shown).toBe(shown);
+    visibility.mockReturnValue(false);
+    await act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(companion.getSnapshot().cards[0]!.shown - shown).toBeLessThanOrEqual(2);
+    await act(() => events.dispatchEvent(new Event('error')));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    await act(() => baseline(true));
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    await advanceFrames(4);
+    expect(play).toHaveBeenCalledTimes(2);
+    stop.mockClear();
+    await act(() => root.unmount());
+    expect(stop).toHaveBeenLastCalledWith('ada');
+    expect(frames.size).toBe(0);
+  } finally {
+    await act(() => root.unmount());
+    companion.dispose();
+    sound.dispose();
+    node.remove();
+    visibility.mockRestore();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  }
+});
+
+it('keeps the Avatar tether aligned through resize and the first reduced-motion release commit', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
@@ -55,8 +253,8 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
       if (!this.classList.contains('bh-persona-avatar')) return stage;
       const surface = this.closest<HTMLElement>('.bh-companion')!;
       return new DOMRect(
-        stage.left + Number.parseFloat(surface.style.left),
-        stage.bottom - Number.parseFloat(surface.style.bottom) - 96,
+        stage.left + Number.parseFloat(companionPosition(surface).left),
+        stage.bottom - Number.parseFloat(companionPosition(surface).bottom) - 96,
         96,
         96,
       );
@@ -111,9 +309,34 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     );
     stage = new DOMRect(100, 60, 320, 500);
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(node.querySelector<HTMLElement>('.bh-companion')?.style.left).toBe('216px');
+    expect(companionPosition(node.querySelector<HTMLElement>('.bh-companion')!).left).toBe('216px');
     expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
       /^M 264 404 /u,
+    );
+    await act(() => {
+      document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    });
+    const character = node.querySelector<HTMLButtonElement>('.bh-companion-character')!;
+    character.setPointerCapture = vi.fn();
+    character.releasePointerCapture = vi.fn();
+    const pointer = (type: string, x: number, y: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      character.dispatchEvent(event);
+    };
+    await act(() => pointer('pointerdown', 264, 450));
+    await act(() => pointer('pointermove', 164, 150));
+    await act(frame);
+    expect(companionPosition(node.querySelector<HTMLElement>('.bh-companion')!).bottom).toBe(
+      '300px',
+    );
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 164 104 /u,
+    );
+    await act(() => pointer('pointerup', 164, 150));
+    expect(companionPosition(node.querySelector<HTMLElement>('.bh-companion')!).bottom).toBe('0px');
+    expect(node.querySelector('.bh-companion-tether path')?.getAttribute('d')).toMatch(
+      /^M 164 404 /u,
     );
     const visibility = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     await act(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -125,6 +348,7 @@ it('projects the owning Avatar screen point into an offset overlay and remeasure
     node.remove();
     measurement.mockRestore();
     vi.unstubAllGlobals();
+    delete document.documentElement.dataset['botharnessMotion'];
   }
 });
 
@@ -321,6 +545,114 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
   }
 });
 
+it.each([
+  [100, 0, false],
+  [200, 0, false],
+  [500, 0, false],
+  [16, 1000, false],
+  [16, 0, true],
+])(
+  'returns a fast upward throw with %i ms frames, %i ms before release and late movement %s',
+  async (interval, beforeRelease, lateMovement) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    vi.useFakeTimers();
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    const measurement = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 1000, 800));
+    const events = new EventTarget();
+    const companion = new WindowCompanion({
+      context: async () => ({ profileId: 'qa' }),
+      source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+    });
+    await companion.start();
+    companion.select('ada');
+    events.dispatchEvent(
+      new MessageEvent('companion/baseline', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          bot: { slug: 'ada', name: 'Ada', paused: false },
+          activity: { generation: 'host', revision: 0, bots: [] },
+        }),
+      }),
+    );
+    const node = document.createElement('div');
+    document.body.append(node);
+    const root = createRoot(node);
+    const openDm = vi.fn();
+    try {
+      await act(() =>
+        root.render(
+          createElement(WindowCompanionView, {
+            companion,
+            openDm,
+            openAttention() {},
+            openChannel() {},
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const character = node.querySelector('.bh-companion-character');
+      const surface = node.querySelector('.bh-companion');
+      if (!(character instanceof HTMLButtonElement) || !(surface instanceof HTMLElement))
+        throw new Error('Missing companion controls');
+      character.setPointerCapture = vi.fn();
+      character.releasePointerCapture = vi.fn();
+      const pointer = (type: string, y: number) => {
+        const event = new MouseEvent(type, { bubbles: true, clientX: 700, clientY: y, button: 0 });
+        Object.defineProperty(event, 'pointerId', { value: 1 });
+        character.dispatchEvent(event);
+      };
+      await act(() => pointer('pointerdown', 750));
+      await act(() => {
+        vi.advanceTimersByTime(beforeRelease);
+        vi.advanceTimersByTime(16);
+        pointer('pointermove', 550);
+      });
+      await act(() => {
+        vi.advanceTimersByTime(16);
+        pointer('pointermove', 300);
+        pointer('pointerup', 300);
+        if (lateMovement) {
+          pointer('lostpointercapture', 300);
+          pointer('pointermove', 290);
+          character.click();
+        }
+      });
+      expect(surface.dataset['motion']).toBe('fall');
+      const releasedBottom = Number.parseFloat(companionPosition(surface).bottom);
+      const heights: number[] = [];
+      for (let index = 0; index < 3000 / interval; index++) {
+        await act(() => {
+          vi.advanceTimersByTime(interval);
+          const due = [...frames.values()];
+          frames.clear();
+          due.forEach((callback) => callback(performance.now()));
+        });
+        heights.push(Number.parseFloat(companionPosition(surface).bottom));
+      }
+      expect(heights.some((height) => height > releasedBottom)).toBe(true);
+      expect(heights.slice(0, 2000 / interval).some((height) => height === 0)).toBe(true);
+      expect(surface.dataset['motion']).toBe('rest');
+      expect(companionPosition(surface).bottom).toBe('0px');
+      expect(openDm).not.toHaveBeenCalled();
+    } finally {
+      await act(() => root.unmount());
+      companion.dispose();
+      node.remove();
+      measurement.mockRestore();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  },
+);
+
 it('drags inside the shell, lands on the floor without opening DM, persists keyboard movement and releases frames', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
@@ -331,14 +663,18 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     return frameId;
   });
   vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
-  let intersect: ((entries: { isIntersecting: boolean }[]) => void) | undefined;
+  let intersect: ((entries: { target: Element; isIntersecting: boolean }[]) => void) | undefined;
   const disconnected = vi.fn();
   vi.stubGlobal(
     'IntersectionObserver',
     class {
-      constructor(private readonly callback: (entries: { isIntersecting: boolean }[]) => void) {}
-      observe(target: Element) {
-        if (target.classList.contains('bh-companion')) intersect = this.callback;
+      constructor(
+        private readonly callback: (
+          entries: { target: Element; isIntersecting: boolean }[],
+        ) => void,
+      ) {}
+      observe() {
+        intersect = this.callback;
       }
       disconnect = disconnected;
     },
@@ -375,11 +711,15 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
   document.body.append(node);
   const root = createRoot(node);
   const openDm = vi.fn();
+  const sound = new CompanionSound();
+  const stop = vi.spyOn(sound, 'stop');
+  const interact = vi.spyOn(sound, 'interact');
   try {
     await act(() =>
       root.render(
         createElement(WindowCompanionView, {
           companion: owner,
+          sound,
           openDm,
           openAttention() {},
           openChannel() {},
@@ -389,8 +729,14 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     );
     const character = node.querySelector('.bh-companion-character');
     const surface = node.querySelector('.bh-companion');
-    if (!(character instanceof HTMLButtonElement) || !(surface instanceof HTMLElement))
+    const stage = node.querySelector('.bh-companion-stage');
+    if (
+      !(character instanceof HTMLButtonElement) ||
+      !(surface instanceof HTMLElement) ||
+      !(stage instanceof HTMLElement)
+    )
       throw new Error('Missing companion controls');
+    expect(node.querySelector('.bh-companion-activity')).toBeNull();
     await act(() => character.focus());
     expect(owner.getSnapshot().reading).toBe(true);
     await act(() =>
@@ -404,9 +750,9 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     );
     expect(node.querySelector('[aria-expanded="true"]')).toBeNull();
     expect(document.activeElement).toBe(character);
-    await act(() => intersect!([{ isIntersecting: false }]));
+    await act(() => intersect!([{ target: stage, isIntersecting: false }]));
     expect(frames.size).toBe(0);
-    await act(() => intersect!([{ isIntersecting: true }]));
+    await act(() => intersect!([{ target: stage, isIntersecting: true }]));
     expect(frames.size).toBe(1);
     const visibility = vi.spyOn(document, 'hidden', 'get');
     visibility.mockReturnValue(true);
@@ -426,43 +772,65 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
       Object.defineProperty(event, 'pointerId', { value: id });
       character.dispatchEvent(event);
     };
+    const advanceFrames = async (count: number) => {
+      for (let index = 0; index < count; index++) {
+        await act(() => {
+          vi.advanceTimersByTime(16);
+          const callbacks = [...frames.values()];
+          frames.clear();
+          for (const callback of callbacks) callback(performance.now());
+        });
+      }
+    };
     await act(() => pointer('pointerdown', 700, 750));
+    await act(() => pointer('pointermove', 702, 750));
+    expect(interact).not.toHaveBeenCalled();
     await act(() => pointer('pointermove', 400, 400));
-    expect(character.style.transform).toMatch(/^rotate\(-[\d.]+deg\)/u);
+    expect(interact).toHaveBeenLastCalledWith('ada', { kind: 'grab', strength: 1 });
+    await advanceFrames(2);
+    expect(Number.parseFloat(character.style.rotate)).toBeLessThan(0);
+    const beforeReversal = character.style.rotate;
     await act(() => pointer('pointermove', 450, 400));
-    expect(character.style.transform).toMatch(/^rotate\([\d.]+deg\)/u);
+    expect(character.style.rotate).toBe(beforeReversal);
+    for (let index = 0; index < 12; index++) {
+      await act(() => pointer('pointermove', 450 + index * 5, 400));
+      await advanceFrames(1);
+    }
+    expect(Number.parseFloat(character.style.rotate)).toBeGreaterThan(0);
     await act(() => pointer('pointermove', 400, 400));
-    const lifted = Number.parseFloat(surface.style.bottom);
+    const lifted = Number.parseFloat(companionPosition(surface).bottom);
     expect(lifted).toBeGreaterThan(12);
-    const draggedLeft = surface.style.left;
+    const draggedLeft = companionPosition(surface).left;
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     await act(() => pointer('pointermove', 400, 400));
-    expect(surface.style.left).toBe(draggedLeft);
+    expect(companionPosition(surface).left).toBe(draggedLeft);
     await act(() => {
       pointer('pointerdown', 400, 400, 2);
       pointer('pointermove', 800, 100, 2);
       pointer('pointercancel', 800, 100, 2);
       pointer('lostpointercapture', 800, 100, 2);
     });
-    expect(surface.style.left).toBe(draggedLeft);
+    expect(companionPosition(surface).left).toBe(draggedLeft);
     expect(surface.dataset['motion']).toBe('drag');
     await act(() => {
       pointer('pointerup', 400, 400);
       character.click();
     });
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     await act(() => window.dispatchEvent(new Event('resize')));
-    expect(Number.parseFloat(surface.style.bottom)).toBe(lifted);
+    expect(Number.parseFloat(companionPosition(surface).bottom)).toBe(lifted);
     expect(surface.dataset['motion']).toBe('fall');
     await act(() => {
       document.documentElement.dataset['botharnessMotion'] = 'reduce';
     });
-    expect(surface.style.bottom).toBe('0px');
-    expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
+    expect(companionPosition(surface).bottom).toBe('0px');
+    expect(character.style.rotate).toBe('0deg');
+    expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => {
       delete document.documentElement.dataset['botharnessMotion'];
     });
+    interact.mockClear();
     await act(() => {
       pointer('pointerdown', 400, 750);
       pointer('pointermove', 400, 750 - lifted);
@@ -479,7 +847,7 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
         frames.clear();
         for (const callback of callbacks) callback(performance.now());
       });
-      positions.push(Number.parseFloat(surface.style.bottom));
+      positions.push(Number.parseFloat(companionPosition(surface).bottom));
     }
     expect(positions.some((bottom) => bottom > 0 && bottom < lifted)).toBe(true);
     expect(positions.every((bottom) => bottom >= 0 && bottom <= window.innerHeight - 120)).toBe(
@@ -488,22 +856,60 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     const firstContact = positions.findIndex((bottom) => bottom === 0);
     expect(firstContact).toBeGreaterThan(0);
     expect(positions.slice(firstContact + 1).some((bottom) => bottom > 0)).toBe(true);
-    expect(surface.style.bottom).toBe('0px');
+    expect(companionPosition(surface).bottom).toBe('0px');
     expect(openDm).not.toHaveBeenCalled();
+    expect(interact.mock.calls.filter(([, event]) => event.kind === 'land')).toHaveLength(1);
+    await act(() => owner.reading(false));
+    await act(() =>
+      events.dispatchEvent(
+        new MessageEvent('companion/message', {
+          data: JSON.stringify({
+            generation: 'host',
+            botId: 'ada',
+            channelId: 'dm',
+            channelName: 'Ada',
+            messageId: 'offscreen-playback',
+            body: 'Keep this text paused while the thrown character is outside the visible area.',
+            source: 'own-dm',
+          }),
+        }),
+      ),
+    );
+    await act(() => owner.reading(true));
+    for (const release of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      await act(() => {
+        pointer('pointerdown', 400, 750);
+        pointer('pointermove', 450, -50);
+        pointer(release, 450, -50);
+      });
+      await advanceFrames(1);
+      await act(() => intersect!([{ target: surface, isIntersecting: false }]));
+      expect(stop).toHaveBeenLastCalledWith('ada');
+      interact.mockClear();
+      const shown = owner.getSnapshot().cards[0]!.shown;
+      expect(Number.isFinite(Number.parseFloat(companionPosition(surface).bottom))).toBe(true);
+      await advanceFrames(240);
+      expect(surface.dataset['motion']).toBe('rest');
+      expect(companionPosition(surface).bottom).toBe('0px');
+      expect(owner.getSnapshot().cards[0]!.shown).toBe(shown);
+      expect(interact).not.toHaveBeenCalled();
+    }
+    await act(() => intersect!([{ target: surface, isIntersecting: true }]));
     await act(() =>
       character.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
     );
     expect(owner.getSnapshot().selection?.position).toBeCloseTo(
-      Number.parseFloat(surface.style.left) / 896,
+      Number.parseFloat(companionPosition(surface).left) / 896,
     );
     document.documentElement.dataset['botharnessMotion'] = 'reduce';
     await act(() => {
       pointer('pointerdown', 400, 750);
       pointer('pointermove', 700, 200);
     });
-    expect(character.style.transform).toBe('rotate(0deg) scale(1, 1)');
+    expect(character.style.rotate).toBe('0deg');
+    expect(character.style.transform).toBe('scale(1, 1)');
     await act(() => pointer('pointerup', 700, 200));
-    expect(surface.style.bottom).toBe('0px');
+    expect(companionPosition(surface).bottom).toBe('0px');
     await act(() => vi.runOnlyPendingTimers());
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => character.click());
@@ -514,6 +920,16 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     });
     expect(surface.textContent).toContain('同步中断');
     expect(frames.size).toBeGreaterThan(0);
+    const focusVisible = vi.spyOn(character, 'matches').mockReturnValue(false);
+    await act(() =>
+      character.dispatchEvent(
+        new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }),
+      ),
+    );
+    await act(() => vi.advanceTimersByTime(800));
+    expect(document.activeElement).toBe(character);
+    expect(owner.getSnapshot().reading).toBe(false);
+    focusVisible.mockRestore();
     await act(() => root.unmount());
     expect(frames.size).toBe(0);
     expect(disconnected).toHaveBeenCalled();

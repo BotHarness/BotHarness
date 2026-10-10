@@ -106,6 +106,44 @@ function sidebarRegistry() {
 }
 
 describe('Bot main Sessions pane', () => {
+  it.each(['bot', 'channel'] as const)('omits tags from the %s DM header chip', (selectionKind) => {
+    const bot = {
+      slug: 'chip-bot',
+      displayName: 'Chip Bot',
+      roles: ['GEO', 'SEO'],
+      aggregateState: 'idle' as const,
+      workspaces: [],
+      createdAt: '2026-10-10T00:00:00.000Z',
+    };
+    const channel = {
+      id: 'chip-dm',
+      type: 'dm' as const,
+      name: 'Chip Bot',
+      members: [bot.slug],
+      botSlug: bot.slug,
+      createdAt: bot.createdAt,
+      updatedAt: bot.createdAt,
+    };
+    store.setRoster([bot], [channel]);
+    store.select(
+      selectionKind === 'bot'
+        ? { kind: 'bot', slug: bot.slug }
+        : { kind: 'channel', channelId: channel.id },
+    );
+    store.setConversation({ status: 'ready', channel, messages: [] });
+    const container = document.createElement('div');
+    container.innerHTML = renderToStaticMarkup(
+      createElement(BotMain, {
+        actions: {} as BridgeActions,
+        channelSidebar: sidebarRegistry(),
+      }),
+    );
+    const chip = container.querySelector('.bh-channel-island')!;
+    expect(chip.querySelector('.bh-title')?.textContent).toBe('Chip Bot');
+    expect(chip.querySelector('.bh-role-badges')).toBeNull();
+    expect(chip.textContent).not.toContain('GEO');
+    expect(chip.textContent).not.toContain('SEO');
+  });
   it('keeps the docked Channel sidebar present on every state update while switching Channels', () => {
     const previous = store.getSnapshot();
     const first = {

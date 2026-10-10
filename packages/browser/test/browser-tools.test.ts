@@ -167,6 +167,7 @@ function harness(options: {
   const runtimes = {
     for: () => runtime,
     touch: vi.fn(),
+    installProgress: () => undefined,
     closeIdle: vi.fn(async () => undefined),
     stop: vi.fn(async () => undefined),
     stopAll: vi.fn(async () => undefined),

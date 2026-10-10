@@ -10,6 +10,10 @@ import {
   listStoredProfileNames,
 } from '../src/runtimes.js';
 
+const browserDir = join(tmpdir(), 'botharness', 'browser');
+const installDir = join(tmpdir(), 'botharness', 'browser-chromium');
+const workProfileDir = join(tmpdir(), 'botharness', 'browser-profiles', 'work');
+
 function fakeRuntime(): BotBrowserRuntime & { stop: ReturnType<typeof vi.fn> } {
   return {
     ensure: vi.fn(async () => undefined),
@@ -43,8 +47,8 @@ function setup(profiles: Record<string, string>): {
   const created: BotBrowserRuntimeOptions[] = [];
   const factories = new Map<string, BotBrowserRuntime & { stop: ReturnType<typeof vi.fn> }>();
   const runtimes = createBotBrowserRuntimes({
-    browserDir: '/tmp/botharness/browser',
-    installDir: '/tmp/botharness/browser-chromium',
+    browserDir,
+    installDir,
     profileOf: (slug) => profiles[slug] ?? '',
     create: (options) => {
       created.push(options);
@@ -101,7 +105,7 @@ describe('browser profiles', () => {
       expect(sanitizeProfileName(name)).toBe('');
       expect(runtimes.for('a')).toBe(runtimes.for('b'));
       expect(runtimes.profileOf('a')).toBe('');
-      expect(created.map((options) => options.userDataDir)).toEqual(['/tmp/botharness/browser']);
+      expect(created.map((options) => options.userDataDir)).toEqual([browserDir]);
     },
   );
 
@@ -110,10 +114,7 @@ describe('browser profiles', () => {
     expect(runtimes.for('a')).toBe(runtimes.for('b'));
     expect(runtimes.for('c')).not.toBe(runtimes.for('a'));
     expect(created).toHaveLength(2);
-    expect(created.map((options) => options.userDataDir)).toEqual([
-      '/tmp/botharness/browser-profiles/work',
-      '/tmp/botharness/browser',
-    ]);
+    expect(created.map((options) => options.userDataDir)).toEqual([workProfileDir, browserDir]);
     expect(runtimes.profileOf('a')).toBe('work');
     expect(runtimes.profileOf('c')).toBe('');
   });
@@ -133,12 +134,9 @@ describe('browser profiles', () => {
       runtimes.touch('c');
       vi.setSystemTime(70_000);
       await runtimes.closeIdle(60_000);
-      expect(factories.get('/tmp/botharness/browser-profiles/work')!.stop).toHaveBeenCalledOnce();
-      expect(factories.get('/tmp/botharness/browser')!.stop).not.toHaveBeenCalled();
-      expect(created.map((entry) => entry.installDir)).toEqual([
-        '/tmp/botharness/browser-chromium',
-        '/tmp/botharness/browser-chromium',
-      ]);
+      expect(factories.get(workProfileDir)!.stop).toHaveBeenCalledOnce();
+      expect(factories.get(browserDir)!.stop).not.toHaveBeenCalled();
+      expect(created.map((entry) => entry.installDir)).toEqual([installDir, installDir]);
     } finally {
       vi.useRealTimers();
     }
@@ -147,7 +145,7 @@ describe('browser profiles', () => {
   it('propagates idle cleanup failure after invalidation and retains the entry for Human retry', async () => {
     const { runtimes, factories } = setup({ a: 'work' });
     runtimes.for('a');
-    const runtime = factories.get('/tmp/botharness/browser-profiles/work')!;
+    const runtime = factories.get(workProfileDir)!;
     runtime.stop.mockRejectedValueOnce(new Error('Docker unavailable'));
     await expect(runtimes.closeIdle(0)).rejects.toThrow('Docker unavailable');
     expect(runtimes.for('a')).toBe(runtime);
@@ -158,8 +156,8 @@ describe('browser profiles', () => {
     const { runtimes, factories } = setup({ a: 'work', c: '' });
     runtimes.for('a');
     runtimes.for('c');
-    const work = factories.get('/tmp/botharness/browser-profiles/work')!;
-    const fallback = factories.get('/tmp/botharness/browser')!;
+    const work = factories.get(workProfileDir)!;
+    const fallback = factories.get(browserDir)!;
     runtimes.touch('c');
     await runtimes.closeIdle(60_000);
     expect(work.stop).not.toHaveBeenCalled();
@@ -171,8 +169,22 @@ describe('browser profiles', () => {
     expect(work.stop).toHaveBeenCalledTimes(2);
     const another = setup({ a: 'work' });
     another.runtimes.for('a');
-    const runtime = another.factories.get('/tmp/botharness/browser-profiles/work')!;
+    const runtime = another.factories.get(workProfileDir)!;
     await another.runtimes.stopAll();
     expect(runtime.stop).toHaveBeenCalled();
+  });
+
+  it('tracks in-flight install progress per profile and clears it on settle', () => {
+    const { runtimes, created } = setup({ a: '', b: '' });
+    runtimes.for('a');
+    expect(created).toHaveLength(1);
+    const options = created[0]!;
+    expect(runtimes.installProgress('a')).toBeUndefined();
+    expect(runtimes.installProgress('unknown')).toBeUndefined();
+    options.onInstallProgress?.(25, 100);
+    expect(runtimes.installProgress('a')).toEqual({ downloadedBytes: 25, totalBytes: 100 });
+    expect(runtimes.installProgress('b')).toEqual({ downloadedBytes: 25, totalBytes: 100 });
+    options.onInstallSettled?.();
+    expect(runtimes.installProgress('a')).toBeUndefined();
   });
 });

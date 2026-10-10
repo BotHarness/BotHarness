@@ -14,7 +14,12 @@ import { PersonaBotDeletionView } from './personabot-deletion.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { ProfileBio, ProfileHeader, ProfileTags } from './profile-header.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { ProfileCardRegistry } from './profile-cards.js';
+import type {
+  ProfileCardDescriptor,
+  ProfileCardProps,
+  ProfileCardRegistry,
+} from './profile-cards.js';
+import { MessagingHelp } from './messaging-help.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 
 export interface ProfilePopoverProps {
@@ -24,6 +29,19 @@ export interface ProfilePopoverProps {
   pinned: readonly string[];
   t: BotHarnessTranslate;
   onExpand(): void;
+}
+
+function ProfileCardLabel({
+  card,
+  ...props
+}: ProfileCardProps & { card: ProfileCardDescriptor }): ReactElement {
+  const help = card.help?.(props);
+  return (
+    <span className="bh-profile-card-label">
+      {card.label}
+      {help ? <MessagingHelp title={card.label} text={help} t={props.t} /> : null}
+    </span>
+  );
 }
 
 export function ProfilePopover({
@@ -63,7 +81,7 @@ export function ProfilePopover({
         <div className="bh-profile-popover-cards">
           {pinnedCards.map((card) => (
             <section key={card.id} className="bh-profile-card bh-profile-card-compact">
-              <span className="bh-profile-card-label">{card.label}</span>
+              <ProfileCardLabel card={card} bot={bot} activity={activity} t={t} />
               {card.render({ bot, activity, t, compact: true })}
             </section>
           ))}
@@ -134,7 +152,7 @@ export function ProfileView({
               return (
                 <section key={card.id} className="bh-profile-card">
                   <header className="bh-profile-card-head">
-                    <span className="bh-profile-card-label">{card.label}</span>
+                    <ProfileCardLabel card={card} bot={bot} activity={activity} t={t} />
                     <button
                       type="button"
                       className="bh-profile-pin"

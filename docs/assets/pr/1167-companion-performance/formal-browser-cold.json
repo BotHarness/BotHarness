@@ -1,0 +1,276 @@
+{
+  "source": {
+    "productCommit": "a009678599dcc7913e0c3a26de00a856a71f2e7d",
+    "documentationHeadAtCapture": "2ef1106a1d1431ed516d71d57475807582542b0a",
+    "formalAvatar": "0.10.1",
+    "speechMouthVersion": 2,
+    "dsh": "0.2.0-rc.1"
+  },
+  "browser": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "locale": "zh-CN",
+    "logicalCores": 16,
+    "traceReportsCpuRunningInVm": 1,
+    "gpuGlRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1074)",
+    "gpuGlVendor": "Google Inc. (NVIDIA)",
+    "gpuDriverVersion": "32.0.16.1074"
+  },
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "cohort": [
+    {
+      "index": 1,
+      "seed": "companion-performance-1",
+      "recipeSha256": "c81674f304b30d2ee6bfa058e5d6722b82125ad0512b2dbf2230f580173f016e",
+      "portraitSha256": "add6dc8e2bee863ca487cba3a226cb988b877fbc3fd42f5d4588bea63df25719",
+      "canonicalDmMessages": 1
+    },
+    {
+      "index": 2,
+      "seed": "companion-performance-2",
+      "recipeSha256": "9b34ee1f7414d792084e01cc9c489de10af0210158da0714571a4d37f749ca1a",
+      "portraitSha256": "8705e78a7dfa339f89caef503133e8f06b6a0517df2257b5f663126f7ca68de2",
+      "canonicalDmMessages": 1
+    },
+    {
+      "index": 3,
+      "seed": "companion-performance-3",
+      "recipeSha256": "c40ceac3da62a04c6790a77cc38cb33fbbaee8863487d7643dc39724812d45b7",
+      "portraitSha256": "79e30d8168508bded3d22d9e965d79ec1a7943b9038f6833080f5adccabcd4e1",
+      "canonicalDmMessages": 1
+    },
+    {
+      "index": 4,
+      "seed": "companion-performance-4",
+      "recipeSha256": "b2f988926a629e75c8f35c9a73fe37a2a7253c5348af5575067560550006a682",
+      "portraitSha256": "cb46e47d28fedc170ab6c215a77432bec6cfa1efadc7ea240efb0812f2703e8d",
+      "canonicalDmMessages": 1
+    },
+    {
+      "index": 5,
+      "seed": "companion-performance-5",
+      "recipeSha256": "f5e03b924f89abfbab950bcf47f4f9d39ccddce679fc08a53e99b11ef20726c8",
+      "portraitSha256": "6c25b5043058707da6787728e3cfc8c46108c5cadd81e5628fddcb517404e0a9",
+      "canonicalDmMessages": 1
+    }
+  ],
+  "method": {
+    "profiler": "Official Chrome DevTools MCP1.10.1; unmodified official Meta+AnimationFrames handlers",
+    "actualBrowserAndGpuProcessCreationIdentitiesDifferAcrossAllRestarts": true,
+    "previousOwnedChromeTreeExitCheckedBeforeEachRestart": true,
+    "sameDedicatedBrowserUserDataDir": true,
+    "sameDurableDshProfile": true,
+    "liveHostNotRestarted": true,
+    "warmDiskCacheNotPurged": true,
+    "traceStartsOnNewAboutBlankPageBeforeNavigation": true,
+    "upperBoundsIncludeMcpLaunchResizeTraceSetupNavigationAndPolling": true,
+    "boundedNativeDomObservationsDuringStartup": true,
+    "noScreencastDuringTracing": true,
+    "noReplayObservationSeconds": 15
+  },
+  "scenarios": [
+    {
+      "name": "cold-browser-1",
+      "repetition": 1,
+      "mountedCompanions": 5,
+      "liveCompanions": 5,
+      "pausedCompanions": 5,
+      "messageCards": 0,
+      "pendingCompanions": 0,
+      "readingCompanions": 0,
+      "foreground": true,
+      "newDocument": true,
+      "noReplayObservedSeconds": 15,
+      "launchToLiveObservedUpperBoundMs": 10855.265,
+      "navigationToLiveObservedUpperBoundMs": 3130.782199999987,
+      "navigation": [
+        {
+          "type": "navigate",
+          "domContentLoadedEventEnd": 94.89999997615814,
+          "loadEventEnd": 862.2999999821186,
+          "transferSize": 8630,
+          "encodedBodySize": 8330
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 52
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 120
+        }
+      ],
+      "traceSeconds": 19.377329,
+      "animationFrameWallDuration": {
+        "count": 2101,
+        "minMs": 1.167,
+        "meanMs": 8.760944788196088,
+        "p50Ms": 8.236,
+        "p95Ms": 8.571,
+        "p99Ms": 9.534,
+        "maxMs": 565.862,
+        "over8_333Ms": 462,
+        "over16_667Ms": 13,
+        "over50Ms": 7
+      },
+      "presentationInterval": {
+        "count": 2099,
+        "minMs": 0.819,
+        "meanMs": 8.889414959504528,
+        "p50Ms": 8.333,
+        "p95Ms": 8.722,
+        "p99Ms": 11.913,
+        "maxMs": 579.73,
+        "over8_333Ms": 1047,
+        "over16_667Ms": 11,
+        "over50Ms": 7
+      },
+      "excludedBoundaryFrames": 0,
+      "excludedNonTargetFrames": 0,
+      "duplicatePresentationTimestamps": 1,
+      "consoleErrors": 0
+    },
+    {
+      "name": "cold-browser-2",
+      "repetition": 2,
+      "mountedCompanions": 5,
+      "liveCompanions": 5,
+      "pausedCompanions": 5,
+      "messageCards": 0,
+      "pendingCompanions": 0,
+      "readingCompanions": 0,
+      "foreground": true,
+      "newDocument": true,
+      "noReplayObservedSeconds": 15,
+      "launchToLiveObservedUpperBoundMs": 10421.748900000006,
+      "navigationToLiveObservedUpperBoundMs": 3022.7946999999986,
+      "navigation": [
+        {
+          "type": "navigate",
+          "domContentLoadedEventEnd": 116.90000000596046,
+          "loadEventEnd": 746.8000000119209,
+          "transferSize": 8630,
+          "encodedBodySize": 8330
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 64
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 144
+        }
+      ],
+      "traceSeconds": 18.933509,
+      "animationFrameWallDuration": {
+        "count": 2058,
+        "minMs": 1.637,
+        "meanMs": 8.721695821185614,
+        "p50Ms": 8.238,
+        "p95Ms": 8.564,
+        "p99Ms": 10.526,
+        "maxMs": 459.969,
+        "over8_333Ms": 440,
+        "over16_667Ms": 14,
+        "over50Ms": 5
+      },
+      "presentationInterval": {
+        "count": 2057,
+        "minMs": 0.57,
+        "meanMs": 8.860386971317432,
+        "p50Ms": 8.334,
+        "p95Ms": 8.707,
+        "p99Ms": 15.506,
+        "maxMs": 475.041,
+        "over8_333Ms": 1029,
+        "over16_667Ms": 13,
+        "over50Ms": 7
+      },
+      "excludedBoundaryFrames": 0,
+      "excludedNonTargetFrames": 0,
+      "duplicatePresentationTimestamps": 0,
+      "consoleErrors": 0
+    },
+    {
+      "name": "cold-browser-3",
+      "repetition": 3,
+      "mountedCompanions": 5,
+      "liveCompanions": 5,
+      "pausedCompanions": 5,
+      "messageCards": 0,
+      "pendingCompanions": 0,
+      "readingCompanions": 0,
+      "foreground": true,
+      "newDocument": true,
+      "noReplayObservedSeconds": 15,
+      "launchToLiveObservedUpperBoundMs": 10122.663300000015,
+      "navigationToLiveObservedUpperBoundMs": 2899.7846000000136,
+      "navigation": [
+        {
+          "type": "navigate",
+          "domContentLoadedEventEnd": 106.5,
+          "loadEventEnd": 720.5,
+          "transferSize": 8630,
+          "encodedBodySize": 8330
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 52
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 124
+        }
+      ],
+      "traceSeconds": 18.859262,
+      "animationFrameWallDuration": {
+        "count": 2058,
+        "minMs": 0.224,
+        "meanMs": 8.702996598639455,
+        "p50Ms": 8.236,
+        "p95Ms": 8.574,
+        "p99Ms": 9.71,
+        "maxMs": 449.026,
+        "over8_333Ms": 492,
+        "over16_667Ms": 13,
+        "over50Ms": 5
+      },
+      "presentationInterval": {
+        "count": 2055,
+        "minMs": 0.546,
+        "meanMs": 8.840546958637475,
+        "p50Ms": 8.332,
+        "p95Ms": 8.703,
+        "p99Ms": 15.653,
+        "maxMs": 458.285,
+        "over8_333Ms": 1018,
+        "over16_667Ms": 14,
+        "over50Ms": 6
+      },
+      "excludedBoundaryFrames": 0,
+      "excludedNonTargetFrames": 0,
+      "duplicatePresentationTimestamps": 2,
+      "consoleErrors": 0
+    }
+  ],
+  "closedOwnedBrowser": true,
+  "canonicalCohortAndHistoryUnchanged": true,
+  "performanceBudgetAccepted": false,
+  "limits": [
+    "Candidate-only three ordered runs; no matched parent cold-process sample or statistical performance acceptance.",
+    "Browser process is fresh; persistent disk cache and live Host are warm. Host/OS cold startup remains unqualified.",
+    "Trace begins after browser creation on about:blank; it does not contain browser launch execution. Launch/live values are observed tool-overhead upper bounds, not pure UI timings.",
+    "Long frames during navigation are included with subsequent fifteen seconds of idle; p95 alone must not describe startup smoothness.",
+    "Five actual mounted/live companions are verified; screenshots do not establish all five characters are simultaneously unobscured.",
+    "Cold-trace renderer metadata describes this separate workload; it does not map the earlier Windows GPU-counter LUID or attribute cost to individual SVG shapes.",
+    "Real hidden/background return, sustained/low-end support and Human performance budgets remain unqualified."
+  ]
+}

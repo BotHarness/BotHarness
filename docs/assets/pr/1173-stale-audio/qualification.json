@@ -1,0 +1,92 @@
+{
+  "source": "4072b9e6b8add5fa7cfab214b8a769c8220f1894",
+  "formalAvatar": "0.10.0",
+  "viewport": {
+    "width": 1559,
+    "height": 865,
+    "deviceScaleFactor": 1
+  },
+  "theme": "dark",
+  "locale": "zh-CN",
+  "method": "Actual DSH canonical Bot reply, native UI actions, real companion transport interruption; bounded observation of actual Web Audio calls, not audible playback or background qualification",
+  "canonicalReply": {
+    "characters": 3099,
+    "bodySha256": "26d7d04417508f8a5f95b957dd964f9c9ae3ec9c81c4bb12a61ab7d65f42cb8d",
+    "exactRequestedText": true
+  },
+  "playing": {
+    "revealedCharacters": 26,
+    "cards": 1,
+    "sync": "live",
+    "sourceStarts": 10,
+    "immediateStops": 0,
+    "contextState": "running"
+  },
+  "stale": {
+    "revealedCharacters": 83,
+    "cards": 1,
+    "sync": "stale",
+    "sourceStarts": 26,
+    "immediateStops": 1,
+    "contextState": "running"
+  },
+  "staleHeld": {
+    "revealedCharacters": 198,
+    "cards": 1,
+    "sync": "stale",
+    "sourceStarts": 26,
+    "immediateStops": 1,
+    "contextState": "running"
+  },
+  "staleObservedMilliseconds": 6150.0999999996275,
+  "recovered": {
+    "revealedCharacters": 255,
+    "cards": 1,
+    "sync": "live",
+    "sourceStarts": 36,
+    "immediateStops": 1,
+    "contextState": "running"
+  },
+  "removed": {
+    "exists": false,
+    "sourceStarts": 74,
+    "heldSourceStarts": 74
+  },
+  "repinned": {
+    "sync": "live",
+    "cards": 0,
+    "sourceStarts": 74,
+    "heldSourceStarts": 74
+  },
+  "audioObservation": {
+    "events": 149,
+    "cap": 2500,
+    "outputModified": false,
+    "audiblePlaybackQualified": false
+  },
+  "transport": {
+    "streamsDropped": 1,
+    "intentionalConsoleErrors": 2,
+    "unexpectedConsoleErrors": 0
+  },
+  "sameDocument": true,
+  "cleanup": {
+    "soundRestored": true,
+    "observerRemoved": true,
+    "browserClosed": true,
+    "proxyClosed": true
+  },
+  "video": {
+    "seconds": 49.866,
+    "frames": 748,
+    "codec": "VP9",
+    "silent": true,
+    "containerRemuxOnly": true
+  },
+  "limits": [
+    "Foreground actual Companion feed interruption, not genuine background or whole-network outage.",
+    "Audio source starts/stops are observed actual native Web Audio calls, not acoustic output or listening acceptance.",
+    "Screenshots are consecutive states at one fixed runtime, not matched revision before/after.",
+    "Unsupported AudioContext and autoplay failure are covered by separate regressions, not qualified as real hardware failures here."
+  ]
+}

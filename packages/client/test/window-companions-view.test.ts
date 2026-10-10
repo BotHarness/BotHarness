@@ -6,6 +6,8 @@ import { WindowCompanions } from '../src/client/window-companions.js';
 import { WindowCompanionsView, CompanionSettings } from '../src/client/window-companions-view.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { GroupChannelHeader } from '../src/client/group-channel-header.js';
+import { CompanionSound } from '../src/client/companion-sound.js';
+import { companionPosition } from './companion-position.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Menu: ({
@@ -36,6 +38,25 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
         : null,
     ),
   Input: (props: Record<string, unknown>) => createElement('input', props),
+  Switch: ({
+    checked,
+    onChange,
+    label,
+    disabled,
+  }: {
+    checked: boolean;
+    onChange(value: boolean): void;
+    label: string;
+    disabled: boolean;
+  }) =>
+    createElement('button', {
+      type: 'button',
+      role: 'switch',
+      'aria-label': label,
+      'aria-checked': checked,
+      disabled,
+      onClick: () => onChange(!checked),
+    }),
   Button: ({
     children,
     size: _size,
@@ -69,10 +90,10 @@ it('pins independently, exposes right-click controls and applies global bounded 
     .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
     .mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains('bh-persona-avatar')) {
-        const companion = this.closest<HTMLElement>('.bh-companion');
+        const position = companionPosition(this.closest<HTMLElement>('.bh-companion')!);
         return new DOMRect(
-          Number.parseFloat(companion?.style.left ?? '0'),
-          window.innerHeight - Number.parseFloat(companion?.style.bottom ?? '0') - 96,
+          Number.parseFloat(position.left),
+          window.innerHeight - Number.parseFloat(position.bottom) - 96,
           96,
           96,
         );
@@ -89,6 +110,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
   const node = document.createElement('div');
   document.body.append(node);
   const root = createRoot(node);
+  const listeners = vi.spyOn(document, 'addEventListener');
+  const removals = vi.spyOn(document, 'removeEventListener');
+  const unlock = vi.spyOn(CompanionSound.prototype, 'unlock');
   try {
     await act(() =>
       root.render(
@@ -127,6 +151,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
       ),
     );
     const pins = node.querySelectorAll<HTMLButtonElement>('.bh-companion-pin');
+    expect(listeners).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+    document.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(unlock).not.toHaveBeenCalled();
     expect(pins).toHaveLength(2);
     expect(pins[0]!.getAttribute('aria-label')).toContain('Ada');
     expect(pins[1]!.getAttribute('aria-label')).toContain('Grace');
@@ -159,7 +186,7 @@ it('pins independently, exposes right-click controls and applies global bounded 
               generation: 'host',
               revision: 1,
               bots: [
-                { slug: 'ada', state: 'idle' },
+                { slug: 'ada', state: 'working' },
                 { slug: 'grace', state: 'thinking' },
               ],
             },
@@ -172,10 +199,11 @@ it('pins independently, exposes right-click controls and applies global bounded 
       for (const callback of [...frames.values()]) callback(performance.now());
     });
     const bubbles = [...node.querySelectorAll<HTMLElement>('.bh-companion-activity')];
+    expect(bubbles).toHaveLength(2);
     const positions = bubbles.map((bubble) => ({
       x:
         Number.parseFloat(bubble.style.left) +
-        Number.parseFloat(bubble.closest<HTMLElement>('.bh-companion')!.style.left),
+        Number.parseFloat(companionPosition(bubble.closest<HTMLElement>('.bh-companion')!).left),
       y: Number.parseFloat(bubble.style.bottom),
     }));
     expect(
@@ -230,8 +258,9 @@ it('pins independently, exposes right-click controls and applies global bounded 
     const bounds = (botId: string) => {
       const character = node.querySelector<HTMLElement>(`[data-bot="${botId}"]`)!;
       const cards = character.querySelector<HTMLElement>('.bh-companion-cards')!;
-      const left = Number.parseFloat(character.style.left) + Number.parseFloat(cards.style.left);
-      const bottom = Number.parseFloat(cards.style.bottom);
+      const position = companionPosition(character);
+      const left = Number.parseFloat(position.left) + Number.parseFloat(cards.style.left);
+      const bottom = Number.parseFloat(position.bottom) + Number.parseFloat(cards.style.bottom);
       return {
         left,
         right: left + 320,
@@ -321,11 +350,22 @@ it('pins independently, exposes right-click controls and applies global bounded 
     );
     expect(owner.getSnapshot().capacity).toEqual({ layers: 2, retention: 2 });
     expect(owner.get('grace')!.getSnapshot().capacity.retention).toBe(2);
+    const speech = node.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    expect(speech.getAttribute('aria-checked')).toBe('false');
+    await act(() => speech.click());
+    expect(owner.getSnapshot().speechSound).toBe(true);
+    expect(speech.getAttribute('aria-checked')).toBe('true');
+    await act(() => speech.click());
+    expect(owner.getSnapshot().speechSound).toBe(false);
     await act(() => pins[0]!.click());
     expect(node.querySelector('[data-bot="ada"]')).toBeNull();
     expect(node.querySelector('[data-bot="grace"]')).not.toBeNull();
   } finally {
     await act(() => root.unmount());
+    expect(removals).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+    listeners.mockRestore();
+    removals.mockRestore();
+    unlock.mockRestore();
     node.remove();
     owner.dispose();
     measurement.mockRestore();

@@ -1162,6 +1162,15 @@ html[data-botharness-motion='reduce'] .bh-avatar-botui i {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bh-channel-message-time {
+  margin-left: auto;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .bh-role-badges {
   display: inline-flex;
   align-items: center;
@@ -2825,6 +2834,9 @@ canvas.bh-banner-art { image-rendering: pixelated; }
   gap: 8px;
 }
 .bh-profile-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
@@ -3841,6 +3853,13 @@ a.bh-message-file-download:hover, button.bh-message-file-download:hover { backgr
   .bh-bubble-time {
     opacity: 1;
     pointer-events: auto;
+  }
+}
+/* Narrow screens: inline copy/reply actions crowd the bubble, so they move
+   into the long-press message menu and the bubble keeps the full width. */
+@media (max-width: 640px) {
+  .bh-bubble-meta {
+    display: none;
   }
 }
 .bh-timeline-new {
@@ -6828,6 +6847,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .bh-channel-options{position:absolute;right:12px;top:11px;pointer-events:auto}
+.bh-chat-layout[data-sidebar='hidden'] .bh-channel-options{right:44px}
+.bh-chat-layout[data-sidebar='hidden'] .bh-topbar{padding-right:84px}
 .bh-human-nickname-dialog p{margin:0}
 .bh-messaging-defaults{display:flex;flex-direction:column;gap:12px;margin-top:24px}
 .bh-messaging-defaults p{margin:0}

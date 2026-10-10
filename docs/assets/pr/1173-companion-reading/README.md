@@ -1,0 +1,15 @@
+# Real long-message reading qualification
+
+Recorded using official Chrome DevTools MCP in real isolated DSH0.2.0-rc.1, Chinese1559×865. Baseline c396fbab and current4e366904 use identical full message bodies and seeded pixel recipes. Three real native Bot-authored channel_send replies per Profile were independently verified. No Session rewrite, mock SSE or fabricated reply.
+
+Before-follow-light.png is the valid baseline automatic-follow observation: revealed text stays at scrollTop0 with scrollbar-width:auto. The later baseline manual-focus test failed because the old paragraph was not focusable; that attempted interaction is excluded, and its late final retains only Grace after Ada cards expire. This is not a matched three-card final pair.
+
+Current after-follow-light.png shows automatic following. In after-history-light.png, native hover expands two Ada cards and the first text paragraph genuinely has keyboard focus. Control+Home keeps that card at0 while reveal grows305→510characters; the other Ada card and Grace card independently advance288→540. Control+End returns the selected completed card to540 in after-tail-light.png. That last action qualifies completed-tail return, not additional output after following resumes. Earlier d6156ff6 evidence in PR1180 separately qualifies resume during output. Cards remain320×104px; text viewport caps at54px, full text remains and scrollbar-width:none.
+
+independent-reading.webm is the actual continuous silent recording (41.633seconds,1249encoded30fpsframes), container-remuxed without re-encoding, dubbing or interpolation. It is not display-FPS or frame-cost evidence. Screenshots match text/theme/viewport/recipes; character positions, Chat/onboarding backgrounds, model arrivals and exact elapsed reveal differ. Captures are attributed to their original revisions, not current4776990c. New evidence is now repository-hosted after the previous authenticated-upload failure; no GitHub attachment URL is fabricated.
+
+## Fresh arrivals after final dismissal
+
+At `4776990c`, a real native reply A appeared; closing its last card with native Enter left the character keyboard-focused and reading active, and real reply B committed but stayed queued with no card. A separate native Tab, without reconnecting, released it. The original red run saved canonical/DOM assertions rather than a matching screenshot or recording.
+
+`dismiss-fresh-green.webm` is continuous real DSH evidence at `e4926548`, integrated with main `78aba544` and formal pixel-avatar 0.5.0: reply A appears, native Enter closes its last card, and new canonical reply B appears while keyboard focus stays on the character. There is no Tab or reload between dismissal and B. `dismiss-fresh-green.png` shows that fresh card and retained focus. Sanitized red/green verdicts are in `dismiss-fresh-qualification.json`. The fix freezes arrivals only while there are visible cards to preserve; final dismissal also releases already-waiting replies. No new mouth shape, fake SSE, synthetic Bot message, performance or broad reconnect claim is included. Media is silent official MCP output, container remux only.

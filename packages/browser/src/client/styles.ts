@@ -48,4 +48,11 @@ export const styles =
 @media (max-width: 560px) {
   [data-bh-viewer-btn-label] { display: none; }
 }
+.bh-browser-progress { display: grid; gap: 4px; color: var(--bh-browser-secondary); }
+.bh-browser-progress-bar { width: 100%; height: 6px; accent-color: var(--dsw-alias-state-business-primary); }
+.bh-browser-failure { display: grid; gap: 4px; overflow-wrap: anywhere; }
+.bh-browser-failure-title { color: var(--bh-browser-label); font-weight: 600; }
+.bh-browser-failure-fault, .bh-browser-failure-action { color: var(--bh-browser-secondary); }
+.bh-browser-failure-details { color: var(--bh-browser-secondary); }
+.bh-browser-failure-details pre { overflow-x: auto; white-space: pre-wrap; font-size: 11px; }
 `;

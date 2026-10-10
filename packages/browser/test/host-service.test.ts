@@ -12,6 +12,7 @@ vi.mock('../src/runtimes.js', () => ({
 }));
 
 import { apply, DEFAULT_CONFIG, type BrowserConfig } from '../src/index.js';
+import { BrowserProvisionError } from '../src/runtime/provision.js';
 
 interface BrowserHostService {
   resetBot?(slug: string): void;
@@ -57,9 +58,12 @@ async function setup(
   const stopAll = vi.fn(async () => undefined);
   const stop = vi.fn(async (_slug: string) => undefined);
   const closeIdle = vi.fn(async () => undefined);
+  const ensureFailure: { error?: unknown } = {};
   mocks.runtimes.mockReturnValue({
     for: (slug: string) => ({
-      ensure: async () => undefined,
+      ensure: async () => {
+        if ('error' in ensureFailure) throw ensureFailure.error;
+      },
       open: async (url: string, reuse: string | undefined) => {
         const profile = profiles.get(slug) ?? '';
         opened.push({ slug, profile, reuse });
@@ -77,6 +81,7 @@ async function setup(
       captureScreenshot,
     }),
     profileOf: (slug: string) => profiles.get(slug) ?? '',
+    installProgress: () => undefined,
     touch: () => undefined,
     stopAll,
     stop,
@@ -151,6 +156,7 @@ async function setup(
     stop,
     closeIdle,
     captureScreenshot,
+    ensureFailure,
   };
 }
 
@@ -397,5 +403,30 @@ describe('published Browser Host service', () => {
       focused: 'bot-b-default',
       takeover: false,
     });
+  });
+  it('serializes provisioning failures with code and detail on the open route', async () => {
+    const h = await setup();
+    h.ensureFailure.error = new BrowserProvisionError(
+      'provision-no-network',
+      'The Bot Browser download failed because this machine looks offline.',
+      'getaddrinfo EAI_AGAIN',
+    );
+    const response = await h.routes.get('/api/browser/open')!.fetch(
+      new Request('http://localhost/api/browser/open', {
+        method: 'POST',
+        body: JSON.stringify({ slug: 'bot-a' }),
+      }),
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: 'The Bot Browser download failed because this machine looks offline.',
+      code: 'provision-no-network',
+      detail: 'getaddrinfo EAI_AGAIN',
+    });
+  });
+  it('reports no in-flight provisioning on observation by default', async () => {
+    const h = await setup();
+    expect(await h.observation('bot-a')).toMatchObject({ provisioning: null });
   });
 });

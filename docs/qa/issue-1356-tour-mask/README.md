@@ -1,0 +1,96 @@
+# Tutorial mask-click verification
+
+Issue: [#1356](https://github.com/BotHarness/DeepSeekBot/issues/1356).
+Task: `codex/local/01a12665-4e4a-7542-9a58-5b054f452e33`.
+Base: `524fd06f` (current main at the start of PR delivery).
+Captured October 11, 2026, Asia/Tokyo, in a fresh isolated DSH 0.2.0-rc.1 Web Profile.
+
+## Real Client behavior
+
+The product-native collaborative browser drove the actual local Client, not a mock page.
+All eight configured anchors were present. Each advance used a real click in the mask,
+outside the highlighted element and popover; no Next or Done button was used.
+Progress advanced from 1 / 8 through 8 / 8. One more mask click removed the tour.
+The final-step hook matches the existing Done button; this does not claim completion of
+the separate first-conversation/model-response onboarding requirement.
+
+English locale and dark theme were retained throughout. The measured CSS viewport was
+1402 × 877; the browser screenshot surface produced 1280 × 800 images. The committed
+JPEGs are quality-90 encodings of those unmodified captures. The welcome letter and
+default product Bot are disposable QA data. No credentials or personal conversations
+are included. The companion can walk between captures.
+
+| Step              | Captured state                                               |
+| ----------------- | ------------------------------------------------------------ |
+| 1 / 8             | [The welcome letter](01-welcome.jpg)                         |
+| 2 / 8             | [Your conversations](02-conversations.jpg)                   |
+| 3 / 8             | [Activity Center](03-activity-center.jpg)                    |
+| 4 / 8             | [Bot settings](04-bot-settings.jpg)                          |
+| 5 / 8             | [Conversation header](05-conversation-header.jpg)            |
+| 6 / 8             | [Message box](06-message-box.jpg)                            |
+| 7 / 8             | [Channel sidebar](07-channel-sidebar.jpg)                    |
+| 8 / 8             | [Window companion](08-window-companion.jpg)                  |
+| After final click | [Tour closed through the final-step action](09-finished.jpg) |
+
+The first capture pass caught the Activity Center and Message box during popover fade-in.
+Those two states were recaptured after observing computed opacity 1; all published
+step images show their popover. No animation or DOM styling was overridden.
+
+## Before / after
+
+For the baseline comparison, the isolated Client was rebuilt with the mask hook removed,
+matching the base revision's runtime source, then reloaded against the same Profile.
+The baseline [started at 1 / 8](before-01-welcome.jpg); one mask click
+[dismissed the tour](before-mask-dismissed.jpg). After restoring and rebuilding the fix,
+the same replay again advanced to 2 / 8 on a mask click. No Host/data contract changed.
+
+## Automated checks
+
+- Internal-tour and onboarding suites: 65 tests pass across 8 files; the new mask test
+  failed against the previous behavior before the fix.
+- Typecheck, lint, build, scoped formatting, bilingual Release Ledger and whitespace
+  checks pass on the isolated branch. Lint retains existing warnings.
+- Full repository run: 3798 pass, 10 skipped, 4 failures, all 15-second timeouts in
+  three unrelated test files: source-policy, bot-contact-discovery and human-dm-steer.
+- Rerunning those three files with one worker: all 25 tests pass. This is not described
+  as a green full-repository run; CI is a separate result.
+
+## Human review
+
+### Footer follow-up after Human QA
+
+The crowded final-step footer is now a single row: text-only Skip, a left-chevron Previous,
+a right-chevron Next, and a checkmark Done. The imperative Driver.js buttons use the exact
+16 × 16 native DSH Regular icon path data rather than adding React roots or a new runtime
+module. Icon buttons retain localized `aria-label` and `title`, and the SVGs are decorative.
+The disabled Previous state on the first step and button event handling remain intact.
+
+All eight dark screenshots were refreshed after the change; the final state also has a
+[light-theme screenshot](08-window-companion-light.jpg). Compare
+[the previous wrapping footer](before-footer-wrap.jpg) with
+[the current footer](08-window-companion.jpg). In the actual final-step DOM, progress is
+15 CSS pixels high, Skip is 26.8 high, and both icon buttons are 28 × 28, on one 28-high row.
+The Done icon was clicked successfully. Related tour/onboarding/token suites now pass
+83 tests across 9 files; typecheck and build pass again. Browser viewport-resize requests
+timed out, so this follow-up does not claim a narrow-viewport screenshot.
+
+The separately reported DM sidebar scope mismatch is tracked in
+[#1361](https://github.com/BotHarness/DeepSeekBot/issues/1361), not fixed by this PR.
+
+Launch this branch through `scripts/dev-instance.mjs` with a new isolated home and a free
+port, then enter Bot mode. To replay, open Bot settings → General → Continue tutorial.
+Click the mask through all eight steps and once more on the last step. Separately verify
+that Skip, the close button and Escape still retain their existing behavior.
+
+## Short label follow-up
+
+English now uses exactly `Skip`; Chinese uses `跳过`. The English regression reads
+the production locale value and asserts the rendered button text. All eight dark
+steps, the light final step and Done completion were recaptured after integrating
+main `51058d54`. The measured viewport remains 1402 × 877 CSS pixels, captured at
+1280 × 800 pixels. The nine focused files still pass all 83 tests; typecheck, lint,
+build and scoped formatting pass. The Human has authorized merging both UI PRs
+after verification; that authorization does not include deployment.
+
+No merge, deployment, external IM action or live model request is part of this proof.
+The PR stops for Human QA.

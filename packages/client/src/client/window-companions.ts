@@ -93,8 +93,15 @@ export class WindowCompanions {
     ready: boolean;
     companions: readonly WindowCompanion[];
     capacity: CompanionCapacity;
+    speechSound: boolean;
     sync: 'connecting' | 'live' | 'stale';
-  } = { ready: false, companions: [], capacity: { layers: 3, retention: 20 }, sync: 'connecting' };
+  } = {
+    ready: false,
+    companions: [],
+    capacity: { layers: 3, retention: 20 },
+    speechSound: false,
+    sync: 'connecting',
+  };
   private listeners = new Set<() => void>();
   private children = new Map<string, WindowCompanion>();
   private preferences = new Map<string, CompanionSelection>();
@@ -147,7 +154,11 @@ export class WindowCompanions {
         this.hadSavedPreferences = raw !== null && raw !== undefined;
         if (data) {
           selections = Array.isArray(data['selections']) ? data['selections'] : [];
-          this.state = { ...this.state, capacity: capacity(data['capacity']) };
+          this.state = {
+            ...this.state,
+            capacity: capacity(data['capacity']),
+            speechSound: data['speechSound'] === true,
+          };
         } else {
           const legacy = this.deps.storage?.getItem(`botharness/companions/v1/${profileId}`);
           this.hadSavedPreferences ||= Boolean(legacy);
@@ -238,6 +249,12 @@ export class WindowCompanions {
     this.save();
     this.notify();
   }
+  configureSpeechSound(enabled: boolean): void {
+    if (!this.state.ready || this.disposed || this.state.speechSound === enabled) return;
+    this.state = { ...this.state, speechSound: enabled };
+    this.save();
+    this.notify();
+  }
   private get key(): string {
     return `botharness/companions/v2/${this.profileId}`;
   }
@@ -249,6 +266,7 @@ export class WindowCompanions {
         JSON.stringify({
           selections: [...this.preferences.values()],
           capacity: this.state.capacity,
+          speechSound: this.state.speechSound,
         }),
       );
     } catch {}

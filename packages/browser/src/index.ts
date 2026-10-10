@@ -14,6 +14,7 @@ import { createBorrowService } from './borrow.js';
 import { registerBorrowHttp } from './borrow-http.js';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
+import { toBrowserErrorBody } from './runtime/provision.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
 import { createBotBrowserRuntimes, listStoredProfileNames } from './runtimes.js';
 import {
@@ -571,7 +572,7 @@ export function apply(
               (target() === 'local' && opened.isRunning() ? localViewerUrl(slug) : null),
           });
         } catch (error) {
-          return json({ ok: false, error: String(error) }, 500);
+          return json(toBrowserErrorBody(error), 500);
         }
       },
     };
@@ -687,6 +688,7 @@ export function apply(
           viewerUrl:
             runtime.viewerUrl?.() ??
             (target() === 'local' && runtime.isRunning() ? localViewerUrl(slug) : null),
+          provisioning: runtimes.installProgress(slug) ?? null,
         });
       },
     };

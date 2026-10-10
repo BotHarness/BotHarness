@@ -1,0 +1,50 @@
+{
+  "source": "774d9f66796bdcec0dd7f6361fcb36e10e76fb32",
+  "formalAvatar": "0.10.0",
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "locale": "Chinese",
+  "theme": "light",
+  "method": "Actual DSH; official native Chrome MCP ordinary drag; DOM phase observer, not a performance measurement or calibrated fast gesture",
+  "complete": true,
+  "activitySync": "live",
+  "trustedPointerUp": true,
+  "firstFallAfterReleaseMs": 5,
+  "firstFloorAfterReleaseMs": 664,
+  "restAfterReleaseMs": 1264,
+  "returnedToDragAfterRelease": false,
+  "finalFloor": {
+    "physicalY": 0,
+    "wrapperBottom": 640,
+    "viewportHeight": 640
+  },
+  "consoleErrors": 0,
+  "observerRemoved": true,
+  "closedOwnedBrowser": true,
+  "video": {
+    "durationSeconds": 6.567,
+    "silent": true,
+    "containerRemuxOnly": true
+  },
+  "excluded": [
+    "Dark capture failed because the expected Settings option was not present; no dark qualification.",
+    "T3 preview requests timed out while native Chrome and direct Host calls worked.",
+    "No calibrated fast gesture, matched before/after revision capture or performance measurement."
+  ],
+  "files": {
+    "before-lift.png": {
+      "bytes": 173976,
+      "sha256": "f99899bf44fbca1e92b8ba873615c520ba0856d69ec4657953f27b419f16b948"
+    },
+    "after-release-floor.png": {
+      "bytes": 171859,
+      "sha256": "2bdaaebec46fff395756d185dd52adfb37db8261017c9c414011f49db2640715"
+    },
+    "native-lift-and-floor.webm": {
+      "bytes": 796292,
+      "sha256": "fb07a6c0465befc415a8ac8f3293bf9b79445905635020d570d03bc8111fdd24"
+    }
+  }
+}

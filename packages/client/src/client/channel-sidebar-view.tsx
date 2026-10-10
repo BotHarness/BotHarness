@@ -14,9 +14,8 @@ import type {
   ChannelSidebarEntry,
   ChannelSidebarEntryProps,
   ChannelSidebarRegistry,
-  ChannelSidebarScope,
 } from './channel-sidebar.js';
-import { resolveSidebarBotSlug } from './channel-sidebar.js';
+import { resolveChannelSidebarContext } from './channel-sidebar.js';
 import {
   NARROW_CHANNEL_SIDEBAR_QUERY,
   resolveChannelSidebarMode,
@@ -24,7 +23,6 @@ import {
 } from './channel-sidebar-layout.js';
 import {
   channelSidebarPrefs,
-  channelSidebarScopeKey,
   clampChannelSidebarWidth,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   type ChannelSidebarPrefs,
@@ -76,14 +74,7 @@ export function useChannelSidebar(
   prefs: ChannelSidebarPrefs = channelSidebarPrefs,
 ): ChannelSidebarController {
   const narrow = useNarrowChannelSidebar();
-  const selection = state.selection;
-  const sidebarBotSlug = resolveSidebarBotSlug(state);
-  const scopeKey =
-    sidebarBotSlug !== undefined
-      ? channelSidebarScopeKey('personabot', sidebarBotSlug, sidebarBotSlug)
-      : selection?.kind === 'channel'
-        ? channelSidebarScopeKey('channel', selection.channelId, undefined)
-        : undefined;
+  const scopeKey = resolveChannelSidebarContext(state)?.scopeKey;
   const [overlay, setOverlay] = useState({ scopeKey, open: false });
   if (overlay.scopeKey !== scopeKey) setOverlay({ scopeKey, open: false });
   const overlayOpen = overlay.scopeKey === scopeKey && overlay.open;
@@ -636,24 +627,15 @@ export function ChannelSidebar({
   onMemoryWorkingSelect?: ((change: import('./bridge.js').MemoryWorkingChange) => void) | undefined;
   selectedMemoryWorking?: import('./bridge.js').MemoryWorkingChange | undefined;
 }): ReactElement | null {
-  const selection = state.selection;
-  const sidebarBotSlug = resolveSidebarBotSlug(state);
-  const channel =
-    state.conversation.channel ??
-    (selection?.kind === 'channel'
-      ? state.channels.find((candidate) => candidate.id === selection.channelId)
-      : selection?.kind === 'bot'
-        ? state.channels.find(
-            (candidate) => candidate.type === 'dm' && candidate.botSlug === selection.slug,
-          )
-        : undefined);
-  const scope: ChannelSidebarScope = sidebarBotSlug !== undefined ? 'personabot' : 'channel';
+  const context = resolveChannelSidebarContext(state);
+  const channel = context?.channel;
+  const scope = context?.scope ?? 'channel';
   const entries = useSyncExternalStore(
     registry.subscribe,
     () => registry.entries(scope),
     () => registry.entries(scope),
   );
-  const selectedBotSlug = selection?.kind === 'bot' ? selection.slug : undefined;
+  const selectedBotSlug = context?.botSlug;
   const inboxMount = useMountedResource<HTMLDivElement>(() => {
     if (selectedBotSlug === undefined) return;
     const timer = window.setInterval(() => void actions.refreshBotInbox(selectedBotSlug), 10_000);
@@ -681,7 +663,7 @@ export function ChannelSidebar({
           scope,
           channelId: channel.id,
           conversationRevision: state.conversation.revision,
-          botSlug: sidebarBotSlug,
+          botSlug: selectedBotSlug,
           actions,
           t,
           onMemoryCommitSelect,
