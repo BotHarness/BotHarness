@@ -2825,6 +2825,9 @@ canvas.bh-banner-art { image-rendering: pixelated; }
   gap: 8px;
 }
 .bh-profile-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
