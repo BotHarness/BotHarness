@@ -81,6 +81,8 @@ Pixel Avatars can be an elf, dwarf, orc or talking flower with beards, medieval 
 
 ### Fixed
 
+- Window Companion bubbles update their origin together with the character during dragging, keyboard movement and reduced-motion release, without waiting for another animation frame ([#1248](https://github.com/BotHarness/DeepSeekBot/issues/1248)).
+
 - Reading a Window Companion bubble with the keyboard or resizing the window no longer scrolls the outer stage and leaves the character above the floor; the bubble itself still scrolls ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
 
 - Window Companions keep falling after a fast throw clips the character outside the visible content, and delayed frames no longer slow gravity into an apparent midair pause. Releasing immediately ends the drag, so a late pointer move cannot grab the character again; the release click remains suppressed. Visibility checks follow the fixed presentation area, while hidden pages and offscreen areas still pause animation ([#1173](https://github.com/BotHarness/DeepSeekBot/issues/1173)).
@@ -143,7 +145,7 @@ Bots can be pinned as pixel Window Companions that play their replies, binding o
 
 - Bot settings can export and inspect one verified complete `.botharness-backup`, including retained custom/deleted Memory, current attachments, model templates and independent plans, and the canonical purge checkpoint; the installed local command restores only into a new stopped environment ([#886](https://github.com/BotHarness/DeepSeekBot/issues/886), [guide](docs/settings.md#complete-environment-backup-and-restore)).
 
-- Window Companion bubbles follow the displayed pixel bust's head through tilt, stretch and movement, retain an origin connector when cards move to avoid overlap or viewport edges, and keep text upright; resize, dragging, keyboard movement and reduced-motion release update the character and bubble origin together, while image and unsupported-rig fallbacks use their visible box top ([#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177), [#1248](https://github.com/BotHarness/DeepSeekBot/issues/1248)).
+- Window Companion bubbles follow the displayed pixel bust's head through tilt, stretch and movement, retain an origin connector when cards move to avoid overlap or viewport edges, and keep text upright; resize updates the clamped character and bubble origin together, while image and unsupported-rig fallbacks use their visible box top ([#1177](https://github.com/BotHarness/DeepSeekBot/issues/1177)).
 
 - WeChat identity enablement and native typing can inherit independent global defaults or retain Bot-specific overrides; existing choices are preserved on upgrade, and unsupported group/Thread settings stay hidden ([#912](https://github.com/BotHarness/BotHarness/issues/912), [guide](docs/wechat-connection.md)).
 
