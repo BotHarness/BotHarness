@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -16,6 +25,7 @@ import {
   restoreProfileBackup,
   type ProfileBackupSource,
 } from '../src/portability/package.js';
+import { physicalDirectory } from '../src/portability/files.js';
 import { writeZip } from '../src/bots/zip-archive.js';
 import type { ModelCatalog } from '../src/models/catalog.js';
 import { selectAssignmentRoute, type ModelRoute } from '../src/models/presets.js';
@@ -37,7 +47,9 @@ afterEach(async () => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 function root() {
-  const value = mkdtempSync(join(tmpdir(), 'bh-profile-backup-'));
+  // mkdtempSync keeps symlinked TMPDIR components (macOS /var -> /private/var);
+  // canonicalize so the managed-directory guard sees the real path.
+  const value = realpathSync(mkdtempSync(join(tmpdir(), 'bh-profile-backup-')));
   roots.push(value);
   return value;
 }
@@ -128,6 +140,24 @@ async function scene() {
   core.contentPurge.confirm(channel.id, [selected.sourceEventId], preview.token);
   return { core, home, custom, file, channel };
 }
+
+it('refuses a managed path reached through a symlink while canonical roots export', () => {
+  const target = root();
+  const child = join(target, 'child');
+  mkdirSync(child);
+  const link = join(root(), 'linked-home');
+  try {
+    symlinkSync(target, link);
+  } catch (error) {
+    // Windows symlink privilege; the guard is still covered on other platforms.
+    if ((error as NodeJS.ErrnoException)?.code === 'EPERM') return;
+    throw error;
+  }
+  expect(physicalDirectory(child)).toBe(realpathSync(child));
+  expect(() => physicalDirectory(join(link, 'child'))).toThrowError(
+    expect.objectContaining({ code: 'snapshot-changed' }),
+  );
+});
 
 it('round trips the complete core, custom/deleted Memory, editable attachment identity, real purge checkpoint and independent plans across cold restart', async () => {
   const { core, file, channel } = await scene();
