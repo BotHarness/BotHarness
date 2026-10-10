@@ -118,6 +118,10 @@ export function Combobox({
       ? choices
       : [...choices, { value: actionValue, label: action.label, disabled: action.disabled }];
   const enabled = shown.filter((option) => option.disabled !== true);
+  // Never render an empty floating box: with nothing to pick and no empty
+  // message requested, focusing the input shows no popup instead of a tiny
+  // invisible card that reads as a broken select (notably inside modals).
+  const hasPopup = shown.length > 0 || (choices.length === 0 && emptyLabel !== undefined);
   const highlighted = shown.findIndex(
     (option) => option.value === active && option.disabled !== true,
   );
@@ -191,10 +195,12 @@ export function Combobox({
         className="bh-combobox-input"
         role="combobox"
         aria-label={label}
-        aria-expanded={open}
+        aria-expanded={open && hasPopup}
         aria-autocomplete="list"
-        aria-controls={open ? listId : undefined}
-        aria-activedescendant={open && highlighted >= 0 ? `${listId}-${highlighted}` : undefined}
+        aria-controls={open && hasPopup ? listId : undefined}
+        aria-activedescendant={
+          open && hasPopup && highlighted >= 0 ? `${listId}-${highlighted}` : undefined
+        }
         aria-invalid={invalid}
         aria-describedby={invalid ? errorId : undefined}
         value={query ?? display}
@@ -233,7 +239,7 @@ export function Combobox({
       >
         <IconChevronDownOutlineRegular size={16} />
       </button>
-      {open && !disabled
+      {open && !disabled && hasPopup
         ? createPortal(
             <MenuSurface
               compact
