@@ -118,9 +118,6 @@ export function Combobox({
       ? choices
       : [...choices, { value: actionValue, label: action.label, disabled: action.disabled }];
   const enabled = shown.filter((option) => option.disabled !== true);
-  // Never render an empty floating box: with nothing to pick and no empty
-  // message requested, focusing the input shows no popup instead of a tiny
-  // invisible card that reads as a broken select (notably inside modals).
   const hasPopup = shown.length > 0 || (choices.length === 0 && emptyLabel !== undefined);
   const highlighted = shown.findIndex(
     (option) => option.value === active && option.disabled !== true,
