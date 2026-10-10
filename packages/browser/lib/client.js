@@ -1469,6 +1469,7 @@ window.__ModuleLoader__.load({
 				disabled: action.disabled
 			}];
 			const enabled = shown.filter((option) => option.disabled !== true);
+			const hasPopup = shown.length > 0 || choices.length === 0 && emptyLabel !== void 0;
 			const highlighted = shown.findIndex((option) => option.value === active && option.disabled !== true);
 			const position = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
 				open,
@@ -1527,10 +1528,10 @@ window.__ModuleLoader__.load({
 						className: "bh-combobox-input",
 						role: "combobox",
 						"aria-label": label,
-						"aria-expanded": open,
+						"aria-expanded": open && hasPopup,
 						"aria-autocomplete": "list",
-						"aria-controls": open ? listId : void 0,
-						"aria-activedescendant": open && highlighted >= 0 ? `${listId}-${highlighted}` : void 0,
+						"aria-controls": open && hasPopup ? listId : void 0,
+						"aria-activedescendant": open && hasPopup && highlighted >= 0 ? `${listId}-${highlighted}` : void 0,
 						"aria-invalid": invalid,
 						"aria-describedby": invalid ? errorId : void 0,
 						value: query ?? display,
@@ -1568,7 +1569,7 @@ window.__ModuleLoader__.load({
 						},
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { size: 16 })
 					}),
-					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
+					open && !disabled && hasPopup ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
 						compact: true,
 						ref: panel,
 						id: listId,

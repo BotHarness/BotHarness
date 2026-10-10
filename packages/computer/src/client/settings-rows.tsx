@@ -538,14 +538,22 @@ export function ComputerSettingsRows({
   }, [uploadName, requestUpload, sendUploadBytes, importArchive, t]);
 
   const openImport = useCallback(() => {
+    if (importOpen) {
+      setImportOpen(false);
+      return;
+    }
     void listArchives()
       .then((files) => {
         setArchives(files);
-        setImportOpen(true);
-        if (files.length === 0) setTransferNote(t('rows.noArchives'));
+        if (files.length === 0) {
+          setImportOpen(false);
+          setTransferNote(t('rows.noArchives'));
+        } else {
+          setImportOpen(true);
+        }
       })
       .catch((error: unknown) => setTransferNote(String(error)));
-  }, [listArchives, t]);
+  }, [importOpen, listArchives, t]);
 
   const openDir = useCallback(() => {
     void openDirectory(exportDir).catch((error: unknown) => setDirNote(String(error)));
