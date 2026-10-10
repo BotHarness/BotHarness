@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { runBotCreateCli } from '../src/bots/bot-create-cli.js';
 import { writeZip } from '../src/bots/zip-archive.js';
+import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
-import { mountOperationalDatabase } from '../src/database/owner.js';
+import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { createModelPresetStore } from '../src/models/presets.js';
 import { createTempRoot } from './helpers.js';
 
@@ -498,5 +499,114 @@ describe('deepseekbot model', () => {
     const result = await invoke(['model-presets'], home, { DEEPSEEK_API_KEY: 'sk-env-secret-7' });
     expect(result.code).toBe(0);
     expect(result.stdout).not.toContain('sk-env-secret-7');
+  });
+});
+
+describe('deepseekbot lifecycle', () => {
+  it('pauses and resumes a bot', async () => {
+    const home = createTempRoot('botharness-lifecycle-pause-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const paused = await invoke(['pause', id], home);
+    expect(paused.code).toBe(0);
+    expect(paused.json.bot).toMatchObject({ id, paused: true });
+    const resumed = await invoke(['resume', id], home);
+    expect(resumed.code).toBe(0);
+    expect(resumed.json.bot).toMatchObject({ id, paused: false });
+    const missing = await invoke(['pause', 'bot-absent'], home);
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-bot');
+  });
+
+  it('updates name, description, and roles within profile limits', async () => {
+    const home = createTempRoot('botharness-lifecycle-update-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const updated = await invoke(
+      [
+        'update',
+        id,
+        '--name',
+        'Ada Lovelace',
+        '--description',
+        'Analytical engine',
+        '--role',
+        'scout',
+      ],
+      home,
+    );
+    expect(updated.code).toBe(0);
+    expect(updated.json.bot).toMatchObject({
+      id,
+      name: 'Ada Lovelace',
+      description: 'Analytical engine',
+      roles: ['scout'],
+    });
+    const shown = await invoke(['show', id], home);
+    expect(shown.json.bot.name).toBe('Ada Lovelace');
+    const empty = await invoke(['update', id], home);
+    expect(empty.code).toBe(2);
+    expect(empty.json.error.code).toBe('usage');
+    const longBio = await invoke(['update', id, '--description', 'x'.repeat(161)], home);
+    expect(longBio.code).toBe(1);
+    expect(longBio.json.error.code).toBe('invalid-input');
+    const manyRoles = await invoke(
+      ['update', id, ...Array.from({ length: 9 }, (_, index) => `--role=t${index}`)],
+      home,
+    );
+    expect(manyRoles.code).toBe(1);
+    expect(manyRoles.json.error.code).toBe('invalid-input');
+    const missing = await invoke(['update', 'bot-absent', '--name', 'Ghost'], home);
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-bot');
+  });
+
+  it('sets and clears the Human display name', async () => {
+    const home = createTempRoot('botharness-lifecycle-human-');
+    const set = await invoke(['human-name-set', '--name', 'Operator'], home);
+    expect(set.code).toBe(0);
+    expect(set.json.human).toMatchObject({ displayName: 'Operator' });
+    const humanId = set.json.human.humanId as string;
+    const cleared = await invoke(['human-name-set', '--clear'], home);
+    expect(cleared.code).toBe(0);
+    expect(cleared.json.human.humanId).toBe(humanId);
+    const both = await invoke(['human-name-set', '--name', 'X', '--clear'], home);
+    expect(both.code).toBe(2);
+    expect(both.json.error.code).toBe('usage');
+    const neither = await invoke(['human-name-set'], home);
+    expect(neither.code).toBe(2);
+    expect(neither.json.error.code).toBe('usage');
+    const multiline = await invoke(['human-name-set', '--name', 'a\nb'], home);
+    expect(multiline.code).toBe(1);
+    expect(multiline.json.error.code).toBe('invalid-input');
+  });
+
+  it('sets and clears a per-channel Human nickname', async () => {
+    const home = createTempRoot('botharness-lifecycle-nick-');
+    const bot = await invoke(['create', '--name', 'Ada'], home);
+    const id = bot.json.bot.id as string;
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    try {
+      const channels = createSqliteChannelStore({
+        database: attachOperationalModule(owner, 'messaging'),
+        rootDir: join(home, 'botharness', 'channels'),
+      });
+      channels.getOrCreateDm(id, 'Ada');
+    } finally {
+      owner.close();
+    }
+    const channelId = `dm-${id}`;
+    const set = await invoke(['channel-human-name-set', channelId, '--nickname', 'Ops'], home);
+    expect(set.code).toBe(0);
+    expect(set.json).toMatchObject({ channel: { id: channelId }, nickname: 'Ops' });
+    const cleared = await invoke(['channel-human-name-set', channelId, '--clear'], home);
+    expect(cleared.code).toBe(0);
+    expect(cleared.json.nickname).toBeNull();
+    const missing = await invoke(
+      ['channel-human-name-set', 'dm-absent', '--nickname', 'Ops'],
+      home,
+    );
+    expect(missing.code).toBe(1);
+    expect(missing.json.error.code).toBe('unknown-channel');
   });
 });

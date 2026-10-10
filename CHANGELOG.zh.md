@@ -46,6 +46,7 @@
 - 绑定应用窗口可通过兼容 Provider 的配置能力创建 Lark／飞书应用或开始微信扫码配对，并绑定已验证身份，凭证不经过 BotHarness；旧 Provider 继续使用 IM 设置路径。内联配置会保留已有微信账号，避免替换原有配对。[Lark 配置清单](docs/lark-connection.md) 补充受保护回复所需的原消息读取权限（[#1111](https://github.com/BotHarness/DeepSeekBot/issues/1111)）。
 - 外部编程智能体无需点击即可创建 PersonaBot：`deepseekbot create` 支持空白、Bot 包（目录或 zip）与 GitHub 三种来源，可指向任意 DSH_HOME，并向标准输出打印机器可读的 JSON（Bot id、私聊通道、数据目录、步骤状态、下一步操作）；名字只是标签，重复名字会生成新的 Bot，密钥只能走环境变量或标准输入。见 [Bot 命令行指南](docs/bot-cli.md)（[#1304](https://github.com/BotHarness/DeepSeekBot/issues/1304)，[ADR-0156](docs/adr/0156-programmatic-bot-creation-is-a-machine-first-cli-over-registry-creation.md)）。
 - 同一 CLI 现在可无界面管理模型：`model-presets` 列出预设，`model-preset-create` 用显式路由新建预设，`model-preset-apply` 应用到 Bot，`model-plan` 查看生效方案与 deferred 就绪状态；路由离线做形状加 provider 存在性检查，密钥有效性仍在 Host 侧。见 [Bot 命令行指南](docs/bot-cli.md)（[#1310](https://github.com/BotHarness/DeepSeekBot/issues/1310)，[ADR-0157](docs/adr/0157-cli-model-validation-is-tiered-key-validity-stays-host-side.md)）。
+- 同一 CLI 现在覆盖 Bot 生命周期与人类命名：`pause`/`resume` 开关执行，`update` 改名/简介/标签，`human-name-set` 写人类显示名，`channel-human-name-set` 写分 channel 人类昵称，全离线可用、错误按码返回。见 [Bot 命令行指南](docs/bot-cli.md)（[#1312](https://github.com/BotHarness/DeepSeekBot/issues/1312)）。
 
 ### Changed
 

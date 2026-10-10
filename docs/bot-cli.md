@@ -19,6 +19,11 @@ deepseekbot model-preset-create --name <preset> --orchestrator-provider <p> --or
                                 --assignment-model <m> [--assignment-effort <e>] [--home <dsh-home>]
 deepseekbot model-preset-apply <id> --preset <preset-id> [--home <dsh-home>]
 deepseekbot model-plan <id> [--home <dsh-home>]
+deepseekbot pause <id> [--home <dsh-home>]
+deepseekbot resume <id> [--home <dsh-home>]
+deepseekbot update <id> [--name <name>] [--description <text>] [--role <tag> ...] [--home <dsh-home>]
+deepseekbot human-name-set (--name <text> | --clear) [--home <dsh-home>]
+deepseekbot channel-human-name-set <channel> (--nickname <text> | --clear) [--home <dsh-home>]
 ```
 
 Exactly one source per create. `--name` is required for blank and GitHub bots; for bundle imports it overrides the name from `.botharness/bot.json` (or the file name). A `--from-git` value accepts a full Git URL (`https://`, `ssh://`, `git@host:path`) or an `owner/repo` shorthand for `https://github.com/owner/repo.git`, which also covers Bot Marketplace entries through their clone URL. A `--from-dir` bundle skips `.git` as files but packs it as history when present.
@@ -39,7 +44,7 @@ Stdout carries exactly one JSON document. Success exits 0:
 }
 ```
 
-Failure exits non-zero with `{"error": {"code", "message"}}` using a stable code (`usage`, `secret-in-argv`, `bad-zip`, `bad-bundle`, `bad-ref`, `unknown-preset`, `unknown-bot`, `duplicate-preset`, `git-not-found`, `git-clone-failed`, `git-clone-timeout`, `memory-unavailable`, `invalid-input`). Human-readable lines go to stderr only, so stdout stays parseable in both cases.
+Failure exits non-zero with `{"error": {"code", "message"}}` using a stable code (`usage`, `secret-in-argv`, `bad-zip`, `bad-bundle`, `bad-ref`, `unknown-preset`, `unknown-bot`, `unknown-channel`, `duplicate-preset`, `git-not-found`, `git-clone-failed`, `git-clone-timeout`, `memory-unavailable`, `invalid-input`). Human-readable lines go to stderr only, so stdout stays parseable in both cases.
 
 ## Identity
 
@@ -54,3 +59,7 @@ Never pass secrets as arguments: any `--api-key` / `--token` / `--secret` / `--p
 Without `--preset`, creation still succeeds and the `model` step reports `no-model-yet`: authorize a model in Bot-mode Settings, then message the Bot to verify a live reply. With `--preset <model-preset-id>`, that preset is applied at creation; an unknown id fails with `unknown-preset` before any bot is minted.
 
 The model verbs manage the same records afterwards: `model-presets` lists the profile presets, `model-preset-create` mints one from explicit provider/model routes, `model-preset-apply` puts it on a Bot, and `model-plan` shows the active plan. Routes are shape-checked plus provider-existence-checked offline (unknown providers fail fast); catalog liveness and readiness inspection stay Host-side, so `model-plan` reports readiness deferred. See ADR-0157.
+
+## Lifecycle and human naming
+
+`pause` and `resume` gate a Bot's execution; `update` relabels it (`--name`, `--description`, `--role`, within the profile tag/bio limits). `human-name-set` writes the Human display name (`--clear` resets it) and `channel-human-name-set` writes the per-channel Human nickname, using the CONTEXT.md terms. Unknown bots and channels fail coded (`unknown-bot`, `unknown-channel`).

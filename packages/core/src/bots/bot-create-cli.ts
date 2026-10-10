@@ -4,8 +4,13 @@ import { join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { dmChannelId } from '../channels/channel.js';
+import { createSqliteChannelStore } from '../channels/sqlite-store.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../database/schema-plan.js';
-import { mountOperationalDatabase, type OperationalDatabaseOwner } from '../database/owner.js';
+import {
+  attachOperationalModule,
+  mountOperationalDatabase,
+  type OperationalDatabaseOwner,
+} from '../database/owner.js';
 import { resolveDshHome } from '../im/config-store.js';
 import { cloneMemoryRepository, parseMemoryGitUrl, type HttpsFallback } from '../memory/clone.js';
 import { ensureMemoryRepository } from '../memory/repository.js';
@@ -17,6 +22,9 @@ import {
 } from '../models/presets.js';
 import {
   BOT_DESCRIPTOR_PATH,
+  MAX_DESCRIPTOR_BIO_LENGTH,
+  MAX_DESCRIPTOR_TAG_LENGTH,
+  MAX_DESCRIPTOR_TAGS,
   parseBotDescriptor,
   type BotDescriptor,
 } from '../marketplace/descriptor.js';
@@ -72,6 +80,11 @@ Usage:
                                   --assignment-model <m> [--assignment-effort <e>] [--home <dsh-home>]
   deepseekbot model-preset-apply <id> --preset <preset-id> [--home <dsh-home>]
   deepseekbot model-plan <id> [--home <dsh-home>]
+  deepseekbot pause <id> [--home <dsh-home>]
+  deepseekbot resume <id> [--home <dsh-home>]
+  deepseekbot update <id> [--name <name>] [--description <text>] [--role <tag> ...] [--home <dsh-home>]
+  deepseekbot human-name-set (--name <text> | --clear) [--home <dsh-home>]
+  deepseekbot channel-human-name-set <channel> (--nickname <text> | --clear) [--home <dsh-home>]
   deepseekbot --help | deepseekbot create --help
 
 Sources (exactly one per create):
@@ -88,7 +101,7 @@ Machine contract:
   DM channel, data directory, per-step statuses, and next actions. Failure
   exits non-zero with {"error": {"code", "message"}} using a stable code
   (usage, secret-in-argv, bad-zip, bad-bundle, bad-ref, unknown-preset,
-  unknown-bot, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
+  unknown-bot, unknown-channel, duplicate-preset, git-not-found, git-clone-failed, git-clone-timeout,
   memory-unavailable, invalid-input). Human-readable lines go to stderr only.
 
 Models:
@@ -205,6 +218,8 @@ const CREATE_OPTIONS = {
   'assignment-provider': { type: 'string' },
   'assignment-model': { type: 'string' },
   'assignment-effort': { type: 'string' },
+  nickname: { type: 'string' },
+  clear: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -957,6 +972,162 @@ function runModelPlan(
   }
 }
 
+function openChannels(
+  dshHome: string,
+  owner: OperationalDatabaseOwner,
+  registry: PersonaBotRegistry,
+) {
+  return createSqliteChannelStore({
+    database: attachOperationalModule(owner, 'messaging'),
+    rootDir: join(dshHome, 'botharness', 'channels'),
+    botDisplayName: (botSlug) => registry.getHistorical(botSlug)?.displayName,
+  });
+}
+
+function runPause(
+  id: string,
+  paused: boolean,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string; paused: boolean } } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('pause and resume need exactly one bot id.');
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const result = registry.setPaused(slug, paused);
+    if (!result.ok) throw new CliFailure('unknown-bot', `Unknown bot: ${slug}`, 1);
+    io.stderr(`deepseekbot: ${paused ? 'paused' : 'resumed'} ${slug}`);
+    return {
+      bot: {
+        id: slug,
+        name: result.record.displayName,
+        paused: result.record.paused === true,
+      },
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runUpdate(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { bot: { id: string; name: string; roles: string[]; description?: string } } {
+  const slug = id.trim();
+  if (slug.length === 0) throw usageError('update needs exactly one bot id.');
+  const displayName = trimmed(values.name);
+  const description = trimmed(values.description);
+  const roles =
+    values.role === undefined
+      ? undefined
+      : values.role.map((role) => role.trim()).filter((role) => role.length > 0);
+  if (displayName === undefined && description === undefined && roles === undefined) {
+    throw usageError('update needs at least one of --name, --description, or --role.');
+  }
+  if (
+    (roles !== undefined &&
+      (roles.length > MAX_DESCRIPTOR_TAGS ||
+        roles.some((tag) => [...tag].length > MAX_DESCRIPTOR_TAG_LENGTH))) ||
+    (description !== undefined && [...description].length > MAX_DESCRIPTOR_BIO_LENGTH)
+  ) {
+    throw new CliFailure('invalid-input', 'Tags or bio exceed the profile limits.', 1);
+  }
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const result = registry.update(slug, {
+      ...(displayName === undefined ? {} : { displayName }),
+      ...(roles === undefined ? {} : { roles }),
+      ...(description === undefined ? {} : { description }),
+    });
+    if (!result.ok) {
+      throw result.reason === 'not-found'
+        ? new CliFailure('unknown-bot', `Unknown bot: ${slug}`, 1)
+        : new CliFailure('invalid-input', 'The bot could not be updated.', 1);
+    }
+    io.stderr(`deepseekbot: updated ${slug}`);
+    return {
+      bot: {
+        id: slug,
+        name: result.record.displayName,
+        roles: result.record.roles ?? [],
+        ...(result.record.description === undefined
+          ? {}
+          : { description: result.record.description }),
+      },
+    };
+  } finally {
+    owner.close();
+  }
+}
+
+function runHumanNameSet(
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { human: { humanId: string; displayName: string } } {
+  const name = trimmed(values.name);
+  const clear = values.clear === true;
+  if ((name === undefined) === !clear) {
+    throw usageError('human-name-set needs --name or --clear, not both or neither.');
+  }
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const channels = openChannels(dshHome, owner, registry);
+    try {
+      const identity = channels.setHumanDefaultName(clear ? null : name!);
+      io.stderr(`deepseekbot: set the Human display name`);
+      return { human: { humanId: identity.humanId, displayName: identity.displayName } };
+    } catch (error) {
+      throw new CliFailure(
+        'invalid-input',
+        error instanceof Error ? error.message : 'The Human display name is invalid.',
+        1,
+      );
+    }
+  } finally {
+    owner.close();
+  }
+}
+
+function runChannelHumanNameSet(
+  id: string,
+  values: CreateValues,
+  io: BotCreateCliIo,
+): { channel: { id: string }; nickname: string | null } {
+  const channelId = id.trim();
+  if (channelId.length === 0)
+    throw usageError('channel-human-name-set needs exactly one channel id.');
+  const nickname = trimmed(values.nickname);
+  const clear = values.clear === true;
+  if ((nickname === undefined) === !clear) {
+    throw usageError('channel-human-name-set needs --nickname or --clear, not both or neither.');
+  }
+  const dshHome = resolveHome(values, io);
+  const { owner, registry } = openRegistry(dshHome);
+  try {
+    const channels = openChannels(dshHome, owner, registry);
+    if (channels.get(channelId) === undefined) {
+      throw new CliFailure('unknown-channel', `Unknown channel: ${channelId}`, 1);
+    }
+    try {
+      channels.setHumanNickname(channelId, clear ? null : nickname!);
+    } catch (error) {
+      throw new CliFailure(
+        'invalid-input',
+        error instanceof Error ? error.message : 'The Human nickname is invalid.',
+        1,
+      );
+    }
+    io.stderr(`deepseekbot: set the Human nickname in ${channelId}`);
+    return { channel: { id: channelId }, nickname: channels.humanNickname(channelId) ?? null };
+  } finally {
+    owner.close();
+  }
+}
+
 export async function runBotCreateCli(
   argv: readonly string[],
   io: BotCreateCliIo,
@@ -1003,6 +1174,27 @@ export async function runBotCreateCli(
     if (command === 'model-plan') {
       if (rest.length !== 1) throw usageError('model-plan needs exactly one bot id.');
       io.stdout(JSON.stringify(runModelPlan(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'pause' || command === 'resume') {
+      if (rest.length !== 1) throw usageError('pause and resume need exactly one bot id.');
+      io.stdout(JSON.stringify(runPause(rest[0]!, command === 'pause', values, io), null, 2));
+      return 0;
+    }
+    if (command === 'update') {
+      if (rest.length !== 1) throw usageError('update needs exactly one bot id.');
+      io.stdout(JSON.stringify(runUpdate(rest[0]!, values, io), null, 2));
+      return 0;
+    }
+    if (command === 'human-name-set') {
+      if (rest.length > 0) throw usageError('human-name-set takes no positional arguments.');
+      io.stdout(JSON.stringify(runHumanNameSet(values, io), null, 2));
+      return 0;
+    }
+    if (command === 'channel-human-name-set') {
+      if (rest.length !== 1)
+        throw usageError('channel-human-name-set needs exactly one channel id.');
+      io.stdout(JSON.stringify(runChannelHumanNameSet(rest[0]!, values, io), null, 2));
       return 0;
     }
     if (command !== 'create') throw usageError('Unknown command.');
