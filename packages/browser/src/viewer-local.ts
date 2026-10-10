@@ -10,13 +10,133 @@ export function localViewerUrl(slug: string): string {
   return `${LOCAL_VIEWER_PREFIX}/?slug=${encodeURIComponent(slug)}`;
 }
 
-function viewerPage(): string {
+export type ViewerLocale = 'zh' | 'en';
+
+export interface ViewerStrings {
+  readonly title: string;
+  readonly trackpadOn: string;
+  readonly directTap: string;
+  readonly hintTrackpad: string;
+  readonly hintDirect: string;
+  readonly done: string;
+  readonly failed: string;
+  readonly leftClick: string;
+  readonly rightClick: string;
+  readonly scrollUp: string;
+  readonly scrollDown: string;
+  readonly keyboard: string;
+  readonly takeOver: string;
+  readonly release: string;
+  readonly overlayCta: string;
+  readonly navDirect: string;
+  readonly navTrack: string;
+  readonly missingSlug: string;
+  readonly browserNotRunning: string;
+  readonly frameUnavailable: string;
+  readonly inputUnavailable: string;
+  readonly pauseRequired: string;
+  readonly inputFailed: string;
+  readonly handoffExpired: string;
+  readonly handoffUnavailable: string;
+  readonly handoffDone: string;
+  readonly requesting: string;
+  readonly takingOver: string;
+  readonly releasing: string;
+  readonly statusUnavailable: string;
+  readonly takeoverUnavailable: string;
+  readonly releaseUnavailable: string;
+  readonly handoffInProgress: string;
+}
+
+export const VIEWER_STRINGS: Record<ViewerLocale, ViewerStrings> = {
+  en: {
+    title: 'Bot Browser',
+    trackpadOn: 'Trackpad: on',
+    directTap: 'Direct tap',
+    hintTrackpad: 'Swipe moves the cursor, tap clicks, long-press right-clicks',
+    hintDirect: 'Tap clicks, long-press right-clicks, swipe scrolls, type on your keyboard',
+    done: 'Done',
+    failed: 'Could not finish',
+    leftClick: 'Left Click',
+    rightClick: 'Right Click',
+    scrollUp: '▲ Scroll',
+    scrollDown: '▼ Scroll',
+    keyboard: '⌨ Keyboard',
+    takeOver: 'Take over',
+    release: 'Release',
+    overlayCta: '👆 Tap to take over and operate',
+    navDirect: 'Direct tap',
+    navTrack: 'Trackpad',
+    missingSlug: 'missing slug',
+    browserNotRunning: 'browser not running',
+    frameUnavailable: 'frame unavailable',
+    inputUnavailable: 'input unavailable',
+    pauseRequired: 'Pause the bot in the Browser entry, then act',
+    inputFailed: 'input failed',
+    handoffExpired: 'handoff link expired or already used',
+    handoffUnavailable: 'handoff link unavailable',
+    handoffDone: 'Reported, the bot will verify',
+    requesting: 'requesting takeover…',
+    takingOver: 'taking over…',
+    releasing: 'releasing…',
+    statusUnavailable: 'takeover status unavailable',
+    takeoverUnavailable: 'takeover unavailable',
+    releaseUnavailable: 'release unavailable',
+    handoffInProgress: 'handoff in progress, finishing keeps pause',
+  },
+  zh: {
+    title: 'Bot 浏览器',
+    trackpadOn: '触控板：开',
+    directTap: '直接点按',
+    hintTrackpad: '滑动移动光标，轻点点击，长按右键',
+    hintDirect: '点按点击，长按右键，滑动滚动，用键盘直接输入',
+    done: '完成',
+    failed: '无法完成',
+    leftClick: '左键点击',
+    rightClick: '右键点击',
+    scrollUp: '▲ 上滚',
+    scrollDown: '▼ 下滚',
+    keyboard: '⌨ 键盘',
+    takeOver: '接管',
+    release: '取消接管',
+    overlayCta: '👆 点击接管，直接操作',
+    navDirect: '直接点按',
+    navTrack: '触控板',
+    missingSlug: '缺少 slug',
+    browserNotRunning: '浏览器未运行',
+    frameUnavailable: '画面不可用',
+    inputUnavailable: '输入不可用',
+    pauseRequired: '先接管再操作',
+    inputFailed: '输入失败',
+    handoffExpired: '接管链接已过期或已使用',
+    handoffUnavailable: '接管链接不可用',
+    handoffDone: '已提交，Bot 会校验',
+    requesting: '正在请求接管…',
+    takingOver: '正在接管…',
+    releasing: '正在释放…',
+    statusUnavailable: '接管状态不可用',
+    takeoverUnavailable: '接管不可用',
+    releaseUnavailable: '释放不可用',
+    handoffInProgress: '交接进行中，保持暂停',
+  },
+};
+
+export function viewerLocaleOf(
+  headers: Record<string, string | string[] | undefined>,
+): ViewerLocale {
+  const raw = headers['accept-language'];
+  const first = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
+  return first.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+function viewerPage(locale: ViewerLocale): string {
+  const T = VIEWER_STRINGS[locale];
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bot Browser</title>
+<title>${T.title}</title>
 <style>
 html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-family:system-ui,-apple-system,sans-serif}
 #wrap{max-width:1280px;margin:0 auto;padding:8px;box-sizing:border-box}
@@ -28,12 +148,18 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 #stage{position:sticky;top:0;z-index:1;background:#101014;padding-top:4px;touch-action:none}
 #videoCanvas{width:100%;height:auto;display:block;background:#000;border-radius:8px;min-height:120px;touch-action:none}
 #cursor{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000;pointer-events:none;display:none}
+#takePill{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:none;border:1px solid #6af;border-radius:20px;background:rgba(20,30,50,.92);color:#fff;font-size:14px;padding:10px 18px;cursor:pointer;touch-action:manipulation;white-space:nowrap;max-width:92%}
+#takePill:active{background:#2a3f5f}
 #padRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 2px}
 .padBtn{min-height:68px;border:1px solid #555;border-radius:18px;background:#222;color:#fff;font-size:17px;cursor:pointer;touch-action:manipulation}
 .padBtn:active{background:#3a3a42;border-color:#888;transform:scale(0.97)}
 .padBtn.armed{background:#356;border-color:#6af;color:#fff}
 .padBtn.wide{grid-column:1/-1}
 #kbdRow{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;padding:8px 2px;background:#101014}
+#footNav{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 2px 10px}
+.footBtn{min-height:56px;border:1px solid #555;border-radius:16px;background:#1c1c22;color:#fff;font-size:15px;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:8px}
+.footBtn:active{background:#3a3a42}
+.footBtn.active{border-color:#6af;background:#233246}
 #modRow{display:flex;gap:8px}
 .modBtn{flex:1;border:1px solid #555;border-radius:14px;background:#222;color:#fff;font-size:15px;padding:8px 4px;cursor:pointer;touch-action:manipulation}
 .modBtn:active{background:#3a3a42;border-color:#888}
@@ -51,8 +177,9 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
 </style>
 </head>
 <body>
-<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">Done</button><button class="keyBtn" id="failBtn" type="button">Could not finish</button></div></div><div id="toolbar"><button id="modeBtn" type="button">Trackpad</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div></div><div id="padRow"><button class="padBtn" id="padLeft" type="button">Left Click</button><button class="padBtn" id="padRight" type="button">Right Click</button><button class="padBtn" id="padUp" type="button">▲ Scroll</button><button class="padBtn" id="padDown" type="button">▼ Scroll</button><button class="padBtn wide" id="padKbd" type="button">⌨ Keyboard</button><button class="padBtn wide" id="padTakeover" type="button">Take over</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button></div></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1" enterkeyhint="go"><div id="status"></div></div>
+<div id="wrap"><div id="handoff"><div id="handoffText"></div><div id="handoffBtns"><button class="keyBtn" id="doneBtn" type="button">${T.done}</button><button class="keyBtn" id="failBtn" type="button">${T.failed}</button></div></div><div id="toolbar"><button id="modeBtn" type="button">${T.trackpadOn}</button><span id="hint"></span></div><div id="stage"><canvas id="videoCanvas"></canvas><div id="cursor"></div><button id="takePill" type="button"><span id="takePillText"></span></button></div><div id="padRow"><button class="padBtn" id="padLeft" type="button">${T.leftClick}</button><button class="padBtn" id="padRight" type="button">${T.rightClick}</button><button class="padBtn" id="padUp" type="button">${T.scrollUp}</button><button class="padBtn" id="padDown" type="button">${T.scrollDown}</button><button class="padBtn wide" id="padKbd" type="button">${T.keyboard}</button><button class="padBtn wide" id="padTakeover" type="button">${T.takeOver}</button></div><div id="kbdRow"><div id="modRow"><button class="modBtn" id="modMeta" type="button">⌘</button><button class="modBtn" id="modCtrl" type="button">⌃</button><button class="modBtn" id="modAlt" type="button">⌥</button><button class="modBtn" id="modShift" type="button">⇧</button><button class="keyBtn" id="enterBtn" type="button">⏎</button><button class="keyBtn" id="backBtn" type="button">⌫</button></div></div><div id="footNav"><button class="footBtn" id="navDirect" type="button"><span>🖱️</span><span>${T.navDirect}</span></button><button class="footBtn" id="navTrack" type="button"><span>👆</span><span>${T.navTrack}</span></button></div><input id="ghost" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" tabindex="-1" enterkeyhint="go"><div id="status"></div></div>
 <script>
+const T = ${JSON.stringify(VIEWER_STRINGS[locale]).replace(/</g, '\\u003c')};
 (() => {
   const params = new URLSearchParams(location.search);
   const slug = params.get('slug') ?? '';
@@ -68,6 +195,11 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   const padDown = document.getElementById('padDown');
   const padKbd = document.getElementById('padKbd');
   const padTakeover = document.getElementById('padTakeover');
+  const takePill = document.getElementById('takePill');
+  const takePillText = document.getElementById('takePillText');
+  const navDirect = document.getElementById('navDirect');
+  const navTrack = document.getElementById('navTrack');
+  const footNav = document.getElementById('footNav');
   const ghost = document.getElementById('ghost');
   const ghostField = ghost instanceof HTMLInputElement ? ghost : null;
   const enterBtn = document.getElementById('enterBtn');
@@ -100,7 +232,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token: handoffToken, reason }),
       });
-      say(response.ok ? 'Reported, the bot will verify' : 'handoff link expired or already used');
+      say(response.ok ? T.handoffDone : T.handoffExpired);
       if (handoffBox) handoffBox.style.display = 'none';
     } catch {
       say('handoff completion unavailable');
@@ -115,14 +247,14 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         body: JSON.stringify({ token: handoffToken }),
       });
       if (!accepted.ok) {
-        say('handoff link expired or already used');
+        say(T.handoffExpired);
         return;
       }
       const details = await (await fetch('handoff?token=' + encodeURIComponent(handoffToken), { cache: 'no-store' })).json();
       if (handoffBox) handoffBox.style.display = 'block';
       if (handoffText) handoffText.textContent = typeof details.instructions === 'string' ? details.instructions : '';
     } catch {
-      say('handoff link unavailable');
+      say(T.handoffUnavailable);
     }
   }
   if (doneBtn) doneBtn.addEventListener('click', () => void finishHandoff('done'));
@@ -153,7 +285,18 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     const bare = mode === 'direct' && finePointer;
     if (padRow) padRow.style.display = bare ? 'none' : '';
     if (kbdRow) kbdRow.style.display = bare ? 'none' : '';
+    if (footNav) footNav.style.display = bare ? 'none' : '';
     return bare;
+  }
+  let takenState = false;
+  function paintOverlay() {
+    const bare = mode === 'direct' && finePointer;
+    if (takePill) takePill.style.display = takenState || bare ? 'none' : '';
+  }
+  function setMode(next) {
+    if (mode === next) return;
+    mode = next;
+    paint();
   }
   let cx = 0;
   let cy = 0;
@@ -165,10 +308,13 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
     if (status) status.textContent = text;
   }
   function paint() {
-    if (modeBtn) modeBtn.textContent = mode === 'trackpad' ? 'Trackpad: on' : 'Direct tap';
-    if (hint) hint.textContent = mode === 'trackpad' ? 'Swipe moves the cursor, tap clicks, long-press right-clicks' : 'Tap clicks, long-press right-clicks, swipe scrolls, type on your keyboard';
+    if (modeBtn) modeBtn.textContent = mode === 'trackpad' ? T.trackpadOn : T.directTap;
+    if (hint) hint.textContent = mode === 'trackpad' ? T.hintTrackpad : T.hintDirect;
     if (cursor) cursor.style.display = mode === 'trackpad' ? 'block' : 'none';
+    if (navDirect) navDirect.classList.toggle('active', mode === 'direct');
+    if (navTrack) navTrack.classList.toggle('active', mode === 'trackpad');
     layoutRows();
+    paintOverlay();
     place();
   }
   function place() {
@@ -209,33 +355,33 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
         body: JSON.stringify(Object.assign({ slug }, body)),
       });
       if (response.status === 409) {
-        say('Pause the bot in the Browser entry, then act');
+        say(T.pauseRequired);
         return;
       }
       if (!response.ok) {
         try {
           const reason = await response.text();
-          say(reason === '' ? 'input failed (' + response.status + ')' : reason.slice(0, 160));
+          say(reason === '' ? T.inputFailed + ' (' + response.status + ')' : reason.slice(0, 160));
         } catch {
-          say('input failed (' + response.status + ')');
+          say(T.inputFailed + ' (' + response.status + ')');
         }
         return;
       }
       say('');
       void poll();
     } catch {
-      say('input unavailable');
+      say(T.inputUnavailable);
     }
   }
   async function poll() {
     if (slug === '') {
-      say('missing slug');
+      say(T.missingSlug);
       return;
     }
     try {
       const response = await fetch('frame?slug=' + encodeURIComponent(slug) + '&t=' + Date.now(), { cache: 'no-store' });
       if (!response.ok) {
-        say(response.status === 404 ? 'browser not running' : 'frame unavailable (' + response.status + ')');
+        say(response.status === 404 ? T.browserNotRunning : T.frameUnavailable + ' (' + response.status + ')');
         return;
       }
       const blob = await response.blob();
@@ -255,13 +401,14 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       }
       place();
     } catch {
-      say('frame unavailable');
+      say(T.frameUnavailable);
     }
   }
   if (modeBtn) modeBtn.addEventListener('click', () => {
-    mode = mode === 'trackpad' ? 'direct' : 'trackpad';
-    paint();
+    setMode(mode === 'trackpad' ? 'direct' : 'trackpad');
   });
+  if (navDirect) navDirect.addEventListener('click', () => setMode('direct'));
+  if (navTrack) navTrack.addEventListener('click', () => setMode('trackpad'));
   function padClick(point) {
     if (point !== null) void send({ kind: 'click', x: point.x, y: point.y });
   }
@@ -273,9 +420,12 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
   if (padUp) padUp.addEventListener('click', () => void send({ kind: 'scroll', direction: 'up', amount: 600 }));
   if (padDown) padDown.addEventListener('click', () => void send({ kind: 'scroll', direction: 'down', amount: 600 }));
   function paintTakeover(active) {
-    if (!padTakeover) return;
-    padTakeover.textContent = active ? 'Release' : 'Take over';
-    padTakeover.classList.toggle('armed', active);
+    takenState = active;
+    if (padTakeover) {
+      padTakeover.textContent = active ? T.release : T.takeOver;
+      padTakeover.classList.toggle('armed', active);
+    }
+    paintOverlay();
   }
   if (typeof window !== 'undefined' && window.parent !== window) {
     window.addEventListener('message', (event) => {
@@ -286,14 +436,7 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
       }
     });
   }
-  if (padTakeover) padTakeover.addEventListener('click', () => {
-    if (window.parent !== window) {
-      window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
-    }
-    padTakeover.classList.add('armed');
-    void (async () => {
-      say('requesting takeover…');
-      const readTakeover = async () => {
+  const readTakeover = async () => {
         try {
           const response = await fetch('/api/browser/observation?slug=' + encodeURIComponent(slug), {
             cache: 'no-store',
@@ -321,50 +464,85 @@ html,body{margin:0;padding:0;height:100%;background:#101014;color:#fff;font-fami
           return false;
         }
       };
-      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      const before = await readTakeover();
-      if (before === undefined) {
-        say('takeover status unavailable');
-        if (padTakeover) padTakeover.classList.remove('armed');
-        return;
-      }
-      if (!before.taken) {
-        await sleep(1500);
-        const current = await readTakeover();
-        if (current === undefined || current.taken) {
-          if (current !== undefined) paintTakeover(true);
-          say('');
-          return;
-        }
-        say('taking over…');
-        if (await flipTakeover(true)) {
-          paintTakeover(true);
-          say('');
-        } else {
-          say('takeover unavailable');
-          if (padTakeover) padTakeover.classList.remove('armed');
-        }
-        return;
-      }
-      if (before.pending) {
-        say('handoff in progress, finishing keeps pause');
-        return;
-      }
-      await sleep(1500);
-      const current = await readTakeover();
-      if (current === undefined || !current.taken) {
-        if (current !== undefined) paintTakeover(false);
-        return;
-      }
-      say('releasing…');
-      if (await flipTakeover(false)) {
-        paintTakeover(false);
-        say('');
-      } else {
-        say('release unavailable');
-        if (padTakeover) padTakeover.classList.remove('armed');
-      }
-    })();
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  async function engageTakeover() {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
+    }
+    if (padTakeover) padTakeover.classList.add('armed');
+    say(T.requesting);
+    const before = await readTakeover();
+    if (before === undefined) {
+      say(T.statusUnavailable);
+      if (padTakeover) padTakeover.classList.remove('armed');
+      return;
+    }
+    if (before.taken) {
+      paintTakeover(true);
+      say('');
+      return;
+    }
+    await sleep(1500);
+    const current = await readTakeover();
+    if (current === undefined || current.taken) {
+      if (current !== undefined) paintTakeover(true);
+      say('');
+      return;
+    }
+    say(T.takingOver);
+    if (await flipTakeover(true)) {
+      paintTakeover(true);
+      say('');
+    } else {
+      say(T.takeoverUnavailable);
+      if (padTakeover) padTakeover.classList.remove('armed');
+    }
+  }
+  async function releaseTakeover() {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'bh-takeover-toggle' }, window.location.origin);
+    }
+    if (padTakeover) padTakeover.classList.add('armed');
+    say(T.requesting);
+    const before = await readTakeover();
+    if (before === undefined) {
+      say(T.statusUnavailable);
+      if (padTakeover) padTakeover.classList.remove('armed');
+      return;
+    }
+    if (!before.taken) {
+      paintTakeover(false);
+      say('');
+      return;
+    }
+    if (before.pending) {
+      say(T.handoffInProgress);
+      if (padTakeover) padTakeover.classList.remove('armed');
+      return;
+    }
+    await sleep(1500);
+    const current = await readTakeover();
+    if (current === undefined || !current.taken) {
+      if (current !== undefined) paintTakeover(false);
+      say('');
+      return;
+    }
+    say(T.releasing);
+    if (await flipTakeover(false)) {
+      paintTakeover(false);
+      say('');
+    } else {
+      say(T.releaseUnavailable);
+      if (padTakeover) padTakeover.classList.remove('armed');
+    }
+  }
+  if (padTakeover) padTakeover.addEventListener('click', () => {
+    if (takenState) void releaseTakeover();
+    else void engageTakeover();
+  });
+  if (takePillText) takePillText.textContent = T.overlayCta;
+  if (takePill) takePill.addEventListener('click', () => {
+    void engageTakeover();
   });
   void (async () => {
     try {
@@ -965,7 +1143,7 @@ export function registerLocalViewer(options: {
         response.end(body);
         return;
       }
-      const page = viewerPage();
+      const page = viewerPage(viewerLocaleOf(request.headers));
       response.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
         'content-length': String(Buffer.byteLength(page)),

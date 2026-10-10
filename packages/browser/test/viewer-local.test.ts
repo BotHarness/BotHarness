@@ -120,6 +120,10 @@ describe('local browser viewer stream', () => {
     expect(page).toContain('id="padUp"');
     expect(page).toContain('id="padDown"');
     expect(page).toContain('id="padKbd"');
+    expect(page).toContain('id="takePill"');
+    expect(page).toContain('id="footNav"');
+    expect(page).toContain('id="navDirect"');
+    expect(page).toContain('id="navTrack"');
     expect(page).toContain('touch-action:none');
     expect(page).toContain('.padBtn:active');
     expect(page).toContain('rippleAnim');
@@ -129,11 +133,26 @@ describe('local browser viewer stream', () => {
     expect(page).not.toContain('sendBtn');
     expect(page).toContain('/api/browser/observation?slug=');
     expect(page).toContain('/api/browser/takeover');
-    expect(page).toContain('handoff in progress');
-    expect(page).toContain('requesting takeover');
+    expect(page).toContain('finishing keeps pause');
     expect(page).toContain('requesting takeover');
     f.dispose();
     expect(f.release).toHaveBeenCalledOnce();
+  });
+
+  it('localizes the viewer page to Chinese', async () => {
+    const f = fixture();
+    const response = await f.call(`${LOCAL_VIEWER_PREFIX}/?slug=qa`, 'GET', {
+      'accept-language': 'zh-CN,zh;q=0.9',
+    });
+    expect(response.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'content-type': 'text/html; charset=utf-8' }),
+    );
+    const page = String(response.end.mock.calls[0]?.[0] ?? '');
+    expect(page).toContain('接管');
+    expect(page).toContain('直接点按');
+    expect(page).toContain('点击接管');
+    f.dispose();
   });
 
   it('streams the latest screenshot frame while running', async () => {
