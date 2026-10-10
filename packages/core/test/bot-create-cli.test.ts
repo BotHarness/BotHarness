@@ -1045,6 +1045,7 @@ describe('deepseekbot secrets', () => {
         'records:',
         '  owner/id:',
         '    kind: grant',
+        '    payload: { retained: true }',
       ].join('\n') + '\n',
     );
     if (!process.platform.startsWith('win')) chmodSync(credentialFile(home), 0o600);
